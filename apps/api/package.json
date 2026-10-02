@@ -1,0 +1,51 @@
+{
+  "name": "@sihhat/api",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "tsx watch src/main.ts",
+    "worker": "tsx src/worker.ts",
+    "build": "prisma generate && tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "start": "node dist/src/main.js",
+    "start:worker": "node dist/src/worker.js",
+    "db:generate": "prisma generate",
+    "db:migrate": "prisma migrate deploy",
+    "db:migrations:verify": "tsx scripts/migration-check.ts",
+    "db:init-sql": "prisma migrate diff --from-empty --to-schema prisma/schema.prisma --script --output prisma/migrations/202610010001_initial/migration.sql",
+    "db:repair": "tsx scripts/repair-migration.ts",
+    "db:seed": "tsx prisma/seed.ts",
+    "bootstrap": "tsx scripts/bootstrap.ts",
+    "test": "tsx scripts/test-db.ts && tsx --test --test-concurrency=1 test/*.test.ts",
+    "test:contract": "tsx scripts/test-db.ts && tsx --test --test-name-pattern=\"B10: OpenAPI\" test/domain.test.ts",
+    "openapi": "tsx scripts/openapi.ts"
+  },
+  "dependencies": {
+    "@nestjs/common": "^11.1.0",
+    "@nestjs/core": "^11.1.0",
+    "@nestjs/platform-express": "^11.1.0",
+    "@nestjs/swagger": "^11.0.0",
+    "@prisma/adapter-pg": "^7.0.0",
+    "@prisma/client": "^7.0.0",
+    "@aws-sdk/client-s3": "^3.0.0",
+    "@aws-sdk/s3-request-presigner": "^3.0.0",
+    "bullmq": "^5.0.0",
+    "cookie-parser": "^1.4.7",
+    "dotenv": "^17.0.0",
+    "helmet": "^8.0.0",
+    "ioredis": "^5.0.0",
+    "pg": "^8.0.0",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.2",
+    "zod": "^4.0.0"
+  },
+  "devDependencies": {
+    "@types/cookie-parser": "^1.4.0",
+    "@types/express": "^5.0.0",
+    "@types/node": "^24.0.0",
+    "@types/pg": "^8.0.0",
+    "prisma": "^7.0.0",
+    "tsx": "^4.0.0",
+    "typescript": "^5.9.0"
+  }
+}

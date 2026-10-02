@@ -1,0 +1,33 @@
+{
+  "name": "sihhat-uz",
+  "version": "0.1.0",
+  "private": true,
+  "workspaces": ["apps/api", "apps/*-web", "packages/*"],
+  "engines": {"node": ">=24.15.0"},
+  "scripts": {
+    "dev:api": "npm run dev -w @sihhat/api",
+    "dev:worker": "npm run worker -w @sihhat/api",
+    "build:api": "npm run build -w @sihhat/api",
+    "dev:admin": "npm run dev -w @sihhat/superadmin-web",
+    "dev:partner": "npm run dev -w @sihhat/partner-web",
+    "build:web": "npm run build -w @sihhat/superadmin-web && npm run build -w @sihhat/partner-web",
+    "test:web": "playwright test",
+    "backup:verify": "node scripts/backup-restore.mjs",
+    "mobile:signing:init": "node scripts/mobile-signing.mjs",
+    "mobile:check": "node scripts/check-mobile.mjs",
+    "mobile:preview": "node scripts/mobile-preview.mjs",
+    "mobile:release": "node scripts/build-mobile-release.mjs",
+    "mobile:test:recovery": "node scripts/test-mobile-recovery.mjs",
+    "openapi": "npm run openapi -w @sihhat/api",
+    "test": "npm run test -w @sihhat/api",
+    "db:generate": "npm run db:generate -w @sihhat/api",
+    "db:migrate": "npm run db:migrate -w @sihhat/api",
+    "db:seed": "npm run db:seed -w @sihhat/api",
+    "db:local": "node scripts/local-postgres.mjs start",
+    "db:stop": "node scripts/local-postgres.mjs stop",
+    "check": "npm run typecheck --workspaces --if-present",
+    "check:secrets": "node scripts/check-source-secrets.mjs"
+  },
+  "devDependencies": {"codex": "^0.2.3", "@playwright/test":"^1.56.0", "prettier":"^3.6.0"},
+  "overrides": {"js-yaml":"5.4.2", "deepmerge-ts":"8.0.2", "mysql2":"3.24.5"}
+}

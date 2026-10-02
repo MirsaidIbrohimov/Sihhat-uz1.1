@@ -1,0 +1,24 @@
+import { Client,testPassword } from './helpers';
+import type { AuthService } from '../src/auth/auth.service';
+let phone=930000000;
+export async function customer(base:string,auth:AuthService){const c=new Client(base);const requested=await c.call('/auth/customer/otp/request','POST',{phone:`+998${++phone}`});if(requested.status!==201)throw new Error(JSON.stringify(requested.body));const result=await c.call('/auth/customer/otp/verify','POST',{challenge_id:requested.body.challenge_id,code:auth.sms.sent.get(requested.body.challenge_id)});if(result.status!==201)throw new Error(JSON.stringify(result.body));c.token=result.body.access_token;return c;}
+export const pixel='iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+j8XcAAAAASUVORK5CYII=';
+export const fixtureProfile={name:'Sinov sanatoriyasi',description:'Faqat mahalliy integratsion sinov uchun sanatoriya tavsifi.',legal_name:'Sinov MChJ',stir:'123456789',region:'Toshkent',address:'Sinov ko‘chasi 10',latitude:41.3,longitude:69.2,contact_phone:'+998991234567',check_in_time:'14:00',check_out_time:'12:00',amenities:['Wi-Fi','Basseyn'],services:['Yashash'],meals:'Uch mahal',child_rules:'0–17 yosh',medical_requirements:'Mutaxassis bilan aniqlanadi',directions:'Sinov manzili',required_documents:'Shaxsni tasdiqlovchi hujjat',terms_accepted:true};
+export async function sanatorium(admin:Client,rooms=1){
+  const create=await admin.call('/superadmin/sanatoriums','POST',{name:'Sinov sanatoriyasi'});if(create.status!==201)throw new Error(JSON.stringify(create.body));const s=create.body;
+  const policy=(await admin.call('/superadmin/refund-policies','POST',{name:'Kelishdan oldin to‘liq refund',kind:'FULL_BEFORE_CUTOFF',cutoff_hours:0})).body;
+  const type=(await admin.call('/partner/room-types','POST',{sanatorium_id:s.id,name:'Standart',max_guests:4,max_adults:2,max_children:2})).body;
+  const roomIds:string[]=[];for(let n=0;n<rooms;n++){const r=await admin.call('/partner/rooms','POST',{sanatorium_id:s.id,room_type_id:type.id,code:`${n+1}`});if(r.status!==201)throw new Error(JSON.stringify(r.body));roomIds.push(r.body.id);}
+  const rate=(await admin.call('/partner/rate-plans','POST',{sanatorium_id:s.id,room_type_id:type.id,name:'Xona tarifi',mode:'ROOM',base_amount:'10000',policy_id:policy.id})).body;
+  const photo=(await admin.call('/partner/media','POST',{sanatorium_id:s.id,revision_id:s.revision.id,visibility:'PUBLIC',mime:'image/png',base64:pixel})).body;
+  const document=(await admin.call('/partner/media','POST',{sanatorium_id:s.id,revision_id:s.revision.id,visibility:'PRIVATE',mime:'application/pdf',base64:Buffer.from('%PDF-1.4\n% local fixture\n%%EOF').toString('base64')})).body;
+  const saved=await admin.call(`/partner/sanatorium-revisions/${s.revision.id}`,'PATCH',{version:1,data:{...fixtureProfile,photo_ids:[photo.id],document_ids:[document.id]}});if(saved.status!==200)throw new Error(JSON.stringify(saved.body));
+  const submitted=await admin.call(`/partner/sanatorium-revisions/${s.revision.id}/submit`,'POST',{version:saved.body.version});if(submitted.status!==201)throw new Error(JSON.stringify(submitted.body));
+  const approved=await admin.call(`/superadmin/moderation/${s.revision.id}/approve`,'POST',{version:submitted.body.version});if(approved.status!==201)throw new Error(JSON.stringify(approved.body));
+  const config=await admin.call(`/superadmin/sanatoriums/${s.id}/config`,'PATCH',{version:2,payment_ready:true});if(config.status!==200)throw new Error(JSON.stringify(config.body));
+  const bank=(await admin.call(`/partner/sanatoriums/${s.id}/bank-revisions`,'POST',{legal_name:'Sinov MChJ',account:'20208000900000000001',mfo:'01234',stir:'123456789'})).body;await admin.call(`/superadmin/bank-revisions/${bank.id}/approve`,'POST',{});
+  return {...s,type,rate,policy,photo,document,roomIds};
+}
+export async function quote(c:Client,s:any,checkIn:string,checkOut:string,count=1){const res=await c.call('/customer/quotes','POST',{sanatorium_id:s.id,check_in:checkIn,check_out:checkOut,items:Array.from({length:count},()=>({room_type_id:s.type.id,rate_plan_id:s.rate.id,adults:1,children_ages:[]}))});if(res.status!==201)throw new Error(JSON.stringify(res.body));return res.body;}
+export async function hold(c:Client,q:any){return c.call('/customer/bookings/hold','POST',{quote_id:q.id,accepted_policy_versions:q.data.policies.map((p:any)=>p.id),guest:{name:'Sinov mijoz',phone:'+998901234567'}},c.key());}
+export async function pay(c:Client,bookingId:string){const checkout=await c.call(`/customer/bookings/${bookingId}/checkout`,'POST',{},c.key());if(checkout.status!==201)throw new Error(JSON.stringify(checkout.body));const result=await c.call(`/payments/${checkout.body.order_id}/local-confirm`,'POST',{},c.key());if(result.status!==201)throw new Error(JSON.stringify(result.body));return checkout.body.order_id;}

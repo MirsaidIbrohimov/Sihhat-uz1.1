@@ -1,0 +1,36 @@
+import { execFileSync } from 'node:child_process';
+import { existsSync, readFileSync, mkdirSync, writeFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+import { parse } from 'dotenv';
+
+const root = resolve(import.meta.dirname, '..');
+const files = [...new Set(execFileSync('git', ['ls-files', '--cached', '--others', '--exclude-standard', '-z'], { cwd: root, encoding: 'utf8' }).split('\0').filter(Boolean))];
+const values = new Set();
+for (const source of ['.local/secrets/providers.env', 'apps/api/.env', 'apps/mobile/android/key.properties']) {
+  const path = resolve(root, source);
+  if (!existsSync(path)) continue;
+  for (const [name, value] of Object.entries(parse(readFileSync(path, 'utf8')))) {
+    if (/(?:KEY|TOKEN|SECRET|PASSWORD|EMAIL)$/i.test(name) && value.length >= 12 && !value.startsWith('replace-')) values.add(value);
+  }
+}
+const patterns = [...values].flatMap(value => [Buffer.from(value), Buffer.from(value, 'utf16le'), Buffer.from(Buffer.from(value).toString('base64'))]);
+const matches = [];
+for (const path of files) {
+  const normalized = path.replaceAll('\\', '/');
+  const basename = normalized.split('/').at(-1);
+  if (/(^|\/)(?:\.local|node_modules|\.next|\.gradle|\.dart_tool|build|dist)(\/|$)/.test(normalized)
+      || (/^\.env(?:\.|$)/.test(basename) && !['.env.example', '.env.test.example'].includes(basename))
+      || basename === 'key.properties' || /\.(?:jks|keystore|p12|apk|aab|tsbuildinfo)$/i.test(basename)) {
+    matches.push({ path, issue: 'private_or_generated_file' });
+    continue;
+  }
+  const data = readFileSync(resolve(root, path));
+  if (patterns.some(pattern => data.includes(pattern))) matches.push({ path, issue: 'private_value' });
+  if (/-----BEGIN (?:RSA |EC |OPENSSH |ENCRYPTED )?PRIVATE KEY-----/.test(data.toString('utf8'))) matches.push({ path, issue: 'private_key' });
+}
+const report = { checked_at: new Date().toISOString(), files_checked: files.length, private_values_checked: values.size, matches };
+mkdirSync(resolve(root, '.local'), { recursive: true });
+writeFileSync(resolve(root, '.local/source-secrets.json'), JSON.stringify(report, null, 2));
+// Never print a matched credential, even on failure.
+console.log(JSON.stringify(report));
+if (matches.length) process.exitCode = 1;

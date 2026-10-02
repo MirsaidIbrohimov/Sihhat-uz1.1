@@ -1,0 +1,6 @@
+# Nusxasini key.properties deb saqlang; haqiqiy fayl Gitga kiritilmaydi.
+# Windows yo'lida / yoki ikkita backslash ishlating.
+storeFile=C:/private/sihhat-release.jks
+storePassword=replace-locally
+keyAlias=sihhat-release
+keyPassword=replace-locally

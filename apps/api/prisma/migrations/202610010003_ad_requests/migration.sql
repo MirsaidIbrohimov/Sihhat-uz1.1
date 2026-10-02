@@ -1,0 +1,1 @@
+ALTER TABLE "AdCampaign" ALTER COLUMN "invoiceId" DROP NOT NULL;

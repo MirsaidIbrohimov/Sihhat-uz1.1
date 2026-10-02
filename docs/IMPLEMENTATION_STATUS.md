@@ -1,0 +1,123 @@
+# Sihhat uz — amalga oshirish holati
+
+Yangilangan: 2026-10-02. Asos: ISHLAB_CHIQISH_REJASI.md va SIHHAT_UZ_ARXITEKTURA.md.
+
+| Bosqich | Holat | Dalil |
+| --- | --- | --- |
+| B0 — poydevor | Lokal tekshiruv o‘tdi | NestJS, PostgreSQL 18.6, oltita migratsiya, health API; migratsiyalar lokal va test bazada qo‘llandi |
+| B1 — hisoblar va ruxsatlar | Lokal tekshiruv o‘tdi | MFA, OTP, tenant, bloklash va CSRF testlari; telefon almashtirish qo‘shildi |
+| B2–B8 — backend domenlari | Asosiy lokal oqimlar amalga oshirildi va tekshirildi | Anketa, moderatsiya, xona/narx/bron, Payme protokoli, ledger, refund/payout, billing va aloqa APIlari |
+| B9 — katalog, hisobot va AI | Katalog/hisobot, FAQ va Gemini adapteri mavjud | Haqiqiy Gemini javobi tekshirildi; rozilik, shaxsiy ma’lumot niqobi, kunlik limit, token sarfi va fallback bor |
+| B10 — backend qabul | Lokal qabul to‘plami o‘tdi; tashqi tekshiruv cheklovlari quyida | PostgreSQLda 32/32 test; yangilangan OpenAPI va runbook; avvalgi clean migration va backup/restore dalillari quyida |
+| F1/F2 — saytlar | Asosiy APIga ulangan sahifalar va brauzer qabul sinovlari o‘tdi | Ikkala Next.js buildi, TypeScript va 5/5 Playwright test |
+| F3 — Android | Axborotli bosh sahifa, yangilik/tavsiyalar va debug preview tayyor; avvalgi bron/tiklanish sinovlari o‘tdi | Flutter analyze; 17/17 test; Samsungga yangi preview o‘rnatildi. Avvalgi OS va release imzo dalillari quyida; HTTPS API hali belgilanmagan |
+| R1 — real pilot | Gemini va Eskiz rekvizitlari olindi; pilot to‘liq emas | Gemini ulandi, Eskiz standart SMSi yetib keldi. Haqiqiy OTP hisobi/matni, HTTPS, Payme, push va real sanatoriya piloti qolgan |
+
+## 2026-10-01 tekshiruv dalillari
+
+| Tekshiruv | Natija |
+| --- | --- |
+| `npm run build:api` | O‘tdi |
+| `npm run check` — barcha npm workspacelar | O‘tdi |
+| `npm test` — haqiqiy PostgreSQL, faqat `sihhat_test` | 26/26 pass, 0 fail |
+| `npm run openapi` | 131 operation, 27 named schema; `docs/openapi.json` yangilandi |
+| `npm run test:contract -w @sihhat/api` — oxirgi OpenAPI parametr tuzatishi | 1/1 pass; URL parametrlarining mavjudligi va header deduplikatsiyasi |
+| `npm run db:migrations:verify -w @sihhat/api` | Toza scratch DBda 5 migratsiya, exclusion va 4 ledger guard |
+| `npm run backup:verify` | Alohida restore DBda 51 jadval, schema va satr sonlari mos |
+| `npm run build:web` | Superadmin va partner buildlari o‘tdi |
+| `npm run test:web` | 5/5 pass; `.local/playwright-report/index.html` |
+| `flutter analyze --no-pub` | Muammo topilmadi |
+| `flutter test --no-pub` | 10/10 pass |
+| Android qurilma integration testi | 1/1 pass: OTP → ikki xonali quote/hold → secure storage tiklash → lokal payment → `CONFIRMED` |
+| Yangilangan server smoke | `/health/ready` — HTTP 200; saqlangan va ishlayotgan OpenAPI to‘liq mos |
+| Oddiy Android build va o‘rnatish | `lib/main.dart` debug APK buildi o‘tdi; Samsungga qayta o‘rnatish — Success |
+
+1-oktabrdagi Android tiklash sinovi qurilmada API va ilova widget daraxtini qayta yaratadi, token/pending bronni haqiqiy secure storagedan oladi. O‘sha sinov OS force-stopni qamramagan; 2-oktabrdagi OS sinovi quyida. Telefonni to‘liq qayta yuklash hali tekshirilmagan. SMS va to‘lov local adapter/simulator orqali tekshirildi; rasmiy SMS va Payme sandbox sinovi emas.
+
+Oddiy APK: [app-debug.apk](../apps/mobile/build/app/outputs/flutter-apk/app-debug.apk). API manzili `http://127.0.0.1:4000`; USB orqali `adb reverse tcp:4000 tcp:4000` va lokal API talab qilinadi. Bu signed release emas. Test bridge to‘xtatildi. Superadmin `http://localhost:3000`, partner `http://localhost:3001`, API va database worker lokal ko‘rib chiqish uchun ishga tushirildi.
+
+Migration dalili: `sihhat_migration_check_1790874575939_ff5a5a96`. DB backup: `.local/backups/sihhat-2026-10-01T17-04-25-508Z.dump`; bu arxiv media fayllarini qamramaydi. Ishga tushirish, migration, worker, zaxira va provider setup buyruqlari [README](../README.md) va [runbook](RUNBOOK.md)da.
+
+## 2026-10-02 Android tekshiruv dalillari
+
+| Tekshiruv | Natija |
+| --- | --- |
+| Flutter analyzer | Muammo topilmadi |
+| Android unit/widget testlar | 13/13 pass; cold startda eskirgan tokenni yangilash, pending/tasdiqlangan bronni tiklash va bekor qilingan sessiyani tozalash qo‘shildi |
+| `npm run mobile:test:recovery -- RF8Y1091K8D` | O‘tdi; Samsung SM-A165F, Android 16; uch bosqich bitta APKning uch alohida Android jarayonida |
+| Birinchi OS force-stop | PID `17948` to‘xtadi; yangi PID `18343`; sessiya va ikki xonali `PAYMENT_PENDING` bron haqiqiy secure storagedan tiklandi |
+| Android payment return | `sihhat://payment-return?status=success` Android orqali ochildi; server `PENDING` holatini tasdiqlangan deb ko‘rsatmadi |
+| Lokal provider tasdig‘i | `CONFIRMED` / `SUCCEEDED`; pending marker tozalandi |
+| Ikkinchi OS force-stop | PID `18343` to‘xtadi; yangi PID `18598`; sessiya tiklandi, tasdiqlangan bron ro‘yxatdan ochildi |
+| Oddiy debug APK | `lib/main.dart`, qurilmaning arm64 ABIiga mos build; qayta o‘rnatildi va ochildi; test bridge to‘xtatildi |
+| `npm run mobile:release -- https://api.sihhat.invalid` | O‘tdi; `0.1.0+1`, 55 533 960 bayt, RSA 3072 pilot kaliti bilan imzolandi |
+| Release imzo va manifest | `apksigner verify` o‘tdi, APK Signature Scheme v2; debug va ochiq HTTP o‘chirilgan |
+| Imzolash kalitini takroriy tayyorlash | Mavjud kalit/konfiguratsiya o‘zgartirilmadi |
+| HTTP manzil bilan release skripti | Kutilganidek rad etildi |
+
+OS dalili: [android-recovery.json](../.local/android-recovery.json).
+Release APK: [sihhat-uz-release.apk](../.local/releases/sihhat-uz-release.apk).
+Imzo/manifest dalili: [android-release.json](../.local/releases/android-release.json)
+va [apksigner-verify.txt](../.local/releases/apksigner-verify.txt).
+
+APK SHA-256: `6aa07846167a8b23cc17cf95be74a6b29c6af911903e79018f35010a057f2f84`.
+Sertifikat SHA-256: `1ab7f1679b96328284fce2154378b56fb1b8fcd7736991d6f7578de282f57998`.
+
+Release APK haqiqiy HTTPS API manzili berilmagani uchun vaqtinchalik
+`https://api.sihhat.invalid` bilan yig‘ildi; bu namuna serverga ulanmaydi.
+Haqiqiy manzil berilganda ayni signing kaliti bilan qayta build qilish kerak.
+Qurilma sinovi lokal HTTP APIga ulangan debug APKda bajarildi; release APKning
+haqiqiy HTTPS server, SMS va Payme bilan oqimi hali tekshirilmagan. Telefonni
+to‘liq qayta yuklash sinovi ham qolgan. Kalit/parollar `.local/android-signing`
+va `apps/mobile/android/key.properties`da saqlanadi, hisobotga yozilmaydi.
+
+Releasega o‘tishda Flutter plagin registrantining eski `integration_test`
+yozuvi Java kompilyatsiyasini buzishi tuzatildi: build skriptlari native
+plagin ro‘yxatini yangilaydi, generated Java qo‘lda tahrirlanmaydi. Kalit,
+SDK/kesh, imzo va qayta sinash buyruqlari [mobile README](../apps/mobile/README.md)da.
+
+## Ushbu bosqichda tuzatilganlar
+
+- Qo‘lda bron faqat tariflar yuklanib, faol tarif mavjud bo‘lganda ochiladi. Yuklash xatosida qayta urinish, faol tarif yo‘qligida tushunarli izoh bor.
+- Web bron testi sekin inventar javobini tekshiradi; takroriy ishga tushirishda eski demo bronlarni o‘chirmasdan bo‘sh sana oralig‘ini tanlaydi.
+- Androidda ekran yopilgandan keyingi quote/checkout javoblari `setState` xatosi keltirmaydi; narx hisoblanayotganda bolalar yoshini o‘zgartirish yopildi.
+- Session refresh yangi tokenlar bilan foydalanuvchi profilini qaytaradi. WEB/MOBILE javoblari va eski refresh tokenni qayta ishlatish rad etilishi sinovdan o‘tdi.
+- OpenAPI auth, query va URL parameterlari, bron/to‘lov/sessiya javoblari, CSV/media turlari va OpenAPI 3.0 chegaralari implementatsiya bilan moslashtirildi. Source eksporti va compiled server metadata farqlari bartaraf qilindi; takroriy headerlar olib tashlandi. Ayrim ikkinchi darajali response sxemalari hali generic object.
+
+## 2026-10-02 Gemini, Eskiz va bosh sahifa
+
+- `npm test`: 32/32 pass; `npm run check`, API va ikkala web buildi o‘tdi.
+- `npm run mobile:check -- --format`: analyzer muammosiz, 17/17 test. Public bosh sahifa sekin login tekshiruvini kutmaydi; oflayn kesh, host chegarasi, hudud filtri va yangilikni o‘qish tekshirildi.
+- Yangi Playwright testi: 1/1 pass. Superadmin maqolani qoralama → e’lon → arxivga o‘tkazganda public feed va maqola API mos yangilanadi. Avvalgi 5 test dalillari yuqorida.
+- Gemini native adapteri haqiqiy so‘rovda `connected`, `fallback=false`, 1 katalog kartasi va 2 FAQ qaytardi. Kalit HTTPS headerda; mijozning roziligi, raqam/email niqobi, faqat public katalog, qat’iy JSON, limit va token sarfi bor. Model moliyaviy amalni bajarmaydi. Narxlar backend hisobidan olinadi.
+- Eskiz SMS API login/paroli kabinetning SMS shlyuzidan olinib, maxfiy faylga saqlandi. Autentifikatsiya HTTP 200. Standart test SMSi HTTP 200 `waiting` bilan qabul qilindi va foydalanuvchi yetib kelganini tasdiqladi.
+- Eskiz kabineti test rejimida; API hisob holati `active`, `contract_account=false`, OTP shablonlari bo‘sh. Haqiqiy kirish matni bilan sinov HTTP 400, API orqali matn ro‘yxati so‘rovi `User not found` qaytardi. Kabinet shakli orqali urinish ham saqlangan/tasdiqlangan matn sifatida tekshirilmadi. OTP tayyor deb belgilanmagan: `ESKIZ_OTP_APPROVED=false`, development SMS adapteri lokal.
+- `npm run mobile:preview -- RF8Y1091K8D`: yangi oddiy debug APK yig‘ildi, Samsungga ma’lumotlar saqlangan holda o‘rnatildi; ilova jarayoni ochildi. API `http://127.0.0.1:4000`, USB reverse talab qilinadi.
+- APK ichida 15 maxfiy qiymatning qidiruv namunasi tekshirildi, moslik topilmadi. Preview SHA-256: `c7e74377bae53ec0e2ec843120bf0a3d368b88c2cdd7f161ae3098b035eb9d4d`.
+
+Preview: [sihhat-uz-preview.apk](../.local/releases/sihhat-uz-preview.apk).
+Build dalili: [android-preview.json](../.local/releases/android-preview.json).
+SMS yetib kelish dalili: [eskiz-standard-sms-test.json](../.local/eskiz-standard-sms-test.json).
+Maxfiy provider fayli Windowsda faqat foydalanuvchi va SYSTEM uchun ochilgan; Git/buildga kiritilmaydi.
+
+Kanonik kod repozitoriyasi: https://github.com/MirsaidIbrohimov/Sihhat-uz1.1.
+Bugungi foydalanuvchi ko‘rsatmasi: funksional ishni yakunlash, README va kodlarni shu repozitoriyaga joylash; keyingi kod o‘zgarishlari ham shu yerga yuboriladi.
+
+## Muhit
+
+- Node.js 24.15.0, npm 11.12.1 mavjud.
+- PostgreSQL 18, Android SDK va JDK mavjud; `sihhat`, `sihhat_test` va alohida restore/evidence bazalari ishlatildi.
+- Docker PATHda yo‘q; lokal muhit PostgreSQL + fayl storage + DB worker orqali ishlaydi. Docker Compose Redis/S3 varianti hali ishga tushirilmagan.
+- Flutter 3.47.5 / Dart 3.13.4 `.local/tools/flutter`da. Windowsdagi native hook uchun mavjud bo‘shliqsiz SDK yo‘li mobile yo‘riqnomasida ko‘rsatilgan.
+- Mavjud uchta reja hujjati va rootdagi `codex` dependency saqlangan.
+
+## Ochiq tashqi shartlar
+
+Gemini va Eskiz hisoblari berildi, yuqoridagi ulanishlar tekshirildi. Real sanatoriya, Payme test merchant, bank rekvizitlari, push va haqiqiy HTTPS API hali kerak. Eskiz hisobini haqiqiy yuborishga tayyorlash va OTP matnini tasdiqlatish qolgan. Rasmiy Payme sandboxi, production deploy va haqiqiy pul amallari bajarilmagan. Tariflar va refund/payout qoidalari pilot uchun tasdiqlanishi kerak.
+
+## Qolgan ishlar
+
+1. Android release APKni haqiqiy HTTPS API bilan qayta yig‘ish; rasmiy Payme payment return va telefonni to‘liq qayta yuklashdan tiklanishni tekshirish.
+2. Eskiz hisobini test rejimidan chiqarish va OTP matnini tasdiqlatish; shundan keyin haqiqiy kirish kodi sinovi. OTPdan tashqari SMS bildirishnoma adapteri ham qolgan.
+3. Ayrim ikkinchi darajali OpenAPI javoblarini aniqlashtirish; AI token sarfini pul xarajati/hisobot ko‘rinishiga keltirish; Redis/S3, Payme va push muhitlarini stagingda tekshirish.
+4. Real sanatoriya bilan inventar, bank payout/refund va backup/media tiklash pilotini bajarish.

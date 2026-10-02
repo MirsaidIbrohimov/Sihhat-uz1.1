@@ -1,0 +1,4 @@
+import {defineConfig} from '@playwright/test';
+import {existsSync} from 'node:fs';
+const localBrowser='C:/Users/user/AppData/Local/ms-playwright/chromium-1243/chrome-win64/chrome.exe';
+export default defineConfig({testDir:'./test/web',workers:1,fullyParallel:false,timeout:90000,expect:{timeout:15000},outputDir:'.local/playwright-results',reporter:[['list'],['html',{outputFolder:'.local/playwright-report',open:'never'}]],use:{headless:true,viewport:{width:1440,height:1000},screenshot:'only-on-failure',trace:'retain-on-failure',launchOptions:{...(existsSync(localBrowser)?{executablePath:localBrowser}:{})}},webServer:[{command:'npm run start -w @sihhat/superadmin-web',url:'http://localhost:3000',reuseExistingServer:!process.env.CI},{command:'npm run start -w @sihhat/partner-web',url:'http://localhost:3001',reuseExistingServer:!process.env.CI}]});

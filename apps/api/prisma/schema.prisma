@@ -1,0 +1,635 @@
+generator client {
+  provider = "prisma-client"
+  output = "../src/generated/prisma"
+  moduleFormat = "cjs"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id String @id @default(uuid()) @db.Uuid
+  kind String
+  status String @default("ACTIVE")
+  name String
+  login String? @unique
+  phone String? @unique
+  passwordHash String?
+  mustChangePassword Boolean @default(false)
+  mfaSecret String?
+  mfaLastStep BigInt @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Membership {
+  id String @id @default(uuid()) @db.Uuid
+  userId String @db.Uuid
+  sanatoriumId String @db.Uuid
+  role String
+  status String @default("PENDING_APPROVAL")
+  grants String[] @default([])
+  denies String[] @default([])
+  adminDenies String[] @default([])
+  ceiling String[] @default([])
+  version Int @default(1)
+  invitedBy String @db.Uuid
+  decisionReason String?
+  createdAt DateTime @default(now())
+  @@unique([userId, sanatoriumId])
+  @@index([sanatoriumId, status])
+}
+
+model Session {
+  id String @id @default(uuid()) @db.Uuid
+  userId String @db.Uuid
+  tokenHash String @unique
+  refreshHash String @unique
+  csrfHash String
+  channel String
+  expiresAt DateTime
+  refreshExpiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime @default(now())
+  @@index([userId])
+}
+
+model OtpChallenge {
+  id String @id @default(uuid()) @db.Uuid
+  phone String
+  purpose String @default("LOGIN")
+  actorId String? @db.Uuid
+  codeHash String
+  attempts Int @default(0)
+  expiresAt DateTime
+  consumedAt DateTime?
+  createdAt DateTime @default(now())
+  @@index([phone, createdAt])
+}
+
+model RateLimit {
+  id String @id
+  count Int
+  expiresAt DateTime
+}
+
+model Sanatorium {
+  id String @id @default(uuid()) @db.Uuid
+  name String
+  status String @default("ACTIVE")
+  publicRevisionId String? @unique @db.Uuid
+  pricingVersion Int @default(1)
+  version Int @default(1)
+  bankRevisionId String? @db.Uuid
+  paymentReady Boolean @default(false)
+  subscriptionRequired Boolean @default(false)
+  createdAt DateTime @default(now())
+  @@unique([id, publicRevisionId])
+}
+
+model SanatoriumRevision {
+  id String @id @default(uuid()) @db.Uuid
+  sanatoriumId String @db.Uuid
+  status String @default("DRAFT")
+  version Int @default(1)
+  data Json
+  reason String?
+  submittedAt DateTime?
+  approvedAt DateTime?
+  createdBy String @db.Uuid
+  createdAt DateTime @default(now())
+  @@unique([id, sanatoriumId])
+  @@index([sanatoriumId, status])
+}
+
+model BankRevision {
+  id String @id @default(uuid()) @db.Uuid
+  sanatoriumId String @db.Uuid
+  status String @default("PENDING")
+  data Json
+  approvedBy String? @db.Uuid
+  createdAt DateTime @default(now())
+  @@unique([id, sanatoriumId])
+}
+
+model CatalogEntry {
+  id String @id @default(uuid()) @db.Uuid
+  kind String
+  name String
+  code String
+  @@unique([kind, code])
+}
+
+model MediaAsset {
+  id String @id @default(uuid()) @db.Uuid
+  sanatoriumId String @db.Uuid
+  revisionId String? @db.Uuid
+  key String @unique
+  mime String
+  size Int
+  visibility String
+  uploadedBy String @db.Uuid
+  createdAt DateTime @default(now())
+  @@index([sanatoriumId])
+}
+
+model RoomType {
+  id String @id @default(uuid()) @db.Uuid
+  sanatoriumId String @db.Uuid
+  name String
+  maxGuests Int
+  maxAdults Int
+  maxChildren Int
+  data Json @default("{}")
+  active Boolean @default(true)
+  @@unique([id, sanatoriumId])
+}
+
+model Room {
+  id String @id @default(uuid()) @db.Uuid
+  sanatoriumId String @db.Uuid
+  roomTypeId String @db.Uuid
+  code String
+  active Boolean @default(true)
+  @@unique([id, sanatoriumId])
+  @@unique([sanatoriumId, code])
+  @@index([roomTypeId])
+}
+
+model RatePlan {
+  id String @id @default(uuid()) @db.Uuid
+  sanatoriumId String @db.Uuid
+  roomTypeId String @db.Uuid
+  name String
+  mode String
+  baseAmount BigInt
+  childRules Json @default("[]")
+  minNights Int @default(1)
+  maxNights Int @default(90)
+  packageDetails Json @default("{}")
+  policyId String @db.Uuid
+  active Boolean @default(true)
+  version Int @default(1)
+  @@unique([id, sanatoriumId])
+}
+
+model RefundPolicy {
+  id String @id @default(uuid()) @db.Uuid
+  name String
+  kind String
+  cutoffHours Int @default(0)
+  version Int @default(1)
+  active Boolean @default(true)
+  createdAt DateTime @default(now())
+}
+
+model DailyRate {
+  id String @id @default(uuid()) @db.Uuid
+  sanatoriumId String @db.Uuid
+  ratePlanId String @db.Uuid
+  date DateTime @db.Date
+  amount BigInt
+  closed Boolean @default(false)
+  @@unique([ratePlanId, date])
+}
+
+model Discount {
+  id String @id @default(uuid()) @db.Uuid
+  sanatoriumId String @db.Uuid
+  name String
+  kind String
+  value BigInt
+  maxAmount BigInt?
+  minAmount BigInt @default(0)
+  startsAt DateTime
+  endsAt DateTime
+  active Boolean @default(true)
+  @@index([sanatoriumId])
+}
+
+model Quote {
+  id String @id @default(uuid()) @db.Uuid
+  userId String @db.Uuid
+  sanatoriumId String @db.Uuid
+  bodyHash String
+  pricingVersion Int
+  data Json
+  amount BigInt
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  @@unique([id, sanatoriumId])
+}
+
+model Booking {
+  id String @id @default(uuid()) @db.Uuid
+  reference String @unique
+  userId String? @db.Uuid
+  sanatoriumId String @db.Uuid
+  quoteId String @unique @db.Uuid
+  status String @default("HOLD")
+  source String @default("APP")
+  checkIn DateTime @db.Date
+  checkOut DateTime @db.Date
+  amount BigInt
+  snapshot Json
+  guest Json
+  holdExpiresAt DateTime?
+  providerExpiresAt DateTime?
+  version Int @default(1)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@unique([id, sanatoriumId])
+  @@index([sanatoriumId, status, checkIn])
+  @@index([userId])
+}
+
+model BookingItem {
+  id String @id @default(uuid()) @db.Uuid
+  sanatoriumId String @db.Uuid
+  bookingId String @db.Uuid
+  roomId String @db.Uuid
+  roomTypeId String @db.Uuid
+  ratePlanId String @db.Uuid
+  adults Int
+  childrenAges Int[]
+  amount BigInt
+  @@unique([id, sanatoriumId])
+  @@unique([bookingId, roomId])
+}
+
+model RoomAllocation {
+  id String @id @default(uuid()) @db.Uuid
+  sanatoriumId String @db.Uuid
+  roomId String @db.Uuid
+  bookingId String? @db.Uuid
+  checkIn DateTime @db.Date
+  checkOut DateTime @db.Date
+  kind String
+  active Boolean @default(true)
+  reason String?
+  @@index([roomId, active])
+  @@index([bookingId])
+}
+
+model BookingEvent {
+  id String @id @default(uuid()) @db.Uuid
+  bookingId String @db.Uuid
+  actorId String? @db.Uuid
+  status String
+  reason String?
+  createdAt DateTime @default(now())
+}
+
+model PaymentOrder {
+  id String @id @default(uuid()) @db.Uuid
+  sanatoriumId String @db.Uuid
+  userId String @db.Uuid
+  bookingId String? @unique @db.Uuid
+  invoiceId String? @unique @db.Uuid
+  purpose String
+  amount BigInt
+  status String @default("CREATED")
+  paidAt DateTime?
+  createdAt DateTime @default(now())
+  @@unique([id, sanatoriumId])
+}
+
+model ProviderTransaction {
+  id String @id @default(uuid()) @db.Uuid
+  provider String @default("PAYME")
+  providerId String
+  orderId String @db.Uuid
+  amount BigInt
+  providerTime BigInt
+  state Int @default(1)
+  reason Int?
+  createTime BigInt
+  performTime BigInt @default(0)
+  cancelTime BigInt @default(0)
+  fiscalData Json?
+  @@unique([provider, providerId])
+  @@index([orderId])
+}
+
+model PaymentEvent {
+  id String @id @default(uuid()) @db.Uuid
+  providerId String?
+  method String
+  payloadHash String
+  outcome Json
+  createdAt DateTime @default(now())
+}
+
+model LedgerJournal {
+  id String @id @default(uuid()) @db.Uuid
+  source String @unique
+  sanatoriumId String? @db.Uuid
+  bookingId String? @db.Uuid
+  description String
+  createdAt DateTime @default(now())
+}
+
+model LedgerLine {
+  id String @id @default(uuid()) @db.Uuid
+  journalId String @db.Uuid
+  account String
+  debit BigInt @default(0)
+  credit BigInt @default(0)
+  @@index([journalId])
+  @@index([account])
+}
+
+model RefundRequest {
+  id String @id @default(uuid()) @db.Uuid
+  bookingId String @unique @db.Uuid
+  sanatoriumId String @db.Uuid
+  requestedBy String @db.Uuid
+  amount BigInt
+  status String @default("REQUESTED")
+  reason String
+  decisionReason String?
+  reserveAccount String @default("SANATORIUM_PAYABLE")
+  createdAt DateTime @default(now())
+  completedAt DateTime?
+}
+
+model Payout {
+  id String @id @default(uuid()) @db.Uuid
+  sanatoriumId String @db.Uuid
+  status String @default("DRAFT")
+  amount BigInt
+  bankSnapshot Json
+  bankReference String? @unique
+  evidenceAssetId String? @db.Uuid
+  reason String?
+  createdAt DateTime @default(now())
+  paidAt DateTime?
+  @@unique([id, sanatoriumId])
+}
+
+model PayoutItem {
+  id String @id @default(uuid()) @db.Uuid
+  sanatoriumId String @db.Uuid
+  payoutId String @db.Uuid
+  bookingId String @db.Uuid
+  amount BigInt
+  active Boolean @default(true)
+  @@unique([payoutId, bookingId])
+  @@index([bookingId, active])
+}
+
+model OfflinePayment {
+  id String @id @default(uuid()) @db.Uuid
+  sanatoriumId String @db.Uuid
+  bookingId String @db.Uuid
+  amount BigInt
+  method String
+  evidence String
+  status String @default("UNVERIFIED")
+  recordedBy String @db.Uuid
+  verifiedBy String? @db.Uuid
+  correctionOf String? @db.Uuid
+  createdAt DateTime @default(now())
+}
+
+model ReconciliationImport {
+  id String @id @default(uuid()) @db.Uuid
+  hash String @unique
+  kind String
+  importedBy String @db.Uuid
+  data Json
+  createdAt DateTime @default(now())
+}
+
+model ReconciliationDifference {
+  id String @id @default(uuid()) @db.Uuid
+  importId String @db.Uuid
+  orderId String? @db.Uuid
+  data Json
+  status String @default("OPEN")
+  reason String?
+}
+
+model SubscriptionPlan {
+  id String @id @default(uuid()) @db.Uuid
+  name String
+  amount BigInt
+  periodDays Int
+  graceDays Int @default(0)
+  features String[] @default([])
+  active Boolean @default(true)
+}
+
+model Subscription {
+  id String @id @default(uuid()) @db.Uuid
+  sanatoriumId String @unique @db.Uuid
+  planId String @db.Uuid
+  status String
+  startsAt DateTime
+  endsAt DateTime
+  graceEndsAt DateTime
+}
+
+model Invoice {
+  id String @id @default(uuid()) @db.Uuid
+  sanatoriumId String @db.Uuid
+  purpose String
+  sourceKey String @unique
+  amount BigInt
+  status String @default("UNPAID")
+  startsAt DateTime
+  endsAt DateTime
+  data Json
+  createdAt DateTime @default(now())
+  @@unique([id, sanatoriumId])
+}
+
+model AdCampaign {
+  id String @id @default(uuid()) @db.Uuid
+  sanatoriumId String @db.Uuid
+  invoiceId String? @unique @db.Uuid
+  title String
+  placement String
+  status String @default("PENDING")
+  startsAt DateTime
+  endsAt DateTime
+  amount BigInt
+  data Json
+  reason String?
+}
+
+model AdEvent {
+  id String @id @default(uuid()) @db.Uuid
+  campaignId String @db.Uuid
+  kind String
+  dedupeKey String @unique
+  createdAt DateTime @default(now())
+}
+
+model Message {
+  id String @id @default(uuid()) @db.Uuid
+  senderId String @db.Uuid
+  title String
+  body String
+  kind String
+  assetIds String[] @default([])
+  createdAt DateTime @default(now())
+}
+
+model MessageRecipient {
+  id String @id @default(uuid()) @db.Uuid
+  messageId String @db.Uuid
+  userId String @db.Uuid
+  readAt DateTime?
+  acceptedAt DateTime?
+  @@unique([messageId, userId])
+}
+
+model Task {
+  id String @id @default(uuid()) @db.Uuid
+  sanatoriumId String @db.Uuid
+  assignedBy String @db.Uuid
+  assignedTo String @db.Uuid
+  title String
+  body String
+  status String @default("ASSIGNED")
+  dueAt DateTime
+  reply String?
+  version Int @default(1)
+  createdAt DateTime @default(now())
+}
+
+model Survey {
+  id String @id @default(uuid()) @db.Uuid
+  title String
+  version Int @default(1)
+  questions Json
+  recipientIds String[]
+  createdBy String @db.Uuid
+  createdAt DateTime @default(now())
+}
+
+model SurveyResponse {
+  id String @id @default(uuid()) @db.Uuid
+  surveyId String @db.Uuid
+  userId String @db.Uuid
+  surveyVersion Int
+  answers Json
+  createdAt DateTime @default(now())
+  @@unique([surveyId, userId])
+}
+
+model OutboxEvent {
+  id String @id @default(uuid()) @db.Uuid
+  topic String
+  payload Json
+  attempts Int @default(0)
+  availableAt DateTime @default(now())
+  leaseUntil DateTime?
+  processedAt DateTime?
+  lastError String?
+  createdAt DateTime @default(now())
+  @@index([processedAt, availableAt])
+}
+
+model NotificationDelivery {
+  id String @id @default(uuid()) @db.Uuid
+  eventId String @db.Uuid
+  userId String @db.Uuid
+  channel String
+  status String @default("PENDING")
+  payload Json
+  readAt DateTime?
+  sentAt DateTime?
+  @@unique([eventId, userId, channel])
+}
+
+model Review {
+  id String @id @default(uuid()) @db.Uuid
+  bookingId String @unique @db.Uuid
+  sanatoriumId String @db.Uuid
+  userId String @db.Uuid
+  rating Int
+  text String
+  status String @default("PUBLISHED")
+  reply String?
+  moderationReason String?
+  createdAt DateTime @default(now())
+}
+
+model SupportTicket {
+  id String @id @default(uuid()) @db.Uuid
+  userId String @db.Uuid
+  sanatoriumId String? @db.Uuid
+  bookingId String? @db.Uuid
+  title String
+  status String @default("OPEN")
+  createdAt DateTime @default(now())
+}
+
+model SupportMessage {
+  id String @id @default(uuid()) @db.Uuid
+  ticketId String @db.Uuid
+  userId String @db.Uuid
+  text String
+  createdAt DateTime @default(now())
+}
+
+model Favorite {
+  id String @id @default(uuid()) @db.Uuid
+  userId String @db.Uuid
+  sanatoriumId String @db.Uuid
+  @@unique([userId, sanatoriumId])
+}
+
+model AuditLog {
+  id String @id @default(uuid()) @db.Uuid
+  actorId String? @db.Uuid
+  sanatoriumId String? @db.Uuid
+  action String
+  entityId String
+  before Json?
+  after Json?
+  requestId String?
+  createdAt DateTime @default(now())
+  @@index([sanatoriumId, createdAt])
+}
+
+model PublicArticle {
+  id String @id @default(uuid()) @db.Uuid
+  title String
+  summary String
+  body String
+  kind String @default("NEWS")
+  status String @default("DRAFT")
+  publishedAt DateTime?
+  version Int @default(1)
+  createdBy String @db.Uuid
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([status, publishedAt])
+}
+
+model AiUsage {
+  id String @id @default(uuid()) @db.Uuid
+  userId String @db.Uuid
+  provider String
+  model String
+  outcome String
+  inputTokens Int @default(0)
+  outputTokens Int @default(0)
+  createdAt DateTime @default(now())
+  @@index([createdAt, provider])
+}
+
+model IdempotencyRecord {
+  id String @id @default(uuid()) @db.Uuid
+  userId String @db.Uuid
+  action String
+  key String
+  bodyHash String
+  result Json
+  createdAt DateTime @default(now())
+  @@unique([userId, action, key])
+}
