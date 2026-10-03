@@ -127,3 +127,23 @@ test('Eskiz: real OTP is blocked until account and template are approved', async
   await assert.rejects(() => sms.send('one', '+998901234567', '123456', new Date(Date.now() + 60000)), (error: any) => error.code === 'SMS_NOT_READY' && error.getStatus() === 503);
   assert.equal(sms.sent.size, 0);
 });
+
+test('AI usage: admin-only totals use Tashkent dates; missing rates and failed requests never invent billed costs', async () => {
+  const user=await customer(ctx.base,ctx.auth), service=ctx.app.get(AiService), saved={...service.config};
+  const date=new Date(Date.now()+5*3600000).toISOString().slice(0,10), next=new Date(Date.parse(date)+86400000).toISOString().slice(0,10);
+  const query=`?from=${date}&to=${next}`;
+  try {
+    Object.assign(service.config,{AI_INPUT_USD_PER_MILLION:'0.15',AI_OUTPUT_USD_PER_MILLION:'0.6'});
+    const me=(await user.call('/auth/me')).body;
+    await ctx.db.aiUsage.createMany({data:[{userId:me.id,provider:'gemini',model:service.config.GEMINI_MODEL,outcome:'SUCCESS',inputTokens:1000000,outputTokens:1000000},{userId:me.id,provider:'gemini',model:service.config.GEMINI_MODEL,outcome:'FALLBACK'}]});
+    assert.equal((await user.call('/superadmin/ai/usage'+query)).status,403);
+    const report=await ctx.admin.call('/superadmin/ai/usage'+query); assert.equal(report.status,200);
+    assert.equal(report.body.period.timezone,'Asia/Tashkent'); assert.ok(report.body.unmetered_requests>=1);
+    const success=report.body.groups.find((g:any)=>g.outcome==='SUCCESS'); assert.ok(Number(success.estimated_cost_usd)>=0.75);
+    assert.equal(report.body.groups.find((g:any)=>g.outcome==='FALLBACK').estimated_cost_usd,null);
+    assert.ok(!JSON.stringify(report.body).includes(me.id));
+    service.config.AI_INPUT_USD_PER_MILLION='';
+    const unpriced=await ctx.admin.call('/superadmin/ai/usage'+query); assert.ok(unpriced.body.groups.every((g:any)=>g.estimated_cost_usd===null));
+    assert.equal((await ctx.admin.call('/superadmin/ai/usage?from=2026-10-05&to=2026-10-01')).status,422);
+  } finally {Object.assign(service.config,saved);}
+});

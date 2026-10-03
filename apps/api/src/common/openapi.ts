@@ -27,6 +27,7 @@ export function enrichOpenApi(document:OpenAPIObject){
   document.components.securitySchemes.refreshCookie={type:'apiKey',in:'cookie',name:'sihhat_refresh'};
   document.components.securitySchemes.PaymeAuth={type:'http',scheme:'basic',description:'Paycom: merchant key. Only provider calls this API.'};
   document.components.securitySchemes.TelegramWebhook={type:'apiKey',in:'header',name:'X-Telegram-Bot-Api-Secret-Token',description:'Server-only webhook secret; constant-time verification.'};
+  document.components.securitySchemes.TezcheckWebhook={type:'apiKey',in:'header',name:'X-Checkout-Signature',description:'HMAC-SHA256 over timestamp.delivery_id.raw_body; timestamp and delivery headers required. Body event id is deduplicated.'};
   const schemas=document.components.schemas;
   Object.assign(schemas,{
     QuoteRequest:apiSchema(quoteInput),HoldRequest:apiSchema(holdInput),StaffRequest:apiSchema(staffInput),RatePlanRequest:apiSchema(rateInput),RoomTypeRequest:apiSchema(roomTypeInput),DraftRequest:apiSchema(draftInput),Guest:apiSchema(guestInput),
@@ -34,7 +35,10 @@ export function enrichOpenApi(document:OpenAPIObject){
     Booking:obj({id,reference:str,sanatoriumId:id,userId:{...id,nullable:true},quoteId:id,status:{type:'string',enum:['HOLD','PAYMENT_PENDING','CONFIRMED','CHECKED_IN','CHECKED_OUT','CANCELLED','EXPIRED','NO_SHOW','PAYMENT_EXCEPTION']},source:str,checkIn:timestamp,checkOut:timestamp,amount:money,snapshot:{type:'object',additionalProperties:true},guest:{$ref:'#/components/schemas/Guest'},holdExpiresAt:{...timestamp,nullable:true},providerExpiresAt:{...timestamp,nullable:true},version:integer,createdAt:timestamp,updatedAt:timestamp}),
     Quote:obj({id,userId:id,sanatoriumId:id,amount:money,pricingVersion:integer,bodyHash:str,data:{type:'object',description:'request, items, daily breakdown, policy snapshots, subtotal_amount, total_amount, discount, nights',additionalProperties:true},expiresAt:timestamp,createdAt:timestamp}),
     Page:obj({data:array({type:'object',additionalProperties:true}),total:integer,page:integer,limit:integer,pages:integer}),
-    Checkout:obj({order_id:id,amount:money,mode:{type:'string',enum:['local','payme']},checkout_url:{...str,nullable:true},capabilities:obj({full_refund:boolean,partial_refund:boolean,automatic_refund:boolean})}),
+    Checkout:obj({order_id:id,amount:money,mode:{type:'string',enum:['local','payme','tezcheck']},checkout_url:{...str,nullable:true},expires_at:{...timestamp,nullable:true},capabilities:obj({full_refund:boolean,partial_refund:boolean,automatic_refund:boolean})}),
+    PaymentStatus:obj({order_id:id,status:{...str,enum:['CREATED','PENDING','SUCCEEDED','CANCELLED']},amount:money}),
+    TezcheckOverview:obj({configured:boolean,mode:str,authenticated:boolean,desk_count:integer,state:str,accepts_payments:boolean,currency:str,methods:array(obj({provider_code:str,name:str,min_amount_minor:integer,max_amount_minor:{...integer,nullable:true}},['provider_code','name','min_amount_minor'])),pending:integer,error_code:str,capabilities:obj({full_refund:boolean,partial_refund:boolean,automatic_refund:boolean})},['configured','mode']),
+    AiUsageReport:obj({period:obj({from:date,to:date,timezone:str,to_exclusive:boolean}),requests:integer,input_tokens:integer,output_tokens:integer,unmetered_requests:integer,pricing_basis:str,pricing_model:{...str,nullable:true},currency:str,groups:array(obj({provider:str,model:str,outcome:str,requests:integer,input_tokens:integer,output_tokens:integer,estimated_cost_usd:{...str,nullable:true},token_usage_complete:boolean}))}),
     PublicUser:obj({id,kind:{...str,enum:['SUPERADMIN','STAFF','CUSTOMER']},name:str,phone:{...str,nullable:true},login:{...str,nullable:true},must_change_password:boolean}),
     WebSession:obj({user:ref('PublicUser'),expires_at:timestamp,csrf_token:str}),
     MobileSession:obj({user:ref('PublicUser'),access_token:str,refresh_token:str,csrf_token:str,expires_at:timestamp,refresh_expires_at:timestamp,session_id:id}),
@@ -92,16 +96,17 @@ export function enrichOpenApi(document:OpenAPIObject){
     '/superadmin/catalog/entries':obj({kind:{type:'string',enum:['REGION','AMENITY','SERVICE']},name:str,code:str}),
     '/auth/customer/phone-change/request':obj({new_phone:str}),'/auth/customer/phone-change/confirm':obj({old_challenge_id:id,new_challenge_id:id,old_code:str,new_code:str}),
     '/auth/profile':obj({name:str,login:str},['name']),'/auth/refresh':obj({refresh_token:str},[]),
-    '/superadmin/reconciliation/imports':obj({kind:{type:'string',enum:['PROVIDER','BANK']},evidence_asset_id:id,rows:array(obj({provider_id:str,order_id:id,amount:money,state:integer,bank_reference:str,fee:money},['provider_id','order_id','amount','state']))},['kind','rows']),
+    '/superadmin/reconciliation/imports':obj({kind:{type:'string',enum:['PROVIDER','BANK']},evidence_asset_id:id,rows:array(obj({provider:{...str,enum:['PAYME','TEZCHECK'],default:'PAYME'},provider_id:str,order_id:id,amount:money,state:integer,bank_reference:str,fee:money},['provider_id','order_id','amount','state']))},['kind','rows']),
+    '/payments/tezcheck':{type:'object',properties:{id:str,type:str,schema_version:{...integer,enum:[1]},data:{type:'object',properties:{bill_id:str,external_reference:{...str,nullable:true}},required:['bill_id','external_reference'],additionalProperties:true}},required:['id','type','schema_version','data'],additionalProperties:true},
     '/payments/payme':obj({jsonrpc:{type:'string',enum:['2.0']},id:{oneOf:[str,{type:'number'}]},method:{type:'string',enum:['CheckPerformTransaction','CreateTransaction','PerformTransaction','CancelTransaction','CheckTransaction','GetStatement','SetFiscalData']},params:{type:'object',additionalProperties:true}},['method','params']),
     '/telegram/link':obj({}),'/telegram/disconnect':obj({}),'/telegram/link/{id}/confirm':obj({telegram_user_id:{...str,pattern:'^[1-9][0-9]{0,19}$'}}),'/telegram/webhook':apiSchema(updateInput),
   };
   for(const[path,item]of Object.entries(document.paths))for(const method of ['get','post','patch','put','delete'] as const){const operation=(item as any)[method];if(!operation)continue;
-    const isPublic=path.startsWith('/health/')||path.startsWith('/catalog/')||['/auth/staff/login','/auth/customer/otp/request','/auth/customer/otp/verify','/telegram/webhook'].includes(path);
+    const isPublic=path.startsWith('/health/')||path.startsWith('/catalog/')||['/auth/staff/login','/auth/customer/otp/request','/auth/customer/otp/verify','/telegram/webhook','/payments/tezcheck'].includes(path);
     const customerOnly=path.startsWith('/customer/')||path.startsWith('/auth/customer/phone')||['/ai/messages','/reviews'].includes(path);
     const staffOnly=path.startsWith('/partner/')||path.startsWith('/superadmin/')||(path.startsWith('/telegram/')&&path!=='/telegram/webhook')||(method==='post'&&['/messages','/tasks'].includes(path));
     const webSecurity={cookie:[],...(method==='get'?{}:{CSRF:[]})};
-    operation.security=path==='/telegram/webhook'?[{TelegramWebhook:[]}]:path==='/payments/payme'?[{PaymeAuth:[]}]:isPublic?[]:customerOnly?[{bearer:[]}]:staffOnly?[webSecurity]:[webSecurity,{bearer:[]}];
+    operation.security=path==='/payments/tezcheck'?[{TezcheckWebhook:[]}]:path==='/telegram/webhook'?[{TelegramWebhook:[]}]:path==='/payments/payme'?[{PaymeAuth:[]}]:isPublic?[]:customerOnly?[{bearer:[]}]:staffOnly?[webSecurity]:[webSecurity,{bearer:[]}];
     operation['x-roles']=isPublic||path==='/payments/payme'?[]:path.startsWith('/superadmin/')?['SUPERADMIN']:customerOnly?['CUSTOMER']:staffOnly?['STAFF','SUPERADMIN']:['SUPERADMIN','STAFF','CUSTOMER'];
     // tsx does not emit the same parameter reflection metadata as tsc.
     // Route templates and explicit contracts produce the same document in both.
@@ -109,6 +114,8 @@ export function enrichOpenApi(document:OpenAPIObject){
     const pathParameters=[...path.matchAll(/\{([^}]+)\}/g)].map(([,name])=>({name,in:'path',required:true,schema:id}));
     operation.parameters=[...pathParameters,...(operation.parameters??[]).filter((p:any)=>p.in!=='path'&&!(p.in==='header'&&['authorization','idempotency-key'].includes(p.name.toLowerCase())))];
     const addParameters=(parameters:any[])=>{const current=new Map((operation.parameters??[]).map((p:any)=>[parameterKey(p),p]));for(const p of parameters)current.set(parameterKey(p),p);operation.parameters=[...current.values()];};
+    if(path==='/payments/tezcheck')addParameters(['X-Checkout-Timestamp','X-Checkout-Delivery'].map(name=>({name,in:'header',required:true,schema:str})));
+    if(path==='/superadmin/ai/usage')addParameters([query('from',date,true),query('to',date,true)]);
     if(method==='get'){
       if(path==='/superadmin/articles')addParameters(pagination);
       if(pagedPaths.includes(path))addParameters(pagination);
@@ -138,7 +145,11 @@ export function enrichOpenApi(document:OpenAPIObject){
       else if(!operation.requestBody)delete operation.requestBody;
       if(/\/hold$|\/checkout$|local-confirm|\/manual$|refund-request|\/payouts$|offline-payments$|\/subscriptions$|\/subscriptions\/.*\/invoice$|\/cancel$/.test(path))addParameters([{name:'Idempotency-Key',in:'header',required:true,schema:{type:'string',minLength:8,maxLength:128},description:'Opaque key; same actor + endpoint + body returns the saved result.'}]);
     }
-    const code=method==='post'&&path!=='/payments/payme'?'201':'200';const response:any={description:'Muvaffaqiyatli natija',content:{'application/json':{schema:{type:'object',additionalProperties:true}}}};
+    const code=method==='post'&&!['/payments/payme','/payments/tezcheck','/telegram/webhook'].includes(path)?'201':'200';const response:any={description:'Muvaffaqiyatli natija',content:{'application/json':{schema:{type:'object',additionalProperties:true}}}};
+    if(path==='/payments/tezcheck')response.content['application/json'].schema=obj({received:boolean});
+    if(path==='/payments/{id}/refresh')response.content['application/json'].schema=ref('PaymentStatus');
+    if(path==='/superadmin/integrations/tezcheck')response.content['application/json'].schema=ref('TezcheckOverview');
+    if(path==='/superadmin/ai/usage')response.content['application/json'].schema=ref('AiUsageReport');
     if(path==='/catalog/home')response.content['application/json'].schema=ref('HomeFeed');
     if(path==='/telegram/account')response.content['application/json'].schema=ref('TelegramConnection');
     if(path==='/telegram/link')response.content['application/json'].schema=ref('TelegramLink');

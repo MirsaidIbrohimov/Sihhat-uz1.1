@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
 
 import 'data/api.dart';
+import 'design.dart';
 
-const green = Color(0xff176b51),
-    ink = Color(0xff203a2d),
-    pale = Color(0xffedf3e8);
+const green = forest, ink = midnight, pale = mint;
 
 class Busy extends StatelessWidget {
   const Busy({super.key});
@@ -126,11 +125,13 @@ class SanatoriumCard extends StatelessWidget {
   final Api api;
   final VoidCallback open;
   final Widget? trailing;
+  final Widget? footer;
   const SanatoriumCard({
     required this.item,
     required this.api,
     required this.open,
     this.trailing,
+    this.footer,
     super.key,
   });
   @override
@@ -138,14 +139,14 @@ class SanatoriumCard extends StatelessWidget {
     final photos = item['photo_ids'] as List?;
     return Card(
       clipBehavior: Clip.antiAlias,
-      margin: const EdgeInsets.only(bottom: 18),
+      margin: const EdgeInsets.only(bottom: 16),
       child: InkWell(
         onTap: open,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             SizedBox(
-              height: 150,
+              height: 184,
               child: Stack(
                 fit: StackFit.expand,
                 children: [
@@ -155,10 +156,8 @@ class SanatoriumCard extends StatelessWidget {
                         colors: [Color(0xffcfe1bb), Color(0xffe8efdd)],
                       ),
                     ),
-                    child: const Icon(
-                      Icons.landscape_outlined,
-                      size: 65,
-                      color: Color(0xff73946a),
+                    child: const ExcludeSemantics(
+                      child: CustomPaint(painter: RetreatLandscape()),
                     ),
                   ),
                   if (photos?.isNotEmpty == true)
@@ -167,6 +166,39 @@ class SanatoriumCard extends StatelessWidget {
                       fit: BoxFit.cover,
                       errorBuilder: (_, _, _) => const SizedBox(),
                     ),
+                  Positioned(
+                    left: 16,
+                    bottom: 14,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 7,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: .94),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(
+                            Icons.location_on_outlined,
+                            size: 14,
+                            color: forest,
+                          ),
+                          const SizedBox(width: 5),
+                          Text(
+                            item['region'] ?? '',
+                            style: const TextStyle(
+                              color: midnight,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
                   if (trailing != null)
                     Positioned(right: 12, top: 12, child: trailing!),
                 ],
@@ -178,15 +210,13 @@ class SanatoriumCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    item['region'] ?? '',
-                    style: const TextStyle(fontSize: 11, color: green),
-                  ),
-                  const SizedBox(height: 5),
-                  Text(
                     item['name'] ?? '',
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
-                      fontWeight: FontWeight.w700,
-                      fontSize: 19,
+                      fontWeight: FontWeight.w800,
+                      fontSize: 20,
+                      letterSpacing: -.4,
                       color: ink,
                     ),
                   ),
@@ -197,11 +227,21 @@ class SanatoriumCard extends StatelessWidget {
                     children: (item['amenities'] as List? ?? [])
                         .take(3)
                         .map(
-                          (a) => Text(
-                            a,
-                            style: const TextStyle(
-                              color: Colors.black54,
-                              fontSize: 11,
+                          (a) => Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 9,
+                              vertical: 6,
+                            ),
+                            decoration: BoxDecoration(
+                              color: canvasColor,
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              a,
+                              style: const TextStyle(
+                                color: muted,
+                                fontSize: 11,
+                              ),
                             ),
                           ),
                         )
@@ -211,30 +251,38 @@ class SanatoriumCard extends StatelessWidget {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(
-                        item['from_amount'] == null
-                            ? 'Tarifni ko‘ring'
-                            : money(item['from_amount']),
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w700,
-                          color: green,
+                      Expanded(
+                        child: Text(
+                          item['from_amount'] == null
+                              ? 'Tarifni ko‘ring'
+                              : money(item['from_amount']),
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w800,
+                            fontSize: 19,
+                            color: green,
+                          ),
                         ),
                       ),
-                      const Icon(
-                        Icons.arrow_forward_rounded,
-                        size: 19,
-                        color: green,
+                      const CircleAvatar(
+                        backgroundColor: pale,
+                        radius: 22,
+                        child: Icon(
+                          Icons.arrow_forward_rounded,
+                          size: 20,
+                          color: green,
+                        ),
                       ),
                     ],
                   ),
                   const SizedBox(height: 4),
                   const Text(
                     'Boshlang‘ich tarif · yakuniy narx bron hisobida',
-                    style: TextStyle(fontSize: 10, color: Colors.black45),
+                    style: TextStyle(fontSize: 11, color: muted),
                   ),
                 ],
               ),
             ),
+            if (footer != null) ...[const Divider(height: 1), footer!],
           ],
         ),
       ),

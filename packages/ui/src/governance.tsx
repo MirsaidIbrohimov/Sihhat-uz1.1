@@ -93,6 +93,10 @@ export function Dashboard() {
     ctx.epoch,
   );
   const r = remote.data;
+  const aiUsage = useRemote(
+    ctx.admin ? "/superadmin/ai/usage" + query({ from, to }) : null,
+    ctx.epoch,
+  );
   return (
     <>
       <PageHeading
@@ -291,6 +295,45 @@ export function Dashboard() {
                 </div>
               </Card>
             </div>
+            {ctx.admin && (
+              <Card title="AI sarfi">
+                {aiUsage.loading ? (
+                  <Loading />
+                ) : aiUsage.error ? (
+                  <ErrorBox message={aiUsage.error} retry={aiUsage.reload} />
+                ) : (
+                  aiUsage.data && (
+                    <>
+                      <p>
+                        {aiUsage.data.requests} ta so‘rov ·{" "}
+                        {aiUsage.data.input_tokens} kirish tokeni ·{" "}
+                        {aiUsage.data.output_tokens} chiqish tokeni
+                      </p>
+                      <p className="muted">
+                        Xarajat joriy sozlangan narxlar asosida taxmin qilinadi.
+                        Provayder invoicei kelgach haqiqiy xarajat aniqlanadi.{" "}
+                        {aiUsage.data.unmetered_requests} ta so‘rovda token
+                        sarfi to‘liq olinmagan.
+                      </p>
+                      <Table
+                        rows={aiUsage.data.groups}
+                        columns={[
+                          { label: "Model", key: "model" },
+                          { label: "Natija", key: "outcome" },
+                          { label: "So‘rovlar", key: "requests" },
+                          {
+                            label: "Taxminiy xarajat, USD",
+                            render: (row: Row) =>
+                              row.estimated_cost_usd ??
+                              "Narx yoki token sarfi mavjud emas",
+                          },
+                        ]}
+                      />
+                    </>
+                  )
+                )}
+              </Card>
+            )}
             {ctx.allowed("reports.export") && (
               <a
                 className="button secondary"

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../data/api.dart';
 import '../data/home_feed.dart';
 import '../widgets.dart';
+import '../design.dart';
 
 class HomeHighlights extends StatelessWidget {
   final Json? data;
@@ -39,7 +40,8 @@ class HomeHighlights extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: pale,
+              color: Colors.white,
+              border: Border.all(color: const Color(0xffe3ebe6)),
               borderRadius: BorderRadius.circular(18),
             ),
             child: Row(
@@ -63,7 +65,7 @@ class HomeHighlights extends StatelessWidget {
                     child: _Stat(
                       Icons.payments_outlined,
                       money(prices.first),
-                      'Boshlang‘ich tarif',
+                      'Tariflar ... dan',
                     ),
                   ),
               ],
@@ -112,13 +114,9 @@ class HomeHighlights extends StatelessWidget {
           ],
         ],
         const SizedBox(height: 18),
-        const Text(
+        const SectionTitle(
           'Sanatoriyalarni kashf eting',
-          style: TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.w700,
-            color: ink,
-          ),
+          subtitle: 'Dam olish uchun o‘zingizga mos joyni tanlang',
         ),
         const SizedBox(height: 10),
       ],
@@ -139,13 +137,13 @@ class _Stat extends StatelessWidget {
       Text(
         value,
         style: const TextStyle(
-          fontSize: 14,
+          fontSize: 13,
           fontWeight: FontWeight.w800,
           color: ink,
         ),
       ),
       const SizedBox(height: 3),
-      Text(label, style: const TextStyle(fontSize: 10, color: Colors.black54)),
+      Text(label, style: const TextStyle(fontSize: 11, color: muted)),
     ],
   );
 }

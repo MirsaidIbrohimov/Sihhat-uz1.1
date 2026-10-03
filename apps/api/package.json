@@ -12,6 +12,7 @@
     "telegram": "tsx src/telegram-worker.ts",
     "start:telegram": "node dist/src/telegram-worker.js",
     "telegram:configure": "tsx scripts/telegram-configure.ts",
+    "tezcheck:check": "tsx scripts/tezcheck-check.ts",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate deploy",
     "db:migrations:verify": "tsx scripts/migration-check.ts",

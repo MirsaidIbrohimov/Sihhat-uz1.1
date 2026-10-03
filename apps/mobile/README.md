@@ -6,6 +6,26 @@ qaytarish so‘rovi, sharhlar, profil va bildirishnomalar. Tokenlar hamda
 tugallanmagan bron identifikatori qurilmaning xavfsiz saqlash xizmatida saqlanadi.
 To‘lov natijasi backend tasdig‘idan olinadi.
 
+2026-10-03 UI yangilanishi: umumiy wellness mavzusi, kattaroq sanatoriya
+kartalari, qulay qidiruv va filtrlar, sanatoriya/bron/to‘lov sahifalaridagi
+doim ko‘rinadigan amallar. SMS oynasida raqamni tuzatish mumkin. 320px ekran,
+1.3x shrift va klaviatura bilan filtr tekshirildi; analyzer va 20/20 test o‘tdi.
+Tog‘ manzarasi kodda chizilgan dekorativ tasvir, real sanatoriya fotosi emas.
+Haqiqiy sanatoriya rasmlari backenddan olinadi.
+
+Dizayn yo‘nalishlari: [Wellness Booking App](https://dribbble.com/shots/27227441-Wellness-Booking-App-Calm-Seamless-Experience-UI)
+va [Luma Retreats](https://dribbble.com/shots/27159696-Luma-Retreats-An-Immersive-Mobile-Booking-Interface).
+Interfeys Flutter komponentlari bilan amalga oshirilgan; namunalar rasmi yoki kodi ko‘chirilmagan.
+Tezcheck havolasi tashqi HTTPS sahifada ochiladi; kalit APKda bo‘lmaydi.
+
+Yangi arm64 debug preview Samsung SM-A165Fga o‘rnatildi; force-stopdan
+keyingi yangi jarayonda bosh sahifa va API katalogi ochildi. APK ichida
+24 ta maxfiy qiymat bayt namunasi tekshirildi, moslik topilmadi. Build va
+qurilma dalillari `.local/releases/android-preview.json` hamda
+`.local/mobile-design/device-check.json`da. Debug API lokal HTTP/USB bilan;
+bu haqiqiy merchant payment return yoki signed HTTPS release sinovi emas.
+Gradle 8 GB Windows xotirasiga mos 2 GB heap va 2 worker bilan yig‘ildi.
+
 Bosh sahifa sessiya tekshiruvini kutmaydi: sanatoriyalar soni, hududlar,
 boshlang‘ich tariflar, yangiliklar, foydali tavsiyalar va bron yo‘riqnomasi
 ko‘rinadi. Yangilik va tavsiyalar superadmin panelidan boshqariladi. Oxirgi

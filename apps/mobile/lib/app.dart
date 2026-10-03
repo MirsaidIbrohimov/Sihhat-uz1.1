@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 
 import 'data/api.dart';
-import 'widgets.dart';
+import 'design.dart';
 import 'screens/account.dart';
 import 'screens/booking.dart';
 import 'screens/catalog.dart';
@@ -18,32 +18,7 @@ class SihhatApp extends StatelessWidget {
     locale: const Locale('uz'),
     supportedLocales: const [Locale('uz'), Locale('en')],
     localizationsDelegates: GlobalMaterialLocalizations.delegates,
-    theme: ThemeData(
-      useMaterial3: true,
-      colorScheme: ColorScheme.fromSeed(
-        seedColor: green,
-        primary: green,
-        surface: const Color(0xfff5f7f1),
-      ),
-      scaffoldBackgroundColor: const Color(0xfff5f7f1),
-      appBarTheme: const AppBarTheme(
-        backgroundColor: Color(0xfff5f7f1),
-        foregroundColor: ink,
-        centerTitle: false,
-      ),
-      inputDecorationTheme: InputDecorationTheme(
-        filled: true,
-        fillColor: Colors.white,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Color(0xffdfe7db)),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Color(0xffdfe7db)),
-        ),
-      ),
-    ),
+    theme: sihhatTheme(),
     onGenerateRoute: (_) => MaterialPageRoute(builder: (_) => Home(api)),
   );
 }
@@ -139,16 +114,53 @@ class _HomeState extends State<Home> {
     ];
     return Scaffold(
       appBar: AppBar(
-        title: Text(
-          [
-            'sihhat.uz',
-            'Saqlanganlar',
-            'Mening bronlarim',
-            'Sihhat yordamchisi',
-            'Profil',
-          ][tab],
-          style: const TextStyle(fontWeight: FontWeight.w800),
-        ),
+        toolbarHeight: 76,
+        title: tab == 0
+            ? const Row(
+                children: [
+                  CircleAvatar(
+                    backgroundColor: mint,
+                    foregroundColor: forest,
+                    child: Icon(Icons.spa_rounded),
+                  ),
+                  SizedBox(width: 11),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'sihhat.uz',
+                          style: TextStyle(
+                            fontSize: 23,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: -.7,
+                          ),
+                        ),
+                        Text(
+                          'Dam olishni birga rejalashtiramiz',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 10,
+                            color: muted,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              )
+            : Text(
+                [
+                  'sihhat.uz',
+                  'Saqlanganlar',
+                  'Mening bronlarim',
+                  'Sihhat yordamchisi',
+                  'Profil',
+                ][tab],
+                style: const TextStyle(fontWeight: FontWeight.w800),
+              ),
         actions: [
           IconButton(
             tooltip: 'Bildirishnomalar',
@@ -165,8 +177,10 @@ class _HomeState extends State<Home> {
                       );
                     }
                   },
-            icon: const Icon(Icons.notifications_outlined),
+            style: IconButton.styleFrom(backgroundColor: Colors.white),
+            icon: const Icon(Icons.notifications_none_rounded),
           ),
+          const SizedBox(width: 12),
         ],
       ),
       body: SafeArea(
@@ -188,40 +202,53 @@ class _HomeState extends State<Home> {
                   ),
                 ],
               ),
-            Expanded(child: bodies[tab]),
+            Expanded(
+              child: Align(
+                alignment: Alignment.topCenter,
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 720),
+                  child: bodies[tab],
+                ),
+              ),
+            ),
           ],
         ),
       ),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: tab,
-        onDestinationSelected: navigate,
-        destinations: const [
-          NavigationDestination(
-            icon: Icon(Icons.spa_outlined),
-            selectedIcon: Icon(Icons.spa),
-            label: 'Bosh sahifa',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.favorite_border),
-            selectedIcon: Icon(Icons.favorite),
-            label: 'Saqlangan',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.bookmark_border),
-            selectedIcon: Icon(Icons.bookmark),
-            label: 'Bronlar',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.chat_bubble_outline),
-            selectedIcon: Icon(Icons.chat_bubble),
-            label: 'AI yordam',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.person_outline),
-            selectedIcon: Icon(Icons.person),
-            label: 'Profil',
-          ),
-        ],
+      bottomNavigationBar: DecoratedBox(
+        decoration: const BoxDecoration(
+          border: Border(top: BorderSide(color: Color(0xffe3ebe6))),
+        ),
+        child: NavigationBar(
+          selectedIndex: tab,
+          onDestinationSelected: navigate,
+          destinations: const [
+            NavigationDestination(
+              icon: Icon(Icons.home_outlined),
+              selectedIcon: Icon(Icons.home_rounded),
+              label: 'Bosh sahifa',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.favorite_border),
+              selectedIcon: Icon(Icons.favorite),
+              label: 'Saqlangan',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.bookmark_border),
+              selectedIcon: Icon(Icons.bookmark),
+              label: 'Bronlar',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.chat_bubble_outline),
+              selectedIcon: Icon(Icons.chat_bubble),
+              label: 'AI yordam',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.person_outline),
+              selectedIcon: Icon(Icons.person),
+              label: 'Profil',
+            ),
+          ],
+        ),
       ),
     );
   }

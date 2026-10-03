@@ -10,6 +10,7 @@
     "dev:telegram": "npm run telegram -w @sihhat/api",
     "telegram:check": "npm run telegram:configure -w @sihhat/api -- --check",
     "telegram:configure": "npm run telegram:configure -w @sihhat/api",
+    "tezcheck:check": "npm run tezcheck:check -w @sihhat/api",
     "build:api": "npm run build -w @sihhat/api",
     "dev:admin": "npm run dev -w @sihhat/superadmin-web",
     "dev:partner": "npm run dev -w @sihhat/partner-web",

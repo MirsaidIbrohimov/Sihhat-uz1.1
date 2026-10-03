@@ -4,15 +4,15 @@ Yangilangan: 2026-10-03. Asos: ISHLAB_CHIQISH_REJASI.md va SIHHAT_UZ_ARXITEKTURA
 
 | Bosqich | Holat | Dalil |
 | --- | --- | --- |
-| B0 — poydevor | Lokal tekshiruv o‘tdi | NestJS, PostgreSQL 18.6, yettita migratsiya, health API; migratsiyalar lokal, test va toza scratch bazada qo‘llandi |
+| B0 — poydevor | Lokal tekshiruv o‘tdi | NestJS, PostgreSQL 18.6, sakkizta migratsiya, health API; migratsiyalar lokal, test va toza scratch bazada qo‘llandi |
 | B1 — hisoblar va ruxsatlar | Lokal tekshiruv o‘tdi | MFA, OTP, tenant, bloklash va CSRF testlari; telefon almashtirish qo‘shildi |
-| B2–B8 — backend domenlari | Asosiy lokal oqimlar amalga oshirildi va tekshirildi | Anketa, moderatsiya, xona/narx/bron, Payme protokoli, ledger, refund/payout, billing va aloqa APIlari |
-| B9 — katalog, hisobot va AI | Katalog/hisobot, FAQ va Gemini adapteri mavjud | Haqiqiy Gemini javobi tekshirildi; rozilik, shaxsiy ma’lumot niqobi, kunlik limit, token sarfi va fallback bor |
-| B10 — backend qabul | Lokal qabul to‘plami o‘tdi; tashqi tekshiruv cheklovlari quyida | PostgreSQLda 44/44 test; OpenAPI va runbook yangilandi; clean migration va avvalgi backup dalillari quyida |
-| F1/F2 — saytlar | APIga ulangan sahifalar, Telegram ulash va brauzer sinovlari o‘tdi | Ikkala Next.js buildi, TypeScript; 8 brauzer ssenariyi o‘tdi (7 umumiy run + 1 tuzatilgan locator bilan qayta tekshiruv) |
+| B2–B8 — backend domenlari | Asosiy lokal oqimlar amalga oshirildi va tekshirildi | Anketa, moderatsiya, xona/narx/bron, Payme va Tezcheck adapterlari, ledger, refund/payout, billing va aloqa APIlari |
+| B9 — katalog, hisobot va AI | Katalog/hisobot, FAQ, Gemini va AI sarfi hisoboti mavjud | Haqiqiy Gemini javobi tekshirildi; rozilik, shaxsiy ma’lumot niqobi, kunlik limit, token/model/davr bo‘yicha sarf, sozlangan narxlar bilan USD taxmini va fallback bor |
+| B10 — backend qabul | Lokal qabul to‘plami o‘tdi; tashqi tekshiruv cheklovlari quyida | PostgreSQLda 54/54 test; OpenAPI va runbook yangilandi; clean migration va avvalgi backup dalillari quyida |
+| F1/F2 — saytlar | APIga ulangan sahifalar, AI sarfi/Tezcheck holati, Telegram ulash va brauzer sinovlari o‘tdi | Ikkala Next.js buildi, TypeScript; oxirgi umumiy brauzer runida 9/9 ssenariy o‘tdi |
 | Telegram — xodimlar boti | Kod, lokal worker va rasmiy API ulanishi tayyor | Admin/direktor/resepsion menyusi, xavfsiz ulash, ruxsat tekshiruvi, vazifa/murojaat wizardlari va outbox bildirishnomalari; haqiqiy xodim ulashi hali bajarilmagan |
-| F3 — Android | Axborotli bosh sahifa, yangilik/tavsiyalar va debug preview tayyor; avvalgi bron/tiklanish sinovlari o‘tdi | Flutter analyze; 17/17 test; Samsungga yangi preview o‘rnatildi. Avvalgi OS va release imzo dalillari quyida; HTTPS API hali belgilanmagan |
-| R1 — real pilot | Gemini va Eskiz rekvizitlari olindi; pilot to‘liq emas | Gemini ulandi, Eskiz standart SMSi yetib keldi. Haqiqiy OTP hisobi/matni, HTTPS, Payme, push va real sanatoriya piloti qolgan |
+| F3 — Android | Wellness UI, qulay qidiruv/filtr, doim ko‘rinadigan bron/to‘lov amallari va debug preview tayyor | Flutter analyze; 20/20 test; Samsungga yangi preview o‘rnatildi va force-stopdan keyin ochildi. Avvalgi bron/tiklanish va release imzo dalillari quyida; HTTPS API hali belgilanmagan |
+| R1 — real pilot | Gemini, Eskiz va Tezcheck rekvizitlari olindi; pilot to‘liq emas | Gemini ulandi, Eskiz standart SMSi yetib keldi, Tezcheck o‘qish endpointlari HTTP 200. Kassa draft; haqiqiy OTP, HTTPS, merchant to‘lovi/webhook, push va real sanatoriya piloti qolgan |
 
 ## 2026-10-01 tekshiruv dalillari
 
@@ -143,6 +143,72 @@ Telegram senddan keyingi crashda xabar takrorlanishi mumkin; ichki bron
 versiyasi va task/support idempotency yozuvlari takroriy amalni cheklaydi.
 Tugmalar va ishga tushirish [Telegram yo‘riqnomasi](TELEGRAM_BOT.md)da.
 
+## 2026-10-03 Tezcheck, AI sarfi va yangi Android UI
+
+- Berilgan Tezcheck kaliti bilan `/me`, `/cash-desks`, `/payment-methods`,
+  `/transactions`, `/balance` va `/stats` **HTTP 200**. Bitta UZS kassa:
+  `state=draft`, `accepts_payments=false`; Click, Payme va Uzcard/Humo
+  usullari ko‘rindi, tranzaksiya ro‘yxati bo‘sh. Haqiqiy to‘lov, refund yoki
+  bank o‘tkazmasi bajarilmadi. Dalil `.local/tezcheck-connectivity.json`da;
+  qayta tekshirish `npm run tezcheck:check` bilan.
+- `PAYMENT_MODE=tezcheck` lokal serverda yoqildi. Checkout, provider
+  idempotency, shifrlangan havola, DB lease/polling va xom tana webhook
+  imzosi amalga oshirildi. Faol bo‘lmagan kassa va tarmoq xatosi bronning
+  boshlang‘ich rezervini to‘lovga aylantirmaydi. Noma’lum natija inventarni
+  bo‘shatmaydi; faqat provider tasdiqlagan cancellation rezervni yopadi.
+  Test-provider ledger yaratmaydi. Refund/dispute/chargeback yoki summa/fee
+  nomuvofiqligi `REVIEW` va payout yaratish/tasdiqlash blokiga olib keladi.
+  Tezcheck hujjatida refund endpointi yo‘q; avtomatik refund bajarilmaydi.
+- `npm test`: **54/54 pass**, 0 fail. 9 ta Tezcheck ssenariyi:
+  draft/tarmoq xatosi, yo‘qolgan javob/idempotency, kech haqiqiy to‘lov,
+  test-provider, noto‘g‘ri summa, webhook imzosi/rotation/dedup,
+  ishonchsiz URL, net bank reestri/refund bloklari va invoice ruxsatlari.
+  Yangi AI sarfi testi admin ruxsati, Tashkent davri, bo‘sh narxlar,
+  o‘lchanmagan tokenlar va failed so‘rov xarajatini tekshirdi.
+- AI sarfi admin paneli va `GET /superadmin/ai/usage`da model/natija/davr
+  bo‘yicha ko‘rinadi. Narxlar bo‘sh bo‘lsa USD xarajati `null`; sozlangan
+  joriy narxlar bilan taxmin hisoblanadi. Bu provider invoicei yoki ledger
+  xarajati emas. Hisobotda chat matni va mijoz identifikatorlari yo‘q.
+- Toza `sihhat_migration_check_1791050921110_e58a1c7e` bazasida
+  **8 migratsiya**, inventory exclusion va **4 ledger guard** tekshirildi.
+- `npm run build:api`, `npm run check` va ikkala Next.js buildi o‘tdi.
+  `npm run openapi`: **145 operation, 35 named schema**; yangi webhook,
+  payment refresh, Tezcheck overview va AI usage shartnomalari eksport qilindi.
+  Checkout javobidagi nullable `expires_at` lokal/Payme javoblarida ham bor;
+  ayrim boshqa ikkinchi darajali javoblar hali generic object.
+- Brauzerning oxirgi umumiy runi **9/9 pass**. Admin panelidagi haqiqiy
+  AI usage/Tezcheck read API, direktor bron/check-in/out, resepsion ruxsati,
+  maqola feedi va Telegram ulash tekshirildi. Tezcheck tarmoq xatosidan qayta
+  urinish/draft holati hamda Telegram claim javoblari brauzerda mock;
+  test merchant to‘lovi yoki haqiqiy Telegram xabari yuborilmadi.
+  Admin loginlari har safar yangi TOTP vaqt qadamini ishlatadi; replay himoyasi
+  saqlangan. Hisobot `.local/playwright-report/index.html`da.
+- Flutter analyzer muammosiz, **20/20 unit/widget pass**. Kichik ekran
+  (320 px, katta matn), filtr klaviaturasi/invalid narxi va uzun sanatoriya
+  sahifasidagi doim ko‘rinadigan bron tugmasi ham tekshirildi.
+- Original Flutter wellness dizayni: forest/mint ranglar, katta kartalar,
+  qidiruvga olib boradigan bosh blok, bounded filtr, narxli action dock va
+  5 bo‘limli navigatsiya. Dekorativ tog‘ rasmi CustomPainter; haqiqiy
+  sanatoriya fotosi sifatida ishlatilmaydi. UI manbalari mobile READMEda.
+- `npm run mobile:preview -- RF8Y1091K8D`: yangilangan arm64 debug APK
+  Samsung SM-A165Fga ma’lumotlar saqlangan holda o‘rnatildi. Force-stop
+  `28840 → 29873` yangi jarayonida bosh sahifa va API katalogi ochildi;
+  screenshot `.local/mobile-design/home.png`, dalil `device-check.json`da.
+  Bu yangi buildda haqiqiy provider to‘lovi, payment return yoki telefonni
+  to‘liq qayta yuklash sinovi bajarildi degani emas.
+- APKda **24 maxfiy qiymat bayt namunasi**, moslik **0**.
+  Preview SHA-256:
+  `4091509eb26ebee315c5bbb5d4d20f2f2d86561ed26630f0ca3b5ca77cd2979f`.
+  APK: [sihhat-uz-preview.apk](../.local/releases/sihhat-uz-preview.apk).
+  Debug API `http://127.0.0.1:4000`; USB reverse va lokal API talab qiladi.
+  8 GB xotirali Windows uchun Gradle heap 2 GB, workers 2 qilib sozlandi;
+  oldingi vaqt chegarasi xatosidan keyingi build muvaffaqiyatli o‘tdi.
+
+Tezcheck kassasini faollashtirish, haqiqiy HTTPS endpoint va provider bergan
+webhook siri qolgan. Kalit serverdagi ignored, ACL bilan cheklangan faylda;
+APK, brauzer, source yoki Gitga berilmagan. Integratsiya shartnomasi va
+qo‘lda solishtirish tartibi [Tezcheck yo‘riqnomasi](TEZCHECK.md)da.
+
 ## Muhit
 
 - Node.js 24.15.0, npm 11.12.1 mavjud.
@@ -153,11 +219,11 @@ Tugmalar va ishga tushirish [Telegram yo‘riqnomasi](TELEGRAM_BOT.md)da.
 
 ## Ochiq tashqi shartlar
 
-Gemini va Eskiz hisoblari berildi, yuqoridagi ulanishlar tekshirildi. Real sanatoriya, Payme test merchant, bank rekvizitlari, push va haqiqiy HTTPS API hali kerak. Eskiz hisobini haqiqiy yuborishga tayyorlash va OTP matnini tasdiqlatish qolgan. Rasmiy Payme sandboxi, production deploy va haqiqiy pul amallari bajarilmagan. Tariflar va refund/payout qoidalari pilot uchun tasdiqlanishi kerak.
+Gemini, Eskiz va Tezcheck hisoblari berildi, yuqoridagi ulanishlar tekshirildi. Tezcheck kassasi draft; faollashtirish, HTTPS va webhook siri kerak. Eskiz hisobini haqiqiy yuborishga tayyorlash va OTP matnini tasdiqlatish qolgan. Real sanatoriya, bank rekvizitlari, push va staging infratuzilmasi hali kerak; Payme bevosita adapteri tanlansa rasmiy merchant rekvizitlari ham talab qilinadi. Production deploy va haqiqiy pul amallari bajarilmagan. Tariflar va refund/payout qoidalari pilot uchun tasdiqlanishi kerak.
 
 ## Qolgan ishlar
 
-1. Android release APKni haqiqiy HTTPS API bilan qayta yig‘ish; rasmiy Payme payment return va telefonni to‘liq qayta yuklashdan tiklanishni tekshirish.
+1. Tezcheck kassasini faollashtirish va haqiqiy merchant to‘lovi/HTTPS webhookni tekshirish; Android release APKni haqiqiy HTTPS API bilan qayta yig‘ish, provider payment return va telefonni to‘liq qayta yuklashdan tiklanishni tekshirish.
 2. Eskiz hisobini test rejimidan chiqarish va OTP matnini tasdiqlatish; shundan keyin haqiqiy kirish kodi sinovi. OTPdan tashqari SMS bildirishnoma adapteri ham qolgan.
-3. Ayrim ikkinchi darajali OpenAPI javoblarini aniqlashtirish; AI token sarfini pul xarajati/hisobot ko‘rinishiga keltirish; Redis/S3, Payme va push muhitlarini stagingda tekshirish.
+3. Ayrim ikkinchi darajali OpenAPI javoblarini aniqlashtirish; Redis/S3, tanlangan to‘lov provayderi va push muhitlarini stagingda tekshirish. AI token/model/davr va sozlangan narxli USD hisoboti amalga oshirildi; haqiqiy provider invoiceini solishtirish pilotda qolgan.
 4. Real sanatoriya bilan inventar, bank payout/refund va backup/media tiklash pilotini bajarish.

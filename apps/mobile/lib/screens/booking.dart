@@ -8,6 +8,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../data/api.dart';
 import '../widgets.dart';
+import '../design.dart';
 
 class BookingComposer extends StatefulWidget {
   final Api api;
@@ -159,6 +160,22 @@ class _BookingComposerState extends State<BookingComposer> {
     final s = widget.sanatorium, rates = rows(s['rate_plans']);
     return Scaffold(
       appBar: AppBar(title: const Text('Bron yaratish')),
+      bottomNavigationBar: ActionDock(
+        amount: quote == null ? null : money(quote!['amount']),
+        caption: 'Yakuniy bron narxi',
+        label: busy
+            ? 'Hisoblanmoqda…'
+            : quote == null
+            ? 'Narx va bo‘sh joyni tekshirish'
+            : 'Xonalarni band qilish va to‘lash',
+        onPressed: busy
+            ? null
+            : quote == null
+            ? calculate
+            : accepted
+            ? hold
+            : null,
+      ),
       body: ListView(
         padding: const EdgeInsets.all(20),
         children: [
@@ -168,6 +185,20 @@ class _BookingComposerState extends State<BookingComposer> {
               fontSize: 23,
               fontWeight: FontWeight.w700,
               color: ink,
+            ),
+          ),
+          const SizedBox(height: 16),
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: pale,
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Text(
+              quote == null
+                  ? '1. Sana  →  2. Xona va mehmonlar  →  3. Bron hisobi'
+                  : 'Bron hisobi tayyor. Mehmon ma’lumotlari va qaytarish shartlarini tasdiqlang.',
+              style: const TextStyle(color: forest, fontSize: 12, height: 1.5),
             ),
           ),
           const SizedBox(height: 16),
@@ -306,12 +337,6 @@ class _BookingComposerState extends State<BookingComposer> {
               label: const Text('Yana xona qo‘shish'),
             ),
           const SizedBox(height: 16),
-          FilledButton.tonal(
-            onPressed: busy ? null : calculate,
-            child: Text(
-              busy ? 'Hisoblanmoqda…' : 'Narx va bo‘sh joyni tekshirish',
-            ),
-          ),
           if (error != null) ErrorView(error!),
           if (quote != null) ...[
             const SizedBox(height: 20),
@@ -386,10 +411,6 @@ class _BookingComposerState extends State<BookingComposer> {
                 'Qaytarish shartlarini o‘qidim va qabul qilaman.',
                 style: TextStyle(fontSize: 13),
               ),
-            ),
-            FilledButton(
-              onPressed: busy || !accepted ? null : hold,
-              child: const Text('Xonalarni band qilish va to‘lash'),
             ),
           ],
           const SizedBox(height: 30),
@@ -516,6 +537,13 @@ class _BookingScreenState extends State<BookingScreen>
 
   Future<void> refresh() async {
     try {
+      if (checkout?['mode'] == 'tezcheck') {
+        await widget.api.send(
+          '/payments/${checkout!['order_id']}/refresh',
+          method: 'POST',
+          body: {},
+        );
+      }
       final r = asJson(
         await widget.api.send('/customer/bookings/${widget.id}'),
       );
@@ -665,6 +693,15 @@ class _BookingScreenState extends State<BookingScreen>
           ),
         ],
       ),
+      bottomNavigationBar:
+          b != null && ['HOLD', 'PAYMENT_PENDING'].contains(b['status'])
+          ? ActionDock(
+              amount: money(b['amount']),
+              caption: 'Bron narxi',
+              label: busy ? 'Ochilmoqda…' : 'To‘lovga o‘tish',
+              onPressed: busy ? null : pay,
+            )
+          : null,
       body: b == null
           ? error == null
                 ? const Busy()
@@ -761,11 +798,6 @@ class _BookingScreenState extends State<BookingScreen>
                       label: const Text('Bron hujjatini ko‘rish'),
                     ),
                   ],
-                  if (['HOLD', 'PAYMENT_PENDING'].contains(b['status']))
-                    FilledButton(
-                      onPressed: busy ? null : pay,
-                      child: Text(busy ? 'Ochilmoqda…' : 'To‘lovga o‘tish'),
-                    ),
                   if (checkout?['mode'] == 'local' &&
                       kDebugMode &&
                       ['HOLD', 'PAYMENT_PENDING'].contains(b['status']))

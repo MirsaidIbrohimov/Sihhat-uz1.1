@@ -27,6 +27,7 @@ for (const path of files) {
   const data = readFileSync(resolve(root, path));
   if (patterns.some(pattern => data.includes(pattern))) matches.push({ path, issue: 'private_value' });
   if (/\b\d{5,20}:[A-Za-z0-9_-]{30,60}\b/.test(data.toString('utf8'))) matches.push({ path, issue: 'telegram_bot_token' });
+  if (/\baps_[A-Za-z0-9]{30,}\b/.test(data.toString('utf8'))) matches.push({ path, issue: 'tezcheck_api_key' });
   if (/-----BEGIN (?:RSA |EC |OPENSSH |ENCRYPTED )?PRIVATE KEY-----/.test(data.toString('utf8'))) matches.push({ path, issue: 'private_key' });
 }
 const report = { checked_at: new Date().toISOString(), files_checked: files.length, private_values_checked: values.size, matches };

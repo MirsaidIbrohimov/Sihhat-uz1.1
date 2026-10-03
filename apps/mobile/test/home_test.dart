@@ -117,6 +117,11 @@ void main() {
       );
       await tester.pumpAndSettle();
       expect(find.textContaining('Saqlangan ma’lumot'), findsOneWidget);
+      await tester.scrollUntilVisible(
+        find.textContaining('Katalog yangilanmadi'),
+        150,
+        scrollable: find.byType(Scrollable).first,
+      );
       expect(find.textContaining('Katalog yangilanmadi'), findsOneWidget);
       expect(find.text('Tog‘ dam olish maskani'), findsOneWidget);
       expect(tester.takeException(), isNull);

@@ -8,19 +8,20 @@ Kanonik repozitoriya: [MirsaidIbrohimov/Sihhat-uz1.1](https://github.com/Mirsaid
 
 | Qism | Bajarilgan |
 | --- | --- |
-| Backend | MFA/OTP, rollar va sanatoriya ruxsatlari, katalog, inventar, narx hisobi, ko‘p xonali bron, to‘lov holati, ledger, refund/payout, abonent/reklama, xabarlar va hisobotlar; 7 migratsiya |
+| Backend | MFA/OTP, rollar va sanatoriya ruxsatlari, katalog, inventar, narx hisobi, ko‘p xonali bron, Payme/Tezcheck, ledger, refund/payout, abonent/reklama, xabarlar va hisobotlar; 8 migratsiya |
 | Superadmin | Sanatoriyalar, jamoa/ruxsatlar, moliya va operatsion sahifalar; yangilik va tavsiya yaratish, tahrirlash, e’lon qilish va arxivga olish |
 | Hamkorlar sayti | Direktor/resepsion ruxsatlari, xona va tariflar, kalendar, qo‘lda bron, check-in/out va tegishli operatsion sahifalar |
 | Telegram bot | Admin/direktor/resepsion menyulari, sayt orqali tasdiqlangan hisob, bron/qidiruv/check-in-out, xonalar, hisobot, vazifa va murojaatlar; bildirishnoma, kunlik ma’lumot va abonent eslatmalari |
-| Android | Kirishda loginni kutmaydigan bosh sahifa, sanatoriyalar, boshlang‘ich tariflar, hudud filtri, yangiliklar, tavsiyalar va bron yo‘riqnomasi; katalog, saqlanganlar, bron/to‘lov, profil va tiklanadigan sessiya |
-| Gemini | Server orqali haqiqiy ulanish tekshirildi; mijoz roziligi, shaxsiy raqam/emailni niqoblash, katalog/FAQ bilan cheklangan javob, kunlik limit va token sarfi yozuvlari |
+| Android | Yangilangan wellness UI, katta kartalar, qulay qidiruv va filtrlar; doim ko‘rinadigan bron/to‘lov amallari, kichik ekran/klaviatura mosligi, katalog, saqlanganlar, AI, profil va tiklanadigan sessiya |
+| Gemini | Haqiqiy ulanish, rozilik, raqam/email niqobi, katalog/FAQ, limit va token sarfi; admin uchun davr/model bo‘yicha sarf va sozlangan narxga asoslangan taxminiy USD hisobot |
+| Tezcheck | Berilgan kalit bilan rasmiy API, kassa, usullar, tranzaksiyalar va balans o‘qildi. Backend checkout/polling/signed webhook tayyor; haqiqiy kassa draft, to‘lov qabul qilmaydi |
 | Eskiz | SMS API autentifikatsiyasi va standart test SMSi tekshirildi; foydalanuvchi yetib kelganini tasdiqladi. Haqiqiy OTP uchun hisob va matn hali tayyor emas |
 
-Backendni production uchun 100% tayyor deb hisoblashga hali asos yo‘q. Haqiqiy HTTPS API, Eskiz hisobini test rejimidan chiqarish va OTP matnini tasdiqlatish, rasmiy Payme sandboxi, push, staging Redis/S3 hamda real sanatoriya/bank piloti qolgan. Batafsil dalillar va cheklovlar [amalga oshirish holati](docs/IMPLEMENTATION_STATUS.md)da.
+Backendni production uchun 100% tayyor deb hisoblashga hali asos yo‘q. Haqiqiy HTTPS API, Tezcheck kassasini faollashtirish va haqiqiy merchant to‘lovi/webhook, Eskiz hisobini test rejimidan chiqarish va OTP matnini tasdiqlatish, push, staging Redis/S3 hamda real sanatoriya/bank piloti qolgan. Payme bevosita ulanishi tanlansa uning rasmiy rekvizitlari va qabul sinovi kerak. Batafsil dalillar va cheklovlar [amalga oshirish holati](docs/IMPLEMENTATION_STATUS.md)da.
 
-**44/44 backend** va **8 brauzer ssenariyi** o‘tdi; TypeScript, API va ikkala Next.js buildi tekshirildi. Telegram sinovlari, 7 ta toza migratsiya va haqiqiy API ulanishi dalillari [holat hujjati](docs/IMPLEMENTATION_STATUS.md)da. Androidning avvalgi **17/17 unit/widget** va analyzer dalili saqlangan; bu bosqichda Android kodi o‘zgartirilmadi.
+Backend **54/54**, brauzer **9/9**, mobil **20/20 unit/widget** sinovi o‘tdi. API, ikkala web buildi, TypeScript, Flutter analyzer va 8 migratsiyaning toza bazadagi tekshiruvi o‘tdi. Yangilangan dalillar [holat hujjati](docs/IMPLEMENTATION_STATUS.md)da. Lokal provider javoblari rasmiy merchant qabulining o‘rnini bosmaydi.
 
-Yangilangan APK USB orqali Samsung SM-A165F qurilmasiga o‘rnatildi. APK ichida 15 ta maxfiy ma’lumot bayt ko‘rinishi tekshirildi, moslik topilmadi. Bu lokal APIga ulanadigan **debug preview**; imzolangan oldingi release namunasi vaqtinchalik `https://api.sihhat.invalid` manziliga ega. Haqiqiy HTTPS manzili belgilangach release qayta yig‘iladi. APKlar va qurilma dalillari repozitoriyaga kiritilmaydi.
+Yangilangan APK USB orqali Samsung SM-A165F qurilmasiga o‘rnatildi va force-stopdan keyin ochildi. APK ichida 24 ta maxfiy qiymat bayt namunasi tekshirildi, moslik topilmadi. Bu lokal APIga ulanadigan **debug preview**; imzolangan oldingi release namunasi vaqtinchalik `https://api.sihhat.invalid` manziliga ega. Haqiqiy HTTPS manzili belgilangach release qayta yig‘iladi. APKlar va qurilma dalillari repozitoriyaga kiritilmaydi.
 
 ## Kod tuzilishi
 
@@ -35,9 +36,13 @@ Yangilangan APK USB orqali Samsung SM-A165F qurilmasiga o‘rnatildi. APK ichida
 | `scripts`, `test/web` | Lokal muhit, APK/build/tiklanish vositalari va Playwright sinovlari |
 | `docs`, `infra` | Arxitektura, holat, OpenAPI, runbook va Docker muhiti |
 
-## Gemini va Eskiz sozlamalari
+## Gemini, Eskiz va Tezcheck sozlamalari
 
 API kalitlari faqat backendga beriladi. Lokal maxfiy fayl `.local/secrets/providers.env`; boshqa muhitda `SIHHAT_SECRETS_FILE` yoki server environment ishlatiladi. `.env.example` fayllarida faqat bo‘sh maydonlar va namunalar bor. Kalit/parollar, signing fayllari, demo hisoblar, bazalar, media, keshlar va APKlar Gitdan chiqarilgan.
+
+Tezcheck uchun [integratsiya va xavfsiz tekshirish](docs/TEZCHECK.md): `npm run tezcheck:check`. `PAYMENT_MODE=tezcheck` serverda yoqiladi; kalit va kassa kodi maxfiy faylda saqlanadi. Faol bo‘lmagan kassa `PAYMENT_NOT_READY` qaytaradi. Provider cancellation refund emas; avtomatik refund API hujjatda yo‘qligi sabab u bajarilmaydi.
+
+AI sarfi admin hisobotida va `GET /superadmin/ai/usage?from=...&to=...`da ko‘rinadi. `AI_INPUT_USD_PER_MILLION`/`AI_OUTPUT_USD_PER_MILLION` bo‘sh bo‘lsa xarajat o‘ylab topilmaydi. Sozlangan qiymatlar joriy Gemini modeliga qo‘llanadigan taxmin; haqiqiy invoice va ledger xarajati alohida.
 
 Gemini uchun backendda `AI_ADAPTER=gemini`, `GEMINI_API_KEY` va `GEMINI_MODEL` sozlanadi. Hozirgi model `gemini-3.1-flash-lite`; default kunlik limit 100 so‘rov, javob chegarasi 768 token. Model tasdiqlangan katalog va FAQ identifikatorlarini tanlaydi; bron yoki moliyaviy amalni bajarmaydi. Kalit APK yoki web mijoziga yuborilmaydi.
 

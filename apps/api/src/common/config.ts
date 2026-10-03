@@ -28,7 +28,11 @@ const schema = z.object({
   S3_BUCKET: z.string().default('sihhat'), S3_ACCESS_KEY: z.string().default(''), S3_SECRET_KEY: z.string().default(''),
   WORKER_MODE: z.enum(['database', 'redis']).default('database'),
   REDIS_URL: z.string().default('redis://127.0.0.1:6379'),
-  PAYMENT_MODE: z.enum(['local', 'payme']).default('local'),
+  PAYMENT_MODE: z.enum(['local', 'payme', 'tezcheck']).default('local'),
+  TEZCHECK_API_KEY: z.string().default(''),
+  TEZCHECK_CASH_DESK_CODE: z.string().max(128).default(''),
+  TEZCHECK_WEBHOOK_SECRET: z.string().default(''),
+  TEZCHECK_HOLD_MINUTES: z.coerce.number().int().min(5).max(30).default(15),
   PAYME_MERCHANT_ID: z.string().default(''), PAYME_KEY: z.string().default(''),
   PAYME_CHECKOUT_URL: z.string().url().default('https://checkout.paycom.uz'),
   AI_ADAPTER: z.enum(['catalog', 'http', 'gemini']).default('catalog'),
@@ -37,6 +41,8 @@ const schema = z.object({
   GEMINI_MODEL: z.string().regex(/^gemini-[a-z0-9.-]+$/).default('gemini-3.1-flash-lite'),
   AI_DAILY_REQUEST_LIMIT: z.coerce.number().int().min(1).max(10000).default(100),
   AI_MAX_OUTPUT_TOKENS: z.coerce.number().int().min(128).max(2048).default(768),
+  AI_INPUT_USD_PER_MILLION: z.string().regex(/^$|^\d{1,6}(\.\d{1,6})?$/).default(''),
+  AI_OUTPUT_USD_PER_MILLION: z.string().regex(/^$|^\d{1,6}(\.\d{1,6})?$/).default(''),
   PUSH_ADAPTER: z.enum(['local', 'http']).default('local'),
   PUSH_HTTP_URL: z.string().default(''), PUSH_HTTP_TOKEN: z.string().default(''),
   TELEGRAM_MODE: z.enum(['disabled', 'polling', 'webhook']).default('disabled'),
@@ -57,6 +63,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
   const result = schema.safeParse({ ...secrets, ...env });
   if (!result.success) throw new Error(`Konfiguratsiya xatosi: ${result.error.issues.map(i => `${i.path.join('.')}: ${i.message}`).join('; ')}`);
   const c = result.data;
+  if (c.PAYMENT_MODE === 'tezcheck' && !c.TEZCHECK_API_KEY) throw new Error('Tezcheck: server API kaliti kerak');
   if (c.TELEGRAM_MODE !== 'disabled' && !c.TELEGRAM_BOT_TOKEN) throw new Error('Telegram: server bot tokeni kerak');
   if (c.TELEGRAM_MODE === 'webhook' && !/^[A-Za-z0-9_-]{32,256}$/.test(c.TELEGRAM_WEBHOOK_SECRET)) throw new Error('Telegram: webhook uchun tasodifiy maxfiy kalit kerak');
   if (c.AI_ADAPTER === 'gemini' && !c.GEMINI_API_KEY) throw new Error('Gemini: server API kaliti kerak');
@@ -65,7 +72,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
   if (c.NODE_ENV === 'production') {
     if (c.SMS_ADAPTER === 'eskiz' && !c.ESKIZ_OTP_APPROVED) throw new Error('Production: Eskiz OTP hisobini va shablonini tasdiqlash kerak');
     if (c.SMS_ADAPTER === 'local' || (c.SMS_ADAPTER === 'http' && (!c.SMS_HTTP_URL || !c.SMS_HTTP_TOKEN))) throw new Error('Production: haqiqiy SMS adapteri kerak');
-    if (c.PAYMENT_MODE !== 'payme' || !c.PAYME_KEY || !c.PAYME_MERCHANT_ID) throw new Error('Production: merchant rekvizitlari kerak');
+    if (c.PAYMENT_MODE === 'local' || (c.PAYMENT_MODE === 'payme' && (!c.PAYME_KEY || !c.PAYME_MERCHANT_ID))) throw new Error('Production: merchant rekvizitlari kerak');
     if (c.STORAGE_ADAPTER !== 's3' || !c.S3_ACCESS_KEY || !c.S3_SECRET_KEY) throw new Error('Production: private S3 storage kerak');
     if (c.WORKER_MODE !== 'redis') throw new Error('Production: Redis worker kerak');
     if (c.CORS_ORIGINS.split(',').some(o => !o.startsWith('https://'))) throw new Error('Production: HTTPS originlar kerak');

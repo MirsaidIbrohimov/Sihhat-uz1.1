@@ -196,8 +196,39 @@ qoralama, e’lon va arxiv holatlarida boshqaradi. `/catalog/home` va
 public feedni login tugashidan oldin ko‘rsatadi; kesh 7 kun va API hostiga
 bog‘langan. Saqlangan narx/mavjudlik yakuniy bron hisobi sifatida ishlatilmaydi.
 
-`NODE_ENV=production` real SMS, Payme merchant, S3, Redis va HTTPS originlarni talab qiladi; lokal payment-confirm endpointi yopiladi. Production superadminini demo seed orqali yaratmang. `BOOTSTRAP_LOGIN` va `BOOTSTRAP_PASSWORD`ni secret muhitida berib, `npm run bootstrap -w @sihhat/api`dan foydalaning; bir martalik MFA ulash URI maxfiy saqlanadi.
+`NODE_ENV=production` real SMS, tanlangan Payme/Tezcheck merchant rekvizitlari, S3, Redis va HTTPS originlarni talab qiladi; lokal payment-confirm endpointi yopiladi. Tezcheck kassasi ham haqiqiy to‘lov qabul qilishga tayyor bo‘lishi kerak. Production superadminini demo seed orqali yaratmang. `BOOTSTRAP_LOGIN` va `BOOTSTRAP_PASSWORD`ni secret muhitida berib, `npm run bootstrap -w @sihhat/api`dan foydalaning; bir martalik MFA ulash URI maxfiy saqlanadi.
 
 `infra/docker/compose.yaml` PostgreSQL/Redis/MinIO uchun local muqobil muhit. Unda test DB va S3 bucketni alohida tayyorlash, `.env`ning DB URL/portlarini moslash kerak; ishlatilmagan Compose muhiti tekshirilgan deb belgilanmaydi.
 
 Real pilot uchun sanatoriya xona inventari, SMS/merchant rekvizitlari, refund/payout qoidalari va tariflar kerak. Pilot oqimi: e’lon tasdiqlash → quote/hold → provider to‘lovi → kelish/ketish → bank tasdig‘i bilan payout; muqobil oqim cancellation/refund. Release APK signing va payment return ham haqiqiy qurilmada tekshiriladi.
+
+## Tezcheck va yangilangan Android UI — 2026-10-03
+
+Tezcheck tartibi va haqiqiy tekshiruv cheklovlari [TEZCHECK.md](TEZCHECK.md)da.
+Serverda `PAYMENT_MODE=tezcheck`, maxfiy `TEZCHECK_API_KEY` va kassa kodi
+sozlanadi; `npm run tezcheck:check` faqat xavfsiz o‘qish so‘rovlarini yuboradi.
+Hozir kassa `draft`, `accepts_payments=false`: shu holatni yashirib to‘lovni
+tasdiqlash mumkin emas. API kaliti APK yoki web environmentga kiritilmaydi.
+Cashdesk faollashgach checkout va haqiqiy payment return sinovi alohida bajariladi.
+
+Webhook uchun haqiqiy HTTPS `/payments/tezcheck` manzili kabinetda ro‘yxatdan
+o‘tkaziladi va kabinet bergan siri `TEZCHECK_WEBHOOK_SECRET`ga saqlanadi.
+Poller webhook bo‘lmasa ham holatlarni oladi. `REVIEW` hisoblar, bekor qilish
+409 javoblari, 23 soatga yetgan noma’lum creation va pending inventar admin
+tomonidan kuzatiladi. Noma’lum natijada inventarni qo‘lda bo‘shatmang;
+provider va buyurtma referenceini solishtiring. Paid hisobni cancel qilish
+refund emas; Tezcheck refund endpointi berilmagan. Refund/dispute/chargeback
+holatlari avtomatik muvaffaqiyatga aylantirilmaydi va payout tasdig‘ini to‘xtatadi.
+Bank reestrida `provider=TEZCHECK` va provayder tasdiqlagan komissiya beriladi.
+
+AI sarfi `GET /superadmin/ai/usage?from=YYYY-MM-DD&to=YYYY-MM-DD` va admin
+hisobotida: Asia/Tashkent, oxirgi sana davrga kirmaydi. So‘rovlar, model,
+natija va olingan tokenlar qaytariladi. `AI_INPUT_USD_PER_MILLION` va
+`AI_OUTPUT_USD_PER_MILLION` bo‘sh bo‘lsa xarajat null; berilsa joriy Gemini
+modeli uchun taxminiy USD. Bu provider invoicei yoki ledger xarajati emas.
+
+Mobil UI uchun `npm run mobile:check`, so‘ng `npm run mobile:preview -- <serial>`.
+Yangi preview lokal HTTP API/USB reverse bilan ishlaydi. `python scripts/check-apk-secrets.py`
+va `npm run check:secrets` maxfiy ma’lumotlarni tekshiradi. APK, screenshot,
+imzo va `.local` dalillari Gitga kiritilmaydi. Production APKni haqiqiy HTTPS
+va signing konfiguratsiyasi bilan qayta yig‘ish tartibi mobile READMEda.

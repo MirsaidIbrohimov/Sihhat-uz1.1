@@ -13,6 +13,7 @@ export async function setup() {
   process.env.SMS_ADAPTER = 'local'; process.env.AI_ADAPTER = 'catalog';
   process.env.PUSH_ADAPTER = 'local'; process.env.PAYMENT_MODE = 'local';
   process.env.TELEGRAM_MODE = 'disabled'; process.env.TELEGRAM_BOT_TOKEN = '';
+  process.env.TEZCHECK_API_KEY = ''; process.env.TEZCHECK_CASH_DESK_CODE = ''; process.env.TEZCHECK_WEBHOOK_SECRET = '';
   const { app, document } = await createApp({ quiet: true, swagger: false });
   await app.listen(0, '127.0.0.1');
   const db = app.get(Db);
@@ -21,9 +22,10 @@ export async function setup() {
   const auth = app.get(AuthService); const secret = base32(Buffer.from('12345678901234567890'));
   await auth.bootstrap('admin.test', testPassword, secret);
   const admin = new Client(await app.getUrl());
-  const login = await admin.call('/auth/staff/login', 'POST', { login: 'admin.test', password: testPassword, mfa_code: totp(secret) });
+  const mfaCode = totp(secret);
+  const login = await admin.call('/auth/staff/login', 'POST', { login: 'admin.test', password: testPassword, mfa_code: mfaCode });
   if (login.status !== 201) throw new Error(`Admin login ${login.status}: ${JSON.stringify(login.body)}`);
-  return { app, document, db, auth, admin, base: await app.getUrl(), secret, webSession: login.body };
+  return { app, document, db, auth, admin, base: await app.getUrl(), secret, mfaCode, webSession: login.body };
 }
 export class Client {
   cookies = new Map<string,string>(); csrf = ''; token = '';

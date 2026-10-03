@@ -321,6 +321,30 @@ model PaymentEvent {
   createdAt DateTime @default(now())
 }
 
+model TezcheckBill {
+  id String @id @default(uuid()) @db.Uuid
+  orderId String @unique @db.Uuid
+  cashDeskCode String
+  billId String? @unique
+  encryptedUrl String?
+  state String @default("CREATING")
+  expiresAt DateTime
+  nextPollAt DateTime @default(now())
+  leasedUntil DateTime?
+  leaseToken String?
+  lastError String?
+  lastCheckedAt DateTime?
+  createdAt DateTime @default(now())
+  @@index([nextPollAt, state])
+}
+
+model TezcheckWebhook {
+  eventId String @id
+  billId String
+  payloadHash String
+  receivedAt DateTime @default(now())
+}
+
 model LedgerJournal {
   id String @id @default(uuid()) @db.Uuid
   source String @unique

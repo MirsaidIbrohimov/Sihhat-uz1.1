@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 
 import '../data/api.dart';
 import '../widgets.dart';
+import '../design.dart';
 
 class LoginScreen extends StatefulWidget {
   final Api api;
@@ -45,6 +46,7 @@ class _LoginScreenState extends State<LoginScreen> {
           body: {'phone': phone.text.trim()},
         ),
       );
+      if (!mounted) return;
       setState(() {
         challenge = r['challenge_id'];
         wait = r['resend_after'];
@@ -55,7 +57,7 @@ class _LoginScreenState extends State<LoginScreen> {
         if (mounted) setState(() => wait = (wait - 1).clamp(0, 3600));
       });
     } catch (e) {
-      setState(() => error = e.toString());
+      if (mounted) setState(() => error = e.toString());
     } finally {
       if (mounted) setState(() => busy = false);
     }
@@ -81,7 +83,7 @@ class _LoginScreenState extends State<LoginScreen> {
       await widget.api.tokens(result);
       if (mounted) Navigator.pop(context, true);
     } catch (e) {
-      setState(() => error = e.toString());
+      if (mounted) setState(() => error = e.toString());
     } finally {
       if (mounted) setState(() => busy = false);
     }
@@ -94,7 +96,14 @@ class _LoginScreenState extends State<LoginScreen> {
       child: ListView(
         padding: const EdgeInsets.all(28),
         children: [
-          const Icon(Icons.spa_outlined, size: 64, color: green),
+          const Align(
+            alignment: Alignment.centerLeft,
+            child: CircleAvatar(
+              radius: 38,
+              backgroundColor: mint,
+              child: Icon(Icons.spa_rounded, size: 38, color: forest),
+            ),
+          ),
           const SizedBox(height: 25),
           Text(
             challenge == null
@@ -102,7 +111,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 : 'SMS kodini kiriting',
             style: const TextStyle(
               fontSize: 26,
-              fontWeight: FontWeight.w700,
+              fontWeight: FontWeight.w800,
               color: ink,
             ),
           ),
@@ -123,6 +132,10 @@ class _LoginScreenState extends State<LoginScreen> {
               labelText: 'Telefon raqami',
               prefixIcon: Icon(Icons.phone_outlined),
             ),
+            textInputAction: TextInputAction.done,
+            onSubmitted: (_) {
+              if (challenge == null && !busy) request();
+            },
           ),
           if (challenge != null) ...[
             const SizedBox(height: 18),
@@ -138,6 +151,10 @@ class _LoginScreenState extends State<LoginScreen> {
                 labelText: 'SMS kodi',
                 prefixIcon: Icon(Icons.lock_outline),
               ),
+              textInputAction: TextInputAction.done,
+              onSubmitted: (_) {
+                if (!busy) verify();
+              },
             ),
           ],
           if (error != null) ErrorView(error!),
@@ -164,6 +181,22 @@ class _LoginScreenState extends State<LoginScreen> {
                     ? 'Qayta yuborish: $wait soniya'
                     : 'Kodni qayta yuborish',
               ),
+            ),
+          if (challenge != null)
+            TextButton.icon(
+              onPressed: busy
+                  ? null
+                  : () {
+                      timer?.cancel();
+                      setState(() {
+                        challenge = null;
+                        code.clear();
+                        error = null;
+                        wait = 0;
+                      });
+                    },
+              icon: const Icon(Icons.edit_outlined, size: 18),
+              label: const Text('Telefon raqamini tuzatish'),
             ),
           const SizedBox(height: 20),
           const Text(

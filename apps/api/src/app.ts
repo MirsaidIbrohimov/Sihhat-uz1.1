@@ -28,6 +28,8 @@ import { MediaService } from './media/media.service';
 import { MediaController } from './media/media.controller';
 import { PaymentService } from './payments/payment.service';
 import { PaymentController } from './payments/payment.controller';
+import { TezcheckClient } from './payments/tezcheck.client';
+import { TezcheckService } from './payments/tezcheck.service';
 import { FinanceService } from './finance/finance.service';
 import { FinanceController } from './finance/finance.controller';
 import { BillingService } from './billing/billing.service';
@@ -41,6 +43,7 @@ import { HomeController } from './catalog/home.controller';
 import { ReportsService } from './reports/reports.service';
 import { ReportsController } from './reports/reports.controller';
 import { AiService } from './ai/ai.service';
+import { AiUsageService } from './ai/usage.service';
 import { OutboxService } from './outbox/outbox.service';
 import { enrichOpenApi } from './common/openapi';
 import { TelegramClient } from './telegram/client';
@@ -57,7 +60,7 @@ export class AuthModule {}
 export class SanatoriumModule {}
 @Global() @Module({ providers:[InventoryService,PricingService,BookingService,MediaService],controllers:[InventoryController,BookingController,MediaController],exports:[PricingService,BookingService,InventoryService] })
 export class BookingModule {}
-@Global() @Module({providers:[PaymentService,FinanceService],controllers:[PaymentController,FinanceController],exports:[PaymentService,FinanceService]})
+@Global() @Module({providers:[PaymentService,FinanceService,TezcheckClient,TezcheckService,AiUsageService],controllers:[PaymentController,FinanceController],exports:[PaymentService,FinanceService,TezcheckService,AiUsageService]})
 export class FinanceModule {}
 @Global() @Module({providers:[BillingService,EngagementService,CatalogService,HomeService,ReportsService,AiService,OutboxService,TelegramClient,TelegramLinkService,TelegramViews,TelegramService],controllers:[BillingController,EngagementController,CatalogController,HomeController,ReportsController,TelegramController],exports:[BillingService,EngagementService,CatalogService,ReportsService,AiService,OutboxService,TelegramClient,TelegramLinkService,TelegramService]})
 export class OperationsModule {}
@@ -75,7 +78,7 @@ export async function createApp(options: { quiet?: boolean; swagger?: boolean } 
   const config = app.get<Config>(CONFIG);
   app.use(helmet({ contentSecurityPolicy: false }));
   app.use(cookieParser());
-  app.use(expressJson({limit:'12mb'}));
+  app.use(expressJson({limit:'12mb',verify:(req, _res, buffer)=>{if(req.url?.split('?')[0]==='/payments/tezcheck')(req as Request & {rawBody?:Buffer}).rawBody=Buffer.from(buffer);}}));
   const express = app.getHttpAdapter().getInstance();
   express.set('json replacer', (_key: string, value: unknown) => typeof value === 'bigint' ? value.toString() : value);
   app.use((req: Request & { requestId?: string }, res: Response, next: NextFunction) => {

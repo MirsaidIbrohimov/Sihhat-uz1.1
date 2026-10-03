@@ -2,16 +2,22 @@ import { test, expect, type Page } from "@playwright/test";
 import { readFileSync, mkdirSync } from "node:fs";
 import { totp } from "../../apps/api/dist/src/common/crypto";
 const access = JSON.parse(readFileSync(".local/dev-access.json", "utf8"));
+let adminLastStep = -1;
 async function login(page: Page, kind: "admin" | "director" | "reception") {
   await page.goto(
     kind === "admin" ? "http://localhost:3000" : "http://localhost:3001",
   );
   await page.getByLabel("Login", { exact: true }).fill(access[kind].login);
   await page.getByLabel("Parol", { exact: true }).fill(access[kind].password);
-  if (kind === "admin")
+  if (kind === "admin") {
+    // The API forbids reusing a TOTP. Each separate browser login needs a fresh step.
+    while (Math.floor(Date.now() / 30000) <= adminLastStep)
+      await page.waitForTimeout(Math.max(50, 30000 - (Date.now() % 30000) + 100));
+    adminLastStep = Math.floor(Date.now() / 30000);
     await page
       .getByLabel("Autentifikator kodi")
-      .fill(totp(access.admin.mfa_secret));
+      .fill(totp(access.admin.mfa_secret, adminLastStep));
+  }
   await page.getByRole("button", { name: "Kirish", exact: true }).click();
   await expect(
     page.getByRole("button", { name: "Chiqish", exact: true }),
@@ -181,6 +187,8 @@ test("Admin MFA, ko‘rsatkichlar va moliya ekranlari haqiqiy APIga ulanadi", as
   await expect(
     page.getByText("Platforma daromadi", { exact: true }),
   ).toBeVisible();
+  await expect(page.getByRole("heading", { name: "AI sarfi", exact: true })).toBeVisible();
+  await expect(page.getByText(/Xarajat joriy sozlangan narxlar asosida/)).toBeVisible();
   await expect(page.locator(".error-box")).toHaveCount(0);
   await page.screenshot({
     path: ".local/screenshots/superadmin-dashboard.png",
@@ -208,8 +216,35 @@ test("Admin MFA, ko‘rsatkichlar va moliya ekranlari haqiqiy APIga ulanadi", as
     ).toBeVisible();
     await expect(page.locator(".skeletons")).toHaveCount(0);
     await expect(page.locator(".error-box")).toHaveCount(0);
+    if (menu === "To‘lovlar") {
+      const card = page.locator(".card").filter({
+        has: page.getByRole("heading", { name: "Tezcheck ulanishi", exact: true }),
+      });
+      await expect(card).toBeVisible();
+      await expect(card).toContainText(/ulanishi hali sozlanmagan|API bilan ulanish/);
+    }
   }
 });
+test("Tezcheck ulanish xatosidan qayta urinish draft kassani tayyor deb ko‘rsatmaydi", async ({ page }) => {
+  let unavailable = true;
+  await page.route("**/api/superadmin/integrations/tezcheck", route => route.fulfill(unavailable
+    ? { status: 503, json: { code: "SERVICE_UNAVAILABLE", message: "Sinov: to‘lov xizmati vaqtincha javob bermadi." } }
+    : { json: { configured: true, authenticated: true, accepts_payments: false, state: "draft", currency: "UZS", methods: [{ name: "Click" }, { name: "Payme" }] } }));
+  await login(page, "admin");
+  await page.getByRole("button", { name: "To‘lovlar", exact: true }).click();
+  const card = page.locator(".card").filter({
+    has: page.getByRole("heading", { name: "Tezcheck ulanishi", exact: true }),
+  });
+  const error = card.getByRole("alert");
+  await expect(error).toContainText("Sinov: to‘lov xizmati vaqtincha javob bermadi.");
+  unavailable = false;
+  await error.getByRole("button", { name: "Qayta urinish" }).click();
+  await expect(card).toContainText("Kassa hali to‘lov qabul qilmayapti.");
+  await expect(card).toContainText("draft");
+  await expect(card).toContainText("Click, Payme");
+  await expect(card.getByText("Kassa to‘lov qabul qilishga tayyor.", { exact: true })).toHaveCount(0);
+});
+
 test("Admin yangilikni qoralamadan e’longa va arxivga o‘tkazadi; Android public feed mos yangilanadi", async ({ page, request }) => {
   await login(page, "admin");
   await page.getByRole("button", { name: "Yangilik va tavsiyalar", exact: true }).click();

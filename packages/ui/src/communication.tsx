@@ -611,7 +611,7 @@ export function Reconciliation() {
     ctx.form({
       title: "Provayder / bank reestrini yuklash",
       description:
-        "CSV ustunlari: provider_id,order_id,amount,state,bank_reference,fee. Summalar so‘mda. 5000 satrgacha.",
+        "CSV ustunlari: provider,provider_id,order_id,amount,state,bank_reference,fee. provider: PAYME yoki TEZCHECK; bo‘sh bo‘lsa PAYME. Summalar so‘mda. 5000 satrgacha.",
       fields: [
         {
           key: "kind",
@@ -652,6 +652,7 @@ export function Reconciliation() {
           const values = line.split(",").map((s) => s.trim());
           const row = Object.fromEntries(headers.map((h, n) => [h, values[n]]));
           return {
+            provider: row.provider || "PAYME",
             provider_id: row.provider_id,
             order_id: row.order_id,
             amount: toMinor(row.amount),

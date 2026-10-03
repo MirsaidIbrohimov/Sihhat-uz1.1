@@ -17,7 +17,7 @@ test('B0: live/ready, request IDs and required env validation', async () => {
 test('B1: superadmin cannot log in without MFA; TOTP cannot be replayed', async () => {
   const client = new Client(ctx.base);
   assert.equal((await client.call('/auth/staff/login', 'POST', { login: 'admin.test', password: testPassword })).body.code, 'MFA_REQUIRED');
-  assert.equal((await client.call('/auth/staff/login', 'POST', { login: 'admin.test', password: testPassword, mfa_code: totp(ctx.secret) })).body.code, 'MFA_INVALID');
+  assert.equal((await client.call('/auth/staff/login', 'POST', { login: 'admin.test', password: testPassword, mfa_code: ctx.mfaCode })).body.code, 'MFA_INVALID');
   assert.equal((await ctx.auth.db.user.findFirst({ where: { kind: 'SUPERADMIN' } }))?.mfaSecret?.includes(ctx.secret), false);
 });
 test('B1: OTP survives incorrect-attempt accounting and is consumed once under concurrency', async () => {

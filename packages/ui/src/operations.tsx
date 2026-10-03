@@ -1164,12 +1164,47 @@ export function Bookings() {
 }
 export function Payments() {
   const ctx = usePortal();
+  const tez = useRemote(ctx.admin ? "/superadmin/integrations/tezcheck" : null);
   return (
     <>
       <PageHeading
         title="Onlayn to‘lovlar"
         subtitle="Holat to‘lov provayderi tasdig‘i bilan belgilanadi."
       />
+      {ctx.admin && (
+        <Card title="Tezcheck ulanishi">
+          {tez.loading ? (
+            <Loading />
+          ) : tez.error ? (
+            <ErrorBox message={tez.error} retry={tez.reload} />
+          ) : !tez.data?.configured ? (
+            <p>Tezcheck ulanishi hali sozlanmagan.</p>
+          ) : (
+            <>
+              <p>
+                {tez.data.authenticated
+                  ? "API bilan ulanish ishlayapti."
+                  : "API bilan ulanishni tekshirish kerak."}
+              </p>
+              <p>
+                {tez.data.accepts_payments
+                  ? "Kassa to‘lov qabul qilishga tayyor."
+                  : "Kassa hali to‘lov qabul qilmayapti. Tezcheck kabinetida kassani faollashtirish kerak."}
+              </p>
+              <p>
+                Holat: <strong>{tez.data.state ?? "Tekshirilmoqda"}</strong> ·
+                Valyuta: {tez.data.currency ?? "UZS"}
+              </p>
+              <p>
+                Usullar:{" "}
+                {(tez.data.methods ?? []).map((m: Row) => m.name).join(", ") ||
+                  "Hozircha mavjud emas"}
+              </p>
+              <Act onClick={() => tez.reload()}>Ulanishni yangilash</Act>
+            </>
+          )}
+        </Card>
+      )}
       <DataPanel
         path={ctx.admin ? "/superadmin/payments" : "/partner/payments"}
         params={{ sanatorium_id: ctx.tenant }}
