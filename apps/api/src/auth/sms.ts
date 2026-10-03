@@ -1,15 +1,16 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, Optional } from '@nestjs/common';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { CONFIG, type Config } from '../common/config';
 import { fail } from '../common/errors';
 import { EskizClient } from './eskiz';
+import { Db, emit } from '../common/db';
 
 @Injectable()
 export class Sms {
   readonly sent = new Map<string, string>();
   private readonly eskiz: EskizClient;
-  constructor(@Inject(CONFIG) private readonly config: Config) { this.eskiz = new EskizClient(config); }
+  constructor(@Inject(CONFIG) private readonly config: Config, @Optional() @Inject(Db) private readonly db?: Db) { this.eskiz = new EskizClient(config); }
   async send(id: string, phone: string, code: string, expiresAt: Date) {
     if (this.config.SMS_ADAPTER === 'local') {
       if (this.config.NODE_ENV === 'production') fail('SMS_UNAVAILABLE', 'SMS xizmati sozlanmagan', 503);
@@ -35,6 +36,9 @@ export class Sms {
         body: JSON.stringify({ phone, message: `Sihhat uz kirish kodi: ${code}. Kodni hech kimga bermang.`, request_id: id }),
       });
       if (!response.ok) throw new Error('SMS rejected');
-    } catch { fail('SMS_UNAVAILABLE', 'SMS yuborilmadi. Keyinroq qayta urinib ko‘ring', 503); }
+    } catch {
+      try { if(this.db)await this.db.atomic(async tx => { const admins=await tx.user.findMany({where:{kind:'SUPERADMIN',status:'ACTIVE'},select:{id:true}});await emit(tx,'provider.sms.failed',{recipient_ids:admins.map(a=>a.id)}); }); } catch { /* The original provider error remains authoritative. */ }
+      fail('SMS_UNAVAILABLE', 'SMS yuborilmadi. Keyinroq qayta urinib ko‘ring', 503);
+    }
   }
 }

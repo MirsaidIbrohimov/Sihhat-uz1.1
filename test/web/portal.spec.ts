@@ -282,3 +282,61 @@ test("Resepshn moliyaga kira olmaydi; direktor huquqni bekor qilib qayta beradi"
   await dirContext.close();
   await recContext.close();
 });
+
+test("Telegram ulash sahifasi shaxsni ko‘rsatadi va aniq tasdiqdan keyin bog‘laydi", async ({ page }) => {
+  const identity = { telegram_user_id: "61001", display_name: "Brauzer sinovi", username: "test_staff", blocked: false };
+  let link: any = null, account: any = null, confirmationCount = 0;
+  await page.route("**/api/telegram/**", async route => {
+    const path = new URL(route.request().url()).pathname;
+    if (path.endsWith("/account")) return route.fulfill({ json: { enabled: true, bot_username: "sihhat_test_bot", account, link } });
+    if (path.endsWith("/link")) {
+      link = { id: "b1a00000-0000-4000-8000-000000000001", expires_at: new Date(Date.now() + 300000).toISOString(), claimed: false, telegram_user_id: null, display_name: null, username: null };
+      return route.fulfill({ status: 201, json: { id: link.id, expires_at: link.expires_at, url: "https://t.me/sihhat_test_bot?start=browser_example" } });
+    }
+    if (path.endsWith("/confirm")) {
+      expect(route.request().postDataJSON()).toEqual({ telegram_user_id: identity.telegram_user_id });
+      confirmationCount++; account = identity; link = null;
+      return route.fulfill({ status: 201, json: { success: true } });
+    }
+    if (path.endsWith("/disconnect")) {
+      account = null; link = null;
+      return route.fulfill({ status: 201, json: { success: true } });
+    }
+    throw new Error("Unexpected Telegram browser route");
+  });
+  await login(page, "director");
+  await page.getByRole("button", { name: "Telegram bot", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Telegram hisobingizni ulang" })).toBeVisible();
+  await page.getByRole("button", { name: "Telegramga ulash", exact: true }).click();
+  await expect(page.getByRole("link", { name: "Telegramda ochish ↗" })).toHaveAttribute("href", /t\.me\/sihhat_test_bot\?start=/);
+  link = { ...link, ...identity, claimed: true };
+  await page.getByRole("button", { name: "Holatni yangilash", exact: true }).click();
+  await expect(page.getByText(/Telegram ID: 61001/)).toBeVisible();
+  const confirm = page.getByRole("button", { name: "Bog‘lashni tasdiqlash", exact: true });
+  await expect(confirm).toBeDisabled(); expect(confirmationCount).toBe(0);
+  await page.getByRole("checkbox", { name: "Bu mening Telegram akkauntim" }).check();
+  await confirm.click();
+  await expect(page.getByRole("heading", { name: "Hisob bog‘langan" })).toBeVisible(); expect(confirmationCount).toBe(1);
+  await page.getByRole("button", { name: "Bog‘lanishni uzish", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Hisob bog‘langan" })).toBeVisible();
+  await page.getByRole("button", { name: "Ha, uzish", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Telegram hisobingizni ulang" })).toBeVisible();
+});
+
+test("Admin va resepsion Telegram bo‘limida server xatosidan keyin qayta urinadi", async ({ page }) => {
+  for (const role of ["admin", "reception"] as const) {
+    let fail = true;
+    await page.route("**/api/telegram/account", route => route.fulfill(fail
+      ? { status: 503, json: { code: "SERVICE_UNAVAILABLE", message: "Sinov: bot ulanishi vaqtincha tekshirilmadi." } }
+      : { json: { enabled: false, bot_username: "", account: null, link: null } }));
+    await login(page, role);
+    await page.getByRole("button", { name: "Telegram bot", exact: true }).click();
+    const error = page.getByRole("alert").filter({ hasText: "Sinov: bot ulanishi" });
+    await expect(error).toBeVisible(); fail = false;
+    await error.getByRole("button", { name: "Qayta urinish" }).click();
+    await expect(page.getByText("Bot hali yoqilmagan. Administrator bilan bog‘laning.", { exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Telegramga ulash", exact: true })).toHaveCount(0);
+    await page.getByRole("button", { name: "Chiqish", exact: true }).click();
+    await page.unroute("**/api/telegram/account");
+  }
+});

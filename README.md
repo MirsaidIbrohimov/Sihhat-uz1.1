@@ -1,23 +1,24 @@
 # Sihhat uz
 
-Sanatoriyalar uchun bron platformasi: NestJS/PostgreSQL backend, superadmin sayti, direktor/resepsion sayti va Flutter Android ilovasi.
+Sanatoriyalar uchun bron platformasi: NestJS/PostgreSQL backend, superadmin sayti, direktor/resepsion sayti, xodimlar Telegram boti va Flutter Android ilovasi.
 
-Kanonik repozitoriya: [MirsaidIbrohimov/Sihhat-uz1.1](https://github.com/MirsaidIbrohimov/Sihhat-uz1.1). Yangilangan: **2026-10-02**. Keyingi kod o‘zgarishlari ham shu repozitoriyaga joylanadi; README va tekshiruv natijalari o‘zgarishlarga mos yangilanadi.
+Kanonik repozitoriya: [MirsaidIbrohimov/Sihhat-uz1.1](https://github.com/MirsaidIbrohimov/Sihhat-uz1.1). Yangilangan: **2026-10-03**. Keyingi kod o‘zgarishlari ham shu repozitoriyaga joylanadi; README va tekshiruv natijalari o‘zgarishlarga mos yangilanadi.
 
 ## Joriy holat
 
 | Qism | Bajarilgan |
 | --- | --- |
-| Backend | MFA/OTP, rollar va sanatoriya ruxsatlari, katalog, inventar, narx hisobi, ko‘p xonali bron, to‘lov holati, ledger, refund/payout, abonent/reklama, xabarlar va hisobotlar; 6 migratsiya |
+| Backend | MFA/OTP, rollar va sanatoriya ruxsatlari, katalog, inventar, narx hisobi, ko‘p xonali bron, to‘lov holati, ledger, refund/payout, abonent/reklama, xabarlar va hisobotlar; 7 migratsiya |
 | Superadmin | Sanatoriyalar, jamoa/ruxsatlar, moliya va operatsion sahifalar; yangilik va tavsiya yaratish, tahrirlash, e’lon qilish va arxivga olish |
 | Hamkorlar sayti | Direktor/resepsion ruxsatlari, xona va tariflar, kalendar, qo‘lda bron, check-in/out va tegishli operatsion sahifalar |
+| Telegram bot | Admin/direktor/resepsion menyulari, sayt orqali tasdiqlangan hisob, bron/qidiruv/check-in-out, xonalar, hisobot, vazifa va murojaatlar; bildirishnoma, kunlik ma’lumot va abonent eslatmalari |
 | Android | Kirishda loginni kutmaydigan bosh sahifa, sanatoriyalar, boshlang‘ich tariflar, hudud filtri, yangiliklar, tavsiyalar va bron yo‘riqnomasi; katalog, saqlanganlar, bron/to‘lov, profil va tiklanadigan sessiya |
 | Gemini | Server orqali haqiqiy ulanish tekshirildi; mijoz roziligi, shaxsiy raqam/emailni niqoblash, katalog/FAQ bilan cheklangan javob, kunlik limit va token sarfi yozuvlari |
 | Eskiz | SMS API autentifikatsiyasi va standart test SMSi tekshirildi; foydalanuvchi yetib kelganini tasdiqladi. Haqiqiy OTP uchun hisob va matn hali tayyor emas |
 
 Backendni production uchun 100% tayyor deb hisoblashga hali asos yo‘q. Haqiqiy HTTPS API, Eskiz hisobini test rejimidan chiqarish va OTP matnini tasdiqlatish, rasmiy Payme sandboxi, push, staging Redis/S3 hamda real sanatoriya/bank piloti qolgan. Batafsil dalillar va cheklovlar [amalga oshirish holati](docs/IMPLEMENTATION_STATUS.md)da.
 
-Oxirgi tekshiruvlar: **32/32 backend**, **17/17 Android unit/widget**, Flutter analyzer va TypeScript tekshiruvi o‘tdi. Ikkala Next.js buildi tayyor. Yangi Playwright testi adminning qoralama → e’lon → arxiv oqimi bilan Android public feed mosligini tekshirdi; avvalgi 5 brauzer testi dalillari holat hujjatida saqlangan.
+**44/44 backend** va **8 brauzer ssenariyi** o‘tdi; TypeScript, API va ikkala Next.js buildi tekshirildi. Telegram sinovlari, 7 ta toza migratsiya va haqiqiy API ulanishi dalillari [holat hujjati](docs/IMPLEMENTATION_STATUS.md)da. Androidning avvalgi **17/17 unit/widget** va analyzer dalili saqlangan; bu bosqichda Android kodi o‘zgartirilmadi.
 
 Yangilangan APK USB orqali Samsung SM-A165F qurilmasiga o‘rnatildi. APK ichida 15 ta maxfiy ma’lumot bayt ko‘rinishi tekshirildi, moslik topilmadi. Bu lokal APIga ulanadigan **debug preview**; imzolangan oldingi release namunasi vaqtinchalik `https://api.sihhat.invalid` manziliga ega. Haqiqiy HTTPS manzili belgilangach release qayta yig‘iladi. APKlar va qurilma dalillari repozitoriyaga kiritilmaydi.
 
@@ -41,6 +42,12 @@ API kalitlari faqat backendga beriladi. Lokal maxfiy fayl `.local/secrets/provid
 Gemini uchun backendda `AI_ADAPTER=gemini`, `GEMINI_API_KEY` va `GEMINI_MODEL` sozlanadi. Hozirgi model `gemini-3.1-flash-lite`; default kunlik limit 100 so‘rov, javob chegarasi 768 token. Model tasdiqlangan katalog va FAQ identifikatorlarini tanlaydi; bron yoki moliyaviy amalni bajarmaydi. Kalit APK yoki web mijoziga yuborilmaydi.
 
 Eskiz uchun asosiy kabinet parolidan farq qiladigan SMS API login/paroli yoki token talab qilinadi. Adapter `SMS_ADAPTER=eskiz`; kirish kodi matni `ESKIZ_OTP_TEMPLATE` bilan beriladi. Hisob haqiqiy yuborishga tayyor bo‘lib, aynan shu matn tasdiqlangandan keyingina `ESKIZ_OTP_APPROVED=true` qilinadi. Hozir bu qiymat `false`; development muhiti lokal OTP adapteridan foydalanadi. Standart test SMSi yetib kelishi haqiqiy kirish kodi ruxsatini tasdiqlamaydi. Batafsil sozlash [runbook](docs/RUNBOOK.md)da.
+
+## Telegram bot
+
+Bot: [@sihhat_admins_bot](https://t.me/sihhat_admins_bot). Xodim saytda **Telegram bot → Telegramga ulash**ni bosadi, botda **Start** qiladi va saytga qaytib Telegram hisobini tasdiqlaydi. Direktor/resepsion roli saytdagi mavjud tayinlovdan olinadi; botdagi tanlov orqali huquq berilmaydi.
+
+Server tokeni `.local/secrets/providers.env`da, Gitga kiritilmaydi. `npm run telegram:check` ulanishni tekshiradi, `npm run telegram:configure` o‘zbekcha buyruqlarni sozlaydi, `npm run dev:telegram` bot workerini ishga tushiradi. API va domen worker ham alohida ishlashi kerak. Kompyuter o‘chsa lokal bot to‘xtaydi; doimiy server va telefon uchun HTTPS kabinet manzillari hali kerak. Tugmalar, ruxsatlar va sozlash: [Telegram yo‘riqnomasi](docs/TELEGRAM_BOT.md).
 
 ## Lokal ishga tushirish
 

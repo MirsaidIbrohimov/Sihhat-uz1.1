@@ -39,6 +39,13 @@ const schema = z.object({
   AI_MAX_OUTPUT_TOKENS: z.coerce.number().int().min(128).max(2048).default(768),
   PUSH_ADAPTER: z.enum(['local', 'http']).default('local'),
   PUSH_HTTP_URL: z.string().default(''), PUSH_HTTP_TOKEN: z.string().default(''),
+  TELEGRAM_MODE: z.enum(['disabled', 'polling', 'webhook']).default('disabled'),
+  TELEGRAM_BOT_TOKEN: z.string().default('').refine(v => !v || /^\d{5,20}:[A-Za-z0-9_-]{30,60}$/.test(v), 'Telegram token formati noto‘g‘ri'),
+  TELEGRAM_BOT_USERNAME: z.string().regex(/^[A-Za-z0-9_]{5,32}$/).or(z.literal('')).default(''),
+  TELEGRAM_WEBHOOK_SECRET: z.string().default(''),
+  TELEGRAM_ADMIN_URL: z.string().url().default('http://localhost:3000'),
+  TELEGRAM_PARTNER_URL: z.string().url().default('http://localhost:3001'),
+  TELEGRAM_LINK_TTL_SECONDS: z.coerce.number().int().min(60).max(900).default(300),
 });
 
 export type Config = z.infer<typeof schema>;
@@ -50,6 +57,8 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
   const result = schema.safeParse({ ...secrets, ...env });
   if (!result.success) throw new Error(`Konfiguratsiya xatosi: ${result.error.issues.map(i => `${i.path.join('.')}: ${i.message}`).join('; ')}`);
   const c = result.data;
+  if (c.TELEGRAM_MODE !== 'disabled' && !c.TELEGRAM_BOT_TOKEN) throw new Error('Telegram: server bot tokeni kerak');
+  if (c.TELEGRAM_MODE === 'webhook' && !/^[A-Za-z0-9_-]{32,256}$/.test(c.TELEGRAM_WEBHOOK_SECRET)) throw new Error('Telegram: webhook uchun tasodifiy maxfiy kalit kerak');
   if (c.AI_ADAPTER === 'gemini' && !c.GEMINI_API_KEY) throw new Error('Gemini: server API kaliti kerak');
   if (c.SMS_ADAPTER === 'eskiz' && !c.ESKIZ_TOKEN && !(c.ESKIZ_EMAIL && c.ESKIZ_PASSWORD)) throw new Error('Eskiz: API token yoki login rekvizitlari kerak');
   if (!c.ESKIZ_OTP_TEMPLATE.includes('{code}')) throw new Error('Eskiz: OTP shablonida {code} bo‘lishi kerak');
@@ -60,6 +69,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     if (c.STORAGE_ADAPTER !== 's3' || !c.S3_ACCESS_KEY || !c.S3_SECRET_KEY) throw new Error('Production: private S3 storage kerak');
     if (c.WORKER_MODE !== 'redis') throw new Error('Production: Redis worker kerak');
     if (c.CORS_ORIGINS.split(',').some(o => !o.startsWith('https://'))) throw new Error('Production: HTTPS originlar kerak');
+    if (c.TELEGRAM_MODE !== 'disabled' && [c.TELEGRAM_ADMIN_URL, c.TELEGRAM_PARTNER_URL].some(u => !u.startsWith('https://'))) throw new Error('Production: Telegram panel manzillari HTTPS bo‘lishi kerak');
   }
   for (const url of [c.SMS_HTTP_URL, c.AI_HTTP_URL, c.PUSH_HTTP_URL].filter(Boolean)) {
     if (!url.startsWith('https://') && c.NODE_ENV === 'production') throw new Error('Production: adapter URL HTTPS bo‘lishi kerak');

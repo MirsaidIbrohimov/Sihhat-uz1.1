@@ -106,6 +106,37 @@ Kuzatiladigan belgilar: API readiness, worker jarayoni, `OutboxEvent`dagi `proce
 
 Worker xatosida avval DB, Redis va HTTP adapter ulanishlarini tekshiring, keyin worker jarayonini qayta ishga tushiring. Moliyaviy holatlarni bazada qo‘lda almashtirish o‘rniga API oqimi va provider/bank tasdig‘idan foydalaning.
 
+### Telegram xodimlar boti
+
+Token lokal `.local/secrets/providers.env`da yoki deployment secret
+muhitida saqlanadi. `TELEGRAM_MODE=polling` uchun ayni botga bitta worker:
+
+```powershell
+npm run telegram:check
+npm run telegram:configure
+npm run dev:telegram
+```
+
+Compiled jarayon: `npm run start:telegram -w @sihhat/api`. API va domen
+worker ham ishlashi kerak. Telegram worker xabarlarni yuboradi, domen
+worker hold expiry, provider timeout va billingni bajaradi. Local PID lock
+ikkinchi polling jarayonini rad etadi; productionda bitta replika belgilang.
+Mavjud webhook pollingda avtomatik o‘chirilmaydi. 401/409da worker to‘xtaydi;
+tarmoq/429da qayta urinish kechiktiriladi. Token yangilanganda workerni
+qayta ishga tushiring. Kompyuter o‘chsa lokal bot ham to‘xtaydi.
+
+Xodim hisobini saytdagi **Telegram bot** bo‘limida bir martalik havola
+orqali bog‘laydi va botda Start bosgandan so‘ng saytda ism/IDni tasdiqlaydi.
+Huquqlar bot chatidan berilmaydi; har amal joriy ruxsat bilan tekshiriladi.
+`TELEGRAM_ADMIN_URL` va `TELEGRAM_PARTNER_URL` haqiqiy HTTPS manzil bo‘lsa,
+sayt tugmalari telefonda ham ochiladi. Hozirgi localhost kabinetlari
+kompyuter uchun; ommaviy deployment hali bajarilmagan.
+
+Webhook rejimi va secret header, bildirishnomalar, navbat/saqlash tartibi,
+rollar va tugmalar [TELEGRAM_BOT.md](TELEGRAM_BOT.md)da. `telegram:check`
+natijasi provider ulanishini tekshiradi; fake Telegram klienti ishlatilgan
+backend/browser testlari haqiqiy xodimning end-to-end qabul dalili emas.
+
 ## 5. Zaxira va tiklash
 
 ```powershell
@@ -126,6 +157,7 @@ DB arxivi rasmlar/hujjatlar fayllarini qamramaydi. Lokal `.local/uploads`, produ
 | Redis | `WORKER_MODE=redis`, `REDIS_URL` | Worker restart/retry va delivery saqlanishi |
 | Push | `PUSH_ADAPTER=http`, URL/token | Haqiqiy qurilmaga yuborish va xatodan qayta urinish |
 | Gemini AI | `AI_ADAPTER=gemini`, `GEMINI_API_KEY`, `GEMINI_MODEL` | Haqiqiy javob, public katalog/FAQ, rozilik, niqoblash, limit va fallback tekshirildi |
+| Telegram | `TELEGRAM_MODE`, server tokeni, HTTPS kabinet URLlari; webhookda secret header | Rasmiy getMe/getWebhookInfo va commands sozlash tekshirildi; xodimning haqiqiy hisob ulashi alohida yakunlanadi |
 
 SMS/push HTTP adapterlari muqobil umumiy integratsiya chegaralari. AI katalog fallbacki Gemini ishlamasa, rozilik bo‘lmasa yoki limit tugasa mavjud. Rasmiy provider testlari va haqiqiy pul amallari lokal simulator natijasidan alohida qayd qilinadi.
 

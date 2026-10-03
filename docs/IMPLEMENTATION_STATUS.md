@@ -1,15 +1,16 @@
 # Sihhat uz — amalga oshirish holati
 
-Yangilangan: 2026-10-02. Asos: ISHLAB_CHIQISH_REJASI.md va SIHHAT_UZ_ARXITEKTURA.md.
+Yangilangan: 2026-10-03. Asos: ISHLAB_CHIQISH_REJASI.md va SIHHAT_UZ_ARXITEKTURA.md.
 
 | Bosqich | Holat | Dalil |
 | --- | --- | --- |
-| B0 — poydevor | Lokal tekshiruv o‘tdi | NestJS, PostgreSQL 18.6, oltita migratsiya, health API; migratsiyalar lokal va test bazada qo‘llandi |
+| B0 — poydevor | Lokal tekshiruv o‘tdi | NestJS, PostgreSQL 18.6, yettita migratsiya, health API; migratsiyalar lokal, test va toza scratch bazada qo‘llandi |
 | B1 — hisoblar va ruxsatlar | Lokal tekshiruv o‘tdi | MFA, OTP, tenant, bloklash va CSRF testlari; telefon almashtirish qo‘shildi |
 | B2–B8 — backend domenlari | Asosiy lokal oqimlar amalga oshirildi va tekshirildi | Anketa, moderatsiya, xona/narx/bron, Payme protokoli, ledger, refund/payout, billing va aloqa APIlari |
 | B9 — katalog, hisobot va AI | Katalog/hisobot, FAQ va Gemini adapteri mavjud | Haqiqiy Gemini javobi tekshirildi; rozilik, shaxsiy ma’lumot niqobi, kunlik limit, token sarfi va fallback bor |
-| B10 — backend qabul | Lokal qabul to‘plami o‘tdi; tashqi tekshiruv cheklovlari quyida | PostgreSQLda 32/32 test; yangilangan OpenAPI va runbook; avvalgi clean migration va backup/restore dalillari quyida |
-| F1/F2 — saytlar | Asosiy APIga ulangan sahifalar va brauzer qabul sinovlari o‘tdi | Ikkala Next.js buildi, TypeScript va 5/5 Playwright test |
+| B10 — backend qabul | Lokal qabul to‘plami o‘tdi; tashqi tekshiruv cheklovlari quyida | PostgreSQLda 44/44 test; OpenAPI va runbook yangilandi; clean migration va avvalgi backup dalillari quyida |
+| F1/F2 — saytlar | APIga ulangan sahifalar, Telegram ulash va brauzer sinovlari o‘tdi | Ikkala Next.js buildi, TypeScript; 8 brauzer ssenariyi o‘tdi (7 umumiy run + 1 tuzatilgan locator bilan qayta tekshiruv) |
+| Telegram — xodimlar boti | Kod, lokal worker va rasmiy API ulanishi tayyor | Admin/direktor/resepsion menyusi, xavfsiz ulash, ruxsat tekshiruvi, vazifa/murojaat wizardlari va outbox bildirishnomalari; haqiqiy xodim ulashi hali bajarilmagan |
 | F3 — Android | Axborotli bosh sahifa, yangilik/tavsiyalar va debug preview tayyor; avvalgi bron/tiklanish sinovlari o‘tdi | Flutter analyze; 17/17 test; Samsungga yangi preview o‘rnatildi. Avvalgi OS va release imzo dalillari quyida; HTTPS API hali belgilanmagan |
 | R1 — real pilot | Gemini va Eskiz rekvizitlari olindi; pilot to‘liq emas | Gemini ulandi, Eskiz standart SMSi yetib keldi. Haqiqiy OTP hisobi/matni, HTTPS, Payme, push va real sanatoriya piloti qolgan |
 
@@ -102,6 +103,45 @@ Maxfiy provider fayli Windowsda faqat foydalanuvchi va SYSTEM uchun ochilgan; Gi
 
 Kanonik kod repozitoriyasi: https://github.com/MirsaidIbrohimov/Sihhat-uz1.1.
 Bugungi foydalanuvchi ko‘rsatmasi: funksional ishni yakunlash, README va kodlarni shu repozitoriyaga joylash; keyingi kod o‘zgarishlari ham shu yerga yuboriladi.
+
+## 2026-10-03 Telegram bot tekshiruvlari
+
+- `npm test`: **44/44 pass**, 0 fail; shundan 12 tasi Telegram oqimlari.
+  CSRF, link egasi tasdig‘i, bir martalik token, expiry/revoked session,
+  pending staff va guruh chatini rad etish, boshqa sanatoriya chegarasi,
+  darhol bekor qilingan ruxsatlar, menyular va callback uzunligi tekshirildi.
+  Qidiruv/cancel/sozlamalar, task va support wizard, check-in/out versiyasi,
+  webhook secret, encrypted inbox/dedup, retry/opt-out va scheduling bor.
+- `npm run check`, API va ikkala Next.js buildi o‘tdi.
+- Playwright umumiy runida 7 ssenariy o‘tdi; yangi ulash testining aniq
+  matn locatorida xato tuzatilib, alohida run **1/1 pass** bo‘ldi. Jami 8
+  ssenariy: 6 mavjud real lokal API oqimi va 2 yangi Telegram UI testi.
+  Telegram claim holati brauzerda mock; haqiqiy Telegramga testdan xabar
+  yuborilmagan. Saytda ism/IDni tekshirish, checkboxsiz tasdiqlay olmaslik,
+  uzishni tasdiqlash, admin/resepsion uchun server xatosidan qayta urinish bor.
+- `db:migrations:verify`: toza
+  `sihhat_migration_check_1791042965652_61cc32ac` bazasida **7 migratsiya**,
+  inventory exclusion va **4 ledger guard** saqlandi.
+- `npm run openapi` orqali `/telegram/account`, `/telegram/link`,
+  `/telegram/link/:id/confirm`, `/telegram/disconnect` va secret header bilan
+  `/telegram/webhook` shartnomalari eksport qilindi.
+- Rasmiy `getMe` va `getWebhookInfo`: `@sihhat_admins_bot` ulandi,
+  mavjud webhook yo‘q. `telegram:configure` o‘zbekcha commands, tavsif va
+  commands menu sozladi. Lokal polling worker ishga tushdi; API readiness
+  HTTP 200. Xodimning Telegramdan hisobni ulashi va production/HTTPS
+  webhook qabul sinovi bajarilgan deb belgilanmagan.
+- Token va webhook secret faqat ignored `.local/secrets/providers.env`da;
+  ACL loyiha egasi va SYSTEM uchun. `check:secrets` bot token formatini ham
+  tekshiradi; maxfiy qiymatlarni chiqarmaydi. Gitga yuboriladigan manbalar
+  tekshiruvda maxfiy qiymatsiz chiqdi. Android kodi/APK bu bosqichda
+  o‘zgartirilmadi va qayta build qilinmadi.
+
+Telegram uchun doimiy server, telefon orqali kabinetga kiradigan haqiqiy
+HTTPS URLlar va foydalanuvchining saytdagi shaxs tasdig‘i kerak. Kompyuter
+o‘chsa lokal worker ham to‘xtaydi. Polling bir replika bilan ishlaydi.
+Telegram senddan keyingi crashda xabar takrorlanishi mumkin; ichki bron
+versiyasi va task/support idempotency yozuvlari takroriy amalni cheklaydi.
+Tugmalar va ishga tushirish [Telegram yo‘riqnomasi](TELEGRAM_BOT.md)da.
 
 ## Muhit
 

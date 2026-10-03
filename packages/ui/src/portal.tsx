@@ -27,6 +27,7 @@ import {
 } from "lucide-react";
 import { api, can, restoreSession, type Actor } from "@sihhat/api-client";
 import { PublicArticles } from "./articles";
+import { TelegramSettings } from "./telegram";
 import {
   ErrorBox,
   FormDialog,
@@ -131,6 +132,7 @@ const links = [
   },
   { id: "support", label: "Yordam xizmati", icon: CircleHelp },
   { id: "notifications", label: "Bildirishnomalar", icon: Bell },
+  { id: "telegram", label: "Telegram bot", icon: Mail },
   { id: "audit", label: "Amallar tarixi", icon: ShieldCheck, admin: true },
 ];
 function Login({
@@ -406,6 +408,8 @@ export function Portal({ mode }: { mode: "admin" | "partner" }) {
         <ErrorBox message="Bu sahifaga kirish uchun ruxsat yo‘q. Menyudan mavjud bo‘limni tanlang." />
       );
     switch (section) {
+      case "telegram":
+        return <TelegramSettings />;
       case "dashboard":
         return <Dashboard />;
       case "sanatoriums":

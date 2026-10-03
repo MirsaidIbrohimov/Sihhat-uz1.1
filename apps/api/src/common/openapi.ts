@@ -7,6 +7,7 @@ import {rateInput,roomTypeInput} from '../inventory/inventory.service';
 import {draftInput} from '../sanatoriums/sanatorium.service';
 import { aiInput } from '../ai/ai.service';
 import { articleInput, articleUpdate } from '../catalog/home.service';
+import { updateInput } from '../telegram/types';
 
 const str={type:'string'},id={type:'string',format:'uuid'},integer={type:'integer'},boolean={type:'boolean'},timestamp={type:'string',format:'date-time'},date={type:'string',format:'date'},money={type:'string',pattern:'^(0|[1-9][0-9]*)$',description:'UZS, tiyin. Integer string.'};
 const array=(items:any)=>({type:'array',items});
@@ -25,6 +26,7 @@ export function enrichOpenApi(document:OpenAPIObject){
   document.components.securitySchemes.CSRF={type:'apiKey',in:'header',name:'X-CSRF-Token'};
   document.components.securitySchemes.refreshCookie={type:'apiKey',in:'cookie',name:'sihhat_refresh'};
   document.components.securitySchemes.PaymeAuth={type:'http',scheme:'basic',description:'Paycom: merchant key. Only provider calls this API.'};
+  document.components.securitySchemes.TelegramWebhook={type:'apiKey',in:'header',name:'X-Telegram-Bot-Api-Secret-Token',description:'Server-only webhook secret; constant-time verification.'};
   const schemas=document.components.schemas;
   Object.assign(schemas,{
     QuoteRequest:apiSchema(quoteInput),HoldRequest:apiSchema(holdInput),StaffRequest:apiSchema(staffInput),RatePlanRequest:apiSchema(rateInput),RoomTypeRequest:apiSchema(roomTypeInput),DraftRequest:apiSchema(draftInput),Guest:apiSchema(guestInput),
@@ -44,6 +46,8 @@ export function enrichOpenApi(document:OpenAPIObject){
     BookingEvent:obj({id,bookingId:id,actorId:{...id,nullable:true},status:str,reason:{...str,nullable:true},createdAt:timestamp}),
     OfflinePayment:obj({id,sanatoriumId:id,bookingId:id,amount:money,method:{...str,enum:['CASH','TERMINAL']},evidence:str,status:{...str,enum:['UNVERIFIED','VERIFIED','CORRECTED']},recordedBy:id,verifiedBy:{...id,nullable:true},correctionOf:{...id,nullable:true},createdAt:timestamp}),
     Success:obj({success:{...boolean,enum:[true]}}),
+    TelegramLink:obj({id,expires_at:timestamp,url:{...str,format:'uri',description:'One-time Telegram linking URL. Never log or share it.'}}),
+    TelegramConnection:obj({enabled:boolean,bot_username:str,account:{type:'object',nullable:true,properties:{telegram_user_id:str,display_name:str,username:{...str,nullable:true},connected_at:timestamp,blocked:boolean}},link:{type:'object',nullable:true,properties:{id,expires_at:timestamp,claimed:boolean,telegram_user_id:{...str,nullable:true},display_name:{...str,nullable:true},username:{...str,nullable:true}}}}),
   });
   const bookingSchema=schemas.Booking as any;
   schemas.BookingDetail=obj({...bookingSchema.properties,items:array(ref('BookingItem')),events:array(ref('BookingEvent')),payment:{...schemas.PaymentOrder,nullable:true},refund:{...schemas.RefundRequest,nullable:true},offline_payments:array(ref('OfflinePayment'))});
@@ -90,13 +94,14 @@ export function enrichOpenApi(document:OpenAPIObject){
     '/auth/profile':obj({name:str,login:str},['name']),'/auth/refresh':obj({refresh_token:str},[]),
     '/superadmin/reconciliation/imports':obj({kind:{type:'string',enum:['PROVIDER','BANK']},evidence_asset_id:id,rows:array(obj({provider_id:str,order_id:id,amount:money,state:integer,bank_reference:str,fee:money},['provider_id','order_id','amount','state']))},['kind','rows']),
     '/payments/payme':obj({jsonrpc:{type:'string',enum:['2.0']},id:{oneOf:[str,{type:'number'}]},method:{type:'string',enum:['CheckPerformTransaction','CreateTransaction','PerformTransaction','CancelTransaction','CheckTransaction','GetStatement','SetFiscalData']},params:{type:'object',additionalProperties:true}},['method','params']),
+    '/telegram/link':obj({}),'/telegram/disconnect':obj({}),'/telegram/link/{id}/confirm':obj({telegram_user_id:{...str,pattern:'^[1-9][0-9]{0,19}$'}}),'/telegram/webhook':apiSchema(updateInput),
   };
   for(const[path,item]of Object.entries(document.paths))for(const method of ['get','post','patch','put','delete'] as const){const operation=(item as any)[method];if(!operation)continue;
-    const isPublic=path.startsWith('/health/')||path.startsWith('/catalog/')||['/auth/staff/login','/auth/customer/otp/request','/auth/customer/otp/verify'].includes(path);
+    const isPublic=path.startsWith('/health/')||path.startsWith('/catalog/')||['/auth/staff/login','/auth/customer/otp/request','/auth/customer/otp/verify','/telegram/webhook'].includes(path);
     const customerOnly=path.startsWith('/customer/')||path.startsWith('/auth/customer/phone')||['/ai/messages','/reviews'].includes(path);
-    const staffOnly=path.startsWith('/partner/')||path.startsWith('/superadmin/')||(method==='post'&&['/messages','/tasks'].includes(path));
+    const staffOnly=path.startsWith('/partner/')||path.startsWith('/superadmin/')||(path.startsWith('/telegram/')&&path!=='/telegram/webhook')||(method==='post'&&['/messages','/tasks'].includes(path));
     const webSecurity={cookie:[],...(method==='get'?{}:{CSRF:[]})};
-    operation.security=path==='/payments/payme'?[{PaymeAuth:[]}]:isPublic?[]:customerOnly?[{bearer:[]}]:staffOnly?[webSecurity]:[webSecurity,{bearer:[]}];
+    operation.security=path==='/telegram/webhook'?[{TelegramWebhook:[]}]:path==='/payments/payme'?[{PaymeAuth:[]}]:isPublic?[]:customerOnly?[{bearer:[]}]:staffOnly?[webSecurity]:[webSecurity,{bearer:[]}];
     operation['x-roles']=isPublic||path==='/payments/payme'?[]:path.startsWith('/superadmin/')?['SUPERADMIN']:customerOnly?['CUSTOMER']:staffOnly?['STAFF','SUPERADMIN']:['SUPERADMIN','STAFF','CUSTOMER'];
     // tsx does not emit the same parameter reflection metadata as tsc.
     // Route templates and explicit contracts produce the same document in both.
@@ -135,6 +140,9 @@ export function enrichOpenApi(document:OpenAPIObject){
     }
     const code=method==='post'&&path!=='/payments/payme'?'201':'200';const response:any={description:'Muvaffaqiyatli natija',content:{'application/json':{schema:{type:'object',additionalProperties:true}}}};
     if(path==='/catalog/home')response.content['application/json'].schema=ref('HomeFeed');
+    if(path==='/telegram/account')response.content['application/json'].schema=ref('TelegramConnection');
+    if(path==='/telegram/link')response.content['application/json'].schema=ref('TelegramLink');
+    if(['/telegram/disconnect','/telegram/webhook','/telegram/link/{id}/confirm'].includes(path))response.content['application/json'].schema=ref('Success');
     if(path==='/catalog/news/{id}')response.content['application/json'].schema=ref('PublicArticle');
     if(path==='/ai/messages')response.content['application/json'].schema=ref('AiReply');
     if(path==='/superadmin/articles'&&method==='get')response.content['application/json'].schema=ref('Page');

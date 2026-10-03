@@ -12,6 +12,7 @@ export async function setup() {
   process.env.NODE_ENV = 'test'; process.env.DATABASE_URL = url;
   process.env.SMS_ADAPTER = 'local'; process.env.AI_ADAPTER = 'catalog';
   process.env.PUSH_ADAPTER = 'local'; process.env.PAYMENT_MODE = 'local';
+  process.env.TELEGRAM_MODE = 'disabled'; process.env.TELEGRAM_BOT_TOKEN = '';
   const { app, document } = await createApp({ quiet: true, swagger: false });
   await app.listen(0, '127.0.0.1');
   const db = app.get(Db);

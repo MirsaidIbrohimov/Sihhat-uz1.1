@@ -287,6 +287,15 @@ svg {
   background: #fff;
   color: var(--ink);
 }
+.telegram-connection .button:not(.primary) {
+  border-color: var(--line);
+  background: #fff;
+  color: var(--ink);
+}
+.telegram-connection ol {
+  padding-left: 22px;
+  line-height: 1.9;
+}
 .button.danger {
   background: #a13b3b;
   color: #fff;

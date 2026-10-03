@@ -542,7 +542,81 @@ model NotificationDelivery {
   payload Json
   readAt DateTime?
   sentAt DateTime?
+  attempts Int @default(0)
+  availableAt DateTime @default(now())
+  leaseUntil DateTime?
+  lastError String?
   @@unique([eventId, userId, channel])
+  @@index([channel, status, availableAt])
+}
+
+model TelegramAccount {
+  id String @id @default(uuid()) @db.Uuid
+  userId String @unique @db.Uuid
+  telegramUserId String @unique
+  chatId String @unique
+  displayName String
+  username String?
+  sanatoriumId String? @db.Uuid
+  notificationsEnabled Boolean @default(true)
+  notifyBookings Boolean @default(true)
+  notifyPayments Boolean @default(true)
+  notifyTasks Boolean @default(true)
+  notifySupport Boolean @default(true)
+  notifyBilling Boolean @default(true)
+  dailyDigest Boolean @default(true)
+  digestHour Int @default(8)
+  quietHours Boolean @default(true)
+  state Json @default("{}")
+  stateUpdatedAt DateTime @default(now())
+  blockedAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model TelegramLinkRequest {
+  id String @id @default(uuid()) @db.Uuid
+  userId String @db.Uuid
+  sessionId String @db.Uuid
+  tokenHash String @unique
+  telegramUserId String?
+  chatId String?
+  displayName String?
+  username String?
+  expiresAt DateTime
+  claimedAt DateTime?
+  consumedAt DateTime?
+  createdAt DateTime @default(now())
+  @@index([userId, createdAt])
+}
+
+model TelegramInbound {
+  id String @id
+  botId String
+  updateId BigInt
+  chatId String?
+  encryptedPayload String
+  status String @default("PENDING")
+  attempts Int @default(0)
+  availableAt DateTime @default(now())
+  leaseUntil DateTime?
+  lastError String?
+  createdAt DateTime @default(now())
+  @@unique([botId, updateId])
+  @@index([botId, status, availableAt])
+}
+
+model TelegramBotState {
+  botId String @id
+  username String?
+  offset BigInt @default(0)
+  lastPollAt DateTime?
+  workerHeartbeatAt DateTime?
+}
+
+model TelegramScheduledEvent {
+  id String @id
+  createdAt DateTime @default(now())
 }
 
 model Review {

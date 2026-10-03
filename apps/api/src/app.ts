@@ -43,6 +43,11 @@ import { ReportsController } from './reports/reports.controller';
 import { AiService } from './ai/ai.service';
 import { OutboxService } from './outbox/outbox.service';
 import { enrichOpenApi } from './common/openapi';
+import { TelegramClient } from './telegram/client';
+import { TelegramLinkService } from './telegram/link.service';
+import { TelegramViews } from './telegram/views';
+import { TelegramService } from './telegram/telegram.service';
+import { TelegramController } from './telegram/telegram.controller';
 
 @Global() @Module({ providers: [{ provide: CONFIG, useFactory: () => loadConfig() }, Db], exports: [CONFIG, Db] })
 export class CoreModule {}
@@ -54,7 +59,7 @@ export class SanatoriumModule {}
 export class BookingModule {}
 @Global() @Module({providers:[PaymentService,FinanceService],controllers:[PaymentController,FinanceController],exports:[PaymentService,FinanceService]})
 export class FinanceModule {}
-@Global() @Module({providers:[BillingService,EngagementService,CatalogService,HomeService,ReportsService,AiService,OutboxService],controllers:[BillingController,EngagementController,CatalogController,HomeController,ReportsController],exports:[BillingService,EngagementService,CatalogService,ReportsService,AiService,OutboxService]})
+@Global() @Module({providers:[BillingService,EngagementService,CatalogService,HomeService,ReportsService,AiService,OutboxService,TelegramClient,TelegramLinkService,TelegramViews,TelegramService],controllers:[BillingController,EngagementController,CatalogController,HomeController,ReportsController,TelegramController],exports:[BillingService,EngagementService,CatalogService,ReportsService,AiService,OutboxService,TelegramClient,TelegramLinkService,TelegramService]})
 export class OperationsModule {}
 @Controller('health') @Public()
 class HealthController {
