@@ -724,6 +724,34 @@ class _BookingScreenState extends State<BookingScreen>
                 padding: const EdgeInsets.all(22),
                 children: [
                   Pill(b['status']),
+                  if (b['status'] == 'CONFIRMED') ...[
+                    const SizedBox(height: 16),
+                    Card(
+                      color: context.colors.soft,
+                      child: Padding(
+                        padding: const EdgeInsets.all(18),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Icon(
+                              Icons.check_circle_outline,
+                              color: context.colors.primary,
+                            ),
+                            const SizedBox(height: 10),
+                            const Text(
+                              'Broningiz tasdiqlandi!',
+                              style: TextStyle(fontWeight: FontWeight.w700),
+                            ),
+                            const SizedBox(height: 6),
+                            const Text(
+                              'Yaxshi dam oling! Safaringiz yoqimli va xotirjam o‘tsin.',
+                              style: TextStyle(height: 1.6),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
                   const SizedBox(height: 18),
                   Text(
                     b['reference'],

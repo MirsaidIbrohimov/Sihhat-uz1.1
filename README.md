@@ -19,9 +19,24 @@ Kanonik repozitoriya: [MirsaidIbrohimov/Sihhat-uz1.1](https://github.com/Mirsaid
 
 Backendni production uchun 100% tayyor deb hisoblashga hali asos yo‘q. Haqiqiy HTTPS API, Tezcheck kassasini faollashtirish va haqiqiy merchant to‘lovi/webhook, Eskiz hisobini test rejimidan chiqarish va OTP matnini tasdiqlatish, push, staging Redis/S3 hamda real sanatoriya/bank piloti qolgan. Payme bevosita ulanishi tanlansa uning rasmiy rekvizitlari va qabul sinovi kerak. Batafsil dalillar va cheklovlar [amalga oshirish holati](docs/IMPLEMENTATION_STATUS.md)da.
 
-Backend **60/60**, brauzer **11/11**, mobil **28/28 unit/widget** sinovi o‘tdi. API, ikkala web buildi, TypeScript, Flutter analyzer va 8 migratsiyaning toza bazadagi tekshiruvi o‘tdi. Backend, mobil va oxirgi umumiy brauzer natijalari 4-oktabrga tegishli; migratsiya va avvalgi qabul dalillari [holat hujjati](docs/IMPLEMENTATION_STATUS.md)da alohida sanalar bilan saqlangan. Lokal provider javoblari rasmiy merchant qabulining o‘rnini bosmaydi.
+Backend **62/62**, brauzer **11/11**, mobil **30/30 unit/widget** sinovi o‘tdi. API, ikkala web buildi, TypeScript, Flutter analyzer va 8 migratsiyaning toza bazadagi tekshiruvi o‘tdi. Backend, mobil va oxirgi umumiy brauzer natijalari 4-oktabrga tegishli; migratsiya va avvalgi qabul dalillari [holat hujjati](docs/IMPLEMENTATION_STATUS.md)da alohida sanalar bilan saqlangan. Lokal provider javoblari rasmiy merchant qabulining o‘rnini bosmaydi.
 
-Yangilangan bosh sahifali APK USB orqali Samsung SM-A165F qurilmasiga o‘rnatildi. Avvalgi login sinovida telefon/SMS tasdig‘idan keyin asosiy sahifa ochildi va lokal bazada yangi OTP tasdig‘i, mijoz hamda mobil sessiya qayd etildi. Oxirgi APK ichida 45 ta maxfiy qiymat bayt namunasi tekshirildi, moslik topilmadi. Bu lokal APIga ulanadigan **debug preview**; imzolangan oldingi release namunasi vaqtinchalik `https://api.sihhat.invalid` manziliga ega. Haqiqiy HTTPS manzili belgilangach release qayta yig‘iladi. APKlar va qurilma dalillari repozitoriyaga kiritilmaydi.
+Yangilangan bosh sahifa, AI suhbat va bron tasdig‘i yozuvli APK USB orqali Samsung SM-A165F qurilmasiga o‘rnatildi. Avvalgi login sinovida telefon/SMS tasdig‘idan keyin asosiy sahifa ochildi va lokal bazada yangi OTP tasdig‘i, mijoz hamda mobil sessiya qayd etildi. Oxirgi APK ichida 45 ta maxfiy qiymat bayt namunasi tekshirildi, moslik topilmadi. Bu lokal APIga ulanadigan **debug preview**; imzolangan oldingi release namunasi vaqtinchalik `https://api.sihhat.invalid` manziliga ega. Haqiqiy HTTPS manzili belgilangach release qayta yig‘iladi. APKlar va qurilma dalillari repozitoriyaga kiritilmaydi.
+
+## AI suhbat va bron tasdig‘i
+
+Yordamchi **Salom**ga **Salom!**, **Assalomu alaykum**ga **Va alaykum assalom!**
+deb javob beradi. Keyin hudud, kunlik byudjet, safar va kerakli sharoitlarni
+birma-bir so‘raydi; oxirgi suhbatdagi javoblarni hisobga oladi. **Variantlar
+ko‘rsating** deyilsa mavjud tanlovlar bo‘yicha katalogga o‘tadi. Salomlashuv,
+aniqlashtiruvchi savollar va minnatdorchilik javobi Gemini chaqirmaydi.
+
+Bron serverda **CONFIRMED** bo‘lgach **Broningiz tasdiqlandi! Yaxshi dam
+oling! Safaringiz yoqimli va xotirjam o‘tsin** yozuvi chiqadi.
+
+2026-10-04 qayta tekshiruvda Tezcheck API autentifikatsiyasi ishladi;
+kassa **draft**, **accepts_payments=false**. Kassani Tezcheck kabinetida
+faollashtirish kerak. Sozlash va dalillar [TEZCHECK.md](docs/TEZCHECK.md)da.
 
 ## Anketa, ruxsatlar va bosh sahifa
 

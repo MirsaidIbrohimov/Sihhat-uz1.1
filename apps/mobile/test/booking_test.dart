@@ -27,6 +27,56 @@ const sanatorium = {
 };
 
 void main() {
+  testWidgets(
+    'good wishes appear only after server confirmation and disappear for a payment exception',
+    (tester) async {
+      var status = 'HOLD';
+      final api = Api(
+        baseUrl: 'http://localhost',
+        store: MemoryStore(),
+        client: MockClient(
+          (_) async => http.Response.bytes(
+            utf8.encode(
+              jsonEncode({
+                'id': 'booking',
+                'reference': 'BRON-TEST',
+                'status': status,
+                'checkIn': '2026-10-10',
+                'checkOut': '2026-10-17',
+                'amount': '20000',
+                'guest': {'name': 'Test mehmon'},
+                'items': <dynamic>[],
+              }),
+            ),
+            200,
+          ),
+        ),
+      );
+      await tester.pumpWidget(MaterialApp(home: BookingScreen(api, 'booking')));
+      await tester.pumpAndSettle();
+      final wishes = find.text(
+        'Yaxshi dam oling! Safaringiz yoqimli va xotirjam o‘tsin.',
+      );
+      expect(wishes, findsNothing);
+      Future<void> refresh(String value) async {
+        status = value;
+        await tester.tap(find.byTooltip('Holatni yangilash'));
+        await tester.pumpAndSettle();
+      }
+
+      await refresh('PAYMENT_PENDING');
+      expect(wishes, findsNothing);
+      await refresh('CONFIRMED');
+      expect(wishes, findsOneWidget);
+      await refresh('CONFIRMED');
+      expect(wishes, findsOneWidget);
+      await refresh('PAYMENT_EXCEPTION');
+      expect(wishes, findsNothing);
+      expect(tester.takeException(), isNull);
+      await tester.pumpWidget(const SizedBox.shrink());
+      api.client.close();
+    },
+  );
   for (final success in [true, false]) {
     testWidgets(
       'leaving quote screen before ${success ? 'success' : 'failure'} is safe',

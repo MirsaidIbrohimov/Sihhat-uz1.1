@@ -9,8 +9,13 @@ import { CatalogService } from '../catalog/catalog.service';
 import { guidance } from '../catalog/guidance';
 import { PricingService, quoteInput, availableRooms } from '../pricing/pricing.service';
 import { selectWithProvider } from './provider';
+import { greetingReply, planConversation, salutation, thanksReply } from './conversation';
 
-export const aiInput = z.object({ message: z.string().trim().min(1).max(1000), region: z.string().max(80).optional(), quote: quoteInput.optional(), share_with_provider: z.boolean().default(false) }).strict();
+export const aiInput = z.object({ message: z.string().trim().min(1).max(1000), history: z.array(z.object({ role: z.enum(['user', 'assistant']), message: z.string().trim().min(1).max(1000) }).strict()).max(12).default([]), region: z.string().max(80).optional(), quote: quoteInput.optional(), share_with_provider: z.boolean().default(false) }).strict();
+
+function conversationReply(message: string) {
+  return { message, cards: [], faq: [], fallback: false, provider_status: 'conversation', provider_message_shared: false, actions: ['search'], can_execute_financial_actions: false };
+}
 
 @Injectable()
 export class AiService {
@@ -18,10 +23,21 @@ export class AiService {
   async message(actor: Actor, body: unknown) {
     const i = parse(aiInput, body);
     await this.auth.limit(`ai:${actor.id}`, 30, 3600);
+    const hello = greetingReply(i.message), thanks = thanksReply(i.message), welcome = salutation(i.message);
+    if (!i.quote && hello && !i.history.length) return conversationReply(`${hello} Sizga mos sanatoriya topishga yordam beraman. Qaysi hududga bormoqchisiz?`);
+    if (!i.quote && thanks) return conversationReply(thanks);
     const list = await this.catalog.list({ limit: 100, ...(i.region ? { region: i.region } : {}) });
+    const conversation = planConversation(i.message, i.history, list.data, i.region);
+    const medical = conversation.medical;
+    if (!i.quote && conversation.question) {
+      const prefix = welcome ? `${welcome} ` : '';
+      const notice = medical ? 'Tibbiy moslikni sanatoriya mutaxassisi bilan aniqlang. ' : '';
+      return conversationReply(`${prefix}${notice}${conversation.question}`);
+    }
+    if (!i.quote && hello) return conversationReply(`${hello} Sanatoriya tanlashda yana qanday yordam kerak?`);
     const card = (s: any) => ({ id: s.id, name: s.name, region: s.region, amenities: s.amenities, price: null, price_status: 'Sana, xona va mehmonlar sonini tanlang' });
-    const terms = i.message.toLocaleLowerCase().split(/\s+/).filter(t => t.length > 2);
-    const ranked = [...list.data].sort((a: any, b: any) => {
+    const terms = conversation.searchMessage.toLocaleLowerCase().split(/\s+/).filter(t => t.length > 2);
+    const ranked = [...conversation.candidates].sort((a: any, b: any) => {
       const score = (s: any) => terms.filter(t => `${s.name} ${s.region} ${(s.amenities ?? []).join(' ')} ${(s.services ?? []).join(' ')}`.toLocaleLowerCase().includes(t)).length;
       return score(b) - score(a);
     });
@@ -29,13 +45,12 @@ export class AiService {
     let faq = guidance.filter(f => f.keywords.test(i.message)).slice(0, 2);
     let fallback = true, shared = false;
     let providerStatus = this.config.AI_ADAPTER === 'catalog' ? 'catalog' : i.share_with_provider ? 'unavailable' : 'consent_required';
-    const medical = /kasal|davola|tashxis|muolaja|diagnoz|dori|диагноз|лечен|лекарств/i.test(i.message);
     if (medical) providerStatus = 'medical_guidance';
     if (!medical && i.share_with_provider && this.config.AI_ADAPTER !== 'catalog') {
       try {
         await this.auth.limit(`ai-provider:${this.config.AI_ADAPTER}`, this.config.AI_DAILY_REQUEST_LIMIT, 86400);
         shared = true;
-        const result = await selectWithProvider(this.config, i.message, ranked.slice(0, 20));
+        const result = await selectWithProvider(this.config, conversation.searchMessage, ranked.slice(0, 20));
         const ids = [...new Set(result.selection.ordered_ids)];
         if (ids.some(id => !ranked.slice(0, 20).some((s: any) => s.id === id))) throw new Error('AI_UNKNOWN_CATALOG_ID');
         cards = ids.map(id => card(list.data.find((s: any) => s.id === id)));
@@ -65,6 +80,6 @@ export class AiService {
       }
     }
     const intro = medical ? 'Tibbiy moslik va davolanishni sanatoriya mutaxassisi bilan aniqlang.' : cards.length ? 'Katalogdagi tasdiqlangan variantlar. Yakuniy narx va bo‘sh joy bron hisobida tekshiriladi.' : 'Bu so‘rov uchun tasdiqlangan variant topilmadi.';
-    return { message: [intro, ...faq.map(f => f.text)].join('\n\n'), cards, faq: faq.map(({ keywords, ...f }) => f), fallback, provider_status: providerStatus, provider_message_shared: shared, actions: ['open_sanatorium', 'search'], can_execute_financial_actions: false };
+    return { message: [welcome ? `${welcome} ${intro}` : intro, ...faq.map(f => f.text)].join('\n\n'), cards, faq: faq.map(({ keywords, ...f }) => f), fallback, provider_status: providerStatus, provider_message_shared: shared, actions: ['open_sanatorium', 'search'], can_execute_financial_actions: false };
   }
 }

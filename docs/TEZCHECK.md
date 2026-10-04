@@ -5,6 +5,25 @@ Backend `https://api.tezcheck.uz/api/merchant/v1`ga Bearer kalit va
 HMAC-SHA256 imzosi bilan murojaat qiladi. Kalit brauzer, Flutter yoki
 Telegram tugmasiga berilmaydi.
 
+## Qayta diagnostika — 2026-10-04
+
+19:26 (Asia/Tashkent)dagi `npm run tezcheck:check` `/me`, `/cash-desks`,
+`/payment-methods`, `/transactions` va `/balance`ni muvaffaqiyatli o‘qidi.
+API autentifikatsiyasi va imzo ishladi. Bitta tanlangan UZS kassada
+`state=draft`, `accepts_payments=false` qaytdi; Click, Payme va Uzcard/Humo
+usullari ro‘yxatda, tranzaksiya namunasi 0 edi.
+
+Joriy backend `PAYMENT_MODE=tezcheck`; API kaliti va kassa kodi sozlangan.
+Checkoutning hozirgi to‘sig‘i — kassada to‘lov qabul qilish o‘chiq.
+[Rasmiy API](https://tezcheck.uz/api-docs)da `accepts_payments` hisob
+yaratishga tayyorlikni belgilaydi. Kassani Tezcheck kabinetida faollashtirib,
+shu buyruq bilan `accepts_payments=true` qaytishini tekshiring.
+
+Webhook siri hali sozlanmagan; ommaviy HTTPS endpointini kabinetga ulash
+quyidagi tartibda bajariladi. Polling mustaqil ishlaydi. Diagnostika hisob
+yoki to‘lov yaratmagan, kassa holatini o‘zgartirmagan. Bu haqiqiy merchant
+to‘lovi yoki production qabul sinovi emas.
+
 ## Haqiqiy ulanish dalili — 2026-10-03
 
 Berilgan kalit bilan `/me`, `/cash-desks`, `/payment-methods`, `/transactions`,

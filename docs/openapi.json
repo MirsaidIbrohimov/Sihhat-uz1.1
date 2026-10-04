@@ -8619,6 +8619,14 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "X-Checkout-Signature",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -16828,6 +16836,33 @@
                     "minLength": 1,
                     "maxLength": 1000
                   },
+                  "history": {
+                    "default": [],
+                    "maxItems": 12,
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "role": {
+                          "type": "string",
+                          "enum": [
+                            "user",
+                            "assistant"
+                          ]
+                        },
+                        "message": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 1000
+                        }
+                      },
+                      "required": [
+                        "role",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
                   "region": {
                     "type": "string",
                     "maxLength": 80
@@ -21643,6 +21678,7 @@
           "provider_status": {
             "type": "string",
             "enum": [
+              "conversation",
               "catalog",
               "consent_required",
               "connected",

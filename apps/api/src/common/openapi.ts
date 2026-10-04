@@ -60,7 +60,7 @@ export function enrichOpenApi(document:OpenAPIObject){
   schemas.RefundPage=page(ref('RefundRequest'));
   schemas.PublicArticle=obj({id,title:str,summary:str,body:str,kind:{...str,enum:['NEWS','TIP']},published_at:{...timestamp,nullable:true}});
   schemas.HomeFeed=obj({generated_at:timestamp,sanatorium_count:integer,featured:array({type:'object',additionalProperties:true}),regions:array(str),news:array(ref('PublicArticle')),tips:array({type:'object',additionalProperties:true})});
-  schemas.AiReply=obj({message:str,cards:array({type:'object',additionalProperties:true}),faq:array({type:'object',additionalProperties:true}),fallback:boolean,provider_status:{...str,enum:['catalog','consent_required','connected','unavailable','daily_limit','medical_guidance']},provider_message_shared:boolean,actions:array(str),can_execute_financial_actions:{...boolean,enum:[false]}});
+  schemas.AiReply=obj({message:str,cards:array({type:'object',additionalProperties:true}),faq:array({type:'object',additionalProperties:true}),fallback:boolean,provider_status:{...str,enum:['conversation','catalog','consent_required','connected','unavailable','daily_limit','medical_guidance']},provider_message_shared:boolean,actions:array(str),can_execute_financial_actions:{...boolean,enum:[false]}});
   const bodies:Record<string,any>={
     '/superadmin/sanatoriums':obj({name:str}),'/superadmin/sanatoriums/{id}/config':obj({version:integer,payment_ready:boolean,subscription_required:boolean},['version','payment_ready']),
     '/superadmin/director-assignments':{$ref:'#/components/schemas/StaffRequest'},'/partner/staff-invitations':{$ref:'#/components/schemas/StaffRequest'},
@@ -112,9 +112,9 @@ export function enrichOpenApi(document:OpenAPIObject){
     // Route templates and explicit contracts produce the same document in both.
     const parameterKey=(p:any)=>`${p.in}:${p.in==='header'?p.name.toLowerCase():p.name}`;
     const pathParameters=[...path.matchAll(/\{([^}]+)\}/g)].map(([,name])=>({name,in:'path',required:true,schema:id}));
-    operation.parameters=[...pathParameters,...(operation.parameters??[]).filter((p:any)=>p.in!=='path'&&!(p.in==='header'&&['authorization','idempotency-key'].includes(p.name.toLowerCase())))];
+    operation.parameters=[...pathParameters,...(operation.parameters??[]).filter((p:any)=>p.in!=='path'&&!(p.in==='header'&&(['authorization','idempotency-key'].includes(p.name.toLowerCase())||(path==='/payments/tezcheck'&&['x-checkout-timestamp','x-checkout-delivery','x-checkout-signature'].includes(p.name.toLowerCase())))))];
     const addParameters=(parameters:any[])=>{const current=new Map((operation.parameters??[]).map((p:any)=>[parameterKey(p),p]));for(const p of parameters)current.set(parameterKey(p),p);operation.parameters=[...current.values()];};
-    if(path==='/payments/tezcheck')addParameters(['X-Checkout-Timestamp','X-Checkout-Delivery'].map(name=>({name,in:'header',required:true,schema:str})));
+    if(path==='/payments/tezcheck')addParameters(['X-Checkout-Timestamp','X-Checkout-Delivery','X-Checkout-Signature'].map(name=>({name,in:'header',required:true,schema:str})));
     if(path==='/superadmin/ai/usage')addParameters([query('from',date,true),query('to',date,true)]);
     if(method==='get'){
       if(path==='/superadmin/articles')addParameters(pagination);

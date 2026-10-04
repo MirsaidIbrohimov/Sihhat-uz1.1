@@ -112,6 +112,29 @@ Bir vaqtda uchta sanatoriyani solishtirish mumkin. Faqat bitta reklama
 ko‘rsatiladi; dastlabki ikkita yangilikdan keyingi materiallar va foydali
 tavsiyalar yig‘iladigan bo‘limlarda qoladi.
 
+## AI suhbat va bron tilagi
+
+**Sihhat yordamchisi**da `Salom` → hudud → kunlik byudjet → safar →
+sharoitlar ketma-ketligini yozing. Masalan: `Toshkent`, `500 ming`,
+`10-oktabr`, `Basseyn`. Yordamchi ma’lum javobni qayta so‘ramaydi;
+`Variantlar ko‘rsating` qolgan savollarni kutmay mavjud tanlovdan qidiradi.
+`Assalomu alaykum` uchun alik, `Rahmat` uchun minnatdorchilik javobi bor.
+
+Salom va aniqlashtirish serverdagi lokal mantiq bilan ishlaydi.
+**Suhbatdagi tanlov ma’lumotlarimni Gemini xizmatiga yuborishga roziman**
+belgilansa, variant tanlashda ajratilgan tanlovlar va joriy savol niqoblanib
+providerga beriladi. Ilova oxirgi 12 xabarni yuboradi; API tanlov uchun
+faqat user xabarlarini ishlatadi. Yangi doimiy suhbat jadvali yaratilmagan.
+API xabarlaridan moliyaviy amal bajarilmaydi, narxni model yaratmaydi.
+
+Bron serverda `CONFIRMED` bo‘lgach yaxshi tilak kartasi ko‘rsatiladi.
+To‘lov natijasini **Holatni yangilash** orqali ham olish mumkin; to‘lovdan
+qaytishning o‘zi bron tasdig‘i hisoblanmaydi.
+
+Tezcheck checkouti ochilmasa `npm run tezcheck:check`ni bajaring va
+[Tezcheck yo‘riqnomasi](TEZCHECK.md)dagi kassa tayyorligini tekshiring.
+2026-10-04 qayta tekshiruvda kassa `draft`, `accepts_payments=false` edi.
+
 ## 1. Lokal muhit
 
 ### Windowsda tayyor muhitni ochish

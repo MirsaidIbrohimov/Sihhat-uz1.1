@@ -27,6 +27,17 @@ class _AiScreenState extends State<AiScreen> {
   Future<void> send() async {
     final text = input.text.trim();
     if (text.isEmpty || busy) return;
+    final history = messages
+        .where((m) => m['error'] != true)
+        .map(
+          (m) => {
+            'role': m['user'] == true ? 'user' : 'assistant',
+            'message': (m['message'] as String).length > 1000
+                ? (m['message'] as String).substring(0, 1000)
+                : m['message'],
+          },
+        )
+        .toList();
     setState(() {
       messages.add({'user': true, 'message': text});
       busy = true;
@@ -37,7 +48,13 @@ class _AiScreenState extends State<AiScreen> {
         await widget.api.send(
           '/ai/messages',
           method: 'POST',
-          body: {'message': text, 'share_with_provider': share},
+          body: {
+            'message': text,
+            'history': history.length > 12
+                ? history.sublist(history.length - 12)
+                : history,
+            'share_with_provider': share,
+          },
         ),
       );
       if (!mounted) return;
@@ -151,7 +168,7 @@ class _AiScreenState extends State<AiScreen> {
         value: share,
         onChanged: (v) => setState(() => share = v ?? false),
         title: const Text(
-          'Savolimni Gemini xizmatiga yuborishga roziman',
+          'Suhbatdagi tanlov ma’lumotlarimni Gemini xizmatiga yuborishga roziman',
           style: TextStyle(fontSize: 11),
         ),
       ),

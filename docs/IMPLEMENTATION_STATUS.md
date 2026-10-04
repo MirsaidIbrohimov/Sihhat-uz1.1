@@ -8,11 +8,51 @@ Yangilangan: 2026-10-04. Asos: ISHLAB_CHIQISH_REJASI.md va SIHHAT_UZ_ARXITEKTURA
 | B1 — hisoblar va ruxsatlar | Lokal tekshiruv o‘tdi | MFA, OTP, tenant, bloklash va CSRF testlari; telefon almashtirish qo‘shildi |
 | B2–B8 — backend domenlari | Asosiy lokal oqimlar amalga oshirildi va tekshirildi | Anketa, moderatsiya, xona/narx/bron, Payme va Tezcheck adapterlari, ledger, refund/payout, billing va aloqa APIlari |
 | B9 — katalog, hisobot va AI | Katalog/hisobot, FAQ, Gemini va AI sarfi hisoboti mavjud | Haqiqiy Gemini javobi tekshirildi; rozilik, shaxsiy ma’lumot niqobi, kunlik limit, token/model/davr bo‘yicha sarf, sozlangan narxlar bilan USD taxmini va fallback bor |
-| B10 — backend qabul | Lokal qabul to‘plami o‘tdi; tashqi tekshiruv cheklovlari quyida | PostgreSQLda 60/60 test; OpenAPI va runbook yangilandi; clean migration va avvalgi backup dalillari quyida |
+| B10 — backend qabul | Lokal qabul to‘plami o‘tdi; tashqi tekshiruv cheklovlari quyida | PostgreSQLda 62/62 test; OpenAPI va runbook yangilandi; clean migration va avvalgi backup dalillari quyida |
 | F1/F2 — saytlar | APIga ulangan sahifalar, AI sarfi/Tezcheck holati, Telegram ulash va brauzer sinovlari o‘tdi | Ikkala Next.js buildi, TypeScript; oxirgi umumiy brauzer runida 11/11 ssenariy o‘tdi |
 | Telegram — xodimlar boti | Kod, lokal worker va rasmiy API ulanishi tayyor | Admin/direktor/resepsion menyusi, xavfsiz ulash, ruxsat tekshiruvi, vazifa/murojaat wizardlari va outbox bildirishnomalari; haqiqiy xodim ulashi hali bajarilmagan |
-| F3 — Android | Telefon/SMS tasdig‘idan keyin ochiladigan sahifalar, lokal demo SMS, logo va kunduzgi/tungi rejim, wellness UI va debug preview tayyor | Flutter analyze; 28/28 test; Samsung preview dalillari quyida. Avvalgi bron/tiklanish va release imzo dalillari ham saqlangan; HTTPS API hali belgilanmagan |
+| F3 — Android | Telefon/SMS tasdig‘idan keyin ochiladigan sahifalar, lokal demo SMS, logo va kunduzgi/tungi rejim, wellness UI va debug preview tayyor | Flutter analyze; 30/30 test; Samsung preview dalillari quyida. Avvalgi bron/tiklanish va release imzo dalillari ham saqlangan; HTTPS API hali belgilanmagan |
 | R1 — real pilot | Gemini, Eskiz va Tezcheck rekvizitlari olindi; pilot to‘liq emas | Gemini ulandi, Eskiz standart SMSi yetib keldi, Tezcheck o‘qish endpointlari HTTP 200. Kassa draft; haqiqiy OTP, HTTPS, merchant to‘lovi/webhook, push va real sanatoriya piloti qolgan |
+
+## 2026-10-04 AI suhbat, bron tilagi va Tezcheck diagnostikasi
+
+- Salomlashuv va minnatdorchilik lokal javob oladi. Yordamchi hudud,
+  kunlik so‘mdagi byudjet, safar va sharoitlarni bittadan so‘raydi; salom
+  bilan birga yozilgan talablar ham saqlanadi. Lotin/kirill salomi va
+  `500 ming`, `1,5 mln`, `10-oktabr`, `7 kun` kabi shakllar taniladi.
+- API `history`da oxirgi 12 ta user/assistant xabarini qabul qiladi;
+  har biri ko‘pi bilan 1000 belgi. Tanlov faqat user xabarlaridan olinadi.
+  Android xato javoblarini tarixga yubormaydi. Tarix ekranning xotirasida;
+  Gemini rozilik bilan ajratilgan tanlovlar va joriy savolni oladi.
+  Shaxsiy raqam/email niqobi, tibbiy chegara va qat’iy katalog IDlari saqlandi.
+- Katalog variantlari tanlangan hudud, mavjud sharoitlar va boshlang‘ich
+  tarif bo‘yicha filtrlanadi. Yakuniy narx va bo‘sh joy bron hisobida olinadi.
+  Salom, qo‘shimcha savol va rahmat javoblari provider sarfiga yozilmaydi.
+- Androidda `CONFIRMED` bron uchun **Yaxshi dam oling! Safaringiz yoqimli
+  va xotirjam o‘tsin** kartasi qo‘shildi. HOLD/PAYMENT_PENDINGdan tasdiqqa
+  o‘tish, takroriy refresh va PAYMENT_EXCEPTIONga o‘tish widgetda tekshirildi.
+- `npm test`: haqiqiy lokal PostgreSQLning `sihhat_test` bazasida **62/62 pass**.
+  `npm run mobile:check -- --format`: analyzer xatosiz, **30/30 unit/widget pass**.
+  `npm run check`, `npm run build:api` va `npm run openapi` o‘tdi.
+  Brauzerning 11/11 dalili shu kundagi anketa tuzatish runiga tegishli.
+- Tezcheck webhookning uchta majburiy sarlavhasi, jumladan imzo, OpenAPIda
+  aniq berildi. So‘nggi `npm run test:contract -w @sihhat/api` **1/1 pass**;
+  qayta ochilgan compiled API `/openapi.json`i manba eksporti bilan mos.
+  `npm run check:secrets` manbada maxfiy qiymat topmadi.
+- AI suhbat va bron tilagi qo‘shilgan oddiy `lib/main.dart` arm64 debug APK
+  USBdagi Samsung SM-A165Fga o‘rnatildi. API `http://127.0.0.1:4000`,
+  lokal demo OTP flagi yoqilgan. **45 maxfiy qiymat bayt namunasi**, moslik **0**.
+  SHA-256: `7a9a28ce43f80ffbdbe337701b8756123beffd26af92df49c2d11e1892d21b3c`.
+  Artefakt `.local/releases/sihhat-uz-preview.apk`da; Gitga kiritilmaydi.
+  Bu lokal debug sinovi, rasmiy provider yoki production qabuli emas.
+- `npm run tezcheck:check` 2026-10-04 19:26 (Toshkent)da haqiqiy read APIga
+  muvaffaqiyatli ulandi: autentifikatsiya va imzo to‘g‘ri, bitta tanlangan
+  UZS kassa, `state=draft`, `accepts_payments=false`; Click, Payme va
+  Uzcard/Humo ro‘yxatda, tranzaksiya namunasi 0, balans endpointi ishladi.
+  Konfiguratsiya `PAYMENT_MODE=tezcheck`; API/kassa rekvizitlari bor,
+  webhook siri sozlanmagan. Hisob/to‘lov yaratilmadi va kassa holati
+  o‘zgartirilmadi. Faollashtirish va ommaviy HTTPS webhook alohida qoladi;
+  polling webhookdan mustaqil ishlaydi. Tafsilot [TEZCHECK.md](TEZCHECK.md)da.
 
 ## 2026-10-04 Anketa, jamoa va Android bosh sahifa tuzatishlari
 

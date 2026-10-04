@@ -78,9 +78,11 @@ test('B10: OpenAPI describes live auth, booking, query and file responses',async
     for(const[,name]of path.matchAll(/\{([^}]+)\}/g))altered.parameters.unshift({name,in:'path',required:true,schema:{type:'string'}});
     if(parameters.some((p:any)=>p.in==='header'&&p.name==='Idempotency-Key'))altered.parameters.unshift({name:'idempotency-key',in:'header',required:true,schema:{type:'string'}});
     if(path==='/payments/payme')altered.parameters.unshift({name:'authorization',in:'header',required:true,schema:{type:'string'}});
+    if(path==='/payments/tezcheck')altered.parameters.unshift({name:'x-checkout-signature',in:'header',required:false,schema:{type:'string'}});
     if(path==='/catalog/compare')altered.parameters=[{name:'ids',in:'query',required:true,schema:{type:'string'}}];
   }
   assert.deepEqual(enrichOpenApi(reflected),ctx.document,'Reflected and source OpenAPI contracts differ');
+  assert.deepEqual(paths['/payments/tezcheck'].post.parameters.map((p:any)=>[p.name,p.required]),[['X-Checkout-Timestamp',true],['X-Checkout-Delivery',true],['X-Checkout-Signature',true]]);
   const keys=(name:string,body:any)=>assert.deepEqual(Object.keys(body).sort(),Object.keys(schemas[name].properties).sort(),`${name} response fields`);
   keys('WebSession',ctx.webSession);keys('PublicUser',ctx.webSession.user);
   const refreshedWeb=await ctx.admin.call('/auth/refresh','POST');assert.equal(refreshedWeb.status,201);keys('WebSession',refreshedWeb.body);keys('PublicUser',refreshedWeb.body.user);
