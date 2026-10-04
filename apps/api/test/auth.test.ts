@@ -88,3 +88,27 @@ test('B1: web mutations require CSRF; mobile cannot impersonate staff', async ()
   assert.equal((await mobile.call('/superadmin/sanatoriums')).status,401);
   assert.equal((await ctx.admin.call('/partner/sanatoriums/'+randomUUID())).status,404);
 });
+test('B1: staff filter applies before pagination and enforces tenant scope', async () => {
+  const a = (await ctx.admin.call('/superadmin/sanatoriums', 'POST', { name: 'Filter A' })).body;
+  const b = (await ctx.admin.call('/superadmin/sanatoriums', 'POST', { name: 'Filter B' })).body;
+  const director = await staff(ctx.admin, 'filter.director', '+998903331111', a.id);
+  await staff(ctx.admin, 'filter.reception', '+998903331112', a.id, false);
+  await staff(ctx.admin, 'filter.other', '+998903331113', b.id);
+  for (const path of ['/partner/staff', '/superadmin/staff']) {
+    const first = await ctx.admin.call(`${path}?sanatorium_id=${a.id}&limit=1`);
+    assert.equal(first.status, 200);
+    assert.equal(first.body.total, 2);
+    assert.equal(first.body.pages, 2);
+    assert.equal(first.body.data.length, 1);
+    assert.equal(first.body.data[0].sanatoriumId, a.id);
+    const second = await ctx.admin.call(`${path}?sanatorium_id=${a.id}&limit=1&page=2`);
+    assert.equal(second.body.data[0].sanatoriumId, a.id);
+    assert.notEqual(second.body.data[0].id, first.body.data[0].id);
+    const other = await ctx.admin.call(`${path}?sanatorium_id=${b.id}`);
+    assert.equal(other.body.total, 1);
+    assert.equal(other.body.data[0].sanatoriumId, b.id);
+  }
+  assert.equal((await director.client.call(`/partner/staff?sanatorium_id=${a.id}`)).body.total, 2);
+  assert.equal((await director.client.call(`/partner/staff?sanatorium_id=${b.id}`)).status, 404);
+  assert.equal((await ctx.admin.call('/partner/staff?sanatorium_id=invalid')).status, 422);
+});

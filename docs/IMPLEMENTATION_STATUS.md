@@ -8,11 +8,60 @@ Yangilangan: 2026-10-04. Asos: ISHLAB_CHIQISH_REJASI.md va SIHHAT_UZ_ARXITEKTURA
 | B1 — hisoblar va ruxsatlar | Lokal tekshiruv o‘tdi | MFA, OTP, tenant, bloklash va CSRF testlari; telefon almashtirish qo‘shildi |
 | B2–B8 — backend domenlari | Asosiy lokal oqimlar amalga oshirildi va tekshirildi | Anketa, moderatsiya, xona/narx/bron, Payme va Tezcheck adapterlari, ledger, refund/payout, billing va aloqa APIlari |
 | B9 — katalog, hisobot va AI | Katalog/hisobot, FAQ, Gemini va AI sarfi hisoboti mavjud | Haqiqiy Gemini javobi tekshirildi; rozilik, shaxsiy ma’lumot niqobi, kunlik limit, token/model/davr bo‘yicha sarf, sozlangan narxlar bilan USD taxmini va fallback bor |
-| B10 — backend qabul | Lokal qabul to‘plami o‘tdi; tashqi tekshiruv cheklovlari quyida | PostgreSQLda 56/56 test; OpenAPI va runbook yangilandi; clean migration va avvalgi backup dalillari quyida |
-| F1/F2 — saytlar | APIga ulangan sahifalar, AI sarfi/Tezcheck holati, Telegram ulash va brauzer sinovlari o‘tdi | Ikkala Next.js buildi, TypeScript; oxirgi umumiy brauzer runida 9/9 ssenariy o‘tdi |
+| B10 — backend qabul | Lokal qabul to‘plami o‘tdi; tashqi tekshiruv cheklovlari quyida | PostgreSQLda 60/60 test; OpenAPI va runbook yangilandi; clean migration va avvalgi backup dalillari quyida |
+| F1/F2 — saytlar | APIga ulangan sahifalar, AI sarfi/Tezcheck holati, Telegram ulash va brauzer sinovlari o‘tdi | Ikkala Next.js buildi, TypeScript; oxirgi umumiy brauzer runida 11/11 ssenariy o‘tdi |
 | Telegram — xodimlar boti | Kod, lokal worker va rasmiy API ulanishi tayyor | Admin/direktor/resepsion menyusi, xavfsiz ulash, ruxsat tekshiruvi, vazifa/murojaat wizardlari va outbox bildirishnomalari; haqiqiy xodim ulashi hali bajarilmagan |
-| F3 — Android | Telefon/SMS tasdig‘idan keyin ochiladigan sahifalar, lokal demo SMS, logo va kunduzgi/tungi rejim, wellness UI va debug preview tayyor | Flutter analyze; 27/27 test; Samsung preview dalillari quyida. Avvalgi bron/tiklanish va release imzo dalillari ham saqlangan; HTTPS API hali belgilanmagan |
+| F3 — Android | Telefon/SMS tasdig‘idan keyin ochiladigan sahifalar, lokal demo SMS, logo va kunduzgi/tungi rejim, wellness UI va debug preview tayyor | Flutter analyze; 28/28 test; Samsung preview dalillari quyida. Avvalgi bron/tiklanish va release imzo dalillari ham saqlangan; HTTPS API hali belgilanmagan |
 | R1 — real pilot | Gemini, Eskiz va Tezcheck rekvizitlari olindi; pilot to‘liq emas | Gemini ulandi, Eskiz standart SMSi yetib keldi, Tezcheck o‘qish endpointlari HTTP 200. Kassa draft; haqiqiy OTP, HTTPS, merchant to‘lovi/webhook, push va real sanatoriya piloti qolgan |
+
+## 2026-10-04 Anketa, jamoa va Android bosh sahifa tuzatishlari
+
+- `Apk xatolari`dagi oltita screenshot ko‘rib chiqildi. Bank holati uchun
+  tekshiruvchi platforma superadmini ekani yozildi; STIR jadvalga qo‘shildi,
+  kutilayotgan rekvizit uchun alohida tasdiqlash oynasi bor. Direktor bank
+  tasdig‘ini bera olmaydi. Haqiqiy sanatoriya rekviziti avtomatik tasdiqlanmadi.
+- Anketada 24 ta sharoit va 16 ta xizmat belgilash ro‘yxatiga aylantirildi.
+  Rasmiy Chinobod, Humson Buloq va Uzbekistan Travel manbalari runbookda.
+  Tanlovlar bo‘sh boshlanadi; oldin yozilgan maxsus qiymatlar ko‘rinadi.
+  Belgilar xizmatning tarifga kirishini anglatmaydi.
+- Qoralama tugallanmagan matnlarni saqlaydi; alohida PATCH sharoit, xizmat
+  va ovqatlanish qiymatlarini yo‘qotmaydi. Koordinatani tozalash mumkin.
+  Tekshiruvga yuborish baribir to‘liq profil, rasm/hujjat, faol xona, tarif
+  va xizmat shartlarini talab qiladi; xatolar maydon nomi bilan o‘zbekcha.
+- Anketa progressi haqiqiy validatsiyaga asoslanadi. Oxirgi saqlash oxirgi
+  tahrirning serverga yozilishini kutib, rasmlar va hujjatlarga o‘tadi;
+  xatoda shu sahifa va qiymatlar qoladi. Boshqa tahrir bilan version konflikti
+  bo‘lsa, oxirgi server versiyasini ochish tugmasi mavjud.
+- Ruxsatlar alohida switchlar bilan boshqariladi; mavjud admin taqiqi,
+  direktor vakolat chegarasi va server tekshiruvi saqlandi. Xodimlar filtri
+  `sanatorium_id`ni serverga yuboradi, sahifa va umumiy son shu sanatoriya
+  bo‘yicha hisoblanadi. OpenAPI yangilandi.
+- Android sarlavhasi **Sihhat uz**. Katta banner, takroriy statistikalar va
+  bron bo‘yicha qo‘llanma olib tashlandi. Solishtirish tanlovi talab bo‘lganda
+  ochiladi, bitta sahifalik pagination ko‘rsatilmaydi. Bitta reklama,
+  dastlabki ikki yangilik; qolgan yangilik va tavsiyalar yig‘iladigan bo‘limda.
+- `npm test`: PostgreSQLdagi **60/60 pass**. Yangi testlar filtr/pagination
+  va tenant chegarasi, to‘liq missing-field ro‘yxati, chala qoralama va
+  mavjud qiymatlar saqlanishi, qo‘lda bank tasdig‘ini qamradi.
+- `npm run mobile:check -- --format`: format va analyzer xatosiz,
+  **28/28 unit/widget pass**. Qidiruv, filtr, login/tiklanish, kichik ekran
+  va katta shrift, solishtirish rejimi hamda yig‘iladigan tavsiyalar tekshirildi.
+- Yakuniy `npm run check` o‘tdi. Mavjud API va ikkala web buildi bilan
+  Playwright brauzer to‘plami **11/11 pass** (3,3 daqiqa): sanatoriya filtri,
+  ruxsatlarni o‘chirish/qayta berish, yetishmagan maydonlar, bankning qo‘lda
+  tasdig‘i, checkboxlar, saqlash xatosida qiymatlarni saqlash va parallel
+  tahrirdan keyin oxirgi qiymatni yozib rasmlarga o‘tish tekshirildi.
+  Bron/kalendar, e’lonlar, Tezcheck holati va Telegramdagi avvalgi ssenariylar
+  ham o‘tdi. To‘plamda lokal API va ayrim simulyatsiya qilingan xato/bot
+  javoblari ishlatiladi; bu rasmiy provider yoki production qabuli emas.
+  Hisobot `.local/playwright-report/index.html`, niqoblangan log
+  `.local/web-test-redacted.log`da; ular Gitga kiritilmaydi.
+- Oddiy `lib/main.dart` arm64 debug APK USBdagi Samsung SM-A165Fga qayta
+  o‘rnatildi. API `http://127.0.0.1:4000`, lokal demo OTP flagi yoqilgan.
+  **45 maxfiy qiymat bayt namunasi**, moslik **0**. SHA-256:
+  `7fa4174fe20e2b922b910bec0837c2831279e93e89cd62d0fad902424e51783b`.
+  Artefakt `.local/releases/sihhat-uz-preview.apk`da; APK va dalillar Gitga
+  kiritilmaydi. Bu lokal debug natijasi, production/provider qabuli emas.
 
 ## 2026-10-04 Kompyuter va telefon uchun ishga tushirish
 

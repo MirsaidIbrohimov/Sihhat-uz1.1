@@ -1460,6 +1460,15 @@
               "maximum": 100,
               "default": 20
             }
+          },
+          {
+            "name": "sanatorium_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
           }
         ],
         "responses": {
@@ -1581,6 +1590,15 @@
               "minimum": 1,
               "maximum": 100,
               "default": 20
+            }
+          },
+          {
+            "name": "sanatorium_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
             }
           }
         ],
@@ -19887,53 +19905,63 @@
             "properties": {
               "name": {
                 "type": "string",
-                "minLength": 2,
                 "maxLength": 150
               },
               "description": {
                 "type": "string",
-                "minLength": 30,
                 "maxLength": 10000
               },
               "legal_name": {
                 "type": "string",
-                "minLength": 2,
                 "maxLength": 150
               },
               "stir": {
                 "type": "string",
-                "pattern": "^\\d{9}$"
+                "maxLength": 9
               },
               "region": {
                 "type": "string",
-                "minLength": 2,
                 "maxLength": 80
               },
               "address": {
                 "type": "string",
-                "minLength": 5,
                 "maxLength": 500
               },
               "latitude": {
-                "type": "number",
-                "minimum": -90,
-                "maximum": 90
+                "anyOf": [
+                  {
+                    "type": "number",
+                    "minimum": -90,
+                    "maximum": 90
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
               },
               "longitude": {
-                "type": "number",
-                "minimum": -180,
-                "maximum": 180
+                "anyOf": [
+                  {
+                    "type": "number",
+                    "minimum": -180,
+                    "maximum": 180
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
               },
               "contact_phone": {
-                "type": "string"
+                "type": "string",
+                "maxLength": 30
               },
               "check_in_time": {
                 "type": "string",
-                "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
+                "maxLength": 5
               },
               "check_out_time": {
                 "type": "string",
-                "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
+                "maxLength": 5
               },
               "amenities": {
                 "maxItems": 50,

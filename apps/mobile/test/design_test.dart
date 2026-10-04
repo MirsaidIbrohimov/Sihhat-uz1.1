@@ -45,7 +45,8 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.byType(NavigationDestination), findsNWidgets(5));
       expect(tester.takeException(), isNull);
-      await tester.tap(find.text('Sanatoriya topish'));
+      expect(find.text('Sihhat uz'), findsOneWidget);
+      await tester.tap(find.byType(TextField).first);
       await tester.pumpAndSettle();
       expect(
         tester

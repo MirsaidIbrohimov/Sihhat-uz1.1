@@ -1,0 +1,48 @@
+// Facility choices researched from official Chinobod, Humson Buloq and Uzbekistan Travel pages.
+// These are choices, never a claim that a particular sanatorium provides them.
+export const sanatoriumAmenities = [
+  "Wi-Fi",
+  "Basseyn",
+  "Yopiq basseyn",
+  "Ochiq basseyn",
+  "Sauna",
+  "Jakuzi",
+  "Trenajyor zali",
+  "Tennis korti",
+  "Stol tennisi",
+  "Bilyard",
+  "Futbol maydoni",
+  "Basketbol maydoni",
+  "Voleybol maydoni",
+  "Bolalar maydonchasi",
+  "Sayr va dam olish hududi",
+  "Avtoturargoh",
+  "Restoran",
+  "Oshxona",
+  "Konferensiya zali",
+  "Lift",
+  "Xonada televizor",
+  "Xonada muzlatkich",
+  "Xonada konditsioner",
+  "Xonada dush",
+];
+export const sanatoriumServices = [
+  "Shifokor konsultatsiyasi",
+  "Massaj",
+  "Suv osti massaji",
+  "Fizioterapiya",
+  "Mineral vannalar",
+  "Loy bilan davolash",
+  "Tuz xonasi (galoterapiya)",
+  "Ingalyatsiya",
+  "Davolash gimnastikasi",
+  "Laboratoriya tahlillari",
+  "EKG",
+  "UZI",
+  "Stomatologiya",
+  "Parhez ovqatlanish",
+  "Transfer",
+  "Ekskursiya",
+];
+export const facilityOptions = (values: string[]) =>
+  values.map((value) => ({ value, label: value }));

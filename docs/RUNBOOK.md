@@ -55,6 +55,63 @@ Flutter paneli debug va `--dart-define=DEMO_OTP_ENABLED=true` bilan ochiladi;
 release buildda panel yo‘q. Haqiqiy SMSga o‘tganda backend flagini `false`
 qiling, tasdiqlangan SMS adapterini yoqing va APKni qayta tayyorlang.
 
+## Sanatoriya anketasi va tekshiruv
+
+Direktor **Sanatoriya profili → Tahrirlash**ni ochadi. Superadmin shu
+sanatoriyani **Sanatoriyalar → Profilni ko‘rish** orqali ochadi.
+
+1. Asosiy maydonlarni kiriting; tavsif kamida 30 belgi, STIR 9 raqam,
+   telefon `+998` va 9 raqam bo‘lishi kerak. Xatolar tegishli maydon ostida
+   yoziladi. Progress faqat to‘g‘ri to‘ldirilgan majburiy maydonlarni sanaydi.
+2. Sharoitlar va xizmatlarda mavjudlarini belgilang; belgilanmagan variant
+   mavjud emas deb ko‘rsatiladi. Hech biri oldindan avtomatik belgilanmaydi.
+   Oldingi maxsus yozuvlar ham tanlovda qoladi. Narx va cheklovlarni tavsifga
+   yozing; belgi xizmat tarifga kiritilganini anglatmaydi.
+3. Xizmat shartlarini qabul qilib, **Saqlash va rasmlarga o‘tish**ni bosing.
+   Saqlash xatosida sahifa o‘zgarmaydi va kiritilgan qiymatlar saqlanadi.
+   Muvaffaqiyatli saqlashdan keyin **Rasmlar va hujjatlar** ochiladi.
+4. Kamida bitta ommaviy rasm, bitta xususiy hujjat, faol xona va boshlang‘ich
+   tarif qo‘shing. **Tekshiruvga yuborish → Yuborish**da yetishmagan yoki
+   noto‘g‘ri maydonlar o‘zbekcha nomlari bilan ro‘yxat qilinadi. Profilni
+   superadmin tasdiqlagandan keyin katalogda nashr qilinadi.
+
+Tanlov ro‘yxati 2026-10-04 kuni rasmiy sahifalarda ko‘rsatilgan sharoitlar
+asosida tayyorlandi: [Chinobod](https://www.chinabod.uz/public/index.php/about),
+[Humson Buloq — kompleks](https://www.humsonbuloq.uz/o-nas),
+[Humson Buloq — dam olish](https://humsonbuloq.uz/dosug),
+[Zomin — Uzbekistan Travel](https://uzbekistan.travel/en/o/zaamin-sanatorium/).
+Basseynlar, sauna, sport maydonlari, bolalar maydonchasi, xona jihozlari,
+massaj va diagnostika kabi variantlar tanlash uchun beriladi; har bir
+sanatoriya o‘zida haqiqatan mavjudlarini belgilaydi.
+
+## Jamoa filtri, ruxsatlar va bank rekvizitlari
+
+Yuqoridagi **Sanatoriyani tanlash** filtri **Jamoa va ruxsatlar**dagi
+jadval va uning sahifa hisobiga qo‘llanadi. API `GET /partner/staff` va
+`GET /superadmin/staff` uchun `sanatorium_id` UUID query parametrini qabul
+qiladi. Direktor boshqa sanatoriya xodimlarini ko‘ra olmaydi.
+
+**Ruxsatlar** oynasida har bir vakolatni yoqing/o‘chiring va **Saqlash**ni
+bosing. Direktor vakolatidan tashqaridagi yoki superadmin taqiqlagan
+tugmalar o‘zgartirilmaydi. Taqiq serverda ham tekshiriladi.
+
+Bank rekvizitlarini bank yoki avtomatik tizim emas, **platforma superadmini**
+tekshiradi. Superadmin **Sanatoriyalar → Profilni ko‘rish → Bank rekvizitlari**da
+yuridik nom, hisob raqami, MFO va STIRni tekshiradi, keyin **Tasdiqlash**ni
+bosadi. Direktor uchun holat **Superadmin tasdig‘i kutilmoqda** deb yoziladi.
+Rekvizit tasdig‘i haqiqiy bank o‘tkazmasi yoki PSP kassasi faolligini
+tasdiqlamaydi; ularning dalili alohida talab qilinadi.
+
+## Android bosh sahifasi
+
+Sarlavha **Sihhat uz**. Asosiy oqim: qidiruv/filtr → hudud → sanatoriya.
+Katta kirish banneri, takroriy statistikalar, bitta sahifada ortiqcha
+pagination va bron bo‘yicha takroriy qo‘llanma olib tashlangan. **Solishtirish**
+tugmasi tanlash belgilarini ochadi, **Bekor qilish** tanlovni tozalaydi.
+Bir vaqtda uchta sanatoriyani solishtirish mumkin. Faqat bitta reklama
+ko‘rsatiladi; dastlabki ikkita yangilikdan keyingi materiallar va foydali
+tavsiyalar yig‘iladigan bo‘limlarda qoladi.
+
 ## 1. Lokal muhit
 
 ### Windowsda tayyor muhitni ochish

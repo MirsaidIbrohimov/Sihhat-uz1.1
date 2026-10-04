@@ -10,23 +10,18 @@ class HomeHighlights extends StatelessWidget {
   final bool loading, cached;
   final String region;
   final ValueChanged<String> selectRegion;
+  final Widget? action;
   const HomeHighlights({
     required this.data,
     required this.loading,
     required this.cached,
     required this.region,
     required this.selectRegion,
+    this.action,
     super.key,
   });
   @override
   Widget build(BuildContext context) {
-    final items = rows(data?['featured']);
-    final prices =
-        items
-            .where((s) => s['from_amount'] != null)
-            .map((s) => BigInt.parse(s['from_amount'].toString()))
-            .toList()
-          ..sort();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -36,41 +31,6 @@ class HomeHighlights extends StatelessWidget {
             child: LinearProgressIndicator(minHeight: 2),
           ),
         if (data != null) ...[
-          const SizedBox(height: 16),
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: context.colors.surface,
-              border: Border.all(color: context.colors.border),
-              borderRadius: BorderRadius.circular(18),
-            ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: _Stat(
-                    Icons.spa_outlined,
-                    '${data!['sanatorium_count'] ?? items.length} ta',
-                    'Sanatoriya',
-                  ),
-                ),
-                Expanded(
-                  child: _Stat(
-                    Icons.location_on_outlined,
-                    '${(data!['regions'] as List? ?? []).length} ta',
-                    'Hudud',
-                  ),
-                ),
-                if (prices.isNotEmpty)
-                  Expanded(
-                    child: _Stat(
-                      Icons.payments_outlined,
-                      money(prices.first),
-                      'Tariflar ... dan',
-                    ),
-                  ),
-              ],
-            ),
-          ),
           if (cached)
             Padding(
               padding: const EdgeInsets.only(top: 10),
@@ -81,14 +41,6 @@ class HomeHighlights extends StatelessWidget {
             ),
           if ((data!['regions'] as List? ?? []).isNotEmpty) ...[
             const SizedBox(height: 18),
-            Text(
-              'Hudud bo‘yicha tanlang',
-              style: TextStyle(
-                fontWeight: FontWeight.w700,
-                color: context.colors.ink,
-              ),
-            ),
-            const SizedBox(height: 8),
             SingleChildScrollView(
               scrollDirection: Axis.horizontal,
               child: Row(
@@ -117,38 +69,16 @@ class HomeHighlights extends StatelessWidget {
           ],
         ],
         const SizedBox(height: 18),
-        const SectionTitle(
-          'Sanatoriyalarni kashf eting',
-          subtitle: 'Dam olish uchun o‘zingizga mos joyni tanlang',
+        Row(
+          children: [
+            const Expanded(child: SectionTitle('Sanatoriyalar')),
+            ?action,
+          ],
         ),
         const SizedBox(height: 10),
       ],
     );
   }
-}
-
-class _Stat extends StatelessWidget {
-  final IconData icon;
-  final String value, label;
-  const _Stat(this.icon, this.value, this.label);
-  @override
-  Widget build(BuildContext context) => Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      Icon(icon, size: 20, color: context.colors.primary),
-      const SizedBox(height: 7),
-      Text(
-        value,
-        style: TextStyle(
-          fontSize: 13,
-          fontWeight: FontWeight.w800,
-          color: context.colors.ink,
-        ),
-      ),
-      const SizedBox(height: 3),
-      Text(label, style: TextStyle(fontSize: 11, color: context.colors.muted)),
-    ],
-  );
 }
 
 String _updated(dynamic value) {
@@ -170,118 +100,85 @@ class HomeUpdates extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const SizedBox(height: 24),
-        Text(
-          'Yangiliklar',
-          style: TextStyle(
-            fontSize: 22,
-            fontWeight: FontWeight.w700,
-            color: context.colors.ink,
-          ),
-        ),
-        const SizedBox(height: 12),
-        if (news.isEmpty)
-          Card(
-            child: ListTile(
-              leading: Icon(
-                Icons.newspaper_outlined,
-                color: context.colors.primary,
-              ),
-              title: Text('Yangi e’lonlar shu yerda ko‘rinadi.'),
-              subtitle: Text(
-                'Sihhat.uz va sanatoriyalar haqidagi yangiliklar.',
-              ),
-            ),
-          ),
-        ...news.map(
-          (article) => Card(
-            child: ListTile(
-              contentPadding: const EdgeInsets.all(16),
-              leading: Icon(
-                Icons.newspaper_rounded,
-                color: context.colors.primary,
-              ),
-              title: Text(
-                article['title'],
-                style: const TextStyle(fontWeight: FontWeight.w700),
-              ),
-              subtitle: Padding(
-                padding: const EdgeInsets.only(top: 8),
-                child: Text(
-                  '${article['summary']}\n${_updated(article['published_at'])}',
-                ),
-              ),
-              trailing: const Icon(Icons.chevron_right),
-              onTap: () => Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => ArticleScreen(api, article['id']),
-                ),
-              ),
-            ),
-          ),
-        ),
-        const SizedBox(height: 24),
-        Text(
-          'Foydali tavsiyalar',
-          style: TextStyle(
-            fontSize: 22,
-            fontWeight: FontWeight.w700,
-            color: context.colors.ink,
-          ),
-        ),
-        const SizedBox(height: 12),
-        ...tips
-            .take(5)
+        if (news.isNotEmpty) ...[
+          const SizedBox(height: 24),
+          const SectionTitle('Yangiliklar'),
+          const SizedBox(height: 12),
+        ],
+        ...news
+            .take(2)
             .map(
-              (tip) => Card(
-                child: ExpansionTile(
+              (article) => Card(
+                child: ListTile(
+                  contentPadding: const EdgeInsets.all(16),
                   leading: Icon(
-                    Icons.lightbulb_outline_rounded,
+                    Icons.newspaper_rounded,
                     color: context.colors.primary,
                   ),
                   title: Text(
-                    tip['title'],
-                    style: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
+                    article['title'],
+                    style: const TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                  subtitle: Padding(
+                    padding: const EdgeInsets.only(top: 8),
+                    child: Text(article['summary'] ?? ''),
+                  ),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => ArticleScreen(api, article['id']),
                     ),
                   ),
-                  childrenPadding: const EdgeInsets.fromLTRB(18, 0, 18, 18),
-                  expandedCrossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      tip['body'] ?? tip['summary'],
-                      style: const TextStyle(height: 1.7),
-                    ),
-                  ],
                 ),
               ),
             ),
-        const SizedBox(height: 24),
-        Container(
-          padding: const EdgeInsets.all(18),
-          decoration: BoxDecoration(
-            color: context.colors.soft,
-            borderRadius: BorderRadius.circular(18),
+        if (news.length > 2)
+          Card(
+            child: ExpansionTile(
+              title: const Text('Boshqa yangiliklar'),
+              children: news
+                  .skip(2)
+                  .map(
+                    (article) => ListTile(
+                      title: Text(article['title']),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => ArticleScreen(api, article['id']),
+                        ),
+                      ),
+                    ),
+                  )
+                  .toList(),
+            ),
           ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Bron qilish — 3 qadam',
-                style: TextStyle(
-                  fontSize: 17,
-                  fontWeight: FontWeight.w700,
-                  color: context.colors.ink,
-                ),
-              ),
-              SizedBox(height: 10),
-              Text(
-                '1. Sanatoriya, sana va xonani tanlang.\n2. Hisob va bekor qilish shartlarini tekshiring.\n3. To‘lovni bajaring va bron holatini kuzating.',
-                style: TextStyle(height: 1.9),
-              ),
-            ],
+        const SizedBox(height: 16),
+        Card(
+          child: ExpansionTile(
+            leading: Icon(
+              Icons.lightbulb_outline_rounded,
+              color: context.colors.primary,
+            ),
+            title: const Text('Foydali tavsiyalar'),
+            children: tips
+                .map(
+                  (tip) => ListTile(
+                    title: Text(
+                      tip['title'],
+                      style: const TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                    subtitle: Padding(
+                      padding: const EdgeInsets.only(top: 6, bottom: 10),
+                      child: Text(
+                        tip['body'] ?? tip['summary'],
+                        style: const TextStyle(height: 1.7),
+                      ),
+                    ),
+                  ),
+                )
+                .toList(),
           ),
         ),
         const SizedBox(height: 24),

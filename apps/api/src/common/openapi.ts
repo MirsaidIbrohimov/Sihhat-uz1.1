@@ -20,7 +20,7 @@ const page=(items:any)=>obj({data:array(items),total:integer,page:integer,limit:
 const query=(name:string,schema:any,required=false)=>({name,in:'query',required,schema});
 const pagination=[query('page',{...integer,minimum:1,default:1}),query('limit',{...integer,minimum:1,maximum:100,default:20})];
 const pagedPaths=['/partner/sanatoriums','/superadmin/sanatoriums','/partner/staff','/superadmin/staff','/partner/bookings','/customer/bookings','/superadmin/bookings','/catalog/sanatoriums','/partner/payments','/superadmin/payments','/superadmin/audit','/superadmin/refunds','/partner/payouts','/superadmin/payouts','/partner/invoices','/superadmin/invoices','/partner/reviews','/messages'];
-const tenantFilteredPaths=['/partner/bookings','/customer/bookings','/superadmin/bookings','/partner/payments','/superadmin/payments','/partner/payouts','/superadmin/payouts','/partner/invoices','/superadmin/invoices','/partner/reviews'];
+const tenantFilteredPaths=['/partner/staff','/superadmin/staff','/partner/bookings','/customer/bookings','/superadmin/bookings','/partner/payments','/superadmin/payments','/partner/payouts','/superadmin/payouts','/partner/invoices','/superadmin/invoices','/partner/reviews'];
 export function enrichOpenApi(document:OpenAPIObject){
   document.components??={};document.components.schemas??={};document.components.securitySchemes??={};
   document.components.securitySchemes.CSRF={type:'apiKey',in:'header',name:'X-CSRF-Token'};

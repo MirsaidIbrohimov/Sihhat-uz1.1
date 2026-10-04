@@ -11,8 +11,9 @@ export const staffInput = z.object({ sanatorium_id: uuid, name: z.string().trim(
 export class StaffService {
   constructor(@Inject(Db) readonly db: Db) {}
   async list(actor: Actor, query: unknown) {
-    const { page, limit } = parse(pageQuery, query);
-    const ids = tenantIds(actor, 'staff.invite');
+    const { page, limit, sanatorium_id } = parse(pageQuery.extend({ sanatorium_id: uuid.optional() }), query);
+    if (sanatorium_id) scope(actor, sanatorium_id, 'staff.invite');
+    const ids = sanatorium_id ? [sanatorium_id] : tenantIds(actor, 'staff.invite');
     const where = ids ? { sanatoriumId: { in: ids } } : {};
     const [memberships, total] = await Promise.all([this.db.membership.findMany({ where, skip: (page - 1) * limit, take: limit, orderBy: { createdAt: 'desc' } }), this.db.membership.count({ where })]);
     const users = await this.db.user.findMany({ where: { id: { in: memberships.map(m => m.userId) } }, select: { id: true, name: true, login: true, phone: true, status: true, mustChangePassword: true } });

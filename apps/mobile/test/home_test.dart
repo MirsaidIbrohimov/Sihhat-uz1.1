@@ -43,6 +43,68 @@ Json home() => {
 };
 
 void main() {
+  testWidgets('home keeps comparison optional and hides redundant sections', (
+    tester,
+  ) async {
+    final api = Api(
+      baseUrl: 'http://localhost',
+      store: MemoryStore(),
+      client: MockClient((r) async {
+        if (r.url.path == '/catalog/home') return jsonResponse(home());
+        return jsonResponse({
+          'data': [if (r.url.path == '/catalog/sanatoriums') item],
+          'pages': 1,
+        });
+      }),
+    );
+    await tester.pumpWidget(
+      MaterialApp(home: Scaffold(body: CatalogScreen(api))),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Sanatoriya topish'), findsNothing);
+    expect(find.text('1 ta'), findsNothing);
+    expect(find.byType(CheckboxListTile), findsNothing);
+    expect(find.text('1 / 1'), findsNothing);
+    await tester.tap(find.text('Solishtirish'));
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(
+      find.byType(Checkbox).hitTestable(),
+      150,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.tap(find.byType(Checkbox));
+    await tester.pumpAndSettle();
+    expect(tester.widget<Checkbox>(find.byType(Checkbox)).value, true);
+    await tester.scrollUntilVisible(
+      find.text('Solishtirish (1/3)').hitTestable(),
+      -150,
+      scrollable: find.byType(Scrollable).first,
+    );
+    expect(find.text('Solishtirish (1/3)'), findsOneWidget);
+    await tester.scrollUntilVisible(
+      find.text('Bekor qilish').hitTestable(),
+      -150,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.tap(find.text('Bekor qilish'));
+    await tester.pumpAndSettle();
+    expect(find.byType(CheckboxListTile), findsNothing);
+    expect(find.text('Solishtirish (1/3)'), findsNothing);
+    await tester.scrollUntilVisible(
+      find.text('Foydali tavsiyalar').hitTestable(),
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
+    expect(find.text(homeTips.first['title']!), findsNothing);
+    expect(find.text('Bron qilish — 3 qadam'), findsNothing);
+    await tester.tap(find.text('Foydali tavsiyalar'));
+    await tester.pumpAndSettle();
+    expect(find.text(homeTips.first['title']!), findsOneWidget);
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox.shrink());
+    api.client.close();
+  });
+
   test('fresh public feed is fetched and cached for this server', () async {
     final api = Api(
       baseUrl: 'http://localhost',
@@ -89,7 +151,8 @@ void main() {
       auth.complete(http.Response('{"id":"customer"}', 200));
       await tester.pumpAndSettle();
       expect(find.byType(HomeHighlights), findsOneWidget);
-      expect(find.text('1 ta'), findsNWidgets(2));
+      expect(find.text('Sihhat uz'), findsOneWidget);
+      expect(find.text('1 ta'), findsNothing);
       expect(tester.takeException(), isNull);
       await tester.pumpWidget(const SizedBox.shrink());
       api.client.close();

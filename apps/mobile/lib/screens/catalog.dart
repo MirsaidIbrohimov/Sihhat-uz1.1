@@ -33,6 +33,7 @@ class _CatalogScreenState extends State<CatalogScreen> {
   Json? homeData;
   bool homeLoading = true, homeCached = false;
   bool favoritesLoaded = false;
+  bool comparing = false;
   @override
   void initState() {
     super.initState();
@@ -249,20 +250,6 @@ class _CatalogScreenState extends State<CatalogScreen> {
     child: ListView(
       padding: const EdgeInsets.all(20),
       children: [
-        WellnessHero(
-          search: () {
-            final target = searchTarget.currentContext;
-            if (target != null) {
-              Scrollable.ensureVisible(
-                target,
-                duration: const Duration(milliseconds: 280),
-                alignment: .1,
-              );
-            }
-            searchFocus.requestFocus();
-          },
-        ),
-        const SizedBox(height: 20),
         TextField(
           key: searchTarget,
           controller: search,
@@ -295,6 +282,7 @@ class _CatalogScreenState extends State<CatalogScreen> {
                   label: Text(region),
                   onDeleted: () {
                     region = '';
+                    page = 1;
                     reload();
                   },
                 ),
@@ -303,6 +291,7 @@ class _CatalogScreenState extends State<CatalogScreen> {
                   label: Text(amenity),
                   onDeleted: () {
                     amenity = '';
+                    page = 1;
                     reload();
                   },
                 ),
@@ -311,6 +300,7 @@ class _CatalogScreenState extends State<CatalogScreen> {
                   label: Text('$maxPrice so‘mgacha'),
                   onDeleted: () {
                     maxPrice = '';
+                    page = 1;
                     reload();
                   },
                 ),
@@ -322,6 +312,17 @@ class _CatalogScreenState extends State<CatalogScreen> {
           loading: homeLoading,
           cached: homeCached,
           region: region,
+          action: TextButton.icon(
+            onPressed: () => setState(() {
+              comparing = !comparing;
+              if (!comparing) selected.clear();
+            }),
+            icon: Icon(
+              comparing ? Icons.close : Icons.compare_arrows,
+              size: 18,
+            ),
+            label: Text(comparing ? 'Bekor qilish' : 'Solishtirish'),
+          ),
           selectRegion: (value) {
             region = value;
             page = 1;
@@ -337,6 +338,7 @@ class _CatalogScreenState extends State<CatalogScreen> {
             }
             return Column(
               children: rows(s.data)
+                  .take(1)
                   .map(
                     (ad) => Card(
                       color: context.colors.soft,
@@ -453,59 +455,62 @@ class _CatalogScreenState extends State<CatalogScreen> {
                         ),
                       ),
                     ),
-                    footer: CheckboxListTile(
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 14,
-                      ),
-                      visualDensity: VisualDensity.compact,
-                      controlAffinity: ListTileControlAffinity.leading,
-                      title: const Text(
-                        'Solishtirishga qo‘shish',
-                        style: TextStyle(fontSize: 12),
-                      ),
-                      value: selected.contains(item['id']),
-                      onChanged: (v) => setState(() {
-                        if (v == false) {
-                          selected.remove(item['id']);
-                        } else if (selected.length < 3) {
-                          selected.add(item['id']);
-                        } else {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text(
-                                'Bir vaqtda 3 ta sanatoriyani solishtirish mumkin.',
-                              ),
+                    footer: comparing
+                        ? CheckboxListTile(
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 14,
                             ),
-                          );
-                        }
-                      }),
-                    ),
+                            visualDensity: VisualDensity.compact,
+                            controlAffinity: ListTileControlAffinity.leading,
+                            title: const Text(
+                              'Solishtirishga qo‘shish',
+                              style: TextStyle(fontSize: 12),
+                            ),
+                            value: selected.contains(item['id']),
+                            onChanged: (v) => setState(() {
+                              if (v == false) {
+                                selected.remove(item['id']);
+                              } else if (selected.length < 3) {
+                                selected.add(item['id']);
+                              } else {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text(
+                                      'Bir vaqtda 3 ta sanatoriyani solishtirish mumkin.',
+                                    ),
+                                  ),
+                                );
+                              }
+                            }),
+                          )
+                        : null,
                   ),
                 ),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    TextButton(
-                      onPressed: page > 1
-                          ? () {
-                              page--;
-                              reload();
-                            }
-                          : null,
-                      child: const Text('← Oldingi'),
-                    ),
-                    Text('$page / ${data['pages']}'),
-                    TextButton(
-                      onPressed: page < data['pages']
-                          ? () {
-                              page++;
-                              reload();
-                            }
-                          : null,
-                      child: const Text('Keyingi →'),
-                    ),
-                  ],
-                ),
+                if ((data['pages'] as num? ?? 1) > 1)
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      TextButton(
+                        onPressed: page > 1
+                            ? () {
+                                page--;
+                                reload();
+                              }
+                            : null,
+                        child: const Text('← Oldingi'),
+                      ),
+                      Text('$page / ${data['pages']}'),
+                      TextButton(
+                        onPressed: page < data['pages']
+                            ? () {
+                                page++;
+                                reload();
+                              }
+                            : null,
+                        child: const Text('Keyingi →'),
+                      ),
+                    ],
+                  ),
               ],
             );
           },

@@ -226,44 +226,29 @@ class _HomeState extends State<Home> {
     ];
     return Scaffold(
       appBar: AppBar(
-        toolbarHeight: 76,
+        toolbarHeight: 64,
         title: tab == 0
             ? Row(
                 children: [
                   const SihhatLogo(),
                   const SizedBox(width: 11),
                   Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'sihhat.uz',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            fontSize: 23,
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: -.7,
-                          ),
-                        ),
-                        Text(
-                          'Dam olishni birga rejalashtiramiz',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            fontSize: 10,
-                            color: context.colors.muted,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ],
+                    child: Text(
+                      'Sihhat uz',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 23,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -.7,
+                      ),
                     ),
                   ),
                 ],
               )
             : Text(
                 [
-                  'sihhat.uz',
+                  'Sihhat uz',
                   'Saqlanganlar',
                   'Mening bronlarim',
                   'Sihhat yordamchisi',

@@ -12,6 +12,60 @@ let ctx:Awaited<ReturnType<typeof setup>>,a:any,b:any;
 before(async()=>{ctx=await setup();a=await sanatorium(ctx.admin,1);b=await sanatorium(ctx.admin,2);});
 after(async()=>{await ctx?.app.close();});
 async function rpc(method:string,params:any,auth=true){return(await ctx.admin.call('/payments/payme','POST',{id:1,method,params},{Authorization:auth?`Basic ${Buffer.from(`Paycom:${ctx.auth.config.AUTH_SECRET}`).toString('base64')}`:'Basic invalid'})).body;}
+test('B2: incomplete drafts persist and submission lists every missing requirement in Uzbek', async () => {
+  const s = (await ctx.admin.call('/superadmin/sanatoriums', 'POST', { name: 'Anketa sinovi' })).body;
+  const saved = await ctx.admin.call(`/partner/sanatorium-revisions/${s.revision.id}`, 'PATCH', {
+    version: 1, data: { description: 'a', stir: '12', contact_phone: '+998', terms_accepted: false },
+  });
+  assert.equal(saved.status, 200);
+  assert.equal(saved.body.data.description, 'a');
+  const submitted = await ctx.admin.call(`/partner/sanatorium-revisions/${s.revision.id}/submit`, 'POST', { version: saved.body.version });
+  assert.equal(submitted.status, 422);
+  assert.equal(submitted.body.code, 'ONBOARDING_INCOMPLETE');
+  const details = submitted.body.details;
+  for (const key of ['description', 'legal_name', 'stir', 'region', 'address', 'latitude', 'longitude', 'contact_phone', 'check_in_time', 'check_out_time', 'photo_ids', 'document_ids', 'terms_accepted', 'rooms', 'rate_plans']) {
+    const detail = details.find((d: any) => d.path === key);
+    assert.ok(detail, `Missing requirement ${key}`);
+    assert.notEqual(detail.field, 'Ma’lumot');
+    assert.doesNotMatch(detail.message, /Invalid input|expected|received/);
+  }
+  assert.match(details.find((d: any) => d.path === 'description').message, /30/);
+  assert.match(details.find((d: any) => d.path === 'stir').message, /9/);
+  const revision = await ctx.db.sanatoriumRevision.findUniqueOrThrow({ where: { id: s.revision.id } });
+  assert.equal(revision.status, 'DRAFT');
+  assert.equal(revision.version, saved.body.version);
+});
+test('B2: partial draft updates preserve facilities and allow clearing coordinates', async () => {
+  const s = (await ctx.admin.call('/superadmin/sanatoriums', 'POST', { name: 'Qoralama sinovi' })).body;
+  const path = `/partner/sanatorium-revisions/${s.revision.id}`;
+  const first = await ctx.admin.call(path, 'PATCH', { version: 1, data: { amenities: ['Wi-Fi', 'Eski sharoit'], services: ['Massaj'], meals: 'Uch mahal', latitude: 41, longitude: 69 } });
+  assert.equal(first.status, 200);
+  const second = await ctx.admin.call(path, 'PATCH', { version: first.body.version, data: { photo_ids: [], latitude: null } });
+  assert.equal(second.status, 200);
+  assert.deepEqual(second.body.data.amenities, first.body.data.amenities);
+  assert.deepEqual(second.body.data.services, ['Massaj']);
+  assert.equal(second.body.data.meals, 'Uch mahal');
+  assert.equal(second.body.data.latitude, null);
+  assert.equal(second.body.data.longitude, 69);
+  const submitted = await ctx.admin.call(`${path}/submit`, 'POST', { version: second.body.version });
+  assert.equal(submitted.status, 422);
+  assert.ok(submitted.body.details.some((d: any) => d.path === 'latitude'));
+});
+test('B2: bank details stay pending until a superadmin explicitly approves them', async () => {
+  const s = (await ctx.admin.call('/superadmin/sanatoriums', 'POST', { name: 'Bank tekshiruv sinovi' })).body;
+  const director = await staff(ctx.admin, 'bank.reviewer', '+998904441111', s.id);
+  const request = await director.client.call(`/partner/sanatoriums/${s.id}/bank-revisions`, 'POST', { legal_name: 'Sinov MChJ', account: '20208000900000000002', mfo: '01234', stir: '123456789' });
+  assert.equal(request.status, 201);
+  assert.equal(request.body.status, 'PENDING');
+  const path = `/superadmin/bank-revisions/${request.body.id}/approve`;
+  assert.equal((await director.client.call(path, 'POST', {})).status, 403);
+  assert.equal((await ctx.db.sanatorium.findUniqueOrThrow({ where: { id: s.id } })).bankRevisionId, null);
+  assert.equal((await ctx.admin.call(path, 'POST', {})).status, 201);
+  const approved = await ctx.db.bankRevision.findUniqueOrThrow({ where: { id: request.body.id } });
+  assert.equal(approved.status, 'APPROVED');
+  assert.equal(approved.approvedBy, (await ctx.admin.call('/auth/me')).body.id);
+  assert.equal((await ctx.db.sanatorium.findUniqueOrThrow({ where: { id: s.id } })).bankRevisionId, request.body.id);
+});
 test('B10: OpenAPI describes live auth, booking, query and file responses',async()=>{
   const paths=ctx.document.paths as any,schemas=ctx.document.components!.schemas as any;
   const reflected=structuredClone(ctx.document) as any;

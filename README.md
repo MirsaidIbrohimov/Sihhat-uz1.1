@@ -19,9 +19,29 @@ Kanonik repozitoriya: [MirsaidIbrohimov/Sihhat-uz1.1](https://github.com/Mirsaid
 
 Backendni production uchun 100% tayyor deb hisoblashga hali asos yo‘q. Haqiqiy HTTPS API, Tezcheck kassasini faollashtirish va haqiqiy merchant to‘lovi/webhook, Eskiz hisobini test rejimidan chiqarish va OTP matnini tasdiqlatish, push, staging Redis/S3 hamda real sanatoriya/bank piloti qolgan. Payme bevosita ulanishi tanlansa uning rasmiy rekvizitlari va qabul sinovi kerak. Batafsil dalillar va cheklovlar [amalga oshirish holati](docs/IMPLEMENTATION_STATUS.md)da.
 
-Backend **56/56**, brauzer **9/9**, mobil **27/27 unit/widget** sinovi o‘tdi. API, ikkala web buildi, TypeScript, Flutter analyzer va 8 migratsiyaning toza bazadagi tekshiruvi o‘tdi. Backend va mobil tekshiruvlar 4-oktabrga, umumiy brauzer natijalari 3-oktabrga tegishli. Yangilangan dalillar [holat hujjati](docs/IMPLEMENTATION_STATUS.md)da. Lokal provider javoblari rasmiy merchant qabulining o‘rnini bosmaydi.
+Backend **60/60**, brauzer **11/11**, mobil **28/28 unit/widget** sinovi o‘tdi. API, ikkala web buildi, TypeScript, Flutter analyzer va 8 migratsiyaning toza bazadagi tekshiruvi o‘tdi. Backend, mobil va oxirgi umumiy brauzer natijalari 4-oktabrga tegishli; migratsiya va avvalgi qabul dalillari [holat hujjati](docs/IMPLEMENTATION_STATUS.md)da alohida sanalar bilan saqlangan. Lokal provider javoblari rasmiy merchant qabulining o‘rnini bosmaydi.
 
-Yangilangan APK USB orqali Samsung SM-A165F qurilmasiga o‘rnatildi: avval telefon logini, tasdiqdan keyin asosiy sahifa ochildi. Lokal bazada yangi OTP tasdig‘i, mijoz va mobil sessiya qayd etildi. APK ichida 24 ta maxfiy qiymat bayt namunasi tekshirildi, moslik topilmadi. Bu lokal APIga ulanadigan **debug preview**; imzolangan oldingi release namunasi vaqtinchalik `https://api.sihhat.invalid` manziliga ega. Haqiqiy HTTPS manzili belgilangach release qayta yig‘iladi. APKlar va qurilma dalillari repozitoriyaga kiritilmaydi.
+Yangilangan bosh sahifali APK USB orqali Samsung SM-A165F qurilmasiga o‘rnatildi. Avvalgi login sinovida telefon/SMS tasdig‘idan keyin asosiy sahifa ochildi va lokal bazada yangi OTP tasdig‘i, mijoz hamda mobil sessiya qayd etildi. Oxirgi APK ichida 45 ta maxfiy qiymat bayt namunasi tekshirildi, moslik topilmadi. Bu lokal APIga ulanadigan **debug preview**; imzolangan oldingi release namunasi vaqtinchalik `https://api.sihhat.invalid` manziliga ega. Haqiqiy HTTPS manzili belgilangach release qayta yig‘iladi. APKlar va qurilma dalillari repozitoriyaga kiritilmaydi.
+
+## Anketa, ruxsatlar va bosh sahifa
+
+Sanatoriya anketasida sharoit va xizmatlar belgilash ro‘yxati bilan kiritiladi;
+oldin yozilgan sharoitlar ham saqlanadi. Qoralama chala ma’lumotni saqlashi
+mumkin, lekin tekshiruvga yuborishdan oldin majburiy maydonlar, rasmlar,
+hujjatlar, faol xona va tarif talab qilinadi. Xabarda qaysi ma’lumot
+yetishmayotgani yoziladi. Oxirgi **Saqlash va rasmlarga o‘tish** tugmasi
+saqlash muvaffaqiyatli tugagach rasmlar va hujjatlarni ochadi.
+
+Xodimlar tanlangan sanatoriya bo‘yicha filtrlanadi. Har bir ruxsatni
+alohida tugma bilan yoqish/o‘chirish mumkin; direktor uchun admin taqiqlari
+saqlanadi. Bank rekvizitlarini **platforma superadmini** qo‘lda tekshiradi:
+**Sanatoriyalar → Profilni ko‘rish → Bank rekvizitlari → Tasdiqlash**.
+
+Android bosh sahifa sarlavhasi **Sihhat uz**. Qidiruv, hududlar va sanatoriyalar
+oldinga chiqarildi; katta banner, takroriy statistika va bron qo‘llanmasi
+olib tashlandi. Solishtirish belgilari tegishli tugma bilan ochiladi;
+bitta reklama, dastlabki ikkita yangilik va yig‘iladigan tavsiyalar ko‘rsatiladi.
+Manbalar va foydalanish tartibi [runbook](docs/RUNBOOK.md)da.
 
 ## Logo va ilova ko‘rinishi
 

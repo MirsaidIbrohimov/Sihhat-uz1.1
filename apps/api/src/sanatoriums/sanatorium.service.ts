@@ -1,7 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { z } from 'zod';
 import { Db, audit, emit, lock } from '../common/db';
-import { fail, parse, uuid, version, reason, pageQuery, paged } from '../common/errors';
+import { AppError, fail, parse, uuid, version, reason, pageQuery, paged, validationDetail } from '../common/errors';
 import { Actor, requirePlatform, scope, tenantIds } from '../auth/permissions';
 import { phoneSchema } from '../auth/auth.service';
 
@@ -11,12 +11,23 @@ export const profileSchema = z.object({
   region: z.string().trim().min(2).max(80), address: z.string().trim().min(5).max(500),
   latitude: z.number().min(-90).max(90), longitude: z.number().min(-180).max(180),
   contact_phone: phoneSchema, check_in_time: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/), check_out_time: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/),
-  amenities: z.array(z.string().min(1).max(80)).max(50), services: z.array(z.string().min(1).max(200)).max(50),
-  meals: z.string().max(1000), child_rules: z.string().max(2000), medical_requirements: z.string().max(2000),
-  directions: z.string().max(2000), required_documents: z.string().max(2000),
-  photo_ids: z.array(uuid).max(30), document_ids: z.array(uuid).max(15), terms_accepted: z.boolean(),
+  amenities: z.array(z.string().min(1).max(80)).max(50).default([]), services: z.array(z.string().min(1).max(200)).max(50).default([]),
+  meals: z.string().max(1000).default(''), child_rules: z.string().max(2000).default(''), medical_requirements: z.string().max(2000).default(''),
+  directions: z.string().max(2000).default(''), required_documents: z.string().max(2000).default(''),
+  photo_ids: z.array(uuid).min(1).max(30), document_ids: z.array(uuid).min(1).max(15), terms_accepted: z.boolean(),
 });
-export const draftInput = z.object({ version, data: profileSchema.partial().strict() }).strict();
+// Drafts retain unfinished input; complete profile validation runs on submission.
+const draftProfileSchema = profileSchema.partial().extend({
+  name: z.string().max(150).optional(), description: z.string().max(10000).optional(), legal_name: z.string().max(150).optional(),
+  stir: z.string().max(9).optional(), region: z.string().max(80).optional(), address: z.string().max(500).optional(),
+  contact_phone: z.string().max(30).optional(), check_in_time: z.string().max(5).optional(), check_out_time: z.string().max(5).optional(),
+  latitude: z.number().min(-90).max(90).nullable().optional(), longitude: z.number().min(-180).max(180).nullable().optional(),
+  amenities: z.array(z.string().min(1).max(80)).max(50).optional(), services: z.array(z.string().min(1).max(200)).max(50).optional(),
+  meals: z.string().max(1000).optional(), child_rules: z.string().max(2000).optional(), medical_requirements: z.string().max(2000).optional(),
+  directions: z.string().max(2000).optional(), required_documents: z.string().max(2000).optional(),
+  photo_ids: z.array(uuid).max(30).optional(), document_ids: z.array(uuid).max(15).optional(),
+}).strict();
+export const draftInput = z.object({ version, data: draftProfileSchema }).strict();
 export function publicProfile(data: any) {
   const { legal_name, stir, document_ids, terms_accepted, ...publicData } = data; return publicData;
 }
@@ -63,7 +74,7 @@ export class SanatoriumService {
       const r = await tx.sanatoriumRevision.findUnique({ where: { id: revisionId } }); if (!r) fail('NOT_FOUND', 'Tahrir topilmadi', 404);
       scope(actor, r.sanatoriumId, 'sanatorium.profile.edit');
       if (!['DRAFT','CHANGES_REQUESTED'].includes(r.status) || r.version !== input.version) fail('VERSION_CONFLICT', 'Tahrir o‘zgargan yoki tekshiruvda');
-      const data = parse(profileSchema.partial().strict(), { ...(r.data as object), ...input.data });
+      const data = parse(draftProfileSchema, { ...(r.data as object), ...input.data });
       const ids = [...(data.photo_ids ?? []), ...(data.document_ids ?? [])];
       if (ids.length) {
         const assets = await tx.mediaAsset.findMany({ where: { id: { in: ids }, sanatoriumId: r.sanatoriumId } });
@@ -80,12 +91,15 @@ export class SanatoriumService {
       const r = await tx.sanatoriumRevision.findUnique({ where: { id: revisionId } }); if (!r) fail('NOT_FOUND', 'Tahrir topilmadi', 404);
       scope(actor, r.sanatoriumId, 'sanatorium.profile.edit');
       if (!['DRAFT','CHANGES_REQUESTED'].includes(r.status) || r.version !== input.version) fail('VERSION_CONFLICT', 'Tahrir holati o‘zgargan');
-      const data = parse(profileSchema.strict(), r.data);
-      if (!data.terms_accepted || !data.photo_ids.length || !data.document_ids.length) fail('ONBOARDING_INCOMPLETE', 'Rasm, hujjat va xizmat shartlari roziligi kerak', 422);
+      const profile = profileSchema.strict().safeParse(r.data);
+      const details = profile.success ? [] : profile.error.issues.map(validationDetail);
+      if (!(r.data as any).terms_accepted && !details.some(d => d.path === 'terms_accepted')) details.push({ path: 'terms_accepted', field: 'Platforma xizmat shartlari', message: 'Xizmat shartlarini qabul qiling.' });
       const room = await tx.room.findFirst({ where: { sanatoriumId: r.sanatoriumId, active: true } });
       const rate = await tx.ratePlan.findFirst({ where: { sanatoriumId: r.sanatoriumId, active: true } });
-      if (!room || !rate) fail('ONBOARDING_INCOMPLETE', 'Xona va boshlang‘ich tarifni kiriting', 422);
-      const changed = await tx.sanatoriumRevision.update({ where: { id: revisionId }, data: { status: 'SUBMITTED', submittedAt: new Date(), version: { increment: 1 } } });
+      if (!room) details.push({ path: 'rooms', field: 'Xonalar', message: 'Kamida bitta faol xona kiriting.' });
+      if (!rate) details.push({ path: 'rate_plans', field: 'Tariflar', message: 'Kamida bitta faol boshlang‘ich tarif kiriting.' });
+      if (details.length || !profile.success) throw new AppError('ONBOARDING_INCOMPLETE', 'Tekshiruvga yuborish uchun quyidagi ma’lumotlarni to‘ldiring yoki tuzating.', 422, details);
+      const changed = await tx.sanatoriumRevision.update({ where: { id: revisionId }, data: { data: profile.data, status: 'SUBMITTED', submittedAt: new Date(), version: { increment: 1 } } });
       const admins = await tx.user.findMany({ where: { kind: 'SUPERADMIN', status: 'ACTIVE' }, select: { id: true } });
       await emit(tx, 'sanatorium.submitted', { recipient_ids: admins.map(u => u.id), revision_id: revisionId });
       await audit(tx, actor.id, 'sanatorium.submitted', revisionId, r.sanatoriumId); return changed;

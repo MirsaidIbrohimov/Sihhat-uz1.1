@@ -4,6 +4,11 @@ import { BedDouble, BookOpen, Coins, Leaf, Users, Wallet } from "lucide-react";
 import { api, formatMoney, query } from "@sihhat/api-client";
 import { ProfileWizard } from "./wizard";
 import {
+  facilityOptions,
+  sanatoriumAmenities,
+  sanatoriumServices,
+} from "./sanatorium-options";
+import {
   Act,
   AddButton,
   Badge,
@@ -518,18 +523,50 @@ export function Sanatoriums() {
   );
 }
 const profileFields: Field[] = [
-  { key: "name", label: "Sanatoriya nomi", required: true },
+  {
+    key: "name",
+    label: "Sanatoriya nomi",
+    required: true,
+    minLength: 2,
+    maxLength: 150,
+  },
   {
     key: "description",
     label: "Tavsif",
     type: "textarea",
     required: true,
     minLength: 30,
+    maxLength: 10000,
   },
-  { key: "legal_name", label: "Yuridik nom", required: true },
-  { key: "stir", label: "STIR", required: true, pattern: "[0-9]{9}" },
-  { key: "region", label: "Hudud", required: true },
-  { key: "address", label: "Manzil", required: true, minLength: 5 },
+  {
+    key: "legal_name",
+    label: "Yuridik nom",
+    required: true,
+    minLength: 2,
+    maxLength: 150,
+  },
+  {
+    key: "stir",
+    label: "STIR",
+    required: true,
+    pattern: "[0-9]{9}",
+    maxLength: 9,
+    hint: "9 ta raqam",
+  },
+  {
+    key: "region",
+    label: "Hudud",
+    required: true,
+    minLength: 2,
+    maxLength: 80,
+  },
+  {
+    key: "address",
+    label: "Manzil",
+    required: true,
+    minLength: 5,
+    maxLength: 500,
+  },
   {
     key: "latitude",
     label: "Kenglik",
@@ -553,6 +590,7 @@ const profileFields: Field[] = [
     label: "Aloqa telefoni",
     required: true,
     pattern: "\\+998[0-9]{9}",
+    hint: "+998901234567 shaklida kiriting",
   },
   {
     key: "check_in_time",
@@ -569,20 +607,42 @@ const profileFields: Field[] = [
   {
     key: "amenities",
     label: "Sharoitlar",
-    type: "csv",
-    hint: "Vergul bilan ajrating: Wi-Fi, Basseyn",
+    type: "checks",
+    options: facilityOptions(sanatoriumAmenities),
+    hint: "Sanatoriyada mavjud sharoitlarni belgilang. Belgilanmagan sharoit mavjud emas deb ko‘rsatiladi.",
   },
   {
     key: "services",
     label: "Xizmatlar",
-    type: "csv",
-    hint: "Vergul bilan ajrating.",
+    type: "checks",
+    options: facilityOptions(sanatoriumServices),
+    hint: "Haqiqatan ko‘rsatiladigan xizmatlarni belgilang. Narx va cheklovlarni tavsifda yozing.",
   },
-  { key: "meals", label: "Ovqatlanish", type: "textarea" },
-  { key: "child_rules", label: "Bolalar qoidalari", type: "textarea" },
-  { key: "medical_requirements", label: "Tibbiy talablar", type: "textarea" },
-  { key: "directions", label: "Yetib borish", type: "textarea" },
-  { key: "required_documents", label: "Mehmon hujjatlari", type: "textarea" },
+  { key: "meals", label: "Ovqatlanish", type: "textarea", maxLength: 1000 },
+  {
+    key: "child_rules",
+    label: "Bolalar qoidalari",
+    type: "textarea",
+    maxLength: 2000,
+  },
+  {
+    key: "medical_requirements",
+    label: "Tibbiy talablar",
+    type: "textarea",
+    maxLength: 2000,
+  },
+  {
+    key: "directions",
+    label: "Yetib borish",
+    type: "textarea",
+    maxLength: 2000,
+  },
+  {
+    key: "required_documents",
+    label: "Mehmon hujjatlari",
+    type: "textarea",
+    maxLength: 2000,
+  },
   {
     key: "terms_accepted",
     label: "Platforma xizmat shartlari",
@@ -652,8 +712,14 @@ export function Profile({ id }: { id?: string }) {
   if (editing && r)
     return (
       <ProfileWizard
+        key={r.id}
         revision={r}
         fields={profileFields}
+        onComplete={() => {
+          setEditing(false);
+          setTab("files");
+          ctx.refresh();
+        }}
         onClose={() => {
           setEditing(false);
           ctx.refresh();
@@ -696,11 +762,20 @@ export function Profile({ id }: { id?: string }) {
             </button>
             <AddButton
               onClick={() =>
-                action(
-                  "Profilni tekshiruvga yuborish",
-                  `/partner/sanatorium-revisions/${r.id}/submit`,
-                  { version: r.version },
-                )
+                ctx.form({
+                  title: "Profilni tekshiruvga yuborish",
+                  description:
+                    "Profil, rasmlar, hujjatlar, xona va tariflar tekshiriladi. Yetishmagan ma’lumotlar shu yerda ko‘rsatiladi.",
+                  fields: [],
+                  button: "Yuborish",
+                  submit: () =>
+                    api(
+                      `/partner/sanatorium-revisions/${r.id}/submit`,
+                      "POST",
+                      { version: r.version },
+                    ),
+                  done: ctx.refresh,
+                })
               }
             >
               Tekshiruvga yuborish
@@ -920,6 +995,13 @@ export function Profile({ id }: { id?: string }) {
                 </Act>
               }
             >
+              <div className="card-body muted">
+                Bank rekvizitlarini platforma superadmini tekshiradi va
+                tasdiqlaydi.
+                {ctx.admin
+                  ? " Quyidagi kutilayotgan rekvizitlarni tekshirib, «Tasdiqlash» tugmasini bosing."
+                  : " Tasdiqlangandan keyin holati yangilanadi."}
+              </div>
               {banks.loading ? (
                 <Loading />
               ) : banks.error ? (
@@ -931,7 +1013,16 @@ export function Profile({ id }: { id?: string }) {
                     { label: "Yuridik nom", render: (r) => r.data.legal_name },
                     { label: "Hisob raqami", render: (r) => r.data.account },
                     { label: "MFO", render: (r) => r.data.mfo },
-                    statusColumn,
+                    { label: "STIR", render: (r) => r.data.stir },
+                    {
+                      label: "Holati",
+                      render: (r) =>
+                        r.status === "PENDING" ? (
+                          "Superadmin tasdig‘i kutilmoqda"
+                        ) : (
+                          <Badge value={r.status} />
+                        ),
+                    },
                   ]}
                   actions={
                     ctx.admin
@@ -939,10 +1030,20 @@ export function Profile({ id }: { id?: string }) {
                           r.status === "PENDING" && (
                             <Act
                               onClick={() =>
-                                action(
-                                  "Bank rekvizitini tasdiqlash",
-                                  `/superadmin/bank-revisions/${r.id}/approve`,
-                                )
+                                ctx.form({
+                                  title: "Bank rekvizitini tasdiqlash",
+                                  description:
+                                    "Yuridik nom, hisob raqami, MFO va STIRni tekshirgandan keyin tasdiqlang.",
+                                  fields: [],
+                                  button: "Tasdiqlash",
+                                  submit: () =>
+                                    api(
+                                      `/superadmin/bank-revisions/${r.id}/approve`,
+                                      "POST",
+                                      {},
+                                    ),
+                                  done: ctx.refresh,
+                                })
                               }
                             >
                               Tasdiqlash
@@ -1029,7 +1130,7 @@ export function Staff() {
         {
           key: "permissions",
           label: "Ruxsat etilgan amallar",
-          type: "multi",
+          type: "switches",
           value: selected,
           options: Object.entries(permissions).map(([value, label]) => ({
             value,
@@ -1040,7 +1141,7 @@ export function Staff() {
                 (r.ceiling.length && !r.ceiling.includes(value)) ||
                 !ctx.allowed(value)),
           })),
-          hint: "Bir nechta tanlash uchun Ctrl (Mac: Cmd) tugmasini bosib turing.",
+          hint: "Har bir ruxsatni tugma bilan yoqing yoki o‘chiring, so‘ng saqlang.",
         },
       ],
       submit: (v) => {
@@ -1088,7 +1189,9 @@ export function Staff() {
         </div>
       )}
       <DataPanel
+        key={ctx.tenant}
         path="/partner/staff"
+        params={{ sanatorium_id: ctx.tenant || undefined }}
         columns={[
           {
             label: "Xodim",

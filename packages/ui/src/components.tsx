@@ -28,6 +28,7 @@ import {
   type Actor,
   type Page,
 } from "@sihhat/api-client";
+import { SelectionGroup } from "./selections";
 
 export type Row = Record<string, any>;
 export type Field = {
@@ -44,6 +45,8 @@ export type Field = {
     | "datetime-local"
     | "select"
     | "multi"
+    | "switches"
+    | "checks"
     | "checkbox"
     | "csv"
     | "file"
@@ -55,6 +58,7 @@ export type Field = {
   min?: number | string;
   max?: number | string;
   minLength?: number;
+  maxLength?: number;
   pattern?: string;
   accept?: string;
   step?: number | string;
@@ -102,13 +106,19 @@ export function useRemote<T = any>(path: string | null, epoch = 0) {
         if (live) setState({ data, loading: false, error: null, request });
       })
       .catch((e) => {
-        if (live) setState({ data: null, loading: false, error: e.message, request });
+        if (live)
+          setState({ data: null, loading: false, error: e.message, request });
       });
     return () => {
       live = false;
     };
   }, [path, epoch, revision]);
-  return { ...(state.request===request ? state : {data:null,loading:!!path,error:null}), reload: () => setRevision((r) => r + 1) };
+  return {
+    ...(state.request === request
+      ? state
+      : { data: null, loading: !!path, error: null }),
+    reload: () => setRevision((r) => r + 1),
+  };
 }
 export const options = (rows: Row[], label = "name", id = "id") =>
   rows.map((r) => ({
@@ -588,7 +598,8 @@ export function FormDialog({
       for (const f of spec.fields) {
         const v = data.get(f.key);
         if (f.type === "checkbox") values[f.key] = v === "on";
-        else if (f.type === "multi") values[f.key] = data.getAll(f.key);
+        else if (["multi", "switches", "checks"].includes(f.type ?? ""))
+          values[f.key] = data.getAll(f.key);
         else if (f.type === "file") {
           if (v instanceof File && v.size) values[f.key] = v;
         } else if (v !== null && String(v) !== "") {
@@ -644,78 +655,92 @@ export function FormDialog({
         </div>
         <form ref={formRef} onSubmit={submit}>
           <div className="form-grid">
-            {spec.fields.map((f) => (
-              <label
-                key={f.key}
-                className={`field ${f.type === "textarea" || f.type === "multi" ? "wide" : ""}`}
-              >
-                <span>
-                  {f.label}
-                  {f.required && <b className="required"> *</b>}
-                </span>
-                {f.type === "textarea" ? (
-                  <textarea
-                    name={f.key}
-                    defaultValue={f.value ?? ""}
-                    required={f.required}
-                    minLength={f.minLength}
-                    rows={4}
-                  />
-                ) : f.type === "select" || f.type === "multi" ? (
-                  <select
-                    name={f.key}
-                    multiple={f.type === "multi"}
-                    defaultValue={f.value ?? (f.type === "multi" ? [] : "")}
-                    required={f.required}
-                  >
-                    {f.type !== "multi" && <option value="">Tanlang</option>}
-                    {f.options?.map((o) => (
-                      <option
-                        value={o.value}
-                        disabled={o.disabled}
-                        key={o.value}
-                      >
-                        {o.label}
-                      </option>
-                    ))}
-                  </select>
-                ) : f.type === "checkbox" ? (
-                  <div className="check-field">
+            {spec.fields.map((f) =>
+              f.type === "switches" || f.type === "checks" ? (
+                <SelectionGroup
+                  key={f.key}
+                  name={f.key}
+                  label={f.label}
+                  options={f.options ?? []}
+                  defaultValue={f.value ?? []}
+                  switches={f.type === "switches"}
+                  hint={f.hint}
+                />
+              ) : (
+                <label
+                  key={f.key}
+                  className={`field ${f.type === "textarea" || f.type === "multi" ? "wide" : ""}`}
+                >
+                  <span>
+                    {f.label}
+                    {f.required && <b className="required"> *</b>}
+                  </span>
+                  {f.type === "textarea" ? (
+                    <textarea
+                      name={f.key}
+                      defaultValue={f.value ?? ""}
+                      required={f.required}
+                      minLength={f.minLength}
+                      maxLength={f.maxLength}
+                      rows={4}
+                    />
+                  ) : f.type === "select" || f.type === "multi" ? (
+                    <select
+                      name={f.key}
+                      multiple={f.type === "multi"}
+                      defaultValue={f.value ?? (f.type === "multi" ? [] : "")}
+                      required={f.required}
+                    >
+                      {f.type !== "multi" && <option value="">Tanlang</option>}
+                      {f.options?.map((o) => (
+                        <option
+                          value={o.value}
+                          disabled={o.disabled}
+                          key={o.value}
+                        >
+                          {o.label}
+                        </option>
+                      ))}
+                    </select>
+                  ) : f.type === "checkbox" ? (
+                    <div className="check-field">
+                      <input
+                        name={f.key}
+                        type="checkbox"
+                        defaultChecked={!!f.value}
+                        required={f.required}
+                      />
+                      <span>{f.hint ?? "Ha"}</span>
+                    </div>
+                  ) : (
                     <input
                       name={f.key}
-                      type="checkbox"
-                      defaultChecked={!!f.value}
+                      type={
+                        ["money", "csv"].includes(f.type ?? "")
+                          ? "text"
+                          : (f.type ?? "text")
+                      }
+                      defaultValue={
+                        f.type === "file" ? undefined : (f.value ?? "")
+                      }
                       required={f.required}
+                      min={f.min}
+                      max={f.max}
+                      step={f.step}
+                      minLength={f.minLength}
+                      maxLength={f.maxLength}
+                      pattern={f.pattern}
+                      accept={f.accept}
+                      inputMode={f.type === "money" ? "decimal" : undefined}
+                      autoComplete={
+                        f.type === "password" ? "new-password" : undefined
+                      }
                     />
-                    <span>{f.hint ?? "Ha"}</span>
-                  </div>
-                ) : (
-                  <input
-                    name={f.key}
-                    type={
-                      ["money", "csv"].includes(f.type ?? "")
-                        ? "text"
-                        : (f.type ?? "text")
-                    }
-                    defaultValue={
-                      f.type === "file" ? undefined : (f.value ?? "")
-                    }
-                    required={f.required}
-                    min={f.min}
-                    max={f.max}
-                    step={f.step}
-                    minLength={f.minLength}
-                    pattern={f.pattern}
-                    accept={f.accept}
-                    inputMode={f.type === "money" ? "decimal" : undefined}
-                    autoComplete={
-                      f.type === "password" ? "new-password" : undefined
-                    }
-                  />
-                )}{" "}
-                {f.hint && f.type !== "checkbox" && <small>{f.hint}</small>}
-              </label>
-            ))}
+                  )}{" "}
+                  {f.hint && f.type !== "checkbox" && <small>{f.hint}</small>}
+                </label>
+              ),
+            )}
           </div>
           {error && <ErrorBox message={error} />}{" "}
           {!!details.length && (
@@ -724,7 +749,9 @@ export function FormDialog({
                 <li key={i}>
                   {spec.fields.find(
                     (f) => d.path === f.key || d.path?.endsWith("." + f.key),
-                  )?.label ?? "Ma’lumot"}
+                  )?.label ??
+                    d.field ??
+                    "Ma’lumot"}
                   : {d.message}
                 </li>
               ))}
