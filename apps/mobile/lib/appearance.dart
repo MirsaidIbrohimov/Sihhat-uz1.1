@@ -2,41 +2,41 @@ import 'package:flutter/material.dart';
 
 import 'data/api.dart';
 
-String appearanceLabel(ThemeMode mode) => switch (mode) {
-  ThemeMode.system => 'Telefon sozlamasiga mos',
-  ThemeMode.light => 'Kunduzgi rejim',
-  ThemeMode.dark => 'Tungi rejim',
-};
+String appearanceLabel(ThemeMode mode) =>
+    mode == ThemeMode.dark ? 'Tungi rejim' : 'Kunduzgi rejim';
 
-IconData appearanceIcon(ThemeMode mode) => switch (mode) {
-  ThemeMode.system => Icons.brightness_auto_outlined,
-  ThemeMode.light => Icons.light_mode_outlined,
-  ThemeMode.dark => Icons.dark_mode_outlined,
-};
+String appearanceAction(ThemeMode next) =>
+    next == ThemeMode.dark ? 'Tungi rejimga o‘tish' : 'Kunduzgi rejimga o‘tish';
+
+IconData appearanceIcon(ThemeMode mode) => mode == ThemeMode.dark
+    ? Icons.dark_mode_outlined
+    : Icons.light_mode_outlined;
 
 class AppearanceController extends ChangeNotifier {
   final TokenStore store;
-  ThemeMode mode = ThemeMode.system;
+  ThemeMode mode = ThemeMode.light;
   bool loaded = false, saving = false, _disposed = false;
   AppearanceController(this.store);
+
+  ThemeMode get nextMode =>
+      mode == ThemeMode.dark ? ThemeMode.light : ThemeMode.dark;
 
   Future<void> load() async {
     try {
       final saved = await store.read('appearance');
-      mode = ThemeMode.values.firstWhere(
-        (value) => value.name == saved,
-        orElse: () => ThemeMode.system,
-      );
+      // Old system preferences and missing/invalid values become day mode.
+      mode = saved == ThemeMode.dark.name ? ThemeMode.dark : ThemeMode.light;
     } catch (_) {
       // A storage failure must not prevent browsing or booking.
-      mode = ThemeMode.system;
+      mode = ThemeMode.light;
     }
     loaded = true;
     if (!_disposed) notifyListeners();
   }
 
-  Future<void> select(ThemeMode next) async {
-    if (!loaded || saving || mode == next) return;
+  Future<void> toggle() async {
+    if (!loaded || saving) return;
+    final next = nextMode;
     saving = true;
     notifyListeners();
     try {
@@ -66,11 +66,11 @@ class AppearanceScope extends InheritedNotifier<AppearanceController> {
       context.dependOnInheritedWidgetOfExactType<AppearanceScope>()?.notifier;
 }
 
-Future<void> chooseAppearance(BuildContext context, ThemeMode mode) async {
+Future<void> toggleAppearance(BuildContext context) async {
   final controller = AppearanceScope.maybeOf(context);
   if (controller == null) return;
   try {
-    await controller.select(mode);
+    await controller.toggle();
   } catch (_) {
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -82,26 +82,18 @@ Future<void> chooseAppearance(BuildContext context, ThemeMode mode) async {
   }
 }
 
-class AppearanceMenu extends StatelessWidget {
-  const AppearanceMenu({super.key});
+class AppearanceToggle extends StatelessWidget {
+  const AppearanceToggle({super.key});
   @override
   Widget build(BuildContext context) {
     final controller = AppearanceScope.maybeOf(context);
     if (controller == null) return const SizedBox.shrink();
-    return PopupMenuButton<ThemeMode>(
-      tooltip: 'Ko‘rinish rejimi',
-      enabled: controller.loaded && !controller.saving,
-      initialValue: controller.mode,
-      icon: Icon(appearanceIcon(controller.mode)),
-      onSelected: (mode) => chooseAppearance(context, mode),
-      itemBuilder: (_) => [
-        for (final mode in ThemeMode.values)
-          CheckedPopupMenuItem(
-            value: mode,
-            checked: mode == controller.mode,
-            child: Text(appearanceLabel(mode)),
-          ),
-      ],
+    return IconButton(
+      tooltip: appearanceAction(controller.nextMode),
+      icon: Icon(appearanceIcon(controller.nextMode)),
+      onPressed: controller.loaded && !controller.saving
+          ? () => toggleAppearance(context)
+          : null,
     );
   }
 }
@@ -122,24 +114,15 @@ class AppearanceSettings extends StatelessWidget {
               'Ilova ko‘rinishi',
               style: TextStyle(fontWeight: FontWeight.w700),
             ),
+            const SizedBox(height: 8),
+            Text(appearanceLabel(controller.mode)),
             const SizedBox(height: 12),
-            DropdownButtonFormField<ThemeMode>(
-              key: ValueKey(controller.mode),
-              initialValue: controller.mode,
-              isExpanded: true,
-              decoration: const InputDecoration(labelText: 'Ko‘rinish rejimi'),
-              items: [
-                for (final mode in ThemeMode.values)
-                  DropdownMenuItem(
-                    value: mode,
-                    child: Text(appearanceLabel(mode)),
-                  ),
-              ],
-              onChanged: controller.saving
-                  ? null
-                  : (mode) {
-                      if (mode != null) chooseAppearance(context, mode);
-                    },
+            FilledButton.icon(
+              icon: Icon(appearanceIcon(controller.nextMode)),
+              label: Text(appearanceAction(controller.nextMode)),
+              onPressed: controller.loaded && !controller.saving
+                  ? () => toggleAppearance(context)
+                  : null,
             ),
           ],
         ),

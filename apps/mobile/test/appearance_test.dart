@@ -31,10 +31,8 @@ Api publicApi(MemoryStore store) => Api(
   ),
 );
 
-Future<void> selectMode(WidgetTester tester, String label) async {
-  await tester.tap(find.byTooltip('Ko‘rinish rejimi'));
-  await tester.pumpAndSettle();
-  await tester.tap(find.widgetWithText(CheckedPopupMenuItem<ThemeMode>, label));
+Future<void> toggleMode(WidgetTester tester, String action) async {
+  await tester.tap(find.byTooltip(action));
   await tester.pumpAndSettle();
 }
 
@@ -52,7 +50,10 @@ void main() {
       await tester.tap(find.text('Profil').last);
       await tester.pumpAndSettle();
       expect(find.text('Ilova ko‘rinishi'), findsOneWidget);
-      await selectMode(tester, 'Tungi rejim');
+      final toggle = find.widgetWithText(FilledButton, 'Tungi rejimga o‘tish');
+      await tester.ensureVisible(toggle);
+      await tester.tap(toggle);
+      await tester.pumpAndSettle();
       expect(brightness(tester), Brightness.dark);
       expect(store.data['appearance'], 'dark');
       expect(find.text('Ilova ko‘rinishi'), findsOneWidget);
@@ -67,18 +68,29 @@ void main() {
   );
 
   testWidgets(
-    'system mode follows phone brightness and explicit day mode overrides it',
+    'one tap alternates day and night without a menu or following phone brightness',
     (tester) async {
       tester.platformDispatcher.platformBrightnessTestValue = Brightness.dark;
       addTearDown(tester.platformDispatcher.clearPlatformBrightnessTestValue);
-      final api = publicApi(MemoryStore());
+      final store = MemoryStore();
+      final api = publicApi(store);
       await tester.pumpWidget(SihhatApp(api: api));
       await tester.pumpAndSettle();
+      expect(brightness(tester), Brightness.light);
+      expect(find.byType(PopupMenuButton<ThemeMode>), findsNothing);
+      expect(find.text('Telefon sozlamasiga mos'), findsNothing);
+      await toggleMode(tester, 'Tungi rejimga o‘tish');
       expect(brightness(tester), Brightness.dark);
+      expect(store.data['appearance'], 'dark');
       tester.platformDispatcher.platformBrightnessTestValue = Brightness.light;
       await tester.pumpAndSettle();
+      expect(brightness(tester), Brightness.dark);
+      await toggleMode(tester, 'Kunduzgi rejimga o‘tish');
       expect(brightness(tester), Brightness.light);
-      await selectMode(tester, 'Kunduzgi rejim');
+      expect(store.data['appearance'], 'light');
+      await toggleMode(tester, 'Tungi rejimga o‘tish');
+      expect(brightness(tester), Brightness.dark);
+      await toggleMode(tester, 'Kunduzgi rejimga o‘tish');
       tester.platformDispatcher.platformBrightnessTestValue = Brightness.dark;
       await tester.pumpAndSettle();
       expect(brightness(tester), Brightness.light);
@@ -111,7 +123,7 @@ void main() {
       );
       expect(find.bySemanticsLabel('Sihhat uz logosi'), findsOneWidget);
       expect(tester.takeException(), isNull);
-      await selectMode(tester, 'Kunduzgi rejim');
+      await toggleMode(tester, 'Kunduzgi rejimga o‘tish');
       expect(
         Theme.of(tester.element(find.byType(LoginScreen))).brightness,
         Brightness.light,
@@ -122,19 +134,21 @@ void main() {
     },
   );
 
-  test('invalid preference and storage errors keep startup usable; failed save preserves the previous mode', () async {
-    final invalid = AppearanceController(
-      MemoryStore()..data['appearance'] = 'unknown',
-    );
-    await invalid.load();
-    expect(invalid.loaded, true);
-    expect(invalid.mode, ThemeMode.system);
-    invalid.dispose();
+  test('old system preference, invalid values and storage errors fall back to day; failed toggle preserves the mode', () async {
+    for (final saved in ['system', 'unknown']) {
+      final invalid = AppearanceController(
+        MemoryStore()..data['appearance'] = saved,
+      );
+      await invalid.load();
+      expect(invalid.loaded, true);
+      expect(invalid.mode, ThemeMode.light);
+      invalid.dispose();
+    }
     final controller = AppearanceController(FailingStore());
     await controller.load();
     expect(controller.loaded, true);
-    await expectLater(controller.select(ThemeMode.dark), throwsStateError);
-    expect(controller.mode, ThemeMode.system);
+    await expectLater(controller.toggle(), throwsStateError);
+    expect(controller.mode, ThemeMode.light);
     expect(controller.saving, false);
     controller.dispose();
   });

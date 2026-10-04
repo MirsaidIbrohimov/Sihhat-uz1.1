@@ -11,11 +11,18 @@ va Android launcher/splash rasmlarini qayta tayyorlaydi. So‘ng
 `npm run mobile:preview -- <serial>` bajariladi. Launcher yoki splash
 o‘zgarsa APKni qayta o‘rnatish kerak.
 
-Androidda **Ko‘rinish rejimi** yoki **Profil → Ilova ko‘rinishi**:
-kunduzgi, tungi, telefon sozlamasiga mos. Tanlov `sihhat_appearance`
+Android 12+ uchun `sihhat_splash.png` alohida eksport qilinadi: 288dp
+shaffof canvasda markaziy 128dp logo 192dp dumaloq chegaraga to‘liq sig‘adi.
+O‘lchamlar barcha besh ekran zichligi uchun moslashtiriladi.
+[Android splash talablari](https://developer.android.com/develop/ui/views/launch/splash-screen).
+
+Android bosh sahifa/loginidagi **oy/quyosh tugmasi** va
+**Profil → Ilova ko‘rinishi**dagi tugma har bosishda kunduzgi va tungi
+rejimni almashtiradi; menyu ochilmaydi. Faqat ikki rejim bor.
+Boshlang‘ich rejim kunduzgi. Tanlov `sihhat_appearance`
 kaliti bilan qurilmaning xavfsiz xotirasida saqlanadi. Logout tanlovni
-o‘chirmaydi. Saqlangan qiymat buzilgan yoki o‘qish xatosi bo‘lsa telefon
-sozlamasi ishlatiladi; yozish xatosida oldingi tanlov qoladi va qayta
+o‘chirmaydi. Eski `system`, buzilgan/bo‘sh qiymat yoki o‘qish xatosi bo‘lsa
+kunduzgi rejim ishlatiladi; yozish xatosida oldingi tanlov qoladi va qayta
 urinish taklif qilinadi. API, OTP va to‘lov holati bu tanlovdan mustaqil.
 
 ## 1. Lokal muhit

@@ -11,10 +11,43 @@ Yangilangan: 2026-10-04. Asos: ISHLAB_CHIQISH_REJASI.md va SIHHAT_UZ_ARXITEKTURA
 | B10 — backend qabul | Lokal qabul to‘plami o‘tdi; tashqi tekshiruv cheklovlari quyida | PostgreSQLda 54/54 test; OpenAPI va runbook yangilandi; clean migration va avvalgi backup dalillari quyida |
 | F1/F2 — saytlar | APIga ulangan sahifalar, AI sarfi/Tezcheck holati, Telegram ulash va brauzer sinovlari o‘tdi | Ikkala Next.js buildi, TypeScript; oxirgi umumiy brauzer runida 9/9 ssenariy o‘tdi |
 | Telegram — xodimlar boti | Kod, lokal worker va rasmiy API ulanishi tayyor | Admin/direktor/resepsion menyusi, xavfsiz ulash, ruxsat tekshiruvi, vazifa/murojaat wizardlari va outbox bildirishnomalari; haqiqiy xodim ulashi hali bajarilmagan |
-| F3 — Android | Sihhat uz logosi, saqlanadigan kunduzgi/tungi/tizim rejimi, wellness UI va debug preview tayyor | Flutter analyze; 24/24 test; Samsungga yangi preview o‘rnatildi va yangi logo/tungi ko‘rinish ochildi. Avvalgi bron/tiklanish va release imzo dalillari quyida; HTTPS API hali belgilanmagan |
+| F3 — Android | Sihhat uz logosi, saqlanadigan va bir bosishda almashadigan kunduzgi/tungi rejim, wellness UI va debug preview tayyor | Flutter analyze; 24/24 test; Samsung preview dalillari quyida. Avvalgi bron/tiklanish va release imzo dalillari ham saqlangan; HTTPS API hali belgilanmagan |
 | R1 — real pilot | Gemini, Eskiz va Tezcheck rekvizitlari olindi; pilot to‘liq emas | Gemini ulandi, Eskiz standart SMSi yetib keldi, Tezcheck o‘qish endpointlari HTTP 200. Kassa draft; haqiqiy OTP, HTTPS, merchant to‘lovi/webhook, push va real sanatoriya piloti qolgan |
 
-## 2026-10-04 Logo va tungi rejim
+## 2026-10-04 Ochilish logosi va ikki rejimli tugma
+
+- `Apk xatolari`dagi screenshot Android ochilish logosi va uning pastki
+  yozuvi dumaloq chegarada kesilganini ko‘rsatdi. Android 12+ uchun
+  alohida `sihhat_splash.png` tayyorlandi: 288dp shaffof maydonda 128dp
+  to‘liq logo. Kunduzgi/tungi native launch temalarida shu asset ishlatiladi.
+  Besh ekran zichligidagi haqiqiy PNGlarda dumaloq chegaradan tashqariga
+  chiqadigan ko‘rinadigan piksel **0**; dalil
+  `.local/branding/splash-fix/geometry.json`da.
+- Faqat **kunduzgi va tungi** rejim qoldi. Bosh sahifa/loginidagi
+  oy/quyosh tugmasi va profildagi tugma har bosilganda rejimni almashtiradi.
+  Boshlang‘ich rejim kunduzgi; eski `system` yoki buzilgan qiymat ham
+  kunduzgiga o‘tadi. Secure storage tanlovni qayta ochishda va logoutda saqlaydi.
+- `npm run mobile:check -- --format`: analyzer xatosiz, **24/24 pass**.
+  To‘rtta appearance testi yangilandi: takroriy bitta bosishda almashish,
+  telefon brightnessidan mustaqil ishlash, profil/login va kichik ekran,
+  tanlovning tiklanishi hamda xotira xatosidan tiklanish tekshirildi.
+- `npm run mobile:preview -- RF8Y1091K8D` o‘tdi, Samsung SM-A165F
+  (Android 16)ga yangilangan oddiy `lib/main.dart` APK o‘rnatildi.
+  Native ochilish ekranida butun logo va yozuv ko‘rindi:
+  `.local/branding/splash-fix/startup-1.png`. Haqiqiy tugma bir bosishda
+  tungi → kunduzgi → tungi rejimni almashtirdi (`day.png`, `night.png`).
+  OS force-stopdan keyin yangi jarayon **14769 → 15181**da tungi tanlov
+  tiklandi; `.local/branding/splash-fix/device-review.json` va
+  `night-after-restart.png` dalillari saqlangan.
+- Source secrets tekshiruvi o‘tdi; APKdagi **24 maxfiy qiymat bayt namunasi**
+  bilan moslik **0**. Yangi preview SHA-256:
+  `a953ea0ba90d3fbccdecb6812b1caa569766f2e3cc7eabb5a4b14cbaff98ed8a`.
+  APK `.local/releases/sihhat-uz-preview.apk`da; debug API
+  `http://127.0.0.1:4000`, lokal server va USB reverse bilan ishlaydi.
+  README va runbook yangilandi. Foydalanuvchi ko‘rsatmasiga binoan
+  o‘zgarishlar lokal commitda saqlanadi, **GitHubga yuborilmaydi**.
+
+## 2026-10-04 Logo va tungi rejim — dastlabki versiya
 
 - Foydalanuvchi bergan asl logo `assets/branding/sihhat-logo.jpg`da.
   `npm run brand:assets` tasvirning to‘liq ko‘rinishini saqlab, Flutter,

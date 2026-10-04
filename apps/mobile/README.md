@@ -7,9 +7,12 @@ tugallanmagan bron identifikatori qurilmaning xavfsiz saqlash xizmatida saqlanad
 To‘lov natijasi backend tasdig‘idan olinadi.
 
 2026-10-04: foydalanuvchi bergan Sihhat uz logosi bosh sahifa, kirish,
-launcher va ochilish ekraniga qo‘shildi. Bosh sahifadagi **Ko‘rinish rejimi**
-tugmasi yoki **Profil → Ilova ko‘rinishi**dan kunduzgi, tungi va telefon
-sozlamasiga mos rejim tanlanadi. Default telefon sozlamasiga mos; tanlov
+launcher va ochilish ekraniga qo‘shildi. Android 12+ splashdagi logoning
+pastki yozuvi kesilishi atrofidagi shaffof bo‘sh joy bilan tuzatildi.
+Bosh sahifa/loginidagi **oy/quyosh tugmasi** hamda **Profil → Ilova
+ko‘rinishi**dagi tugma har bosishda kunduzgi va tungi rejimni almashtiradi.
+Faqat ikki rejim mavjud; boshlang‘ich rejim kunduzgi. Eski `system` qiymati
+kunduzgi rejimga o‘tadi. Tanlov
 xavfsiz lokal xotirada saqlanadi, qayta ochilganda tiklanadi va logoutda
 o‘chmaydi. Matn, kartalar, filtrlar, login, bron, to‘lov va AI ranglari
 rejimga moslashadi; QR oq fonda qoladi. Analyzer xatosiz, **24/24 test**.
@@ -30,11 +33,13 @@ va [Luma Retreats](https://dribbble.com/shots/27159696-Luma-Retreats-An-Immersiv
 Interfeys Flutter komponentlari bilan amalga oshirilgan; namunalar rasmi yoki kodi ko‘chirilmagan.
 Tezcheck havolasi tashqi HTTPS sahifada ochiladi; kalit APKda bo‘lmaydi.
 
-Yangi arm64 debug preview Samsung SM-A165Fga o‘rnatildi; force-stopdan
-keyingi yangi jarayonda bosh sahifa va API katalogi ochildi. APK ichida
+Yangi arm64 debug preview Samsung SM-A165Fga o‘rnatildi: ochilish logosi
+to‘liq ko‘rindi va kunduzgi/tungi rejim tugmani bir bosishda almashdi.
+Force-stopdan keyingi yangi jarayonda tungi tanlov tiklandi,
+bosh sahifa va API katalogi ochildi. APK ichida
 24 ta maxfiy qiymat bayt namunasi tekshirildi, moslik topilmadi. Build va
 qurilma dalillari `.local/releases/android-preview.json` hamda
-`.local/mobile-design/device-check.json`da. Debug API lokal HTTP/USB bilan;
+`.local/branding/splash-fix/device-review.json`da. Debug API lokal HTTP/USB bilan;
 bu haqiqiy merchant payment return yoki signed HTTPS release sinovi emas.
 Gradle 8 GB Windows xotirasiga mos 2 GB heap va 2 worker bilan yig‘ildi.
 

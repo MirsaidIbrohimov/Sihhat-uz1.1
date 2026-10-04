@@ -12,7 +12,7 @@ Kanonik repozitoriya: [MirsaidIbrohimov/Sihhat-uz1.1](https://github.com/Mirsaid
 | Superadmin | Sanatoriyalar, jamoa/ruxsatlar, moliya va operatsion sahifalar; yangilik va tavsiya yaratish, tahrirlash, e’lon qilish va arxivga olish |
 | Hamkorlar sayti | Direktor/resepsion ruxsatlari, xona va tariflar, kalendar, qo‘lda bron, check-in/out va tegishli operatsion sahifalar |
 | Telegram bot | Admin/direktor/resepsion menyulari, sayt orqali tasdiqlangan hisob, bron/qidiruv/check-in-out, xonalar, hisobot, vazifa va murojaatlar; bildirishnoma, kunlik ma’lumot va abonent eslatmalari |
-| Android | Sihhat uz logosi va launcher/splash, kunduzgi/tungi/telefon sozlamasiga mos ko‘rinish; tanlov saqlanadi. Wellness UI, qidiruv/filtr, bron/to‘lov amallari, katalog, saqlanganlar, AI, profil va tiklanadigan sessiya |
+| Android | Sihhat uz logosi va launcher/splash, bir bosishda almashadigan kunduzgi/tungi rejim; tanlov saqlanadi. Wellness UI, qidiruv/filtr, bron/to‘lov amallari, katalog, saqlanganlar, AI, profil va tiklanadigan sessiya |
 | Gemini | Haqiqiy ulanish, rozilik, raqam/email niqobi, katalog/FAQ, limit va token sarfi; admin uchun davr/model bo‘yicha sarf va sozlangan narxga asoslangan taxminiy USD hisobot |
 | Tezcheck | Berilgan kalit bilan rasmiy API, kassa, usullar, tranzaksiyalar va balans o‘qildi. Backend checkout/polling/signed webhook tayyor; haqiqiy kassa draft, to‘lov qabul qilmaydi |
 | Eskiz | SMS API autentifikatsiyasi va standart test SMSi tekshirildi; foydalanuvchi yetib kelganini tasdiqladi. Haqiqiy OTP uchun hisob va matn hali tayyor emas |
@@ -21,7 +21,7 @@ Backendni production uchun 100% tayyor deb hisoblashga hali asos yo‘q. Haqiqiy
 
 Backend **54/54**, brauzer **9/9**, mobil **24/24 unit/widget** sinovi o‘tdi. API, ikkala web buildi, TypeScript, Flutter analyzer va 8 migratsiyaning toza bazadagi tekshiruvi o‘tdi. Backend va umumiy brauzer natijalari 3-oktabrga, yangi mobil tekshiruv 4-oktabrga tegishli. Yangilangan dalillar [holat hujjati](docs/IMPLEMENTATION_STATUS.md)da. Lokal provider javoblari rasmiy merchant qabulining o‘rnini bosmaydi.
 
-Yangilangan APK USB orqali Samsung SM-A165F qurilmasiga o‘rnatildi va force-stopdan keyin ochildi. APK ichida 24 ta maxfiy qiymat bayt namunasi tekshirildi, moslik topilmadi. Bu lokal APIga ulanadigan **debug preview**; imzolangan oldingi release namunasi vaqtinchalik `https://api.sihhat.invalid` manziliga ega. Haqiqiy HTTPS manzili belgilangach release qayta yig‘iladi. APKlar va qurilma dalillari repozitoriyaga kiritilmaydi.
+Yangilangan APK USB orqali Samsung SM-A165F qurilmasiga o‘rnatildi: ochilish logosi to‘liq ko‘rindi, tugma bir bosishda kunduzgi/tungi rejimni almashtirdi va force-stopdan keyin tanlov tiklandi. APK ichida 24 ta maxfiy qiymat bayt namunasi tekshirildi, moslik topilmadi. Bu lokal APIga ulanadigan **debug preview**; imzolangan oldingi release namunasi vaqtinchalik `https://api.sihhat.invalid` manziliga ega. Haqiqiy HTTPS manzili belgilangach release qayta yig‘iladi. APKlar va qurilma dalillari repozitoriyaga kiritilmaydi.
 
 ## Logo va ilova ko‘rinishi
 
@@ -29,9 +29,12 @@ Berilgan logo `assets/branding/sihhat-logo.jpg`da saqlanadi. Uning to‘liq
 ko‘rinishi Android ilovasi, launcher/splash va superadmin/direktor/resepsion
 saytlarining kirish sahifasi, menyusi va brauzer ikonkasida ishlatiladi.
 Mos o‘lchamlarni qayta tayyorlash: `npm run brand:assets`.
+Android 12+ ochilish rasmi logoning yozuvi ham to‘liq ko‘rinishi uchun
+atrofida shaffof bo‘sh joy bilan alohida tayyorlanadi.
 
-Android bosh sahifasidagi **Ko‘rinish rejimi** tugmasi yoki **Profil → Ilova
-ko‘rinishi** orqali kunduzgi, tungi va telefon sozlamasiga mos rejim tanlanadi.
+Android bosh sahifa va loginidagi **oy/quyosh tugmasi** har bosilganda
+kunduzgi va tungi rejimni almashtiradi. **Profil → Ilova ko‘rinishi**da ham
+shu amal uchun tugma bor. Faqat ikki rejim mavjud; boshlang‘ich rejim kunduzgi.
 Tanlov qayta ochilganda va hisobdan chiqishda saqlanadi; login talab qilinmaydi.
 QR fonining o‘qilishi uchun u ikkala rejimda ham oq saqlanadi.
 

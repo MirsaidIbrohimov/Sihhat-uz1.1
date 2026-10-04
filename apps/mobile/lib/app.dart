@@ -218,7 +218,7 @@ class _HomeState extends State<Home> {
                 style: const TextStyle(fontWeight: FontWeight.w800),
               ),
         actions: [
-          const AppearanceMenu(),
+          const AppearanceToggle(),
           IconButton(
             tooltip: 'Bildirishnomalar',
             onPressed: !ready

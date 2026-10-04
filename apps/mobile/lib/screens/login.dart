@@ -93,7 +93,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(actions: const [AppearanceMenu()]),
+    appBar: AppBar(actions: const [AppearanceToggle()]),
     body: SafeArea(
       child: ListView(
         padding: const EdgeInsets.all(28),

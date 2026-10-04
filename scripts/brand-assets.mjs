@@ -11,6 +11,18 @@ async function exportLogo(path, size, format = 'png') {
   await sharp(source).resize(size, size, { fit: 'contain' })
     .toFormat(format, format === 'jpeg' ? { quality: 90 } : {}).toFile(output);
 }
+async function exportSplash(path, scale) {
+  const output = join(root, path);
+  mkdirSync(dirname(output), { recursive: true });
+  // Android 12+ masks the 288dp icon to a 192dp circle. The entire 128dp
+  // square (including its corners and lettering) fits inside that circle.
+  // https://developer.android.com/develop/ui/views/launch/splash-screen
+  const padding = 80 * scale;
+  await sharp(source).resize(128 * scale, 128 * scale, { fit: 'contain' })
+    .ensureAlpha().extend({ top: padding, bottom: padding, left: padding,
+      right: padding, background: { r: 0, g: 0, b: 0, alpha: 0 } })
+    .png().toFile(output);
+}
 await exportLogo('apps/mobile/assets/branding/sihhat-logo.jpg', 512, 'jpeg');
 for (const app of ['superadmin-web', 'partner-web']) {
   await exportLogo(`apps/${app}/public/branding/sihhat-logo.jpg`, 512, 'jpeg');
@@ -21,5 +33,6 @@ const resources = 'apps/mobile/android/app/src/main/res';
 for (const [density, size] of Object.entries({mdpi: 48, hdpi: 72, xhdpi: 96, xxhdpi: 144, xxxhdpi: 192})) {
   await exportLogo(`${resources}/mipmap-${density}/ic_launcher.png`, size);
   await exportLogo(`${resources}/drawable-${density}/sihhat_logo.png`, size * 3);
+  await exportSplash(`${resources}/drawable-${density}/sihhat_splash.png`, size / 48);
 }
 console.log('Sihhat uz: web, Flutter va Android logo fayllari tayyorlandi.');
