@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 const forest = Color(0xff16634d);
 const midnight = Color(0xff183c32);
@@ -6,64 +7,150 @@ const mint = Color(0xffe7f2ec);
 const canvasColor = Color(0xfff5f8f6);
 const muted = Color(0xff657b72);
 
-ThemeData sihhatTheme() {
+@immutable
+class SihhatColors extends ThemeExtension<SihhatColors> {
+  final Color primary, ink, muted, soft, canvas, surface, border, warning;
+  const SihhatColors({
+    required this.primary,
+    required this.ink,
+    required this.muted,
+    required this.soft,
+    required this.canvas,
+    required this.surface,
+    required this.border,
+    required this.warning,
+  });
+
+  factory SihhatColors.forBrightness(Brightness brightness) {
+    final dark = brightness == Brightness.dark;
+    return SihhatColors(
+      primary: dark ? const Color(0xff97d4b9) : forest,
+      ink: dark ? const Color(0xffe3efe7) : midnight,
+      muted: dark ? const Color(0xffabc2b3) : const Color(0xff657b72),
+      soft: dark ? const Color(0xff203e31) : mint,
+      canvas: dark ? const Color(0xff101d18) : canvasColor,
+      surface: dark ? const Color(0xff1b2c24) : Colors.white,
+      border: dark ? const Color(0xff3c5548) : const Color(0xffe3ebe6),
+      warning: dark ? const Color(0xff45371e) : const Color(0xfffff2dc),
+    );
+  }
+
+  @override
+  SihhatColors copyWith({
+    Color? primary,
+    Color? ink,
+    Color? muted,
+    Color? soft,
+    Color? canvas,
+    Color? surface,
+    Color? border,
+    Color? warning,
+  }) => SihhatColors(
+    primary: primary ?? this.primary,
+    ink: ink ?? this.ink,
+    muted: muted ?? this.muted,
+    soft: soft ?? this.soft,
+    canvas: canvas ?? this.canvas,
+    surface: surface ?? this.surface,
+    border: border ?? this.border,
+    warning: warning ?? this.warning,
+  );
+
+  @override
+  SihhatColors lerp(covariant SihhatColors? other, double t) {
+    if (other == null) return this;
+    return SihhatColors(
+      primary: Color.lerp(primary, other.primary, t)!,
+      ink: Color.lerp(ink, other.ink, t)!,
+      muted: Color.lerp(muted, other.muted, t)!,
+      soft: Color.lerp(soft, other.soft, t)!,
+      canvas: Color.lerp(canvas, other.canvas, t)!,
+      surface: Color.lerp(surface, other.surface, t)!,
+      border: Color.lerp(border, other.border, t)!,
+      warning: Color.lerp(warning, other.warning, t)!,
+    );
+  }
+}
+
+extension SihhatDesign on BuildContext {
+  SihhatColors get colors =>
+      Theme.of(this).extension<SihhatColors>() ??
+      SihhatColors.forBrightness(Theme.of(this).brightness);
+}
+
+ThemeData sihhatTheme({Brightness brightness = Brightness.light}) {
+  final colors = SihhatColors.forBrightness(brightness);
+  final dark = brightness == Brightness.dark;
   final scheme = ColorScheme.fromSeed(
     seedColor: forest,
-    primary: forest,
-    onPrimary: Colors.white,
+    brightness: brightness,
+    primary: colors.primary,
+    onPrimary: dark ? const Color(0xff103d2d) : Colors.white,
     secondary: const Color(0xffd9b577),
-    surface: Colors.white,
-    onSurface: midnight,
-    outline: const Color(0xffdce6df),
+    surface: colors.surface,
+    onSurface: colors.ink,
+    onSurfaceVariant: colors.muted,
+    outline: colors.border,
   );
   final rounded = RoundedRectangleBorder(
     borderRadius: BorderRadius.circular(18),
   );
   final border = OutlineInputBorder(
     borderRadius: BorderRadius.circular(18),
-    borderSide: const BorderSide(color: Color(0xffdce6df)),
+    borderSide: BorderSide(color: colors.border),
   );
   return ThemeData(
     useMaterial3: true,
+    brightness: brightness,
     colorScheme: scheme,
-    scaffoldBackgroundColor: canvasColor,
-    textTheme: ThemeData.light().textTheme.apply(
-      bodyColor: midnight,
-      displayColor: midnight,
+    extensions: [colors],
+    scaffoldBackgroundColor: colors.canvas,
+    textTheme: (dark ? ThemeData.dark() : ThemeData.light()).textTheme.apply(
+      bodyColor: colors.ink,
+      displayColor: colors.ink,
     ),
-    appBarTheme: const AppBarTheme(
-      backgroundColor: canvasColor,
-      foregroundColor: midnight,
+    appBarTheme: AppBarTheme(
+      backgroundColor: colors.canvas,
+      foregroundColor: colors.ink,
       surfaceTintColor: Colors.transparent,
       elevation: 0,
       centerTitle: false,
+      systemOverlayStyle:
+          (dark ? SystemUiOverlayStyle.light : SystemUiOverlayStyle.dark)
+              .copyWith(
+                statusBarColor: Colors.transparent,
+                systemNavigationBarColor: colors.canvas,
+                systemNavigationBarIconBrightness: dark
+                    ? Brightness.light
+                    : Brightness.dark,
+              ),
       titleTextStyle: TextStyle(
-        color: midnight,
+        color: colors.ink,
         fontSize: 20,
         fontWeight: FontWeight.w800,
       ),
     ),
     cardTheme: CardThemeData(
-      color: Colors.white,
+      color: colors.surface,
       elevation: 0,
       margin: const EdgeInsets.only(bottom: 12),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(24),
-        side: const BorderSide(color: Color(0xffe3ebe6)),
+        side: BorderSide(color: colors.border),
       ),
       clipBehavior: Clip.antiAlias,
     ),
     inputDecorationTheme: InputDecorationTheme(
       filled: true,
-      fillColor: Colors.white,
+      fillColor: colors.surface,
       contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 18),
       border: border,
       enabledBorder: border,
       focusedBorder: border.copyWith(
-        borderSide: const BorderSide(color: forest, width: 1.8),
+        borderSide: BorderSide(color: colors.primary, width: 1.8),
       ),
-      hintStyle: const TextStyle(color: muted, fontSize: 14),
-      labelStyle: const TextStyle(color: muted),
+      hintStyle: TextStyle(color: colors.muted, fontSize: 14),
+      labelStyle: TextStyle(color: colors.muted),
     ),
     filledButtonTheme: FilledButtonThemeData(
       style: FilledButton.styleFrom(
@@ -77,7 +164,7 @@ ThemeData sihhatTheme() {
       style: OutlinedButton.styleFrom(
         minimumSize: const Size(48, 50),
         shape: rounded,
-        side: const BorderSide(color: Color(0xffd5e2da)),
+        side: BorderSide(color: colors.border),
       ),
     ),
     textButtonTheme: TextButtonThemeData(
@@ -88,40 +175,49 @@ ThemeData sihhatTheme() {
     ),
     navigationBarTheme: NavigationBarThemeData(
       height: 74,
-      backgroundColor: Colors.white,
+      backgroundColor: colors.surface,
       surfaceTintColor: Colors.transparent,
-      indicatorColor: mint,
+      indicatorColor: colors.soft,
+      iconTheme: WidgetStateProperty.resolveWith(
+        (states) => IconThemeData(
+          color: states.contains(WidgetState.selected)
+              ? colors.primary
+              : colors.muted,
+        ),
+      ),
       labelTextStyle: WidgetStateProperty.resolveWith(
         (states) => TextStyle(
           fontSize: 11,
           fontWeight: states.contains(WidgetState.selected)
               ? FontWeight.w800
               : FontWeight.w500,
-          color: states.contains(WidgetState.selected) ? forest : muted,
+          color: states.contains(WidgetState.selected)
+              ? colors.primary
+              : colors.muted,
         ),
       ),
     ),
     chipTheme: ChipThemeData(
-      backgroundColor: Colors.white,
-      selectedColor: mint,
-      side: const BorderSide(color: Color(0xffdce6df)),
+      backgroundColor: colors.surface,
+      selectedColor: colors.soft,
+      side: BorderSide(color: colors.border),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-      labelStyle: const TextStyle(fontSize: 12, color: midnight),
+      labelStyle: TextStyle(fontSize: 12, color: colors.ink),
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
     ),
-    bottomSheetTheme: const BottomSheetThemeData(
-      backgroundColor: canvasColor,
+    bottomSheetTheme: BottomSheetThemeData(
+      backgroundColor: colors.canvas,
       showDragHandle: true,
     ),
     snackBarTheme: SnackBarThemeData(
       behavior: SnackBarBehavior.floating,
       shape: rounded,
-      backgroundColor: midnight,
+      backgroundColor: scheme.inverseSurface,
+      contentTextStyle: TextStyle(color: scheme.onInverseSurface),
     ),
-    dividerTheme: const DividerThemeData(
-      color: Color(0xffe3ebe6),
-      thickness: 1,
-    ),
+    dialogTheme: DialogThemeData(backgroundColor: colors.surface),
+    popupMenuTheme: PopupMenuThemeData(color: colors.surface),
+    dividerTheme: DividerThemeData(color: colors.border, thickness: 1),
   );
 }
 
@@ -281,16 +377,19 @@ class SectionTitle extends StatelessWidget {
       children: [
         Text(
           title,
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 22,
             fontWeight: FontWeight.w800,
-            color: midnight,
+            color: context.colors.ink,
             letterSpacing: -.4,
           ),
         ),
         if (subtitle != null) ...[
           const SizedBox(height: 5),
-          Text(subtitle!, style: const TextStyle(color: muted, fontSize: 13)),
+          Text(
+            subtitle!,
+            style: TextStyle(color: context.colors.muted, fontSize: 13),
+          ),
         ],
       ],
     ),
@@ -310,9 +409,9 @@ class ActionDock extends StatelessWidget {
   });
   @override
   Widget build(BuildContext context) => Container(
-    decoration: const BoxDecoration(
-      color: Colors.white,
-      border: Border(top: BorderSide(color: Color(0xffe3ebe6))),
+    decoration: BoxDecoration(
+      color: context.colors.surface,
+      border: Border(top: BorderSide(color: context.colors.border)),
     ),
     child: SafeArea(
       top: false,
@@ -328,15 +427,18 @@ class ActionDock extends StatelessWidget {
                   Expanded(
                     child: Text(
                       caption ?? 'Jami',
-                      style: const TextStyle(color: muted, fontSize: 12),
+                      style: TextStyle(
+                        color: context.colors.muted,
+                        fontSize: 12,
+                      ),
                     ),
                   ),
                   const SizedBox(width: 8),
                   Flexible(
                     child: Text(
                       amount!,
-                      style: const TextStyle(
-                        color: forest,
+                      style: TextStyle(
+                        color: context.colors.primary,
                         fontSize: 18,
                         fontWeight: FontWeight.w800,
                       ),

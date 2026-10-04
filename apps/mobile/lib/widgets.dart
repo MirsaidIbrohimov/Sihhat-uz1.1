@@ -3,8 +3,6 @@ import 'package:flutter/material.dart';
 import 'data/api.dart';
 import 'design.dart';
 
-const green = forest, ink = midnight, pale = mint;
-
 class Busy extends StatelessWidget {
   const Busy({super.key});
   @override
@@ -26,7 +24,7 @@ class ErrorView extends StatelessWidget {
     child: Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        const Icon(Icons.wifi_off_rounded, color: green, size: 30),
+        Icon(Icons.wifi_off_rounded, color: context.colors.primary, size: 30),
         const SizedBox(height: 16),
         Text(error.toString(), textAlign: TextAlign.center),
         if (retry != null)
@@ -46,7 +44,7 @@ class EmptyView extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(Icons.spa_outlined, color: green, size: 36),
+          Icon(Icons.spa_outlined, color: context.colors.primary, size: 36),
           const SizedBox(height: 14),
           Text(text, textAlign: TextAlign.center),
         ],
@@ -105,15 +103,15 @@ class Pill extends StatelessWidget {
     padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
     decoration: BoxDecoration(
       color: ['CONFIRMED', 'SUCCEEDED', 'CHECKED_OUT'].contains(value)
-          ? pale
-          : const Color(0xfffff2dc),
+          ? context.colors.soft
+          : context.colors.warning,
       borderRadius: BorderRadius.circular(8),
     ),
     child: Text(
       states[value] ?? value,
-      style: const TextStyle(
+      style: TextStyle(
         fontSize: 11,
-        color: ink,
+        color: context.colors.ink,
         fontWeight: FontWeight.w600,
       ),
     ),
@@ -151,13 +149,19 @@ class SanatoriumCard extends StatelessWidget {
                 fit: StackFit.expand,
                 children: [
                   Container(
-                    decoration: const BoxDecoration(
+                    decoration: BoxDecoration(
                       gradient: LinearGradient(
-                        colors: [Color(0xffcfe1bb), Color(0xffe8efdd)],
+                        colors: Theme.of(context).brightness == Brightness.dark
+                            ? [context.colors.soft, context.colors.canvas]
+                            : const [Color(0xffcfe1bb), Color(0xffe8efdd)],
                       ),
                     ),
-                    child: const ExcludeSemantics(
-                      child: CustomPaint(painter: RetreatLandscape()),
+                    child: ExcludeSemantics(
+                      child: CustomPaint(
+                        painter: RetreatLandscape(
+                          dark: Theme.of(context).brightness == Brightness.dark,
+                        ),
+                      ),
                     ),
                   ),
                   if (photos?.isNotEmpty == true)
@@ -175,22 +179,22 @@ class SanatoriumCard extends StatelessWidget {
                         vertical: 7,
                       ),
                       decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: .94),
+                        color: context.colors.surface.withValues(alpha: .94),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Icon(
+                          Icon(
                             Icons.location_on_outlined,
                             size: 14,
-                            color: forest,
+                            color: context.colors.primary,
                           ),
                           const SizedBox(width: 5),
                           Text(
                             item['region'] ?? '',
-                            style: const TextStyle(
-                              color: midnight,
+                            style: TextStyle(
+                              color: context.colors.ink,
                               fontSize: 11,
                               fontWeight: FontWeight.w700,
                             ),
@@ -213,11 +217,11 @@ class SanatoriumCard extends StatelessWidget {
                     item['name'] ?? '',
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontWeight: FontWeight.w800,
                       fontSize: 20,
                       letterSpacing: -.4,
-                      color: ink,
+                      color: context.colors.ink,
                     ),
                   ),
                   const SizedBox(height: 9),
@@ -233,13 +237,13 @@ class SanatoriumCard extends StatelessWidget {
                               vertical: 6,
                             ),
                             decoration: BoxDecoration(
-                              color: canvasColor,
+                              color: context.colors.canvas,
                               borderRadius: BorderRadius.circular(8),
                             ),
                             child: Text(
                               a,
-                              style: const TextStyle(
-                                color: muted,
+                              style: TextStyle(
+                                color: context.colors.muted,
                                 fontSize: 11,
                               ),
                             ),
@@ -256,28 +260,28 @@ class SanatoriumCard extends StatelessWidget {
                           item['from_amount'] == null
                               ? 'Tarifni ko‘ring'
                               : money(item['from_amount']),
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontWeight: FontWeight.w800,
                             fontSize: 19,
-                            color: green,
+                            color: context.colors.primary,
                           ),
                         ),
                       ),
-                      const CircleAvatar(
-                        backgroundColor: pale,
+                      CircleAvatar(
+                        backgroundColor: context.colors.soft,
                         radius: 22,
                         child: Icon(
                           Icons.arrow_forward_rounded,
                           size: 20,
-                          color: green,
+                          color: context.colors.primary,
                         ),
                       ),
                     ],
                   ),
                   const SizedBox(height: 4),
-                  const Text(
+                  Text(
                     'Boshlang‘ich tarif · yakuniy narx bron hisobida',
-                    style: TextStyle(fontSize: 11, color: muted),
+                    style: TextStyle(fontSize: 11, color: context.colors.muted),
                   ),
                 ],
               ),
@@ -319,7 +323,9 @@ Future<void> messageDialog(
                   padding: const EdgeInsets.only(top: 12),
                   child: Text(
                     error!,
-                    style: const TextStyle(color: Colors.red),
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.error,
+                    ),
                   ),
                 ),
             ],

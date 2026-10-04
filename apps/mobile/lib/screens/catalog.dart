@@ -273,7 +273,7 @@ class _CatalogScreenState extends State<CatalogScreen> {
             prefixIcon: const Icon(Icons.search_rounded),
             suffixIcon: IconButton(
               tooltip: 'Qidiruv filtrlari',
-              style: IconButton.styleFrom(backgroundColor: mint),
+              style: IconButton.styleFrom(backgroundColor: context.colors.soft),
               onPressed: filters,
               icon: const Icon(Icons.tune),
             ),
@@ -339,11 +339,11 @@ class _CatalogScreenState extends State<CatalogScreen> {
               children: rows(s.data)
                   .map(
                     (ad) => Card(
-                      color: pale,
+                      color: context.colors.soft,
                       child: ListTile(
-                        leading: const Icon(
+                        leading: Icon(
                           Icons.campaign_outlined,
-                          color: green,
+                          color: context.colors.primary,
                         ),
                         title: Text(ad['title']),
                         subtitle: Text('Reklama · ${ad['text'] ?? ''}'),
@@ -439,7 +439,7 @@ class _CatalogScreenState extends State<CatalogScreen> {
                     api: widget.api,
                     open: () => open(item['id']),
                     trailing: CircleAvatar(
-                      backgroundColor: Colors.white,
+                      backgroundColor: context.colors.surface,
                       child: IconButton(
                         tooltip: saved.contains(item['id'])
                             ? 'Saqlanganlardan olib tashlash'
@@ -449,7 +449,7 @@ class _CatalogScreenState extends State<CatalogScreen> {
                           saved.contains(item['id'])
                               ? Icons.favorite
                               : Icons.favorite_border,
-                          color: green,
+                          color: context.colors.primary,
                         ),
                       ),
                     ),
@@ -638,10 +638,10 @@ class SanatoriumScreen extends StatelessWidget {
                                 child: Image.network(
                                   api.image(p),
                                   fit: BoxFit.cover,
-                                  errorBuilder: (_, _, _) => const Icon(
+                                  errorBuilder: (_, _, _) => Icon(
                                     Icons.landscape,
                                     size: 70,
-                                    color: green,
+                                    color: context.colors.primary,
                                   ),
                                 ),
                               ),
@@ -650,14 +650,18 @@ class SanatoriumScreen extends StatelessWidget {
                       ),
                     ),
                   if (photos.isEmpty)
-                    const SizedBox(
+                    SizedBox(
                       height: 200,
                       child: ClipRRect(
                         borderRadius: BorderRadius.all(Radius.circular(24)),
                         child: ColoredBox(
-                          color: mint,
+                          color: context.colors.soft,
                           child: CustomPaint(
-                            painter: RetreatLandscape(),
+                            painter: RetreatLandscape(
+                              dark:
+                                  Theme.of(context).brightness ==
+                                  Brightness.dark,
+                            ),
                             size: Size.infinite,
                           ),
                         ),
@@ -666,15 +670,15 @@ class SanatoriumScreen extends StatelessWidget {
                   const SizedBox(height: 20),
                   Text(
                     s['name'],
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 27,
                       fontWeight: FontWeight.w700,
-                      color: ink,
+                      color: context.colors.ink,
                     ),
                   ),
                   Text(
                     '${s['region']} · ${s['address']}',
-                    style: const TextStyle(color: Colors.black54),
+                    style: TextStyle(color: context.colors.muted),
                   ),
                   const SizedBox(height: 15),
                   Text(s['description'], style: const TextStyle(height: 1.8)),
@@ -686,14 +690,18 @@ class SanatoriumScreen extends StatelessWidget {
                         .map((a) => Chip(label: Text(a)))
                         .toList(),
                   ),
-                  _info('Xizmatlar', (s['services'] as List).join(', ')),
-                  _info('Ovqatlanish', s['meals']),
+                  _info(
+                    context,
+                    'Xizmatlar',
+                    (s['services'] as List).join(', '),
+                  ),
+                  _info(context, 'Ovqatlanish', s['meals']),
                   const SizedBox(height: 16),
                   Card(
                     child: ExpansionTile(
-                      leading: const Icon(
+                      leading: Icon(
                         Icons.info_outline_rounded,
-                        color: forest,
+                        color: context.colors.primary,
                       ),
                       title: const Text(
                         'Kelish uchun ma’lumotlar',
@@ -701,10 +709,19 @@ class SanatoriumScreen extends StatelessWidget {
                       ),
                       childrenPadding: const EdgeInsets.fromLTRB(18, 0, 18, 18),
                       children: [
-                        _info('Bolalar', s['child_rules']),
-                        _info('Tibbiy talablar', s['medical_requirements']),
-                        _info('Kerakli hujjatlar', s['required_documents']),
+                        _info(context, 'Bolalar', s['child_rules']),
                         _info(
+                          context,
+                          'Tibbiy talablar',
+                          s['medical_requirements'],
+                        ),
+                        _info(
+                          context,
+                          'Kerakli hujjatlar',
+                          s['required_documents'],
+                        ),
+                        _info(
+                          context,
                           'Vaqtlar',
                           'Joylashish ${s['check_in_time']} · ketish ${s['check_out_time']}',
                         ),
@@ -749,9 +766,9 @@ class SanatoriumScreen extends StatelessWidget {
                             ),
                             Text(
                               r['policy']['name'],
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 12,
-                                color: Colors.black54,
+                                color: context.colors.muted,
                               ),
                             ),
                             if ((r['packageDetails']?['included'] as List?)
@@ -781,8 +798,8 @@ class SanatoriumScreen extends StatelessWidget {
                           children: [
                             Text(
                               '${r['rating']} / 5 · tasdiqlangan yashash',
-                              style: const TextStyle(
-                                color: green,
+                              style: TextStyle(
+                                color: context.colors.primary,
                                 fontWeight: FontWeight.w600,
                               ),
                             ),
@@ -793,7 +810,7 @@ class SanatoriumScreen extends StatelessWidget {
                                 padding: const EdgeInsets.only(top: 12),
                                 child: Text(
                                   'Sanatoriya: ${r['reply']}',
-                                  style: const TextStyle(color: Colors.black54),
+                                  style: TextStyle(color: context.colors.muted),
                                 ),
                               ),
                           ],
@@ -829,19 +846,22 @@ class SanatoriumScreen extends StatelessWidget {
       },
     ),
   );
-  Widget _info(String title, dynamic text) => Padding(
+  Widget _info(BuildContext context, String title, dynamic text) => Padding(
     padding: const EdgeInsets.only(top: 16),
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           title,
-          style: const TextStyle(fontWeight: FontWeight.w700, color: ink),
+          style: TextStyle(
+            fontWeight: FontWeight.w700,
+            color: context.colors.ink,
+          ),
         ),
         const SizedBox(height: 6),
         Text(
           (text ?? '').toString(),
-          style: const TextStyle(color: Colors.black54, height: 1.6),
+          style: TextStyle(color: context.colors.muted, height: 1.6),
         ),
       ],
     ),

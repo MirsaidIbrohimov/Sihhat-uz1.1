@@ -1,6 +1,6 @@
 # Sihhat uz — amalga oshirish holati
 
-Yangilangan: 2026-10-03. Asos: ISHLAB_CHIQISH_REJASI.md va SIHHAT_UZ_ARXITEKTURA.md.
+Yangilangan: 2026-10-04. Asos: ISHLAB_CHIQISH_REJASI.md va SIHHAT_UZ_ARXITEKTURA.md.
 
 | Bosqich | Holat | Dalil |
 | --- | --- | --- |
@@ -11,8 +11,49 @@ Yangilangan: 2026-10-03. Asos: ISHLAB_CHIQISH_REJASI.md va SIHHAT_UZ_ARXITEKTURA
 | B10 — backend qabul | Lokal qabul to‘plami o‘tdi; tashqi tekshiruv cheklovlari quyida | PostgreSQLda 54/54 test; OpenAPI va runbook yangilandi; clean migration va avvalgi backup dalillari quyida |
 | F1/F2 — saytlar | APIga ulangan sahifalar, AI sarfi/Tezcheck holati, Telegram ulash va brauzer sinovlari o‘tdi | Ikkala Next.js buildi, TypeScript; oxirgi umumiy brauzer runida 9/9 ssenariy o‘tdi |
 | Telegram — xodimlar boti | Kod, lokal worker va rasmiy API ulanishi tayyor | Admin/direktor/resepsion menyusi, xavfsiz ulash, ruxsat tekshiruvi, vazifa/murojaat wizardlari va outbox bildirishnomalari; haqiqiy xodim ulashi hali bajarilmagan |
-| F3 — Android | Wellness UI, qulay qidiruv/filtr, doim ko‘rinadigan bron/to‘lov amallari va debug preview tayyor | Flutter analyze; 20/20 test; Samsungga yangi preview o‘rnatildi va force-stopdan keyin ochildi. Avvalgi bron/tiklanish va release imzo dalillari quyida; HTTPS API hali belgilanmagan |
+| F3 — Android | Sihhat uz logosi, saqlanadigan kunduzgi/tungi/tizim rejimi, wellness UI va debug preview tayyor | Flutter analyze; 24/24 test; Samsungga yangi preview o‘rnatildi va yangi logo/tungi ko‘rinish ochildi. Avvalgi bron/tiklanish va release imzo dalillari quyida; HTTPS API hali belgilanmagan |
 | R1 — real pilot | Gemini, Eskiz va Tezcheck rekvizitlari olindi; pilot to‘liq emas | Gemini ulandi, Eskiz standart SMSi yetib keldi, Tezcheck o‘qish endpointlari HTTP 200. Kassa draft; haqiqiy OTP, HTTPS, merchant to‘lovi/webhook, push va real sanatoriya piloti qolgan |
+
+## 2026-10-04 Logo va tungi rejim
+
+- Foydalanuvchi bergan asl logo `assets/branding/sihhat-logo.jpg`da.
+  `npm run brand:assets` tasvirning to‘liq ko‘rinishini saqlab, Flutter,
+  ikkala web public asset/favikon va Android launcher/splash o‘lchamlarini
+  tayyorlaydi. Superadmin hamda direktor/resepsion saytlarida login va
+  menyuda shu logo ishlatiladi; mobil loginning gorizontal chiqib ketishi
+  tuzatildi.
+- Android bosh sahifa/loginidagi **Ko‘rinish rejimi** va profil sozlamasi:
+  kunduzgi, tungi va telefon sozlamasiga mos. Tanlov secure storageda
+  saqlanadi, logoutda o‘chmaydi. Kartalar, matnlar, filtr, login, bron,
+  payment, support va AI umumiy palette bilan moslashadi; QR oq fonda.
+- `npm run check` va ikkala Next.js buildi o‘tdi. Haqiqiy lokal API bilan
+  brauzerda **3 rol** — superadmin, direktor, resepsion — login, menyu
+  logosi, favikon va **360px** kirish sahifasi tekshirildi. Screenshotlar
+  va dalil `.local/branding/web-review.json`da. Bu avvalgi **9/9** umumiy
+  brauzer runining o‘rniga qayd qilinmagan; backend **54/54** dalili ham
+  3-oktabrga tegishli va bu bosqichda qayta ishga tushirilmagan.
+- Flutter analyzer xatosiz, **24/24 unit/widget pass**. Yangi 4 test:
+  tanlovni qayta yaratishda/logoutdan keyin tiklash va ochiq profilni
+  saqlash; telefon brightnessini kuzatish va explicit kunduzgi override;
+  kichik ekran/katta matn hamda yangi login routeida rejim almashishi;
+  buzilgan qiymat, o‘qish/yozish xatosidan tiklanish.
+- Yangi arm64 **debug preview** Samsung SM-A165Fga ma’lumotlar saqlangan
+  holda o‘rnatildi. Build skripti force-stop va qayta ochishni bajardi;
+  haqiqiy ekranda logo va tungi ko‘rinish ochildi. Screenshot
+  `.local/branding/android-initial.png`, build dalili
+  `.local/releases/android-preview.json`da. Telefon boshqa ilovaga
+  o‘tgani uchun shu buildda rejimlarni qo‘lda almashtirish va undan keyingi
+  OS force-stop persistence testi yakunlangan deb belgilanmagan; tanlov
+  persistencei unit/widget testlarda tekshirildi.
+- APKda **24 maxfiy qiymat bayt namunasi**, moslik **0**; source secrets
+  tekshiruvida ham moslik topilmadi. Preview SHA-256:
+  `4781043e858d98336ec443b8ae2995dc3ce5d55186630cdbe667c05ab79bfe1d`.
+  APK `.local/releases/sihhat-uz-preview.apk`da, API
+  `http://127.0.0.1:4000`; lokal server va USB reverse talab qilinadi.
+  Yangi signed HTTPS release yoki haqiqiy merchant sinovi bajarilmadi.
+- Foydalanuvchining ushbu topshirig‘iga ko‘ra o‘zgarishlar **GitHubga
+  yuborilmadi**. APK, screenshot va `.local` dalillari manba commitiga
+  kiritilmaydi.
 
 ## 2026-10-01 tekshiruv dalillari
 

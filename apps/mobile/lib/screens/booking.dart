@@ -181,30 +181,34 @@ class _BookingComposerState extends State<BookingComposer> {
         children: [
           Text(
             s['name'],
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 23,
               fontWeight: FontWeight.w700,
-              color: ink,
+              color: context.colors.ink,
             ),
           ),
           const SizedBox(height: 16),
           Container(
             padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
-              color: pale,
+              color: context.colors.soft,
               borderRadius: BorderRadius.circular(16),
             ),
             child: Text(
               quote == null
                   ? '1. Sana  →  2. Xona va mehmonlar  →  3. Bron hisobi'
                   : 'Bron hisobi tayyor. Mehmon ma’lumotlari va qaytarish shartlarini tasdiqlang.',
-              style: const TextStyle(color: forest, fontSize: 12, height: 1.5),
+              style: TextStyle(
+                color: context.colors.primary,
+                fontSize: 12,
+                height: 1.5,
+              ),
             ),
           ),
           const SizedBox(height: 16),
           Card(
             child: ListTile(
-              leading: const Icon(Icons.date_range, color: green),
+              leading: Icon(Icons.date_range, color: context.colors.primary),
               title: Text('${dateOnly(dates.start)} — ${dateOnly(dates.end)}'),
               subtitle: Text('${dates.duration.inDays} tun'),
               trailing: const Icon(Icons.edit_calendar_outlined),
@@ -288,9 +292,9 @@ class _BookingComposerState extends State<BookingComposer> {
                     const SizedBox(height: 8),
                     Text(
                       '${type['name']} · sig‘im ${type['maxGuests']} mehmon',
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 12,
-                        color: Colors.black54,
+                        color: context.colors.muted,
                       ),
                     ),
                     Row(
@@ -341,7 +345,7 @@ class _BookingComposerState extends State<BookingComposer> {
           if (quote != null) ...[
             const SizedBox(height: 20),
             Card(
-              color: pale,
+              color: context.colors.soft,
               child: Padding(
                 padding: const EdgeInsets.all(20),
                 child: Column(
@@ -365,10 +369,10 @@ class _BookingComposerState extends State<BookingComposer> {
                     ),
                     Text(
                       'Jami: ${money(quote!['amount'])}',
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontWeight: FontWeight.w800,
                         fontSize: 21,
-                        color: green,
+                        color: context.colors.primary,
                       ),
                     ),
                     const SizedBox(height: 12),
@@ -379,9 +383,12 @@ class _BookingComposerState extends State<BookingComposer> {
                       ),
                     ),
                     const SizedBox(height: 8),
-                    const Text(
+                    Text(
                       'Taklif 10 daqiqa amal qiladi. Bron yaratishda narx va inventar yana tekshiriladi.',
-                      style: TextStyle(fontSize: 11, color: Colors.black54),
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: context.colors.muted,
+                      ),
                     ),
                   ],
                 ),
@@ -639,7 +646,12 @@ class _BookingScreenState extends State<BookingScreen>
                   decoration: const InputDecoration(labelText: 'Sharh'),
                 ),
                 if (failure != null)
-                  Text(failure!, style: const TextStyle(color: Colors.red)),
+                  Text(
+                    failure!,
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.error,
+                    ),
+                  ),
               ],
             ),
             actions: [
@@ -715,10 +727,10 @@ class _BookingScreenState extends State<BookingScreen>
                   const SizedBox(height: 18),
                   Text(
                     b['reference'],
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 26,
                       fontWeight: FontWeight.w800,
-                      color: ink,
+                      color: context.colors.ink,
                     ),
                   ),
                   Text(
@@ -727,10 +739,10 @@ class _BookingScreenState extends State<BookingScreen>
                   const SizedBox(height: 18),
                   Text(
                     money(b['amount']),
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 24,
                       fontWeight: FontWeight.w700,
-                      color: green,
+                      color: context.colors.primary,
                     ),
                   ),
                   const SizedBox(height: 12),
@@ -738,9 +750,9 @@ class _BookingScreenState extends State<BookingScreen>
                   if (b['holdExpiresAt'] != null && b['status'] == 'HOLD')
                     Text(
                       'To‘lov muddati: ${DateTime.parse(b['holdExpiresAt']).toLocal()}',
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 12,
-                        color: Colors.black54,
+                        color: context.colors.muted,
                       ),
                     ),
                   if (b['status'] == 'PAYMENT_PENDING')
@@ -771,11 +783,15 @@ class _BookingScreenState extends State<BookingScreen>
                         data: 'sihhat://booking/${b['id']}',
                         version: QrVersions.auto,
                         size: 180,
+                        backgroundColor: Colors.white,
                       ),
                     ),
-                    const Text(
+                    Text(
                       'Bronni topish uchun QR. Qabulxonada shaxsingiz ham tekshiriladi.',
-                      style: TextStyle(fontSize: 11, color: Colors.black54),
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: context.colors.muted,
+                      ),
                       textAlign: TextAlign.center,
                     ),
                     TextButton.icon(
@@ -802,7 +818,7 @@ class _BookingScreenState extends State<BookingScreen>
                       kDebugMode &&
                       ['HOLD', 'PAYMENT_PENDING'].contains(b['status']))
                     Card(
-                      color: const Color(0xfffff2dc),
+                      color: context.colors.warning,
                       child: Padding(
                         padding: const EdgeInsets.all(18),
                         child: Column(

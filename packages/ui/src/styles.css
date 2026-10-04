@@ -117,18 +117,25 @@ svg {
   font-weight: 800;
   padding: 0 12px;
 }
-.brand-mark {
-  display: grid;
-  place-items: center;
-  background: #c8e8ae;
-  color: #173d2c;
-  width: 38px;
-  height: 38px;
+.brand-logo {
+  display: block;
+  object-fit: contain;
+  flex-shrink: 0;
+  width: 56px;
+  height: 56px;
   border-radius: 12px;
+}
+.login-logo {
+  display: block;
+  width: 112px;
+  height: 112px;
+  object-fit: contain;
+  border-radius: 24px;
+  margin-bottom: 24px;
 }
 .brand-sub {
   font-size: 11px;
-  margin: 5px 0 35px 64px;
+  margin: 5px 0 35px 80px;
   color: #8fb9a6;
 }
 .nav-group-title {
@@ -872,7 +879,7 @@ td strong {
 }
 .login-screen {
   display: grid;
-  grid-template-columns: 1.1fr 1fr;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
   min-height: 100vh;
 }
 .login-art {
@@ -922,13 +929,16 @@ td strong {
   font-size: 11px;
 }
 .login-form-wrap {
+  min-width: 0;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 45px;
 }
 .login-form {
-  width: 360px;
+  width: 100%;
+  max-width: 360px;
+  min-width: 0;
 }
 .login-form h1 {
   font-size: 27px;
@@ -1085,7 +1095,7 @@ td strong {
     grid-template-columns: 1fr;
   }
   .login-screen {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
   .login-art {
     display: none;

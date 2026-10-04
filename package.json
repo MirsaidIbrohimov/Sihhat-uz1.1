@@ -5,6 +5,7 @@
   "workspaces": ["apps/api", "apps/*-web", "packages/*"],
   "engines": {"node": ">=24.15.0"},
   "scripts": {
+    "brand:assets": "node scripts/brand-assets.mjs",
     "dev:api": "npm run dev -w @sihhat/api",
     "dev:worker": "npm run worker -w @sihhat/api",
     "dev:telegram": "npm run telegram -w @sihhat/api",
@@ -32,6 +33,6 @@
     "check": "npm run typecheck --workspaces --if-present",
     "check:secrets": "node scripts/check-source-secrets.mjs"
   },
-  "devDependencies": {"codex": "^0.2.3", "@playwright/test":"^1.56.0", "prettier":"^3.6.0"},
+  "devDependencies": {"codex": "^0.2.3", "@playwright/test":"^1.56.0", "prettier":"^3.6.0", "sharp":"0.35.5"},
   "overrides": {"js-yaml":"5.4.2", "deepmerge-ts":"8.0.2", "mysql2":"3.24.5"}
 }

@@ -1,7 +1,6 @@
 "use client";
 import { useCallback, useEffect, useState } from "react";
 import {
-  Activity,
   ArrowRight,
   Bell,
   BookOpen,
@@ -171,10 +170,8 @@ function Login({
     <div className="login-screen">
       <div className="login-art">
         <div className="brand">
-          <span className="brand-mark">
-            <Activity size={23} />
-          </span>
-          sihhat<span style={{ fontWeight: 400 }}>.uz</span>
+          <img className="brand-logo" src="/branding/sihhat-logo.jpg" alt="Sihhat uz logosi" width={56} height={56} />
+          <span>sihhat<span style={{ fontWeight: 400 }}>.uz</span></span>
         </div>
         <div className="login-story">
           <p className="eyebrow">SOG‘LOM DAM OLISH, OSON BOSHQARUV</p>
@@ -196,6 +193,7 @@ function Login({
       </div>
       <div className="login-form-wrap">
         <form className="login-form" onSubmit={login}>
+          <img className="login-logo" src="/branding/sihhat-logo.jpg" alt="Sihhat uz logosi" width={112} height={112} />
           <p className="eyebrow">
             {mode === "admin" ? "SUPERADMIN PANELI" : "SANATORIYA PANELI"}
           </p>
@@ -479,10 +477,8 @@ export function Portal({ mode }: { mode: "admin" | "partner" }) {
               go("dashboard");
             }}
           >
-            <span className="brand-mark">
-              <Activity size={23} />
-            </span>
-            sihhat<span style={{ fontWeight: 400 }}>.uz</span>
+            <img className="brand-logo" src="/branding/sihhat-logo.jpg" alt="Sihhat uz logosi" width={56} height={56} />
+            <span>sihhat<span style={{ fontWeight: 400 }}>.uz</span></span>
           </a>
           <div className="brand-sub">
             {admin ? "Platforma boshqaruvi" : "Sanatoriya boshqaruvi"}

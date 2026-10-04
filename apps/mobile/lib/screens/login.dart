@@ -6,6 +6,8 @@ import 'package:flutter/services.dart';
 import '../data/api.dart';
 import '../widgets.dart';
 import '../design.dart';
+import '../branding.dart';
+import '../appearance.dart';
 
 class LoginScreen extends StatefulWidget {
   final Api api;
@@ -91,28 +93,24 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(),
+    appBar: AppBar(actions: const [AppearanceMenu()]),
     body: SafeArea(
       child: ListView(
         padding: const EdgeInsets.all(28),
         children: [
           const Align(
             alignment: Alignment.centerLeft,
-            child: CircleAvatar(
-              radius: 38,
-              backgroundColor: mint,
-              child: Icon(Icons.spa_rounded, size: 38, color: forest),
-            ),
+            child: SihhatLogo(size: 112),
           ),
           const SizedBox(height: 25),
           Text(
             challenge == null
                 ? 'Sihhat.uz ga xush kelibsiz'
                 : 'SMS kodini kiriting',
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 26,
               fontWeight: FontWeight.w800,
-              color: ink,
+              color: context.colors.ink,
             ),
           ),
           const SizedBox(height: 14),
@@ -120,7 +118,7 @@ class _LoginScreenState extends State<LoginScreen> {
             challenge == null
                 ? 'Bron yaratish va saqlangan sanatoriyalarni ko‘rish uchun telefon raqamingizni tasdiqlang.'
                 : 'Tasdiqlash kodi ${phone.text} raqamiga yuborildi.',
-            style: const TextStyle(color: Colors.black54, height: 1.7),
+            style: TextStyle(color: context.colors.muted, height: 1.7),
           ),
           const SizedBox(height: 28),
           TextField(
@@ -199,9 +197,9 @@ class _LoginScreenState extends State<LoginScreen> {
               label: const Text('Telefon raqamini tuzatish'),
             ),
           const SizedBox(height: 20),
-          const Text(
+          Text(
             'Telefon raqamingiz hisobga kirish va bron bo‘yicha aloqa uchun ishlatiladi.',
-            style: TextStyle(fontSize: 12, color: Colors.black45),
+            style: TextStyle(fontSize: 12, color: context.colors.muted),
             textAlign: TextAlign.center,
           ),
         ],

@@ -2,25 +2,83 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 
 import 'data/api.dart';
+import 'appearance.dart';
+import 'branding.dart';
 import 'design.dart';
 import 'screens/account.dart';
 import 'screens/booking.dart';
 import 'screens/catalog.dart';
 import 'screens/login.dart';
 
-class SihhatApp extends StatelessWidget {
+class SihhatApp extends StatefulWidget {
   final Api api;
   const SihhatApp({required this.api, super.key});
   @override
-  Widget build(BuildContext context) => MaterialApp(
-    title: 'Sihhat.uz',
-    debugShowCheckedModeBanner: false,
-    locale: const Locale('uz'),
-    supportedLocales: const [Locale('uz'), Locale('en')],
-    localizationsDelegates: GlobalMaterialLocalizations.delegates,
-    theme: sihhatTheme(),
-    onGenerateRoute: (_) => MaterialPageRoute(builder: (_) => Home(api)),
+  State<SihhatApp> createState() => _SihhatAppState();
+}
+
+class _SihhatAppState extends State<SihhatApp> {
+  late AppearanceController appearance;
+  @override
+  void initState() {
+    super.initState();
+    appearance = AppearanceController(widget.api.store)..load();
+  }
+
+  @override
+  void didUpdateWidget(covariant SihhatApp oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.api != widget.api) {
+      appearance.dispose();
+      appearance = AppearanceController(widget.api.store)..load();
+    }
+  }
+
+  @override
+  void dispose() {
+    appearance.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => ListenableBuilder(
+    listenable: appearance,
+    builder: (context, _) => AppearanceScope(
+      controller: appearance,
+      child: MaterialApp(
+        title: 'Sihhat.uz',
+        debugShowCheckedModeBanner: false,
+        locale: const Locale('uz'),
+        supportedLocales: const [Locale('uz'), Locale('en')],
+        localizationsDelegates: GlobalMaterialLocalizations.delegates,
+        theme: sihhatTheme(),
+        darkTheme: sihhatTheme(brightness: Brightness.dark),
+        themeMode: appearance.mode,
+        onGenerateRoute: (_) =>
+            MaterialPageRoute(builder: (_) => _Entry(widget.api)),
+      ),
+    ),
   );
+}
+
+class _Entry extends StatelessWidget {
+  final Api api;
+  const _Entry(this.api);
+  @override
+  Widget build(BuildContext context) => AppearanceScope.maybeOf(context)!.loaded
+      ? Home(api)
+      : const Scaffold(
+          body: Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                SihhatLogo(size: 112),
+                SizedBox(height: 24),
+                CircularProgressIndicator(),
+              ],
+            ),
+          ),
+        );
 }
 
 class Home extends StatefulWidget {
@@ -116,21 +174,19 @@ class _HomeState extends State<Home> {
       appBar: AppBar(
         toolbarHeight: 76,
         title: tab == 0
-            ? const Row(
+            ? Row(
                 children: [
-                  CircleAvatar(
-                    backgroundColor: mint,
-                    foregroundColor: forest,
-                    child: Icon(Icons.spa_rounded),
-                  ),
-                  SizedBox(width: 11),
+                  const SihhatLogo(),
+                  const SizedBox(width: 11),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
                           'sihhat.uz',
-                          style: TextStyle(
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
                             fontSize: 23,
                             fontWeight: FontWeight.w800,
                             letterSpacing: -.7,
@@ -142,7 +198,7 @@ class _HomeState extends State<Home> {
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
                             fontSize: 10,
-                            color: muted,
+                            color: context.colors.muted,
                             fontWeight: FontWeight.w500,
                           ),
                         ),
@@ -162,6 +218,7 @@ class _HomeState extends State<Home> {
                 style: const TextStyle(fontWeight: FontWeight.w800),
               ),
         actions: [
+          const AppearanceMenu(),
           IconButton(
             tooltip: 'Bildirishnomalar',
             onPressed: !ready
@@ -177,7 +234,9 @@ class _HomeState extends State<Home> {
                       );
                     }
                   },
-            style: IconButton.styleFrom(backgroundColor: Colors.white),
+            style: IconButton.styleFrom(
+              backgroundColor: context.colors.surface,
+            ),
             icon: const Icon(Icons.notifications_none_rounded),
           ),
           const SizedBox(width: 12),
@@ -215,8 +274,8 @@ class _HomeState extends State<Home> {
         ),
       ),
       bottomNavigationBar: DecoratedBox(
-        decoration: const BoxDecoration(
-          border: Border(top: BorderSide(color: Color(0xffe3ebe6))),
+        decoration: BoxDecoration(
+          border: Border(top: BorderSide(color: context.colors.border)),
         ),
         child: NavigationBar(
           selectedIndex: tab,

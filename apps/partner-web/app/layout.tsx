@@ -4,6 +4,7 @@ export const metadata: Metadata = {
   title: "Sihhat.uz · Sanatoriya",
   description: "Sihhat.uz sanatoriya paneli",
   robots: { index: false, follow: false },
+  icons: { icon: "/favicon.png", apple: "/apple-touch-icon.png" },
 };
 export default function Layout({ children }: { children: React.ReactNode }) {
   return (

@@ -2,6 +2,22 @@
 
 Buyruqlar loyiha ildizidan bajariladi. Tekshiruvlarning haqiqiy natijasi [IMPLEMENTATION_STATUS.md](IMPLEMENTATION_STATUS.md)da, talablar [arxitektura](SIHHAT_UZ_ARXITEKTURA.md)da.
 
+## Logo va Android ko‘rinishi
+
+Asl logo `assets/branding/sihhat-logo.jpg`da. `npm run brand:assets` uning
+to‘liq tasviridan Flutter asseti, ikkala saytning public logosi/favikonlari
+va Android launcher/splash rasmlarini qayta tayyorlaydi. So‘ng
+`npm run build:web`, `npm run mobile:check` va zarur bo‘lsa
+`npm run mobile:preview -- <serial>` bajariladi. Launcher yoki splash
+o‘zgarsa APKni qayta o‘rnatish kerak.
+
+Androidda **Ko‘rinish rejimi** yoki **Profil → Ilova ko‘rinishi**:
+kunduzgi, tungi, telefon sozlamasiga mos. Tanlov `sihhat_appearance`
+kaliti bilan qurilmaning xavfsiz xotirasida saqlanadi. Logout tanlovni
+o‘chirmaydi. Saqlangan qiymat buzilgan yoki o‘qish xatosi bo‘lsa telefon
+sozlamasi ishlatiladi; yozish xatosida oldingi tanlov qoladi va qayta
+urinish taklif qilinadi. API, OTP va to‘lov holati bu tanlovdan mustaqil.
+
 ## 1. Lokal muhit
 
 Node.js 24.15+, npm, PostgreSQL 18; Android uchun Flutter va Android SDK kerak. `npm ci` lockfiledagi dependencylarni o‘rnatadi.

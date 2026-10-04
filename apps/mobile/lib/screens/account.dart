@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../data/api.dart';
 import '../widgets.dart';
+import '../design.dart';
+import '../appearance.dart';
 import 'catalog.dart';
 import 'login.dart';
 
@@ -56,8 +58,8 @@ class _AiScreenState extends State<AiScreen> {
         child: ListView(
           padding: const EdgeInsets.all(20),
           children: [
-            const Card(
-              color: pale,
+            Card(
+              color: context.colors.soft,
               child: Padding(
                 padding: EdgeInsets.all(18),
                 child: Text(
@@ -75,7 +77,9 @@ class _AiScreenState extends State<AiScreen> {
                   margin: const EdgeInsets.only(top: 14),
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: m['user'] == true ? green : Colors.white,
+                    color: m['user'] == true
+                        ? context.colors.primary
+                        : context.colors.surface,
                     borderRadius: BorderRadius.circular(16),
                   ),
                   child: Column(
@@ -84,27 +88,32 @@ class _AiScreenState extends State<AiScreen> {
                       Text(
                         m['message'] ?? '',
                         style: TextStyle(
-                          color: m['user'] == true ? Colors.white : ink,
+                          color: m['user'] == true
+                              ? Theme.of(context).colorScheme.onPrimary
+                              : context.colors.ink,
                           height: 1.7,
                         ),
                       ),
                       if (m['provider_status'] == 'connected')
-                        const Padding(
+                        Padding(
                           padding: EdgeInsets.only(top: 8),
                           child: Text(
                             'Gemini · tasdiqlangan katalog va qo‘llanma',
-                            style: TextStyle(fontSize: 10, color: green),
+                            style: TextStyle(
+                              fontSize: 10,
+                              color: context.colors.primary,
+                            ),
                           ),
                         ),
                       if (m['provider_status'] == 'unavailable' ||
                           m['provider_status'] == 'daily_limit')
-                        const Padding(
+                        Padding(
                           padding: EdgeInsets.only(top: 8),
                           child: Text(
                             'AI vaqtincha javob bermadi. Katalog va qo‘llanma asosida javob berildi.',
                             style: TextStyle(
                               fontSize: 10,
-                              color: Colors.black54,
+                              color: context.colors.muted,
                             ),
                           ),
                         ),
@@ -115,9 +124,9 @@ class _AiScreenState extends State<AiScreen> {
                           subtitle: Text(
                             '${card['region']} · ${card['price'] == null ? card['price_status'] : money(card['price'])}',
                           ),
-                          trailing: const Icon(
+                          trailing: Icon(
                             Icons.arrow_forward,
-                            color: green,
+                            color: context.colors.primary,
                           ),
                           onTap: () => Navigator.push(
                             context,
@@ -195,7 +204,7 @@ class NotificationsScreen extends StatelessWidget {
                   r['readAt'] == null
                       ? Icons.notifications_active_outlined
                       : Icons.notifications_none,
-                  color: green,
+                  color: context.colors.primary,
                 ),
                 title: Text(_title(r['payload']?['topic'])),
                 subtitle: Text(r['readAt'] == null ? 'Yangi' : 'O‘qilgan'),
@@ -373,7 +382,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   decoration: const InputDecoration(labelText: 'Ism-familiya'),
                 ),
                 if (error != null)
-                  Text(error!, style: const TextStyle(color: Colors.red)),
+                  Text(
+                    error!,
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.error,
+                    ),
+                  ),
               ],
             ),
             actions: [
@@ -417,6 +431,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         padding: const EdgeInsets.all(24),
         children: [
           const EmptyView('Profilingizni ko‘rish uchun kiring.'),
+          const AppearanceSettings(),
           FilledButton(
             onPressed: () async {
               if (await ensureLogin(context, widget.api)) {
@@ -437,10 +452,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
         return ListView(
           padding: const EdgeInsets.all(22),
           children: [
-            const CircleAvatar(
+            CircleAvatar(
               radius: 38,
-              backgroundColor: pale,
-              child: Icon(Icons.person_outline, size: 42, color: green),
+              backgroundColor: context.colors.soft,
+              child: Icon(
+                Icons.person_outline,
+                size: 42,
+                color: context.colors.primary,
+              ),
             ),
             const SizedBox(height: 18),
             Text(
@@ -451,9 +470,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
             Text(
               p['phone'] ?? '',
               textAlign: TextAlign.center,
-              style: const TextStyle(color: Colors.black54),
+              style: TextStyle(color: context.colors.muted),
             ),
             const SizedBox(height: 25),
+            const AppearanceSettings(),
             Card(
               child: Column(
                 children: [

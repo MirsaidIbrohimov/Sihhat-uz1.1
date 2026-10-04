@@ -6,6 +6,18 @@ qaytarish so‘rovi, sharhlar, profil va bildirishnomalar. Tokenlar hamda
 tugallanmagan bron identifikatori qurilmaning xavfsiz saqlash xizmatida saqlanadi.
 To‘lov natijasi backend tasdig‘idan olinadi.
 
+2026-10-04: foydalanuvchi bergan Sihhat uz logosi bosh sahifa, kirish,
+launcher va ochilish ekraniga qo‘shildi. Bosh sahifadagi **Ko‘rinish rejimi**
+tugmasi yoki **Profil → Ilova ko‘rinishi**dan kunduzgi, tungi va telefon
+sozlamasiga mos rejim tanlanadi. Default telefon sozlamasiga mos; tanlov
+xavfsiz lokal xotirada saqlanadi, qayta ochilganda tiklanadi va logoutda
+o‘chmaydi. Matn, kartalar, filtrlar, login, bron, to‘lov va AI ranglari
+rejimga moslashadi; QR oq fonda qoladi. Analyzer xatosiz, **24/24 test**.
+
+Asl logo `assets/branding/sihhat-logo.jpg`da (repo ildizi), Flutter varianti
+`apps/mobile/assets/branding`da. Web/Android variantlarini asl tasvirni
+o‘zgartirmasdan o‘lchash uchun repo ildizida `npm run brand:assets`.
+
 2026-10-03 UI yangilanishi: umumiy wellness mavzusi, kattaroq sanatoriya
 kartalari, qulay qidiruv va filtrlar, sanatoriya/bron/to‘lov sahifalaridagi
 doim ko‘rinadigan amallar. SMS oynasida raqamni tuzatish mumkin. 320px ekran,

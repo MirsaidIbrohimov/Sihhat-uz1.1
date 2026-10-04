@@ -40,8 +40,8 @@ class HomeHighlights extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: Colors.white,
-              border: Border.all(color: const Color(0xffe3ebe6)),
+              color: context.colors.surface,
+              border: Border.all(color: context.colors.border),
               borderRadius: BorderRadius.circular(18),
             ),
             child: Row(
@@ -76,14 +76,17 @@ class HomeHighlights extends StatelessWidget {
               padding: const EdgeInsets.only(top: 10),
               child: Text(
                 'Saqlangan ma’lumot · ${_updated(data!['generated_at'])}. Narx va mavjudlik bron hisobida yangilanadi.',
-                style: const TextStyle(fontSize: 11, color: Colors.black54),
+                style: TextStyle(fontSize: 11, color: context.colors.muted),
               ),
             ),
           if ((data!['regions'] as List? ?? []).isNotEmpty) ...[
             const SizedBox(height: 18),
-            const Text(
+            Text(
               'Hudud bo‘yicha tanlang',
-              style: TextStyle(fontWeight: FontWeight.w700, color: ink),
+              style: TextStyle(
+                fontWeight: FontWeight.w700,
+                color: context.colors.ink,
+              ),
             ),
             const SizedBox(height: 8),
             SingleChildScrollView(
@@ -132,18 +135,18 @@ class _Stat extends StatelessWidget {
   Widget build(BuildContext context) => Column(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
-      Icon(icon, size: 20, color: green),
+      Icon(icon, size: 20, color: context.colors.primary),
       const SizedBox(height: 7),
       Text(
         value,
-        style: const TextStyle(
+        style: TextStyle(
           fontSize: 13,
           fontWeight: FontWeight.w800,
-          color: ink,
+          color: context.colors.ink,
         ),
       ),
       const SizedBox(height: 3),
-      Text(label, style: const TextStyle(fontSize: 11, color: muted)),
+      Text(label, style: TextStyle(fontSize: 11, color: context.colors.muted)),
     ],
   );
 }
@@ -168,19 +171,22 @@ class HomeUpdates extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const SizedBox(height: 24),
-        const Text(
+        Text(
           'Yangiliklar',
           style: TextStyle(
             fontSize: 22,
             fontWeight: FontWeight.w700,
-            color: ink,
+            color: context.colors.ink,
           ),
         ),
         const SizedBox(height: 12),
         if (news.isEmpty)
-          const Card(
+          Card(
             child: ListTile(
-              leading: Icon(Icons.newspaper_outlined, color: green),
+              leading: Icon(
+                Icons.newspaper_outlined,
+                color: context.colors.primary,
+              ),
               title: Text('Yangi e’lonlar shu yerda ko‘rinadi.'),
               subtitle: Text(
                 'Sihhat.uz va sanatoriyalar haqidagi yangiliklar.',
@@ -191,7 +197,10 @@ class HomeUpdates extends StatelessWidget {
           (article) => Card(
             child: ListTile(
               contentPadding: const EdgeInsets.all(16),
-              leading: const Icon(Icons.newspaper_rounded, color: green),
+              leading: Icon(
+                Icons.newspaper_rounded,
+                color: context.colors.primary,
+              ),
               title: Text(
                 article['title'],
                 style: const TextStyle(fontWeight: FontWeight.w700),
@@ -213,12 +222,12 @@ class HomeUpdates extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 24),
-        const Text(
+        Text(
           'Foydali tavsiyalar',
           style: TextStyle(
             fontSize: 22,
             fontWeight: FontWeight.w700,
-            color: ink,
+            color: context.colors.ink,
           ),
         ),
         const SizedBox(height: 12),
@@ -227,9 +236,9 @@ class HomeUpdates extends StatelessWidget {
             .map(
               (tip) => Card(
                 child: ExpansionTile(
-                  leading: const Icon(
+                  leading: Icon(
                     Icons.lightbulb_outline_rounded,
-                    color: green,
+                    color: context.colors.primary,
                   ),
                   title: Text(
                     tip['title'],
@@ -253,10 +262,10 @@ class HomeUpdates extends StatelessWidget {
         Container(
           padding: const EdgeInsets.all(18),
           decoration: BoxDecoration(
-            color: pale,
+            color: context.colors.soft,
             borderRadius: BorderRadius.circular(18),
           ),
-          child: const Column(
+          child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
@@ -264,7 +273,7 @@ class HomeUpdates extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 17,
                   fontWeight: FontWeight.w700,
-                  color: ink,
+                  color: context.colors.ink,
                 ),
               ),
               SizedBox(height: 10),
@@ -297,16 +306,16 @@ class ArticleScreen extends StatelessWidget {
           children: [
             Text(
               a['title'],
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 27,
                 fontWeight: FontWeight.w700,
-                color: ink,
+                color: context.colors.ink,
               ),
             ),
             const SizedBox(height: 12),
             Text(
               _updated(a['published_at']),
-              style: const TextStyle(color: Colors.black54, fontSize: 12),
+              style: TextStyle(color: context.colors.muted, fontSize: 12),
             ),
             const SizedBox(height: 24),
             SelectableText(
