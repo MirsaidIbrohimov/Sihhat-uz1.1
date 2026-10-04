@@ -6,12 +6,23 @@ import { parse } from 'dotenv';
 const root = resolve(import.meta.dirname, '..');
 const files = [...new Set(execFileSync('git', ['ls-files', '--cached', '--others', '--exclude-standard', '-z'], { cwd: root, encoding: 'utf8' }).split('\0').filter(Boolean))];
 const values = new Set();
-for (const source of ['.local/secrets/providers.env', 'apps/api/.env', 'apps/mobile/android/key.properties']) {
+for (const source of ['.local/secrets/providers.env', 'apps/api/.env', 'apps/mobile/android/key.properties', '.local/android-signing/key.properties']) {
   const path = resolve(root, source);
   if (!existsSync(path)) continue;
   for (const [name, value] of Object.entries(parse(readFileSync(path, 'utf8')))) {
     if (/(?:KEY|TOKEN|SECRET|PASSWORD|EMAIL)$/i.test(name) && value.length >= 12 && !value.startsWith('replace-')) values.add(value);
   }
+}
+function collectAccess(value) {
+  if (!value || typeof value !== 'object') return;
+  for (const [name, item] of Object.entries(value)) {
+    if (/^(?:password|old_password|mfa_secret)$/i.test(name) && typeof item === 'string' && item.length >= 12) values.add(item);
+    else if (item && typeof item === 'object') collectAccess(item);
+  }
+}
+for (const source of ['.local/dev-access.json', '.local/superadmin-access.json']) {
+  const path = resolve(root, source);
+  if (existsSync(path)) collectAccess(JSON.parse(readFileSync(path, 'utf8')));
 }
 const patterns = [...values].flatMap(value => [Buffer.from(value), Buffer.from(value, 'utf16le'), Buffer.from(Buffer.from(value).toString('base64'))]);
 const matches = [];

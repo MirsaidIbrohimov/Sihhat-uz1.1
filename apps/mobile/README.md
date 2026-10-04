@@ -6,6 +6,13 @@ qaytarish so‘rovi, sharhlar, profil va bildirishnomalar. Tokenlar hamda
 tugallanmagan bron identifikatori qurilmaning xavfsiz saqlash xizmatida saqlanadi.
 To‘lov natijasi backend tasdig‘idan olinadi.
 
+Shu kompyuterga USB orqali ulangan telefon uchun tayyor APK:
+`.local/releases/sihhat-uz-preview.apk`. Loyiha ildizida `npm run local:start`
+API, saytlar va USB reverse ulanishini ochadi; `npm run local:status` holatni
+ko‘rsatadi. Kompyuter yoki telefon qayta ulanganida `local:start`ni yana bajaring.
+Bu debug APK lokal API va demo SMS bilan ishlaydi; kompyuter yoqilgan va
+USB debugging faol bo‘lishi kerak. Release uchun haqiqiy HTTPS API zarur.
+
 2026-10-04: foydalanuvchi bergan Sihhat uz logosi bosh sahifa, kirish,
 launcher va ochilish ekraniga qo‘shildi. Android 12+ splashdagi logoning
 pastki yozuvi kesilishi atrofidagi shaffof bo‘sh joy bilan tuzatildi.

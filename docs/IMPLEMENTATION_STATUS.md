@@ -14,6 +14,38 @@ Yangilangan: 2026-10-04. Asos: ISHLAB_CHIQISH_REJASI.md va SIHHAT_UZ_ARXITEKTURA
 | F3 — Android | Telefon/SMS tasdig‘idan keyin ochiladigan sahifalar, lokal demo SMS, logo va kunduzgi/tungi rejim, wellness UI va debug preview tayyor | Flutter analyze; 27/27 test; Samsung preview dalillari quyida. Avvalgi bron/tiklanish va release imzo dalillari ham saqlangan; HTTPS API hali belgilanmagan |
 | R1 — real pilot | Gemini, Eskiz va Tezcheck rekvizitlari olindi; pilot to‘liq emas | Gemini ulandi, Eskiz standart SMSi yetib keldi, Tezcheck o‘qish endpointlari HTTP 200. Kassa draft; haqiqiy OTP, HTTPS, merchant to‘lovi/webhook, push va real sanatoriya piloti qolgan |
 
+## 2026-10-04 Kompyuter va telefon uchun ishga tushirish
+
+- API, domen worker, superadmin va direktor saytlarining buildlari bilan
+  lokal xizmatlar fon rejimida ochildi. `npm run local:start`, `local:status`
+  va `local:stop` qo‘shildi; to‘xtatish → qayta ochish → tayyorlik holati
+  tekshirildi. Yakunda to‘rtta xizmat ishlayotgan holatda qoldirildi.
+- Developmentdagi loyiha bazasida alohida egasi superadmin hisobi yaratildi.
+  Tasodifiy parol va MFA faqat `.local` kirish fayllarida; mavjud demo hisoblar
+  saqlandi. Provision buyrug‘i qayta bajarilganda kirish JSONining SHA-256
+  o‘zgarmadi. Account yaratish faqat `127.0.0.1:55432/sihhat`da ruxsat etilgan.
+- Lokal brauzerda API readiness, offline HTMLdagi MFA kodining backend TOTP
+  bilan mosligi, yangi superadmin va mavjud direktorning login, serverdan
+  ma’lumot olinadigan sahifa navigatsiyasi va logout oqimlari o‘tdi.
+  Bu alohida lokal handoff sinovi; oldingi 9/9 umumiy web runining qayta
+  bajarilishi yoki production qabul natijasi emas.
+- `npm run build:api`, `npm run build:web`, `npm run check` o‘tdi.
+  `npm run check:secrets` o‘tdi, manba kodida maxfiy qiymat mosligi yo‘q.
+  `db:migrate` sakkizta migratsiyani ko‘rdi, qo‘llanmagan migratsiya yo‘q.
+  Backend 56/56 va mobile 27/27 sonlari yuqoridagi avvalgi runlarga tegishli;
+  ushbu ishga tushirishda ularning to‘liq to‘plami qayta bajarilmadi.
+- Oddiy `lib/main.dart` debug APK qayta yig‘ilib, USBdagi Samsung SM-A165Fga
+  o‘rnatildi. API manzili `http://127.0.0.1:4000`, demo OTP paneli yoqilgan;
+  USB reverse qayta sozlandi va Android package mavjudligi tekshirildi.
+  APKda provider, backend, signing hamda lokal hisoblarni qamrab olgan
+  **45 ta maxfiy qiymat bayt namunasi** tekshirildi; moslik yo‘q.
+- Natijalar `.local/local-handoff-check.json`, `.local/local-lifecycle-check.json`
+  va `.local/releases/android-preview.json`da; kirish fayllari va APK Gitdan
+  chiqarilgani tekshirildi. Manba/artefakt skanerlari endi yangi egasi va
+  demo hisoblarning parol/MFA qiymatlarini ham tekshiradi.
+- Muhit shu kompyuter va USB telefon uchun. Haqiqiy OTP, faol Tezcheck
+  kassasi va ommaviy HTTPS deploymentidagi avvalgi cheklovlar saqlanadi.
+
 ## 2026-10-04 Login orqali kirish va lokal demo SMS
 
 - Sessiya bo‘lmaganda ilova to‘g‘ridan-to‘g‘ri telefon/SMS loginiga kiradi.

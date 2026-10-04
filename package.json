@@ -5,6 +5,10 @@
   "workspaces": ["apps/api", "apps/*-web", "packages/*"],
   "engines": {"node": ">=24.15.0"},
   "scripts": {
+    "local:start": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/local-services.ps1 start",
+    "local:status": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/local-services.ps1 status",
+    "local:stop": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/local-services.ps1 stop",
+    "superadmin:local": "npm run superadmin:local -w @sihhat/api",
     "brand:assets": "node scripts/brand-assets.mjs",
     "dev:api": "npm run dev -w @sihhat/api",
     "dev:worker": "npm run worker -w @sihhat/api",

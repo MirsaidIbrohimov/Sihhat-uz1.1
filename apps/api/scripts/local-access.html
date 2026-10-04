@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="uz">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'none'; base-uri 'none'; form-action 'none'">
+<title>Sihhat uz — superadmin kirish</title>
+<style>
+  body{font:16px/1.6 system-ui,sans-serif;background:#eef6f3;color:#163b30;margin:0;padding:32px 20px}main{max-width:640px;margin:auto;background:#fff;border-radius:20px;padding:28px}h1{font-size:26px}a{color:#13654e}dt{font-weight:600;margin-top:20px}dd{margin:4px 0;overflow-wrap:anywhere}code{background:#eef6f3;padding:4px 8px;border-radius:6px}#code{font:bold 42px/1.4 monospace;letter-spacing:8px}summary{cursor:pointer}small{color:#566c63}
+</style>
+<main>
+  <h1>Sihhat uz — superadmin</h1>
+  <p><a href="http://localhost:3000" target="_blank" rel="noopener noreferrer">Superadmin saytini ochish</a> · <a href="http://localhost:3001" target="_blank" rel="noopener noreferrer">Direktor saytini ochish</a></p>
+  <dl><dt>Login</dt><dd><code>{{LOGIN}}</code></dd><dt>Parol</dt><dd><code>{{PASSWORD}}</code></dd><dt>Autentifikator kodi</dt><dd id="code">······</dd></dl>
+  <p id="countdown">Kod tayyorlanmoqda…</p>
+  <p>Kirish sahifasidagi uchta maydonni to‘ldiring. Kod har 30 soniyada almashadi va faqat bir marta ishlatiladi. Kod ishlatilgan bo‘lsa, yangisini kuting.</p>
+  <details><summary>MFAni telefon authenticatoriga ulash</summary><p>TOTP, 6 raqam, 30 soniya. Kalit: <code>{{MFA_SECRET}}</code></p><p><a href="{{MFA_URI}}">Authenticator bilan ulash</a></p></details>
+  <p>Ishga tushirish: <code>npm run local:start</code><br>Holat: <code>npm run local:status</code><br>To‘xtatish: <code>npm run local:stop</code></p>
+  <p><small>Bu kompyuterdagi lokal muhit. Telefon APKsi USB orqali APIga ulanadi va demo SMS kodidan foydalanadi. Ushbu fayl parol va MFA kalitini saqlaydi; uni boshqalarga yubormang.</small></p>
+</main>
+<script>
+  const alphabet='ABCDEFGHIJKLMNOPQRSTUVWXYZ234567', secret='{{MFA_SECRET}}';
+  let bits=0,value=0,bytes=[];
+  for(const ch of secret){value=(value<<5)|alphabet.indexOf(ch);bits+=5;if(bits>=8){bytes.push((value>>>(bits-8))&255);bits-=8;}}
+  let key,previous=-1;
+  async function update(){
+    try{
+      key??=await crypto.subtle.importKey('raw',new Uint8Array(bytes),{name:'HMAC',hash:'SHA-1'},false,['sign']);
+      const step=Math.floor(Date.now()/30000);
+      if(step!==previous){const counter=new Uint8Array(8);new DataView(counter.buffer).setBigUint64(0,BigInt(step));const digest=new Uint8Array(await crypto.subtle.sign('HMAC',key,counter));const offset=digest[19]&15;const number=new DataView(digest.buffer).getUint32(offset)&0x7fffffff;document.getElementById('code').textContent=String(number%1000000).padStart(6,'0');previous=step;}
+      document.getElementById('countdown').textContent='Yangi kodga '+(30-Math.floor(Date.now()/1000)%30)+' soniya.';
+    }catch{document.getElementById('countdown').textContent='Jonli kod uchun bu faylni Chrome yoki Edge brauzerda oching, yoxud quyidagi MFA kalitini authenticatorga kiriting.';}
+  }
+  update();setInterval(update,1000);
+</script>
+</html>

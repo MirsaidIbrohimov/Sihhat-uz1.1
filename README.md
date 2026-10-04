@@ -89,6 +89,32 @@ Server tokeni `.local/secrets/providers.env`da, Gitga kiritilmaydi. `npm run tel
 
 ## Lokal ishga tushirish
 
+Windowsda tayyorlangan API, worker, ikkala sayt va USBdagi Android ulanishini
+bitta buyruq bilan ochish mumkin:
+
+```powershell
+npm run local:start
+npm run local:status
+```
+
+Superadmin — http://localhost:3000, direktor/resepsion — http://localhost:3001.
+Xizmatlar fon rejimida ishlaydi. Kompyuter qayta ochilganda `local:start`ni
+yana bajaring; to‘xtatish — `npm run local:stop`. Bu buyruq bazani to‘xtatmaydi
+va ma’lumotlarni o‘chirmaydi. Jarayon dalillari va loglar `.local/runtime`da.
+
+`npm run superadmin:local` faqat development va `127.0.0.1:55432/sihhat`
+bazasida alohida egasi hisobini yaratadi; mavjud demo hisoblarni saqlaydi.
+Login, parol va MFA uchun **`.local/SUPERADMIN_KIRISH.html`**ni Chrome/Edge
+brauzerida oching. Unda joriy 6 raqamli kod ko‘rinadi; `.txt` nusxa ham bor.
+Qayta bajarish parolni almashtirmaydi. Ushbu fayllar maxfiy va Gitga kirmaydi.
+Production uchun runbookdagi `bootstrap` tartibi alohida qo‘llanadi.
+
+Telefon uchun `.local/releases/sihhat-uz-preview.apk` lokal **debug** APK.
+USB debugging va shu kompyuterga USB ulanishi kerak; `local:start` ulangan
+qurilmalarda `adb reverse tcp:4000 tcp:4000`ni qayta sozlaydi. APKni qurish
+va o‘rnatish — `npm run mobile:preview -- <serial>`. Telefonni qayta ulagan
+bo‘lsangiz, `local:start`ni yana bajaring. SMS kodi lokal demo panelidan olinadi.
+
 Node.js 24.15 yoki undan yangi, npm va PostgreSQL 18 kerak. Buyruqlar loyiha ildizida bajariladi:
 
 ```powershell

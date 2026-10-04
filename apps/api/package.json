@@ -20,6 +20,7 @@
     "db:repair": "tsx scripts/repair-migration.ts",
     "db:seed": "tsx prisma/seed.ts",
     "bootstrap": "tsx scripts/bootstrap.ts",
+    "superadmin:local": "tsx scripts/local-owner.ts",
     "test": "tsx scripts/test-db.ts && tsx --test --test-concurrency=1 test/*.test.ts",
     "test:contract": "tsx scripts/test-db.ts && tsx --test --test-name-pattern=\"B10: OpenAPI\" test/domain.test.ts",
     "openapi": "tsx scripts/openapi.ts"

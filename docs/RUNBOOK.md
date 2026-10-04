@@ -57,6 +57,50 @@ qiling, tasdiqlangan SMS adapterini yoqing va APKni qayta tayyorlang.
 
 ## 1. Lokal muhit
 
+### Windowsda tayyor muhitni ochish
+
+Dependencylar, migratsiyalar va API/web buildlari tayyor bo‘lgach:
+
+```powershell
+npm run superadmin:local
+npm run local:start
+npm run local:status
+```
+
+`superadmin:local` faqat development, `127.0.0.1:55432/sihhat` bazasiga ruxsat
+beradi. Kuchli tasodifiy parol va MFA kaliti yaratiladi; bazada parol hash,
+MFA esa shifrlangan holda saqlanadi. Mavjud hisoblar va sanatoriyalar
+o‘zgartirilmaydi. Sirlar konsolga chiqarilmaydi; `.local/superadmin-access.json`,
+`.local/SUPERADMIN_KIRISH.html` va `.local/SUPERADMIN_KIRISH.txt` Gitdan chiqarilgan.
+HTMLdagi joriy MFA kodi Chrome/Edgeda lokal hisoblanadi va tashqi so‘rov yo‘q.
+Kalitni authenticatorga qo‘lda ulash ham mumkin: TOTP, 6 raqam, 30 soniya.
+Kod bir martalik; ishlatilgan bo‘lsa keyingi kodni kuting.
+
+Qayta yaratish buyrug‘i mavjud parolni almashtirmaydi va MFA hisoblagichini
+tozalamaydi. Foydalanuvchi saytdan parolni o‘zgartirgan bo‘lsa, eski lokal
+fayl avtomatik tiklash vositasi emas; skript mos kelmagan ma’lumotni rad etadi.
+Ushbu tartib production bootstrap o‘rniga ishlatilmaydi.
+
+`local:start` PostgreSQL, API, domen worker, superadmin va direktor saytlarini
+fon rejimida ochadi. Buildlar va HTTP readiness tekshiriladi; mavjud boshqariladigan
+jarayonlar takroran yaratilmaydi. PID bilan birga yaratilish vaqti, workspace va
+buyruq yo‘li tekshiriladi. Boshqa jarayon xizmat qilayotgan port avtomatik bo‘shatilmaydi.
+Markerlar va loglar `.local/runtime`da. `local:status` xizmat holatini ko‘rsatadi.
+
+```powershell
+npm run local:stop
+```
+
+`local:stop` faqat markerlar bilan tasdiqlangan shu loyiha jarayonlarini
+to‘xtatadi; baza ishlashda qoladi, ma’lumotlar o‘chirilmaydi. Bazani to‘xtatish
+uchun `npm run db:stop`. Kompyuter qayta ochilganda xizmatlar o‘z-o‘zidan
+ochilmaydi — loyiha ildizida `npm run local:start`ni bajaring.
+
+USB debugging yoqilgan Android qurilma ulangan bo‘lsa, `local:start`
+API uchun USB reverse ulanishini tiklaydi. Preview APK `http://127.0.0.1:4000`
+manziliga shu reverse orqali ulanadi; kompyuter ishlashi va USB ulanishi kerak.
+Ushbu rejim LAN yoki ommaviy internet deploymenti emas.
+
 Node.js 24.15+, npm, PostgreSQL 18; Android uchun Flutter va Android SDK kerak. `npm ci` lockfiledagi dependencylarni o‘rnatadi.
 
 ```powershell
