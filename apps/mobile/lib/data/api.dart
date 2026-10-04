@@ -45,6 +45,7 @@ class Api {
   final String baseUrl;
   final TokenStore store;
   final http.Client client;
+  final ValueNotifier<bool> session = ValueNotifier(false);
   String? accessToken, refreshToken;
   Future<void>? _refreshing;
   final Map<String, String> _pendingKeys = {};
@@ -64,18 +65,32 @@ class Api {
   }
   bool get signedIn => accessToken != null;
   Future<void> restore() async {
-    accessToken = await store.read('access');
-    refreshToken = await store.read('refresh');
+    final access = await store.read('access');
+    final refresh = await store.read('refresh');
+    accessToken = access;
+    refreshToken = refresh;
+    session.value = signedIn;
   }
 
   Future<void> tokens(Json result) async {
-    accessToken = result['access_token'];
-    refreshToken = result['refresh_token'];
-    await store.write('access', accessToken);
-    await store.write('refresh', refreshToken);
+    final access = result['access_token'], refresh = result['refresh_token'];
+    if (access is! String ||
+        access.isEmpty ||
+        refresh is! String ||
+        refresh.isEmpty) {
+      throw const ApiException(
+        'INVALID_RESPONSE',
+        'Kirish javobini o‘qib bo‘lmadi. Qayta urinib ko‘ring.',
+      );
+    }
+    await store.write('access', access);
+    await store.write('refresh', refresh);
     if (result['user'] != null) {
       await store.write('profile', jsonEncode(result['user']));
     }
+    accessToken = access;
+    refreshToken = refresh;
+    session.value = signedIn;
   }
 
   Future<void> clear() async {
@@ -85,6 +100,7 @@ class Api {
     await store.write('refresh', null);
     await store.write('pending_booking', null);
     await store.write('profile', null);
+    session.value = false;
   }
 
   Future<void> _refresh() async {

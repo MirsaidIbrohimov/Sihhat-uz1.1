@@ -7,6 +7,7 @@ import 'package:http/testing.dart';
 import 'package:sihhat_mobile/app.dart';
 import 'package:sihhat_mobile/data/api.dart';
 import 'package:sihhat_mobile/screens/booking.dart';
+import 'package:sihhat_mobile/screens/login.dart';
 
 import 'api_test.dart' show MemoryStore;
 
@@ -37,6 +38,9 @@ void main() {
           store: store,
           client: MockClient((request) async {
             if (request.url.path == '/auth/me') {
+              if (request.headers['Authorization'] == 'Bearer new-access') {
+                return http.Response('{"id":"customer"}', 200);
+              }
               return http.Response(
                 '{"code":"UNAUTHENTICATED","message":"expired"}',
                 401,
@@ -108,10 +112,8 @@ void main() {
       expect(await store.read('refresh'), isNull);
       expect(await api.getPendingBooking(), isNull);
       expect(find.byType(BookingScreen), findsNothing);
-      expect(
-        find.text('Sog‘lom dam olish shu yerdan boshlanadi.'),
-        findsOneWidget,
-      );
+      expect(find.byType(LoginScreen), findsOneWidget);
+      expect(find.byType(NavigationBar), findsNothing);
       await tester.pumpWidget(const SizedBox.shrink());
       api.client.close();
     },

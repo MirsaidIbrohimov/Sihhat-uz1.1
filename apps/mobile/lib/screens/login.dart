@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
 import '../data/api.dart';
@@ -11,7 +12,14 @@ import '../appearance.dart';
 
 class LoginScreen extends StatefulWidget {
   final Api api;
-  const LoginScreen(this.api, {super.key});
+  final VoidCallback? onAuthenticated;
+  final bool showDemoOtp;
+  const LoginScreen(
+    this.api, {
+    this.onAuthenticated,
+    this.showDemoOtp = false,
+    super.key,
+  });
   @override
   State<LoginScreen> createState() => _LoginScreenState();
 }
@@ -19,7 +27,7 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   final phone = TextEditingController(text: '+998'),
       code = TextEditingController();
-  String? challenge, error;
+  String? challenge, error, demoCode;
   bool busy = false;
   int wait = 0;
   Timer? timer;
@@ -36,6 +44,7 @@ class _LoginScreenState extends State<LoginScreen> {
       setState(() => error = 'Telefonni +998 bilan to‘liq kiriting.');
       return;
     }
+    FocusScope.of(context).unfocus();
     setState(() {
       busy = true;
       error = null;
@@ -52,6 +61,15 @@ class _LoginScreenState extends State<LoginScreen> {
       setState(() {
         challenge = r['challenge_id'];
         wait = r['resend_after'];
+        code.clear();
+        final preview = r['demo_code'];
+        demoCode =
+            kDebugMode &&
+                widget.showDemoOtp &&
+                preview is String &&
+                RegExp(r'^\d{6}$').hasMatch(preview)
+            ? preview
+            : null;
       });
       timer?.cancel();
       timer = Timer.periodic(const Duration(seconds: 1), (t) {
@@ -83,7 +101,13 @@ class _LoginScreenState extends State<LoginScreen> {
         ),
       );
       await widget.api.tokens(result);
-      if (mounted) Navigator.pop(context, true);
+      if (mounted) {
+        if (widget.onAuthenticated != null) {
+          widget.onAuthenticated!();
+        } else {
+          Navigator.pop(context, true);
+        }
+      }
     } catch (e) {
       if (mounted) setState(() => error = e.toString());
     } finally {
@@ -116,7 +140,9 @@ class _LoginScreenState extends State<LoginScreen> {
           const SizedBox(height: 14),
           Text(
             challenge == null
-                ? 'Bron yaratish va saqlangan sanatoriyalarni ko‘rish uchun telefon raqamingizni tasdiqlang.'
+                ? 'Ilovadan foydalanish uchun telefon raqamingizni tasdiqlang. Yangi hisob tasdiqlashdan so‘ng yaratiladi.'
+                : demoCode != null
+                ? 'Telefon raqamingizni quyidagi demo kod bilan tasdiqlang.'
                 : 'Tasdiqlash kodi ${phone.text} raqamiga yuborildi.',
             style: TextStyle(color: context.colors.muted, height: 1.7),
           ),
@@ -155,6 +181,34 @@ class _LoginScreenState extends State<LoginScreen> {
               },
             ),
           ],
+          if (demoCode != null) ...[
+            const SizedBox(height: 18),
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    SelectableText(
+                      'Demo SMS kodi: $demoCode',
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 20,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      'Sinov rejimi. Telefoningizga SMS yuborilmaydi. Ushbu kod bilan ilovaga kirishingiz mumkin.',
+                    ),
+                    TextButton(
+                      onPressed: busy ? null : () => code.text = demoCode!,
+                      child: const Text('Demo koddan foydalanish'),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
           if (error != null) ErrorView(error!),
           const SizedBox(height: 24),
           FilledButton(
@@ -190,6 +244,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         challenge = null;
                         code.clear();
                         error = null;
+                        demoCode = null;
                         wait = 0;
                       });
                     },

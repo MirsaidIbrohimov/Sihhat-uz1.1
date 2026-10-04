@@ -12,16 +12,16 @@ Kanonik repozitoriya: [MirsaidIbrohimov/Sihhat-uz1.1](https://github.com/Mirsaid
 | Superadmin | Sanatoriyalar, jamoa/ruxsatlar, moliya va operatsion sahifalar; yangilik va tavsiya yaratish, tahrirlash, e’lon qilish va arxivga olish |
 | Hamkorlar sayti | Direktor/resepsion ruxsatlari, xona va tariflar, kalendar, qo‘lda bron, check-in/out va tegishli operatsion sahifalar |
 | Telegram bot | Admin/direktor/resepsion menyulari, sayt orqali tasdiqlangan hisob, bron/qidiruv/check-in-out, xonalar, hisobot, vazifa va murojaatlar; bildirishnoma, kunlik ma’lumot va abonent eslatmalari |
-| Android | Sihhat uz logosi va launcher/splash, bir bosishda almashadigan kunduzgi/tungi rejim; tanlov saqlanadi. Wellness UI, qidiruv/filtr, bron/to‘lov amallari, katalog, saqlanganlar, AI, profil va tiklanadigan sessiya |
+| Android | Telefon/SMS tasdig‘idan keyin ochiladigan asosiy sahifalar, lokal demo SMS; Sihhat uz logosi va kunduzgi/tungi rejim. Wellness UI, qidiruv/filtr, bron/to‘lov amallari, katalog, saqlanganlar, AI, profil va tiklanadigan sessiya |
 | Gemini | Haqiqiy ulanish, rozilik, raqam/email niqobi, katalog/FAQ, limit va token sarfi; admin uchun davr/model bo‘yicha sarf va sozlangan narxga asoslangan taxminiy USD hisobot |
 | Tezcheck | Berilgan kalit bilan rasmiy API, kassa, usullar, tranzaksiyalar va balans o‘qildi. Backend checkout/polling/signed webhook tayyor; haqiqiy kassa draft, to‘lov qabul qilmaydi |
 | Eskiz | SMS API autentifikatsiyasi va standart test SMSi tekshirildi; foydalanuvchi yetib kelganini tasdiqladi. Haqiqiy OTP uchun hisob va matn hali tayyor emas |
 
 Backendni production uchun 100% tayyor deb hisoblashga hali asos yo‘q. Haqiqiy HTTPS API, Tezcheck kassasini faollashtirish va haqiqiy merchant to‘lovi/webhook, Eskiz hisobini test rejimidan chiqarish va OTP matnini tasdiqlatish, push, staging Redis/S3 hamda real sanatoriya/bank piloti qolgan. Payme bevosita ulanishi tanlansa uning rasmiy rekvizitlari va qabul sinovi kerak. Batafsil dalillar va cheklovlar [amalga oshirish holati](docs/IMPLEMENTATION_STATUS.md)da.
 
-Backend **54/54**, brauzer **9/9**, mobil **24/24 unit/widget** sinovi o‘tdi. API, ikkala web buildi, TypeScript, Flutter analyzer va 8 migratsiyaning toza bazadagi tekshiruvi o‘tdi. Backend va umumiy brauzer natijalari 3-oktabrga, yangi mobil tekshiruv 4-oktabrga tegishli. Yangilangan dalillar [holat hujjati](docs/IMPLEMENTATION_STATUS.md)da. Lokal provider javoblari rasmiy merchant qabulining o‘rnini bosmaydi.
+Backend **56/56**, brauzer **9/9**, mobil **27/27 unit/widget** sinovi o‘tdi. API, ikkala web buildi, TypeScript, Flutter analyzer va 8 migratsiyaning toza bazadagi tekshiruvi o‘tdi. Backend va mobil tekshiruvlar 4-oktabrga, umumiy brauzer natijalari 3-oktabrga tegishli. Yangilangan dalillar [holat hujjati](docs/IMPLEMENTATION_STATUS.md)da. Lokal provider javoblari rasmiy merchant qabulining o‘rnini bosmaydi.
 
-Yangilangan APK USB orqali Samsung SM-A165F qurilmasiga o‘rnatildi: ochilish logosi to‘liq ko‘rindi, tugma bir bosishda kunduzgi/tungi rejimni almashtirdi va force-stopdan keyin tanlov tiklandi. APK ichida 24 ta maxfiy qiymat bayt namunasi tekshirildi, moslik topilmadi. Bu lokal APIga ulanadigan **debug preview**; imzolangan oldingi release namunasi vaqtinchalik `https://api.sihhat.invalid` manziliga ega. Haqiqiy HTTPS manzili belgilangach release qayta yig‘iladi. APKlar va qurilma dalillari repozitoriyaga kiritilmaydi.
+Yangilangan APK USB orqali Samsung SM-A165F qurilmasiga o‘rnatildi: avval telefon logini, tasdiqdan keyin asosiy sahifa ochildi. Lokal bazada yangi OTP tasdig‘i, mijoz va mobil sessiya qayd etildi. APK ichida 24 ta maxfiy qiymat bayt namunasi tekshirildi, moslik topilmadi. Bu lokal APIga ulanadigan **debug preview**; imzolangan oldingi release namunasi vaqtinchalik `https://api.sihhat.invalid` manziliga ega. Haqiqiy HTTPS manzili belgilangach release qayta yig‘iladi. APKlar va qurilma dalillari repozitoriyaga kiritilmaydi.
 
 ## Logo va ilova ko‘rinishi
 
@@ -35,8 +35,26 @@ atrofida shaffof bo‘sh joy bilan alohida tayyorlanadi.
 Android bosh sahifa va loginidagi **oy/quyosh tugmasi** har bosilganda
 kunduzgi va tungi rejimni almashtiradi. **Profil → Ilova ko‘rinishi**da ham
 shu amal uchun tugma bor. Faqat ikki rejim mavjud; boshlang‘ich rejim kunduzgi.
-Tanlov qayta ochilganda va hisobdan chiqishda saqlanadi; login talab qilinmaydi.
+Ko‘rinish tanlovi qayta ochilganda va hisobdan chiqishda saqlanadi.
+Rejimni login oynasida ham almashtirish mumkin.
 QR fonining o‘qilishi uchun u ikkala rejimda ham oq saqlanadi.
+
+## Androidga kirish va demo SMS
+
+Sessiyasi yo‘q foydalanuvchiga avval telefon orqali kirish oynasi ochiladi.
+SMS kodi to‘g‘ri tasdiqlangach yangi mijoz hisobi yaratiladi yoki mavjud
+hisobga kiriladi va asosiy sahifalar ochiladi. Saqlangan sessiya tekshiriladi;
+faol sessiya bilan qayta SMS so‘ralmaydi. Hisobdan chiqish yoki sessiya bekor
+qilinishi login oynasiga qaytaradi va ochiq ichki sahifalarni yopadi.
+
+Lokal sinov uchun `apps/api/.env`da `NODE_ENV=development`,
+`SMS_ADAPTER=local`, `DEMO_OTP_ENABLED=true` belgilanadi va API qayta ochiladi.
+`npm run mobile:preview -- <serial>` demo kod ko‘rinadigan debug APKni tayyorlaydi.
+Raqamni kiriting → **Kod yuborish** → ekrandagi **Demo koddan foydalanish** →
+**Tasdiqlash**. Telefoningizga haqiqiy SMS yuborilmaydi. Kod har so‘rovda
+yaratiladi; muddati, urinishlar va qayta yuborish cheklovlari amal qiladi.
+Oddiy konfiguratsiyada demo kod berilmaydi, release ilovada ko‘rsatilmaydi;
+production yoki haqiqiy SMS adapterida demo konfiguratsiyasi rad etiladi.
 
 ## Kod tuzilishi
 

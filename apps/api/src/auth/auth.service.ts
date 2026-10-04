@@ -70,7 +70,8 @@ export class AuthService {
       return tx.otpChallenge.create({ data: { id, phone, codeHash: this.otpHash(id, code), expiresAt: new Date(Date.now() + this.config.OTP_TTL_SECONDS * 1000) } });
     });
     await this.sms.send(challenge.id, phone, code, challenge.expiresAt);
-    return { challenge_id: challenge.id, expires_at: challenge.expiresAt, resend_after: this.config.OTP_RESEND_SECONDS };
+    return { challenge_id: challenge.id, expires_at: challenge.expiresAt, resend_after: this.config.OTP_RESEND_SECONDS,
+      ...(this.config.DEMO_OTP_ENABLED && this.config.NODE_ENV !== 'production' && this.config.SMS_ADAPTER === 'local' ? { demo_code: code } : {}) };
   }
   async verifyOtp(body: unknown, ip: string) {
     const input = parse(otpVerifyInput, body);

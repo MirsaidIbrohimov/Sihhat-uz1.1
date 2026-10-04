@@ -25,6 +25,36 @@ o‘chirmaydi. Eski `system`, buzilgan/bo‘sh qiymat yoki o‘qish xatosi bo‘
 kunduzgi rejim ishlatiladi; yozish xatosida oldingi tanlov qoladi va qayta
 urinish taklif qilinadi. API, OTP va to‘lov holati bu tanlovdan mustaqil.
 
+## Android login va lokal demo kodi
+
+Ilova asosiy sahifalarni SMS orqali tasdiqlangan hisobdan so‘ng ochadi.
+Saqlangan sessiya ochilishda tekshiriladi; 401 javobida refresh bajariladi,
+bekor qilingan sessiya tozalanib login ko‘rsatiladi. Logout ochiq ichki
+sahifalarni ham yopadi. Saqlangan sessiya bilan tarmoq uzilganida kesh va
+aloqa xatosi ko‘rsatiladi; birinchi kirish server bilan tasdiqlanishi kerak.
+
+Lokal `apps/api/.env`da (Gitga kiritilmaydi):
+
+```dotenv
+NODE_ENV=development
+SMS_ADAPTER=local
+DEMO_OTP_ENABLED=true
+```
+
+API jarayonini shu konfiguratsiya bilan qayta oching. So‘ng
+`npm run mobile:preview -- <serial>` debug APKni qurilmaga o‘rnatadi;
+USB reverse va lokal API ishlashi kerak. Raqam → **Kod yuborish** →
+**Demo koddan foydalanish** → **Tasdiqlash**. Lokal adapter haqiqiy SMS
+yubormaydi. Kod yangi so‘rovda yaratiladi va challenge bilan bog‘lanadi;
+TTL, cooldown, urinish limiti va bir martalik ishlatish saqlanadi.
+
+`DEMO_OTP_ENABLED` odatiy holatda `false`; API javobida `demo_code` faqat
+opt-in lokal development/test rejimida qaytariladi. Production yoki
+`http`/`eskiz` adapterida uni yoqish konfiguratsiya xatosi beradi.
+Flutter paneli debug va `--dart-define=DEMO_OTP_ENABLED=true` bilan ochiladi;
+release buildda panel yo‘q. Haqiqiy SMSga o‘tganda backend flagini `false`
+qiling, tasdiqlangan SMS adapterini yoqing va APKni qayta tayyorlang.
+
 ## 1. Lokal muhit
 
 Node.js 24.15+, npm, PostgreSQL 18; Android uchun Flutter va Android SDK kerak. `npm ci` lockfiledagi dependencylarni o‘rnatadi.

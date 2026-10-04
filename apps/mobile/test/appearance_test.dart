@@ -22,7 +22,9 @@ Api publicApi(MemoryStore store) => Api(
   baseUrl: 'http://localhost',
   store: store,
   client: MockClient(
-    (request) async => request.url.path == '/catalog/home'
+    (request) async => request.url.path == '/auth/me'
+        ? reply({'id': 'customer', 'name': 'Mijoz'})
+        : request.url.path == '/catalog/home'
         ? reply(home())
         : reply({
             'data': [if (request.url.path == '/catalog/sanatoriums') item],
@@ -37,13 +39,14 @@ Future<void> toggleMode(WidgetTester tester, String action) async {
 }
 
 Brightness brightness(WidgetTester tester) =>
-    Theme.of(tester.element(find.byType(NavigationBar))).brightness;
+    Theme.of(tester.element(find.byType(Scaffold).last)).brightness;
 
 void main() {
   testWidgets(
     'night mode survives app restart and logout while profile navigation stays open',
     (tester) async {
-      final store = MemoryStore();
+      final store = MemoryStore()
+        ..data.addAll({'access': 'saved-access', 'refresh': 'saved-refresh'});
       final appApi = publicApi(store);
       await tester.pumpWidget(SihhatApp(api: appApi));
       await tester.pumpAndSettle();
@@ -100,7 +103,7 @@ void main() {
   );
 
   testWidgets(
-    'night theme applies to pushed login route and fits a small screen with large text',
+    'night theme applies to first login and fits a small screen with large text',
     (tester) async {
       tester.view.physicalSize = const Size(320, 720);
       tester.view.devicePixelRatio = 1;
@@ -111,11 +114,6 @@ void main() {
       final store = MemoryStore()..data['appearance'] = 'dark';
       final api = publicApi(store);
       await tester.pumpWidget(SihhatApp(api: api));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Profil').last);
-      await tester.pumpAndSettle();
-      await tester.ensureVisible(find.text('Telefon orqali kirish'));
-      await tester.tap(find.text('Telefon orqali kirish'));
       await tester.pumpAndSettle();
       expect(
         Theme.of(tester.element(find.byType(LoginScreen))).brightness,

@@ -11,6 +11,7 @@ export async function setup() {
   if (!url || new URL(url).pathname !== '/sihhat_test') throw new Error('Sinov faqat sihhat_testda bajariladi');
   process.env.NODE_ENV = 'test'; process.env.DATABASE_URL = url;
   process.env.SMS_ADAPTER = 'local'; process.env.AI_ADAPTER = 'catalog';
+  process.env.DEMO_OTP_ENABLED = 'false';
   process.env.PUSH_ADAPTER = 'local'; process.env.PAYMENT_MODE = 'local';
   process.env.TELEGRAM_MODE = 'disabled'; process.env.TELEGRAM_BOT_TOKEN = '';
   process.env.TEZCHECK_API_KEY = ''; process.env.TEZCHECK_CASH_DESK_CODE = ''; process.env.TEZCHECK_WEBHOOK_SECRET = '';

@@ -60,7 +60,7 @@ void main() {
   });
 
   testWidgets(
-    'public home appears before slow saved-session validation completes',
+    'home waits for saved-session validation before loading the catalog',
     (tester) async {
       final store = MemoryStore();
       await store.write('access', 'saved-token');
@@ -81,21 +81,16 @@ void main() {
         }),
       );
       await tester.pumpWidget(SihhatApp(api: api));
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
       expect(auth.isCompleted, false);
-      expect(
-        tester.widget<HomeHighlights>(find.byType(HomeHighlights)).data,
-        isNotNull,
-      );
-      expect(
-        find.text('Sog‘lom dam olish shu yerdan boshlanadi.'),
-        findsOneWidget,
-      );
-      expect(find.text('1 ta'), findsNWidgets(2));
-      expect(find.text('SMS kodini kiriting'), findsNothing);
-      expect(tester.takeException(), isNull);
+      expect(find.byType(HomeHighlights), findsNothing);
+      expect(find.byType(NavigationBar), findsNothing);
       auth.complete(http.Response('{"id":"customer"}', 200));
       await tester.pumpAndSettle();
+      expect(find.byType(HomeHighlights), findsOneWidget);
+      expect(find.text('1 ta'), findsNWidgets(2));
+      expect(tester.takeException(), isNull);
       await tester.pumpWidget(const SizedBox.shrink());
       api.client.close();
     },

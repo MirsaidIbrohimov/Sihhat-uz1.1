@@ -8,11 +8,53 @@ Yangilangan: 2026-10-04. Asos: ISHLAB_CHIQISH_REJASI.md va SIHHAT_UZ_ARXITEKTURA
 | B1 — hisoblar va ruxsatlar | Lokal tekshiruv o‘tdi | MFA, OTP, tenant, bloklash va CSRF testlari; telefon almashtirish qo‘shildi |
 | B2–B8 — backend domenlari | Asosiy lokal oqimlar amalga oshirildi va tekshirildi | Anketa, moderatsiya, xona/narx/bron, Payme va Tezcheck adapterlari, ledger, refund/payout, billing va aloqa APIlari |
 | B9 — katalog, hisobot va AI | Katalog/hisobot, FAQ, Gemini va AI sarfi hisoboti mavjud | Haqiqiy Gemini javobi tekshirildi; rozilik, shaxsiy ma’lumot niqobi, kunlik limit, token/model/davr bo‘yicha sarf, sozlangan narxlar bilan USD taxmini va fallback bor |
-| B10 — backend qabul | Lokal qabul to‘plami o‘tdi; tashqi tekshiruv cheklovlari quyida | PostgreSQLda 54/54 test; OpenAPI va runbook yangilandi; clean migration va avvalgi backup dalillari quyida |
+| B10 — backend qabul | Lokal qabul to‘plami o‘tdi; tashqi tekshiruv cheklovlari quyida | PostgreSQLda 56/56 test; OpenAPI va runbook yangilandi; clean migration va avvalgi backup dalillari quyida |
 | F1/F2 — saytlar | APIga ulangan sahifalar, AI sarfi/Tezcheck holati, Telegram ulash va brauzer sinovlari o‘tdi | Ikkala Next.js buildi, TypeScript; oxirgi umumiy brauzer runida 9/9 ssenariy o‘tdi |
 | Telegram — xodimlar boti | Kod, lokal worker va rasmiy API ulanishi tayyor | Admin/direktor/resepsion menyusi, xavfsiz ulash, ruxsat tekshiruvi, vazifa/murojaat wizardlari va outbox bildirishnomalari; haqiqiy xodim ulashi hali bajarilmagan |
-| F3 — Android | Sihhat uz logosi, saqlanadigan va bir bosishda almashadigan kunduzgi/tungi rejim, wellness UI va debug preview tayyor | Flutter analyze; 24/24 test; Samsung preview dalillari quyida. Avvalgi bron/tiklanish va release imzo dalillari ham saqlangan; HTTPS API hali belgilanmagan |
+| F3 — Android | Telefon/SMS tasdig‘idan keyin ochiladigan sahifalar, lokal demo SMS, logo va kunduzgi/tungi rejim, wellness UI va debug preview tayyor | Flutter analyze; 27/27 test; Samsung preview dalillari quyida. Avvalgi bron/tiklanish va release imzo dalillari ham saqlangan; HTTPS API hali belgilanmagan |
 | R1 — real pilot | Gemini, Eskiz va Tezcheck rekvizitlari olindi; pilot to‘liq emas | Gemini ulandi, Eskiz standart SMSi yetib keldi, Tezcheck o‘qish endpointlari HTTP 200. Kassa draft; haqiqiy OTP, HTTPS, merchant to‘lovi/webhook, push va real sanatoriya piloti qolgan |
+
+## 2026-10-04 Login orqali kirish va lokal demo SMS
+
+- Sessiya bo‘lmaganda ilova to‘g‘ridan-to‘g‘ri telefon/SMS loginiga kiradi.
+  Asosiy navigatsiya va katalog SMS tasdiqlanguncha yaratilmaydi.
+  Saqlangan sessiya kirishda tekshiriladi va kerak bo‘lsa refresh qilinadi;
+  bekor qilingan sessiya login oynasiga qaytaradi. Logout yoki sessiya
+  bekor qilinishi ochiq ichki route stackini ham yopadi.
+- Backend `DEMO_OTP_ENABLED=false` bilan boshlanadi. Opt-in faqat
+  development/test va `SMS_ADAPTER=local`da; boshqa adapter yoki productionda
+  konfiguratsiya rad etiladi. Demo so‘rovi tasodifiy 6 raqamli kodni
+  `demo_code` maydonida beradi. Oddiy OTP hash/challenge, TTL, cooldown,
+  urinish limiti va bir martalik ishlatish amal qiladi; hisob faqat to‘g‘ri
+  tasdiqdan so‘ng yaratiladi. Haqiqiy SMS yuborilmaydi.
+- Flutter demo kodni debug va opt-in flag bilan ko‘rsatadi. **Demo koddan
+  foydalanish** maydonni to‘ldiradi, **Tasdiqlash** oddiy API tekshiruvini
+  bajaradi. `mobile:preview` flagni qo‘shadi; release panelni ko‘rsatmaydi.
+  Lokal API flag bilan qayta ochildi. `.env.example` defaulti `false`;
+  haqiqiy lokal sozlama, hisoblar va OTP fayllari Gitga kiritilmaydi.
+- `npm run build:api` va `npm test` o‘tdi: PostgreSQLda **56/56 pass**.
+  Demo kodning opt-in ishlashi, xato/eskirgan/qayta ishlatilgan kodni rad etish,
+  hisobni tasdiqdan keyin yaratish va production/real adapter cheklovi tekshirildi.
+  `npm run mobile:check`: format va analyzer xatosiz, **27/27 pass**.
+  Yangi 3 test birinchi login, xato/to‘g‘ri kod, logout/back/ichki sahifalarni
+  yopish, saqlangan sessiya va oddiy buildda demo panelini yashirishni qamradi.
+  Katalog/theme/recovery va mavjud booking integratsiya ssenariylari login
+  boshlanishiga moslashtirildi; bron/to‘lov qurilma sinovi qayta bajarilmadi.
+- Oddiy `lib/main.dart` arm64 debug APK Samsung SM-A165Fga o‘rnatildi.
+  Qurilmada avval telefon logini, keyin autentifikatsiyalangan bosh sahifa
+  kuzatildi. APK yig‘ilgandan keyingi lokal ilova bazasida **1 OTP so‘rovi,
+  1 tasdiq, 1 yangi mijoz va 1 MOBILE sessiya** qayd etildi. Telefon faol
+  ishlatilgani uchun avtomatik login/OS restart ssenariysi yakunlangan deb
+  belgilanmadi; sessiya/refresh/logout unit-widget testlarda tekshirildi.
+  Dalil `.local/branding/login-gate/server-review.json` va
+  `.local/branding/login-gate/installed.png`da; raqam/kod/token logga yozilmadi.
+- `npm run check:secrets` o‘tdi; APKdagi **24 maxfiy qiymat bayt namunasi**
+  bilan moslik **0**. SHA-256:
+  `1898749754dd5aa7f14207cf22113cc77aaf7dbeddd25144bee6484bbbe4f6ac`.
+  APK `.local/releases/sihhat-uz-preview.apk`da, API lokal
+  `http://127.0.0.1:4000`; USB reverse talab qilinadi. Bu demo SMS va debug
+  tekshiruvi. APK, hisoblar, `.env`, OTP va qurilma dalillari Gitga
+  kiritilmaydi; o‘zgarishlar lokal commitda saqlanadi, **GitHubga yuborilmaydi**.
 
 ## 2026-10-04 Ochilish logosi va ikki rejimli tugma
 

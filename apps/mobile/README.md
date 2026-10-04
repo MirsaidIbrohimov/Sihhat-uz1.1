@@ -15,7 +15,24 @@ Faqat ikki rejim mavjud; boshlang‘ich rejim kunduzgi. Eski `system` qiymati
 kunduzgi rejimga o‘tadi. Tanlov
 xavfsiz lokal xotirada saqlanadi, qayta ochilganda tiklanadi va logoutda
 o‘chmaydi. Matn, kartalar, filtrlar, login, bron, to‘lov va AI ranglari
-rejimga moslashadi; QR oq fonda qoladi. Analyzer xatosiz, **24/24 test**.
+rejimga moslashadi; QR oq fonda qoladi.
+
+Ilova birinchi ochilganda va faol sessiya bo‘lmaganda avval telefon orqali
+kirish oynasi chiqadi. SMS tasdiqlanguncha katalog va asosiy navigatsiya
+ochilmaydi. Tasdiqlash yangi mijoz hisobini yaratadi yoki mavjud hisobga
+kiradi; qayta ochilganda saqlangan sessiya tekshiriladi. Hisobdan chiqish
+yoki bekor qilingan sessiya login oynasiga qaytaradi.
+
+Demo sinov: backendning lokal `apps/api/.env` faylida
+`NODE_ENV=development`, `SMS_ADAPTER=local`, `DEMO_OTP_ENABLED=true`.
+Repo ildizidagi `npm run mobile:preview -- <serial>` Flutterga
+`--dart-define=DEMO_OTP_ENABLED=true` beradi. **Kod yuborish**dan so‘ng
+demo SMS kodi ekranda chiqadi. **Demo koddan foydalanish** uni maydonga
+qo‘yadi; **Tasdiqlash** orqali kiriladi. Haqiqiy SMS yuborilmaydi.
+Kod oddiy server OTP tekshiruvidan o‘tadi; universal yoki doimiy kod yo‘q.
+Backend demo opt-in faqat lokal development/test SMS adapteriga ruxsat
+beradi; Flutter panelni faqat debug va demo flagda ko‘rsatadi.
+Flutter analyzer xatosiz, **27/27 unit/widget test** o‘tdi.
 
 Asl logo `assets/branding/sihhat-logo.jpg`da (repo ildizi), Flutter varianti
 `apps/mobile/assets/branding`da. Web/Android variantlarini asl tasvirni
@@ -33,17 +50,18 @@ va [Luma Retreats](https://dribbble.com/shots/27159696-Luma-Retreats-An-Immersiv
 Interfeys Flutter komponentlari bilan amalga oshirilgan; namunalar rasmi yoki kodi ko‘chirilmagan.
 Tezcheck havolasi tashqi HTTPS sahifada ochiladi; kalit APKda bo‘lmaydi.
 
-Yangi arm64 debug preview Samsung SM-A165Fga o‘rnatildi: ochilish logosi
-to‘liq ko‘rindi va kunduzgi/tungi rejim tugmani bir bosishda almashdi.
-Force-stopdan keyingi yangi jarayonda tungi tanlov tiklandi,
-bosh sahifa va API katalogi ochildi. APK ichida
+Yangi arm64 debug preview Samsung SM-A165Fga o‘rnatildi: avval telefon
+logini, keyin autentifikatsiyalangan bosh sahifa kuzatildi. Lokal bazada
+yangi OTP tasdig‘i, mijoz va mobil sessiya qayd etildi. Telefon faol
+ishlatilgani uchun avtomatik login/OS restart ssenariysi bu buildda
+yakunlangan deb belgilanmadi; sessiya/logout unit-widgetlarda tekshirildi. APK ichida
 24 ta maxfiy qiymat bayt namunasi tekshirildi, moslik topilmadi. Build va
 qurilma dalillari `.local/releases/android-preview.json` hamda
-`.local/branding/splash-fix/device-review.json`da. Debug API lokal HTTP/USB bilan;
+`.local/branding/login-gate/server-review.json`da. Debug API lokal HTTP/USB bilan;
 bu haqiqiy merchant payment return yoki signed HTTPS release sinovi emas.
 Gradle 8 GB Windows xotirasiga mos 2 GB heap va 2 worker bilan yig‘ildi.
 
-Bosh sahifa sessiya tekshiruvini kutmaydi: sanatoriyalar soni, hududlar,
+Kirish va saqlangan sessiya tekshiruvidan so‘ng bosh sahifada sanatoriyalar soni, hududlar,
 boshlang‘ich tariflar, yangiliklar, foydali tavsiyalar va bron yo‘riqnomasi
 ko‘rinadi. Yangilik va tavsiyalar superadmin panelidan boshqariladi. Oxirgi
 public ma’lumotlar hostga bog‘langan xavfsiz keshda 7 kungacha saqlanadi;

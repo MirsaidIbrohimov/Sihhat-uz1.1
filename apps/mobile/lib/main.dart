@@ -13,6 +13,7 @@ void main() {
           defaultValue: 'http://10.0.2.2:4000',
         ),
       ),
+      showDemoOtp: const bool.fromEnvironment('DEMO_OTP_ENABLED'),
     ),
   );
 }

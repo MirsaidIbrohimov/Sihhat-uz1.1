@@ -85,8 +85,7 @@ void main() {
       final fixture = await bridge('/fixture'), api = ObservedApi();
       await api.clear();
       await tester.pumpWidget(SihhatApp(api: api));
-      await waitFor(find.text('Sog‘lom dam olish shu yerdan boshlanadi.'));
-      await tapText('Bronlar');
+      await waitFor(find.text('Kod yuborish'));
       await tester.enterText(find.byType(TextField).first, fixture['phone']);
       await tapText('Kod yuborish');
       await waitFor(find.text('SMS kodini kiriting'));
@@ -94,6 +93,8 @@ void main() {
       await tester.enterText(find.byType(TextField).last, sms['code']);
       await tapText('Tasdiqlash');
       expect(api.signedIn, true);
+      await waitFor(find.text('Sog‘lom dam olish shu yerdan boshlanadi.'));
+      await tapText('Bronlar');
       debugPrint('Android test: OTP login passed');
       await tapText('Katalog');
       await waitFor(find.text(fixture['sanatorium_name']));

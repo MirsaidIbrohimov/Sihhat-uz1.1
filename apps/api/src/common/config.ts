@@ -17,6 +17,7 @@ const schema = z.object({
   OTP_MAX_ATTEMPTS: z.coerce.number().int().min(1).max(10).default(5),
   HOLD_MINUTES: z.coerce.number().int().min(1).max(30).default(15),
   SMS_ADAPTER: z.enum(['local', 'http', 'eskiz']).default('local'),
+  DEMO_OTP_ENABLED: z.enum(['true', 'false']).default('false').transform(v => v === 'true'),
   SMS_HTTP_URL: z.string().default(''), SMS_HTTP_TOKEN: z.string().default(''),
   ESKIZ_TOKEN: z.string().default(''), ESKIZ_EMAIL: z.string().default(''), ESKIZ_PASSWORD: z.string().default(''),
   ESKIZ_SENDER: z.string().min(1).max(20).default('4546'),
@@ -63,6 +64,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
   const result = schema.safeParse({ ...secrets, ...env });
   if (!result.success) throw new Error(`Konfiguratsiya xatosi: ${result.error.issues.map(i => `${i.path.join('.')}: ${i.message}`).join('; ')}`);
   const c = result.data;
+  if (c.DEMO_OTP_ENABLED && (c.NODE_ENV === 'production' || c.SMS_ADAPTER !== 'local')) throw new Error('Demo OTP faqat lokal development/test SMS adapteri bilan ishlaydi');
   if (c.PAYMENT_MODE === 'tezcheck' && !c.TEZCHECK_API_KEY) throw new Error('Tezcheck: server API kaliti kerak');
   if (c.TELEGRAM_MODE !== 'disabled' && !c.TELEGRAM_BOT_TOKEN) throw new Error('Telegram: server bot tokeni kerak');
   if (c.TELEGRAM_MODE === 'webhook' && !/^[A-Za-z0-9_-]{32,256}$/.test(c.TELEGRAM_WEBHOOK_SECRET)) throw new Error('Telegram: webhook uchun tasodifiy maxfiy kalit kerak');

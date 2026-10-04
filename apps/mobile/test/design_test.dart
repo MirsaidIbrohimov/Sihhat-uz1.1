@@ -19,7 +19,8 @@ http.Response reply(Object value) => http.Response.bytes(
 );
 Api publicApi() => Api(
   baseUrl: 'http://localhost',
-  store: MemoryStore(),
+  store: MemoryStore()
+    ..data.addAll({'access': 'saved-access', 'refresh': 'saved-refresh'}),
   client: MockClient((request) async {
     if (request.url.path == '/catalog/home') return reply(home());
     return reply({
