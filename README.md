@@ -2,7 +2,7 @@
 
 Sanatoriyalar uchun bron platformasi: NestJS/PostgreSQL backend, superadmin sayti, direktor/resepsion sayti, xodimlar Telegram boti va Flutter Android ilovasi.
 
-Kanonik repozitoriya: [MirsaidIbrohimov/Sihhat-uz1.1](https://github.com/MirsaidIbrohimov/Sihhat-uz1.1). Yangilangan: **2026-10-04**. Keyingi kod o‘zgarishlari ham shu repozitoriyaga joylanadi; README va tekshiruv natijalari o‘zgarishlarga mos yangilanadi.
+Kanonik repozitoriya: [MirsaidIbrohimov/Sihhat-uz1.1](https://github.com/MirsaidIbrohimov/Sihhat-uz1.1). Yangilangan: **2026-10-05**. Keyingi kod o‘zgarishlari ham shu repozitoriyaga joylanadi; README va tekshiruv natijalari o‘zgarishlarga mos yangilanadi.
 
 ## Joriy holat
 
@@ -120,11 +120,11 @@ Eskiz uchun asosiy kabinet parolidan farq qiladigan SMS API login/paroli yoki to
 
 Bot: [@sihhat_admins_bot](https://t.me/sihhat_admins_bot). Xodim saytda **Telegram bot → Telegramga ulash**ni bosadi, botda **Start** qiladi va saytga qaytib Telegram hisobini tasdiqlaydi. Direktor/resepsion roli saytdagi mavjud tayinlovdan olinadi; botdagi tanlov orqali huquq berilmaydi.
 
-Server tokeni `.local/secrets/providers.env`da, Gitga kiritilmaydi. `npm run telegram:check` ulanishni tekshiradi, `npm run telegram:configure` o‘zbekcha buyruqlarni sozlaydi, `npm run dev:telegram` bot workerini ishga tushiradi. API va domen worker ham alohida ishlashi kerak. Kompyuter o‘chsa lokal bot to‘xtaydi; doimiy server va telefon uchun HTTPS kabinet manzillari hali kerak. Tugmalar, ruxsatlar va sozlash: [Telegram yo‘riqnomasi](docs/TELEGRAM_BOT.md).
+Server tokeni `.local/secrets/providers.env`da, Gitga kiritilmaydi. `npm run telegram:check` ulanishni tekshiradi, `npm run telegram:configure` o‘zbekcha buyruqlarni sozlaydi, `npm run dev:telegram` bot workerini alohida ishga tushiradi. Windowsda tayyor build va `TELEGRAM_MODE=polling` yoki `webhook` bilan `npm run local:start` API, domen worker va botni birga ochadi. Kompyuter o‘chsa lokal bot to‘xtaydi; doimiy server va telefon uchun HTTPS kabinet manzillari hali kerak. Tugmalar, ruxsatlar va sozlash: [Telegram yo‘riqnomasi](docs/TELEGRAM_BOT.md).
 
 ## Lokal ishga tushirish
 
-Windowsda tayyorlangan API, worker, ikkala sayt va USBdagi Android ulanishini
+Windowsda tayyorlangan API, domen worker, sozlangan Telegram bot, ikkala sayt va USBdagi Android ulanishini
 bitta buyruq bilan ochish mumkin:
 
 ```powershell
@@ -136,6 +136,15 @@ Superadmin — http://localhost:3000, direktor/resepsion — http://localhost:30
 Xizmatlar fon rejimida ishlaydi. Kompyuter qayta ochilganda `local:start`ni
 yana bajaring; to‘xtatish — `npm run local:stop`. Bu buyruq bazani to‘xtatmaydi
 va ma’lumotlarni o‘chirmaydi. Jarayon dalillari va loglar `.local/runtime`da.
+`local:status` bot holatini ham ko‘rsatadi. Telegram o‘chirilgan konfiguratsiyada
+bot `disabled` deb chiqadi; qolgan xizmatlar ochiladi. Bot yoqilganida startup
+rasmiy Telegram autentifikatsiyasi va tanlangan rejim tekshiruvi tugashini kutadi.
+
+2026-10-05 lokal ishga tushirishda barcha beshta xizmat ishladi; takroriy
+`local:start` mavjud jarayonlarni saqladi. Superadmin, direktor va resepshn
+HTTP kirishi, rol/sessiya, ma’lumot olish va chiqish tekshiruvlari o‘tdi.
+Telegram APIga ulanish tekshirildi; mavjud debug APK Samsungga qayta o‘rnatilib
+ochildi. Bu lokal tekshiruvlar; batafsil dalil [holat hujjati](docs/IMPLEMENTATION_STATUS.md)da.
 
 `npm run superadmin:local` faqat development va `127.0.0.1:55432/sihhat`
 bazasida alohida egasi hisobini yaratadi; mavjud demo hisoblarni saqlaydi.

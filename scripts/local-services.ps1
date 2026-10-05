@@ -7,6 +7,7 @@ $nodePath = (Get-Command node -CommandType Application | Select-Object -First 1)
 $services = @(
     @{ Name = 'api'; Entry = 'apps/api/dist/src/main.js'; Cwd = 'apps/api'; Args = @(); Url = 'http://127.0.0.1:4000/health/ready' },
     @{ Name = 'worker'; Entry = 'apps/api/dist/src/worker.js'; Cwd = 'apps/api'; Args = @(); Url = $null },
+    @{ Name = 'telegram'; Entry = 'apps/api/dist/src/telegram-worker.js'; Cwd = 'apps/api'; Args = @(); Url = $null; ReadyPattern = '^Sihhat Telegram worker: @' },
     @{ Name = 'superadmin'; Entry = 'node_modules/next/dist/bin/next'; Cwd = 'apps/superadmin-web'; Args = @('start', '--hostname', '127.0.0.1', '--port', '3000'); Url = 'http://127.0.0.1:3000' },
     @{ Name = 'director'; Entry = 'node_modules/next/dist/bin/next'; Cwd = 'apps/partner-web'; Args = @('start', '--hostname', '127.0.0.1', '--port', '3001'); Url = 'http://127.0.0.1:3001' }
 )
@@ -40,9 +41,30 @@ function Test-Ready($Url) {
     } catch { return $false }
 }
 
+function Test-ServiceReady($Service) {
+    if ($Service.Url) { return Test-Ready $Service.Url }
+    if ($Service.ReadyPattern) {
+        $logPath = Join-Path $runtimePath ($Service.Name + '.log')
+        if (-not (Test-Path -LiteralPath $logPath)) { return $false }
+        return [bool](Select-String -LiteralPath $logPath -Pattern $Service.ReadyPattern -Quiet)
+    }
+    return $true
+}
+
+$telegramEnabled = $false
+if ($Action -ne 'stop') {
+    Push-Location (Join-Path $workspacePath 'apps/api')
+    try {
+        $telegramMode = & $nodePath -e "try { const { loadConfig } = require('./dist/src/common/config.js'); console.log(loadConfig().TELEGRAM_MODE); } catch { process.exitCode = 1; }"
+        if ($LASTEXITCODE -ne 0) { throw 'Could not read server configuration. Check the API build and local settings; secret values were not printed.' }
+        $telegramEnabled = $telegramMode -in @('polling', 'webhook')
+    } finally { Pop-Location }
+}
+
 if ($Action -eq 'start') {
     New-Item -ItemType Directory -Path $runtimePath -Force | Out-Null
     foreach ($service in $services) {
+        if ($service.Name -eq 'telegram' -and -not $telegramEnabled) { continue }
         if (-not (Test-Path -LiteralPath (Join-Path $workspacePath $service.Entry))) {
             throw ('Build missing for ' + $service.Name + '. Run npm run build:api and npm run build:web.')
         }
@@ -67,6 +89,10 @@ foreach ($service in $services) {
         } else { Write-Output ($service.Name + ': already stopped') }
         continue
     }
+    if ($service.Name -eq 'telegram' -and -not $telegramEnabled -and -not $ownedProcess) {
+        Write-Output 'telegram: disabled - configure TELEGRAM_MODE and the server token'
+        continue
+    }
     if ($Action -eq 'start' -and -not $ownedProcess) {
         if ($service.Url -and (Test-Ready $service.Url)) {
             throw ('Port already serves another process: ' + $service.Name + '. Existing process was left running.')
@@ -80,8 +106,8 @@ foreach ($service in $services) {
     }
     if ($Action -eq 'start' -and $ownedProcess) {
         $deadline = (Get-Date).AddSeconds(45)
-        if ($service.Url) {
-            while (-not (Test-Ready $service.Url)) {
+        if ($service.Url -or $service.ReadyPattern) {
+            while (-not (Test-ServiceReady $service)) {
                 if (-not (Get-OwnedProcess $service) -or (Get-Date) -gt $deadline) {
                     throw ('Readiness failed for ' + $service.Name + '. Inspect .local/runtime logs.')
                 }
@@ -92,7 +118,7 @@ foreach ($service in $services) {
             if (-not (Get-OwnedProcess $service)) { throw ('Worker did not stay running: ' + $service.Name) }
         }
     }
-    $state = if (-not $ownedProcess) { 'stopped' } elseif ($service.Url -and -not (Test-Ready $service.Url)) { 'not ready' } else { 'running' }
+    $state = if (-not $ownedProcess) { 'stopped' } elseif (-not (Test-ServiceReady $service)) { 'not ready' } else { 'running' }
     Write-Output ($service.Name + ': ' + $state + $(if ($service.Url) { ' - ' + $service.Url } else { '' }))
 }
 

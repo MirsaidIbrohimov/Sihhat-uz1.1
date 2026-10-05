@@ -87,6 +87,11 @@ npm run dev:telegram
 
 API, domen worker va saytlar [RUNBOOK.md](RUNBOOK.md) bo‘yicha alohida
 ishlaydi. Compiled bot: `npm run start:telegram -w @sihhat/api`.
+Windowsdagi tayyor muhitda `npm run local:start` API, domen worker, saytlar
+va yoqilgan botni fon rejimida birga ochadi. `local:status` botning tayyorligini
+ham ko‘rsatadi; `local:stop` uni boshqa boshqariladigan xizmatlar bilan to‘xtatadi.
+`TELEGRAM_MODE=disabled` bo‘lsa umumiy buyruq botni ochmaydi. Shu buyruq bilan
+bot ishlayotganida `dev:telegram` yoki `start:telegram`ni yana ochmang.
 `telegram:check` ulanish va webhook holatini tekshiradi;
 `telegram:configure` bot tavsifi va commands menyusini yangilaydi.
 Token yoki credential-bearing URL chiqarilmaydi.

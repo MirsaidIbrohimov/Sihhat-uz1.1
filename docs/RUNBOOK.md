@@ -161,17 +161,24 @@ tozalamaydi. Foydalanuvchi saytdan parolni o‘zgartirgan bo‘lsa, eski lokal
 fayl avtomatik tiklash vositasi emas; skript mos kelmagan ma’lumotni rad etadi.
 Ushbu tartib production bootstrap o‘rniga ishlatilmaydi.
 
-`local:start` PostgreSQL, API, domen worker, superadmin va direktor saytlarini
+`local:start` PostgreSQL, API, domen worker, sozlangan Telegram bot, superadmin va direktor/resepshn saytlarini
 fon rejimida ochadi. Buildlar va HTTP readiness tekshiriladi; mavjud boshqariladigan
 jarayonlar takroran yaratilmaydi. PID bilan birga yaratilish vaqti, workspace va
 buyruq yo‘li tekshiriladi. Boshqa jarayon xizmat qilayotgan port avtomatik bo‘shatilmaydi.
 Markerlar va loglar `.local/runtime`da. `local:status` xizmat holatini ko‘rsatadi.
+Telegram rejimi backendning ayni environment va maxfiy fayl konfiguratsiyasidan
+olinadi; qiymatlar konsolga chiqarilmaydi. `TELEGRAM_MODE=disabled` bo‘lsa bot
+ochilmaydi va holatda `disabled` yoziladi. `polling` yoki `webhook` bo‘lsa
+compiled worker boshqariladigan jarayon sifatida ochiladi; startup Telegram
+autentifikatsiyasi va rejim tekshiruvidan keyingi tayyorlik yozuvini kutadi.
+`telegram:check` tashqi ulanishni alohida tekshiradi. Lokal polling uchun
+ikkinchi `dev:telegram` jarayonini bir vaqtda ochmang.
 
 ```powershell
 npm run local:stop
 ```
 
-`local:stop` faqat markerlar bilan tasdiqlangan shu loyiha jarayonlarini
+`local:stop` botni ham qo‘shib, faqat markerlar bilan tasdiqlangan shu loyiha jarayonlarini
 to‘xtatadi; baza ishlashda qoladi, ma’lumotlar o‘chirilmaydi. Bazani to‘xtatish
 uchun `npm run db:stop`. Kompyuter qayta ochilganda xizmatlar o‘z-o‘zidan
 ochilmaydi — loyiha ildizida `npm run local:start`ni bajaring.

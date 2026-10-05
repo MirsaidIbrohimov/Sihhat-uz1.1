@@ -1,6 +1,6 @@
 # Sihhat uz — amalga oshirish holati
 
-Yangilangan: 2026-10-04. Asos: ISHLAB_CHIQISH_REJASI.md va SIHHAT_UZ_ARXITEKTURA.md.
+Yangilangan: 2026-10-05. Asos: ISHLAB_CHIQISH_REJASI.md va SIHHAT_UZ_ARXITEKTURA.md.
 
 | Bosqich | Holat | Dalil |
 | --- | --- | --- |
@@ -13,6 +13,41 @@ Yangilangan: 2026-10-04. Asos: ISHLAB_CHIQISH_REJASI.md va SIHHAT_UZ_ARXITEKTURA
 | Telegram — xodimlar boti | Kod, lokal worker va rasmiy API ulanishi tayyor | Admin/direktor/resepsion menyusi, xavfsiz ulash, ruxsat tekshiruvi, vazifa/murojaat wizardlari va outbox bildirishnomalari; haqiqiy xodim ulashi hali bajarilmagan |
 | F3 — Android | Telefon/SMS tasdig‘idan keyin ochiladigan sahifalar, lokal demo SMS, logo va kunduzgi/tungi rejim, wellness UI va debug preview tayyor | Flutter analyze; 30/30 test; Samsung preview dalillari quyida. Avvalgi bron/tiklanish va release imzo dalillari ham saqlangan; HTTPS API hali belgilanmagan |
 | R1 — real pilot | Gemini, Eskiz va Tezcheck rekvizitlari olindi; pilot to‘liq emas | Gemini ulandi, Eskiz standart SMSi yetib keldi, Tezcheck o‘qish endpointlari HTTP 200. Kassa draft; haqiqiy OTP, HTTPS, merchant to‘lovi/webhook, push va real sanatoriya piloti qolgan |
+
+## 2026-10-05 Barcha lokal xizmatlarni ishga tushirish
+
+- `local:start`, `local:status` va `local:stop` Telegram workerini ham
+  boshqaradi. Rejim backend konfiguratsiyasidan o‘qiladi; disabled bot
+  ochilmaydi. Yoqilgan bot uchun autentifikatsiya va rejim tekshiruvidan
+  keyingi tayyorlik yozuvi kutiladi. Mavjud PID/yaratilish vaqti/workspace
+  tekshiruvi botga ham qo‘llanadi; maxfiy qiymatlar chiqarilmaydi.
+- Lokal PostgreSQL, compiled API, domen worker, Telegram worker va ikkala
+  web panel ishga tushirildi. API readiness, superadmin va hamkorlar
+  sahifalari **HTTP 200** qaytardi; `local:status` beshta xizmatni `running`
+  ko‘rsatdi. Takroriy `local:start`dan keyin barcha beshta PID va jarayon
+  yaratilish vaqti o‘zgarmadi.
+- Ishlayotgan saytlarning `/api` proksisi orqali superadmin, direktor va
+  resepshn kirishi **HTTP 201**, sessiya/tegishli faol rol tekshiruvi va
+  sanatoriya yoki bron ma’lumotini o‘qish **HTTP 200** bilan o‘tdi.
+  Har hisobdan chiqishdan keyin o‘sha sessiya **HTTP 401** qaytardi.
+  Bu HTTP tekshiruvi; oldingi brauzer to‘plami bu sanada qayta bajarilmadi.
+- `telegram:check` rasmiy Telegram API orqali **connected=true**, bot
+  **@sihhat_admins_bot**, **webhook_configured=false**, oxirgi tekshiruvda
+  **pending_updates=0** qaytardi. Polling worker tayyor va ishlashda qoldi.
+  Xodimning Telegramdan Start → saytda bog‘lashni tasdiqlash oqimi ushbu
+  ishga tushirish tekshiruviga kirmaydi.
+- 2026-10-04 yig‘ilgan `.local/releases/sihhat-uz-preview.apk` USBdagi
+  Samsung SM-A165Fga `install -r` bilan **Success** qayta o‘rnatildi;
+  Android launch **Status: ok**, ilova PIDi va `tcp:4000` USB reverse
+  tekshirildi. Qurilma ekranida ilovaning autentifikatsiyalangan bosh
+  sahifasi ko‘rindi. Build/API o‘zgarmadi: debug,
+  `http://127.0.0.1:4000`, lokal demo OTP. APK ichidagi **45 maxfiy qiymat
+  bayt namunasi**, moslik **0**.
+- Dalillar `.local/runtime/startup-verification.json`,
+  `startup-idempotency.json` va `mobile-running.png`da; loglar ham shu
+  lokal papkada. APK, hisoblar, sirlar va qurilma dalillari Gitga kirmaydi.
+  Bu lokal ishga tushirish; HTTPS production deploymenti, haqiqiy
+  merchant to‘lovi yoki rasmiy provider qabul sinovi bajarilmadi.
 
 ## 2026-10-04 AI suhbat, bron tilagi va Tezcheck diagnostikasi
 
