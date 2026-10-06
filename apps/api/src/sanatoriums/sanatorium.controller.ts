@@ -7,10 +7,13 @@ import { SanatoriumService, draftInput } from './sanatorium.service';
 import { Db,audit } from '../common/db';
 import { parse,uuid,version,fail } from '../common/errors';
 import { z } from 'zod';
+import { MerchantSetupService, merchantSetupInput } from './merchant-setup.service';
 
 @ApiTags('Sanatoriya va moderatsiya') @Roles('STAFF','SUPERADMIN') @Controller()
 export class SanatoriumController {
-  constructor(@Inject(SanatoriumService) private readonly service: SanatoriumService,@Inject(Db) private readonly db:Db) {}
+  constructor(@Inject(SanatoriumService) private readonly service: SanatoriumService,@Inject(Db) private readonly db:Db,@Inject(MerchantSetupService) private readonly merchant:MerchantSetupService) {}
+  @Get('partner/sanatoriums/:id/merchant-setup') merchantGet(@CurrentActor() a:Actor,@Param('id') id:string){return this.merchant.get(a,id);}
+  @Patch('partner/sanatoriums/:id/merchant-setup') @ApiBody({schema:apiSchema(merchantSetupInput)}) merchantSave(@CurrentActor() a:Actor,@Param('id') id:string,@Body() b:unknown){return this.merchant.save(a,id,b);}
   @Patch('superadmin/sanatoriums/:id/config') @Roles('SUPERADMIN') async config(@CurrentActor() a:Actor,@Param('id') id:string,@Body() b:unknown){parse(uuid,id);const i=parse(z.object({version,payment_ready:z.boolean(),subscription_required:z.boolean().optional()}).strict(),b);return this.db.atomic(async tx=>{const r=await tx.sanatorium.updateMany({where:{id,version:i.version},data:{paymentReady:i.payment_ready,subscriptionRequired:i.subscription_required,version:{increment:1}}});if(!r.count)fail('VERSION_CONFLICT','Sanatoriya holati o‘zgargan');await audit(tx,a.id,'sanatorium.config_updated',id,id,undefined,i);return tx.sanatorium.findUniqueOrThrow({where:{id}});});}
   @Post('superadmin/sanatoriums') @Roles('SUPERADMIN') create(@CurrentActor() a: Actor, @Body() b: unknown) { return this.service.create(a, b); }
   @Get('superadmin/sanatoriums') @Roles('SUPERADMIN') adminList(@CurrentActor() a: Actor, @Query() q: unknown) { return this.service.list(a, q); }

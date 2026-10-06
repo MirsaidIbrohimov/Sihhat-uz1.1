@@ -4,12 +4,14 @@ import { Db, audit, emit, lock } from '../common/db';
 import { AppError, fail, parse, uuid, version, reason, pageQuery, paged, validationDetail } from '../common/errors';
 import { Actor, requirePlatform, scope, tenantIds } from '../auth/permissions';
 import { phoneSchema } from '../auth/auth.service';
+import { withMapLocation } from './maps';
 
 export const profileSchema = z.object({
   name: z.string().trim().min(2).max(150), description: z.string().trim().min(30).max(10000),
   legal_name: z.string().trim().min(2).max(150), stir: z.string().regex(/^\d{9}$/),
   region: z.string().trim().min(2).max(80), address: z.string().trim().min(5).max(500),
-  latitude: z.number().min(-90).max(90), longitude: z.number().min(-180).max(180),
+  latitude: z.number().min(-90).max(90).optional(), longitude: z.number().min(-180).max(180).optional(),
+  map_url: z.string().trim().max(2048).optional(),
   contact_phone: phoneSchema, check_in_time: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/), check_out_time: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/),
   amenities: z.array(z.string().min(1).max(80)).max(50).default([]), services: z.array(z.string().min(1).max(200)).max(50).default([]),
   meals: z.string().max(1000).default(''), child_rules: z.string().max(2000).default(''), medical_requirements: z.string().max(2000).default(''),
@@ -29,7 +31,7 @@ const draftProfileSchema = profileSchema.partial().extend({
 }).strict();
 export const draftInput = z.object({ version, data: draftProfileSchema }).strict();
 export function publicProfile(data: any) {
-  const { legal_name, stir, document_ids, terms_accepted, ...publicData } = data; return publicData;
+  const { legal_name, stir, document_ids, terms_accepted, contact_phone, ...publicData } = data; return publicData;
 }
 @Injectable()
 export class SanatoriumService {
@@ -74,7 +76,7 @@ export class SanatoriumService {
       const r = await tx.sanatoriumRevision.findUnique({ where: { id: revisionId } }); if (!r) fail('NOT_FOUND', 'Tahrir topilmadi', 404);
       scope(actor, r.sanatoriumId, 'sanatorium.profile.edit');
       if (!['DRAFT','CHANGES_REQUESTED'].includes(r.status) || r.version !== input.version) fail('VERSION_CONFLICT', 'Tahrir o‘zgargan yoki tekshiruvda');
-      const data = parse(draftProfileSchema, { ...(r.data as object), ...input.data });
+      const data = parse(draftProfileSchema, withMapLocation({ ...(r.data as object), ...input.data }, true));
       const ids = [...(data.photo_ids ?? []), ...(data.document_ids ?? [])];
       if (ids.length) {
         const assets = await tx.mediaAsset.findMany({ where: { id: { in: ids }, sanatoriumId: r.sanatoriumId } });
@@ -93,6 +95,10 @@ export class SanatoriumService {
       if (!['DRAFT','CHANGES_REQUESTED'].includes(r.status) || r.version !== input.version) fail('VERSION_CONFLICT', 'Tahrir holati o‘zgargan');
       const profile = profileSchema.strict().safeParse(r.data);
       const details = profile.success ? [] : profile.error.issues.map(validationDetail);
+      try { withMapLocation(r.data as any); } catch (error) {
+        details.push({ path: 'map_url', field: 'Xaritadagi joylashuv', message: 'Google Maps yoki Yandex Maps HTTPS havolasini kiriting.' });
+      }
+      if (!(r.data as any).map_url && (typeof (r.data as any).latitude !== 'number' || typeof (r.data as any).longitude !== 'number')) details.push({ path: 'map_url', field: 'Xaritadagi joylashuv', message: 'Google Maps yoki Yandex Maps havolasini kiriting.' });
       if (!(r.data as any).terms_accepted && !details.some(d => d.path === 'terms_accepted')) details.push({ path: 'terms_accepted', field: 'Platforma xizmat shartlari', message: 'Xizmat shartlarini qabul qiling.' });
       const room = await tx.room.findFirst({ where: { sanatoriumId: r.sanatoriumId, active: true } });
       const rate = await tx.ratePlan.findFirst({ where: { sanatoriumId: r.sanatoriumId, active: true } });

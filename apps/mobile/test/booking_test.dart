@@ -22,7 +22,13 @@ const sanatorium = {
     },
   ],
   'room_types': [
-    {'id': 'type', 'name': 'Standart xona', 'maxGuests': 3, 'maxAdults': 2},
+    {
+      'id': 'type',
+      'name': 'Standart xona',
+      'maxGuests': 3,
+      'maxAdults': 2,
+      'maxChildren': 2,
+    },
   ],
 };
 
@@ -90,12 +96,18 @@ void main() {
         await tester.pumpWidget(
           MaterialApp(home: BookingComposer(api, sanatorium)),
         );
-        final calculate = find.text('Narx va bo‘sh joyni tekshirish');
+        final calculate = find.text('Davom etish');
         await tester.ensureVisible(calculate);
         await tester.tap(calculate);
         await tester.pump();
-        final ages = tester.widget<TextFormField>(find.byType(TextFormField));
-        expect(ages.enabled, false);
+        expect(
+          tester
+              .widget<DropdownButtonFormField<String>>(
+                find.byType(DropdownButtonFormField<String>),
+              )
+              .onChanged,
+          isNull,
+        );
         await tester.pumpWidget(const SizedBox.shrink());
         response.complete(
           success

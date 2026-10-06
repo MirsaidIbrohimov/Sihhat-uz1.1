@@ -21,8 +21,21 @@ test('B1: a director can revoke and restore their own delegated permission',asyn
   assert.equal(restored.status,200);
   assert.equal((await r.client.call(`/partner/sanatoriums/${s.id}/inventory`)).status,200);
 });
-test('B7: paid approved ads are labeled, events deduplicate and expired ads disappear',async()=>{
-  const ad=(await ctx.admin.call('/partner/ad-campaigns','POST',{sanatorium_id:s.id,title:'Sinov reklama',placement:'HOME',starts_at:new Date(Date.now()-1000).toISOString(),ends_at:new Date(Date.now()+600000).toISOString(),image_asset_id:s.photo.id,text:'Sinov taklifi'})).body;const approved=(await ctx.admin.call(`/superadmin/ad-campaigns/${ad.id}/approve`,'POST',{amount:'1000'})).body;assert.equal((await ctx.admin.call('/catalog/ads')).body.length,0);const checkout=(await ctx.admin.call(`/partner/invoices/${approved.invoiceId}/checkout`,'POST',{},ctx.admin.key())).body;await ctx.admin.call(`/payments/${checkout.order_id}/local-confirm`,'POST',{},ctx.admin.key());const active=(await ctx.admin.call('/catalog/ads')).body;assert.equal(active.length,1);assert.equal(active[0].label,'Reklama');await ctx.admin.call(`/catalog/ads/${ad.id}/events`,'POST',{kind:'CLICK'});await ctx.admin.call(`/catalog/ads/${ad.id}/events`,'POST',{kind:'CLICK'});assert.equal(await ctx.db.adEvent.count({where:{campaignId:ad.id}}),1);await ctx.db.adCampaign.update({where:{id:ad.id},data:{endsAt:new Date(Date.now()-1)}});assert.equal((await ctx.admin.call('/catalog/ads')).body.length,0);
+test('B7: admin-approved ads publish free, events deduplicate and expired ads disappear', async () => {
+  const requested = await ctx.admin.call('/partner/ad-campaigns', 'POST', { sanatorium_id: s.id, title: 'Sinov reklama', placement: 'HOME', starts_at: new Date(Date.now() - 1000).toISOString(), ends_at: new Date(Date.now() + 600000).toISOString(), image_asset_id: s.photo.id, text: 'Sinov taklifi' });
+  assert.equal(requested.status, 201); const ad = requested.body;
+  assert.equal((await ctx.admin.call('/catalog/ads')).body.length, 0);
+  assert.equal((await d.client.call(`/superadmin/ad-campaigns/${ad.id}/approve`, 'POST', {})).status, 403);
+  const approved = await ctx.admin.call(`/superadmin/ad-campaigns/${ad.id}/approve`, 'POST', {});
+  assert.equal(approved.status, 201); assert.equal(approved.body.invoiceId, null); assert.equal(approved.body.amount, '0');
+  assert.equal(await ctx.db.invoice.count({ where: { purpose: 'AD' } }), 0);
+  const active = (await ctx.admin.call('/catalog/ads')).body;
+  assert.equal(active.length, 1); assert.equal(active[0].label, 'Reklama');
+  await ctx.admin.call(`/catalog/ads/${ad.id}/events`, 'POST', { kind: 'CLICK' });
+  await ctx.admin.call(`/catalog/ads/${ad.id}/events`, 'POST', { kind: 'CLICK' });
+  assert.equal(await ctx.db.adEvent.count({ where: { campaignId: ad.id } }), 1);
+  await ctx.db.adCampaign.update({ where: { id: ad.id }, data: { endsAt: new Date(Date.now() - 1) } });
+  assert.equal((await ctx.admin.call('/catalog/ads')).body.length, 0);
 });
 test('B8: survey versions, answer types and task state transitions are enforced',async()=>{
   const id=(await ctx.db.user.findUniqueOrThrow({where:{login:'extended.director'}})).id;const survey=(await ctx.admin.call('/superadmin/surveys','POST',{title:'Xizmat anketa',recipient_ids:[id],questions:[{id:'ready',label:'Tayyormi?',type:'BOOLEAN',required:true}]})).body;assert.equal((await d.client.call(`/surveys/${survey.id}/responses`,'POST',{version:1,answers:{ready:'yes'}})).status,422);assert.equal((await d.client.call(`/surveys/${survey.id}/responses`,'POST',{version:1,answers:{ready:false}})).status,201);const task=(await ctx.admin.call('/tasks','POST',{sanatorium_id:s.id,assigned_to:id,title:'Sinov vazifa',body:'Qabulni tekshiring',due_at:new Date(Date.now()+600000).toISOString()})).body;assert.equal((await d.client.call(`/tasks/${task.id}`,'PATCH',{version:1,status:'COMPLETED'})).status,409);assert.equal((await d.client.call(`/tasks/${task.id}`,'PATCH',{version:1,status:'ACCEPTED'})).status,200);assert.equal((await d.client.call(`/tasks/${task.id}`,'PATCH',{version:2,status:'COMPLETED',reply:'Bajarildi'})).status,200);

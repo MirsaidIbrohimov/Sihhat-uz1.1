@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { api, toMinor } from "@sihhat/api-client";
 import {
   Act,
@@ -13,6 +13,7 @@ import {
   PageHeading,
   Table,
   date,
+  dateTime,
   list,
   options,
   statusColumn,
@@ -30,20 +31,21 @@ export function Communications({
 }) {
   const ctx = usePortal(),
     action = useAction(),
+    [selectedSurvey, setSelectedSurvey] = useState<Row | null>(null),
     staff = useRemote(
-      ctx.admin || ctx.allowed("staff.invite")
-        ? "/partner/staff?limit=100"
+      ctx.tenant && (ctx.admin || ctx.allowed("staff.invite"))
+        ? `/partner/staff?limit=100&sanatorium_id=${ctx.tenant}`
         : null,
       ctx.epoch,
     );
   const people = list(staff.data).filter(
-      (r) =>
-        r.status === "ACTIVE" && (ctx.admin || r.sanatoriumId === ctx.tenant),
+      (r) => r.status === "ACTIVE" && r.sanatoriumId === ctx.tenant,
     ),
     recipients = people.map((r) => ({
       value: r.userId,
       label: `${r.user?.name} · ${r.role === "DIRECTOR" ? "Direktor" : "Resepshn"}`,
     }));
+  useEffect(() => setSelectedSurvey(null), [kind, ctx.tenant, ctx.epoch]);
   function create() {
     if (kind === "messages")
       action(
@@ -68,14 +70,14 @@ export function Communications({
             ? {
                 key: "sanatorium_ids",
                 label: "Sanatoriyalar",
-                type: "multi",
+                type: "checks",
                 options: options(ctx.tenants),
                 hint: "Bo‘sh qoldirilsa barcha faol hamkorlarga yuboriladi.",
               }
             : {
                 key: "recipient_ids",
                 label: "Qabul qiluvchilar",
-                type: "multi",
+                type: "checks",
                 required: true,
                 options: recipients,
               },
@@ -123,11 +125,12 @@ export function Communications({
             fields: [
               { key: "title", label: "Anketa nomi", required: true },
               {
-                key: "recipient_ids",
-                label: "Qabul qiluvchilar",
-                type: "multi",
+                key: "sanatorium_ids",
+                label: "Anketa yuboriladigan sanatoriyalar",
+                type: "checks",
                 required: true,
-                options: recipients,
+                options: options(ctx.tenants),
+                hint: "Faqat belgilangan sanatoriyalarning faol xodimlariga yuboriladi.",
               },
               ...Array.from({ length: count }, (_, n): Field[] => [
                 {
@@ -158,7 +161,7 @@ export function Communications({
             submit: (v) =>
               api("/superadmin/surveys", "POST", {
                 title: v.title,
-                recipient_ids: v.recipient_ids,
+                sanatorium_ids: v.sanatorium_ids,
                 questions: Array.from({ length: count }, (_, n) => ({
                   id: `question_${String.fromCharCode(97 + Math.floor(n / 26))}${String.fromCharCode(97 + (n % 26))}`,
                   label: v[`question_${n}`],
@@ -314,7 +317,7 @@ export function Communications({
                 people.find((p) => p.userId === r.assignedTo)?.user?.name ??
                 (r.assignedTo === ctx.actor.id ? "Siz" : "Xodim"),
             },
-            { label: "Muddat", render: (r) => date(r.dueAt) },
+            { label: "Muddat", render: (r) => dateTime(r.dueAt) },
             statusColumn,
           ]}
           actions={(r) =>
@@ -355,23 +358,89 @@ export function Communications({
           }
         />
       ) : (
-        <DataPanel
-          path="/surveys"
-          paged={false}
-          columns={[
-            { label: "Anketa", key: "title" },
-            { label: "Versiya", key: "version" },
-            { label: "Savollar", render: (r) => r.questions.length },
-            { label: "Yaratilgan", render: (r) => date(r.createdAt) },
-          ]}
-          actions={(r) =>
-            r.recipientIds.includes(ctx.actor.id) ? (
-              <Act onClick={() => answer(r)}>Javob berish</Act>
-            ) : (
-              <span className="muted">Yuborilgan</span>
-            )
-          }
-        />
+        <>
+          {selectedSurvey && (
+            <Card
+              title={`${selectedSurvey.title} · ${selectedSurvey.version}-versiya`}
+              aside={<Act onClick={() => setSelectedSurvey(null)}>Yopish</Act>}
+            >
+              {ctx.admin && (
+                <p className="section-text">
+                  Javoblar: {selectedSurvey.response_count ?? 0} /{" "}
+                  {selectedSurvey.recipientIds.length}
+                </p>
+              )}
+              <Table
+                rows={selectedSurvey.questions}
+                columns={[
+                  { label: "Savol", key: "label" },
+                  {
+                    label: "Turi",
+                    render: (q) =>
+                      q.type === "BOOLEAN"
+                        ? "Ha / yo‘q"
+                        : q.type === "NUMBER"
+                          ? "Son"
+                          : "Matn",
+                  },
+                  {
+                    label: "Majburiy",
+                    render: (q) => (q.required ? "Ha" : "Yo‘q"),
+                  },
+                  ...(selectedSurvey.answered
+                    ? [
+                        {
+                          label: "Javobingiz",
+                          render: (q: Row) => {
+                            const value =
+                              selectedSurvey.response?.answers?.[q.id];
+                            return typeof value === "boolean"
+                              ? value
+                                ? "Ha"
+                                : "Yo‘q"
+                              : String(value ?? "—");
+                          },
+                        },
+                      ]
+                    : []),
+                ]}
+              />
+            </Card>
+          )}
+          <DataPanel
+            path="/surveys"
+            paged={false}
+            columns={[
+              { label: "Anketa", key: "title" },
+              { label: "Versiya", key: "version" },
+              { label: "Savollar", render: (r) => r.questions.length },
+              ...(ctx.admin
+                ? [
+                    {
+                      label: "Javoblar",
+                      render: (r: Row) =>
+                        `${r.response_count ?? 0} / ${r.recipientIds.length}`,
+                    },
+                  ]
+                : []),
+              { label: "Yaratilgan", render: (r) => date(r.createdAt) },
+            ]}
+            actions={(r) => (
+              <>
+                <Act onClick={() => setSelectedSurvey(r)}>
+                  {r.answered ? "Javobimni ko‘rish" : "Savollarni ko‘rish"}
+                </Act>
+                {r.answered ? (
+                  <span className="muted">Javob berilgan</span>
+                ) : r.recipientIds.includes(ctx.actor.id) ? (
+                  <Act onClick={() => answer(r)}>Javob berish</Act>
+                ) : (
+                  <span className="muted">Yuborilgan</span>
+                )}
+              </>
+            )}
+          />
+        </>
       )}
     </>
   );
@@ -584,7 +653,7 @@ export function Audit() {
       <DataPanel
         path="/superadmin/audit"
         columns={[
-          { label: "Vaqt", render: (r) => date(r.createdAt) },
+          { label: "Vaqt", render: (r) => dateTime(r.createdAt) },
           {
             label: "Amal",
             render: (r) =>

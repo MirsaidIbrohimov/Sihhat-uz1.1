@@ -67,6 +67,10 @@ sanatoriyani **Sanatoriyalar → Profilni ko‘rish** orqali ochadi.
    mavjud emas deb ko‘rsatiladi. Hech biri oldindan avtomatik belgilanmaydi.
    Oldingi maxsus yozuvlar ham tanlovda qoladi. Narx va cheklovlarni tavsifga
    yozing; belgi xizmat tarifga kiritilganini anglatmaydi.
+   Joylashuv uchun Google Maps yoki Yandex Mapsdagi **Ulashish** havolasini
+   **Xarita havolasi**ga qo‘ying. Kenglik/uzunlik kiritish talab qilinmaydi;
+   qisqa yoki joy nomiga berilgan havola ham saqlanadi. Faqat ruxsat etilgan
+   HTTPS xarita domenlari qabul qilinadi; server qisqa havolani ochib chiqmaydi.
 3. Xizmat shartlarini qabul qilib, **Saqlash va rasmlarga o‘tish**ni bosing.
    Saqlash xatosida sahifa o‘zgarmaydi va kiritilgan qiymatlar saqlanadi.
    Muvaffaqiyatli saqlashdan keyin **Rasmlar va hujjatlar** ochiladi.
@@ -104,28 +108,65 @@ tasdiqlamaydi; ularning dalili alohida talab qilinadi.
 
 ## Android bosh sahifasi
 
-Sarlavha **Sihhat uz**. Asosiy oqim: qidiruv/filtr → hudud → sanatoriya.
-Katta kirish banneri, takroriy statistikalar, bitta sahifada ortiqcha
-pagination va bron bo‘yicha takroriy qo‘llanma olib tashlangan. **Solishtirish**
-tugmasi tanlash belgilarini ochadi, **Bekor qilish** tanlovni tozalaydi.
-Bir vaqtda uchta sanatoriyani solishtirish mumkin. Faqat bitta reklama
-ko‘rsatiladi; dastlabki ikkita yangilikdan keyingi materiallar va foydali
-tavsiyalar yig‘iladigan bo‘limlarda qoladi.
+Sarlavha **Sihhat uz**. Interfeys `Apk xatolari`dagi namuna asosida to‘q
+yashil sarlavha, qidiruv, manzarali banner, tezkor tugmalar, gorizontal
+sanatoriya kartalari va pastki navigatsiyaga ega. Logo o‘zimizniki.
+Qidiruv matni **Sanatoriyalar** bo‘limiga uzatiladi; hudud/sharoit/narx
+filtri va sahifalash ishlaydi. Kichik ekran yoki katta shrift uchun tezkor
+kartalar ikki ustunga o‘tadi. Banner dekorativ AI tasvir, sanatoriya
+kartalari esa API profil rasmlari va mavjud reytingni ko‘rsatadi.
+
+**HOME** reklama server ro‘yxati bo‘sh bo‘lmagandagina ko‘rinadi. Reklama
+yo‘q, so‘rov kutilmoqda yoki xato bo‘lsa sarlavha, placeholder, spinner va
+unga tegishli padding yaratilmaydi. Reklama keshda saqlanmaydi; public
+yangilik va katalog keshi boshqa hostdan olinmaydi. **POPUP** alohida
+kirish dialogi; bo‘sh ro‘yxatda chiqmaydi va yopish tugmasi mavjud.
+
+**Reklamalar → Tasdiqlash → Reklamani bepul joylash**: tasdiqlangan,
+faol sanatoriyaga tegishli reklama belgilangan boshlanish/tugash oralig‘ida
+chiqadi. Invoice to‘lovi talab qilinmaydi. Eski **Bepul joylash kutilmoqda**
+reklamasini shu tugma bilan qayta tasdiqlang: to‘lanmagan invoice `VOID`
+bo‘ladi; haqiqiy to‘langan invoice va ledger saqlanadi. To‘lov holati noaniq
+bo‘lsa avval moliyaviy solishtirish talab qilinadi. Muddati o‘tgan reklama
+ko‘rsatilmaydi. APK har 30 soniyada, ilovaga qaytganda va pastga tortganda
+reklamani yangilaydi.
+
+**Anketalar → Anketa yaratish**da sanatoriyalarni tick bilan belgilang;
+kamida bittasi kerak. Faqat belgilangan sanatoriyalarning faol xodimlari
+qabul qiladi. Javob saqlangach **Javob berilgan** yozuvi chiqadi; bir xil
+javobni qayta yuborish qo‘shimcha yozuv yaratmaydi.
+**Savollarni ko‘rish** savol turi/majburiyligini ochadi; **Javobimni ko‘rish**
+saqlangan javobni ko‘rsatadi. Superadmin jadvalda javoblar/qabul qiluvchilar
+sonini ko‘radi. Sanalar `05.10.2026` shaklida, vazifa/reklama vaqtlari
+Toshkent vaqtida soat va daqiqa bilan ko‘rsatiladi. Kalendar sanasi
+tozalansa bugungi sanaga qaytadi.
+
+Bron: sana/xona/mehmon soni → **Davom etish** → ism/telefon/shartlar →
+**Bronni tasdiqlash**. Bola yoshi alohida tanlanadi; sanatoriya telefoni
+oldindan ko‘rsatilmaydi. Ikki soatdan eski to‘lovsiz bron mijoz tarixidan
+yashiriladi; bazadagi moliya, xodim tarixi va to‘langan bron o‘chirilmaydi.
+`HOLD` va `PAYMENT_PENDING`ni bekor qilishda providerning to‘lovsiz holati
+tasdiqlanadi. To‘langan bron refund oqimidan foydalanadi; noaniq provider
+holatida rezerv saqlanadi.
+
+Yordam xabari yuborilayotganda tugma va matn maydoni bloklanadi. Bir xil
+so‘rovlar bir tarmoq so‘rovi va idempotency kalitidan foydalanadi; server ham
+takroriy ticket/javob yaratmaydi. Tarmoq xatosida matn saqlanadi va qayta
+urinish mumkin. Sun’iy kutish qo‘shilmagan; umumiy tarmoq muddati 25 soniya.
 
 ## AI suhbat va bron tilagi
 
-**Sihhat yordamchisi**da `Salom` → hudud → kunlik byudjet → safar →
-sharoitlar ketma-ketligini yozing. Masalan: `Toshkent`, `500 ming`,
-`10-oktabr`, `Basseyn`. Yordamchi ma’lum javobni qayta so‘ramaydi;
-`Variantlar ko‘rsating` qolgan savollarni kutmay mavjud tanlovdan qidiradi.
-`Assalomu alaykum` uchun alik, `Rahmat` uchun minnatdorchilik javobi bor.
+**Sihhat yordamchisi** javobni va keyingi savolni Gemini orqali o‘zi yozadi.
+Tayyor dialog ketma-ketligi yo‘q. Rozilik belgilansa joriy xabar va oxirgi
+12 user/assistant xabari niqoblanib yuboriladi. Tarix qurilma ekranining
+xotirasida; yangi doimiy suhbat jadvali yo‘q. Roziliksiz provider chaqirilmaydi.
+Provider ishlamasa ulanish xatosi va katalogdan qidirish taklifi beriladi.
 
-Salom va aniqlashtirish serverdagi lokal mantiq bilan ishlaydi.
-**Suhbatdagi tanlov ma’lumotlarimni Gemini xizmatiga yuborishga roziman**
-belgilansa, variant tanlashda ajratilgan tanlovlar va joriy savol niqoblanib
-providerga beriladi. Ilova oxirgi 12 xabarni yuboradi; API tanlov uchun
-faqat user xabarlarini ishlatadi. Yangi doimiy suhbat jadvali yaratilmagan.
-API xabarlaridan moliyaviy amal bajarilmaydi, narxni model yaratmaydi.
+`apps/api/src/ai/provider.ts`dagi `prohibitedTopics` maxfiy ma’lumot,
+tibbiy tashxis/dori/doza, jinoyat/zo‘ravonlik, nafrat/pornografiya,
+aloqasiz targ‘ibot/qimor/reklama, o‘ylab topilgan katalog/narx, moliyaviy
+amal va cheklovni chetlab o‘tishni taqiqlaydi. Narx faqat serverning joriy
+quote natijasidan olinadi; katalog IDlari serverda tekshiriladi.
 
 Bron serverda `CONFIRMED` bo‘lgach yaxshi tilak kartasi ko‘rsatiladi.
 To‘lov natijasini **Holatni yangilash** orqali ham olish mumkin; to‘lovdan
@@ -133,6 +174,9 @@ qaytishning o‘zi bron tasdig‘i hisoblanmaydi.
 
 Tezcheck checkouti ochilmasa `npm run tezcheck:check`ni bajaring va
 [Tezcheck yo‘riqnomasi](TEZCHECK.md)dagi kassa tayyorligini tekshiring.
+Yangi bronlarda `BOOKING_SETTLEMENT_MODE=direct` standart: sanatoriyaning
+o‘z merchant ulanishi hali tayyor bo‘lmaganda `MERCHANT_NOT_READY` chiqadi.
+Sozlash tartibi [MERCHANT_CONNECTIONS.md](MERCHANT_CONNECTIONS.md)da.
 2026-10-04 qayta tekshiruvda kassa `draft`, `accepts_payments=false` edi.
 
 ## 1. Lokal muhit
@@ -160,6 +204,62 @@ Qayta yaratish buyrug‘i mavjud parolni almashtirmaydi va MFA hisoblagichini
 tozalamaydi. Foydalanuvchi saytdan parolni o‘zgartirgan bo‘lsa, eski lokal
 fayl avtomatik tiklash vositasi emas; skript mos kelmagan ma’lumotni rad etadi.
 Ushbu tartib production bootstrap o‘rniga ishlatilmaydi.
+
+### Panel faolsizligi va telefondagi autentifikator
+
+Superadmin 2 soat, direktor va resepsion 4 soat davomida foydalanuvchi
+harakati bo‘lmasa hisobdan chiqadi. Sichqoncha, klaviatura, touch va scroll
+faollik hisoblanadi. Panelning 45 soniyalik sessiya tekshiruvi, background
+API so‘rovi va access-token yangilanishi vaqtni uzaytirmaydi. Harakat serverga
+15 soniyadan ko‘p bo‘lmagan chastotada yuboriladi; server oxirgi qayd etilgan
+harakatdan hisoblaydi. Yopilgan/uyqudagi brauzer qaytishda sessiyani tekshiradi.
+Server `/auth/me`, himoyalangan amallar, `/auth/activity` va `/auth/refresh`da
+faolsiz sessiyani rad etadi. Mobil mijoz uchun bu panel qoidasi qo‘llanmaydi.
+
+30 soniya kirilgan sessiyaning muddati emas: autentifikator kodining
+yangilanish davri. Kodni Google Authenticator yoki Microsoft Authenticator
+telefon ilovasidan olasiz. Lokal `.local/SUPERADMIN_KIRISH.html` faqat yordamchi;
+unda parol/kalit bor, uni internetga joylamang. Production uchun alohida
+hisob bootstrap qilinadi; server bergan MFA kalitini telefon ilovasida
+“hisob qo‘shish → sozlash kalitini kiritish” orqali bir marta ulang
+(TOTP, 6 raqam, 30 soniya). Keyingi kodlar telefonda internet bo‘lmasa ham
+yaratiladi. Server va telefon vaqti to‘g‘ri bo‘lishi kerak. QR/kalitni
+boshqalarga bermang; uni olgan odam yangi kodlarni ham yaratishi mumkin.
+Kod/parolni faqat o‘z saytingizga kiriting; autentifikator phishingni
+to‘liq bartaraf qilmaydi.
+
+Production bootstrap MFA siri/URI konsolga chiqarilmaydi. Standart private
+fayl `.local/bootstrap-mfa.json`; `BOOTSTRAP_MFA_FILE` bilan serverdagi boshqa
+private manzil tanlash mumkin. Fayl mavjud bo‘lsa ustiga yozish rad etiladi.
+Unixda yangi fayl mode `0600`, yangi katalog `0700`; server operatori Windowsda tegishli
+ACLni ta’minlaydi. Faylni public/static/media papkaga yo‘naltirmang.
+Telefonga ulangach faylni himoyalangan offline zaxiraga saqlang; Git, build
+artefakti, brauzer bundle yoki umumiy server logiga qo‘shmang. Bu fayl va
+lokal kod sahifasi deploy qilinadigan saytning bir qismi emas.
+
+### Alohida brauzer auditi
+
+`npm test` test bazasiga migratsiyalarni qo‘llaydi. Port 4000 bo‘sh bo‘lganida
+`npm run test:web:fixture` alohida API ochadi va **faqat `sihhat_test`**
+bazasini tozalab test hisoblari/bronlarini yaratadi. Production/lokal `sihhat`
+bazasi o‘zgarmaydi; haqiqiy providerlar disabled yoki local adapterga o‘tadi.
+Jarayonni tayyorlik yozuvigacha ochiq qoldiring. Boshqa terminalda:
+
+Fixture ko‘p marta yangi login qiladigan UI to‘plami uchun faqat o‘zining
+uchta synthetic login va loopback IP urinish hisoblagichlarini davriy
+tozalaydi. Production login limitlari o‘zgarmaydi; TOTP replay himoyasi
+fixtureda ham saqlanadi. Bu brauzer to‘plami rate-limit stress sinovi emas.
+
+```powershell
+$env:SIHHAT_WEB_ACCESS_FILE = '.local/browser-test-access.json'
+npm run test:web
+```
+
+Yakunlash: `npm run test:web:fixture -- --stop`; so‘ng oddiy lokal API
+qayta ochilishi mumkin. MFA TOTP har login uchun yangi bo‘lishi kerak;
+sinovlar oxirgi stepni `.local/runtime/web-test-mfa-step.json`da saqlaydi.
+Brauzer auditi [UI_REVIEW.md](UI_REVIEW.md)da, maxfiy test hisoblari va
+trace/reportlar `.local`da qoladi.
 
 `local:start` PostgreSQL, API, domen worker, sozlangan Telegram bot, superadmin va direktor/resepshn saytlarini
 fon rejimida ochadi. Buildlar va HTTP readiness tekshiriladi; mavjud boshqariladigan
@@ -380,7 +480,7 @@ qoralama, e’lon va arxiv holatlarida boshqaradi. `/catalog/home` va
 public feedni login tugashidan oldin ko‘rsatadi; kesh 7 kun va API hostiga
 bog‘langan. Saqlangan narx/mavjudlik yakuniy bron hisobi sifatida ishlatilmaydi.
 
-`NODE_ENV=production` real SMS, tanlangan Payme/Tezcheck merchant rekvizitlari, S3, Redis va HTTPS originlarni talab qiladi; lokal payment-confirm endpointi yopiladi. Tezcheck kassasi ham haqiqiy to‘lov qabul qilishga tayyor bo‘lishi kerak. Production superadminini demo seed orqali yaratmang. `BOOTSTRAP_LOGIN` va `BOOTSTRAP_PASSWORD`ni secret muhitida berib, `npm run bootstrap -w @sihhat/api`dan foydalaning; bir martalik MFA ulash URI maxfiy saqlanadi.
+`NODE_ENV=production` real SMS, tanlangan Payme/Tezcheck merchant rekvizitlari, S3, Redis va HTTPS originlarni talab qiladi; lokal payment-confirm endpointi yopiladi. Tezcheck kassasi ham haqiqiy to‘lov qabul qilishga tayyor bo‘lishi kerak. Production superadminini demo seed orqali yaratmang. `BOOTSTRAP_LOGIN` va `BOOTSTRAP_PASSWORD`ni secret muhitida berib, `npm run bootstrap -w @sihhat/api`dan foydalaning; bir martalik MFA kaliti/URI private enrollment fayliga yoziladi, logga chiqarilmaydi. Yuqoridagi “Panel faolsizligi va telefondagi autentifikator” tartibi bilan telefonga ulang.
 
 `infra/docker/compose.yaml` PostgreSQL/Redis/MinIO uchun local muqobil muhit. Unda test DB va S3 bucketni alohida tayyorlash, `.env`ning DB URL/portlarini moslash kerak; ishlatilmagan Compose muhiti tekshirilgan deb belgilanmaydi.
 

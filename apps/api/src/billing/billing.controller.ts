@@ -17,7 +17,8 @@ export class BillingController{
   @Post('partner/invoices/:id/checkout') checkout(@CurrentActor() a:Actor,@Param('id') id:string,@Headers('idempotency-key') k?:string){return this.s.payments.config.PAYMENT_MODE==='tezcheck'?this.tez.checkout(a,id,k,true):this.s.invoiceCheckout(a,id,k);}
   @Get('partner/ad-campaigns') ads(@CurrentActor() a:Actor){return this.s.ads(a);}
   @Get('superadmin/ad-campaigns') @Roles('SUPERADMIN') adminAds(@CurrentActor() a:Actor){return this.s.ads(a);}
-  @Post('partner/ad-campaigns') request(@CurrentActor() a:Actor,@Body() b:unknown){return this.s.adRequest(a,b);}
+  @Post('partner/ad-campaigns') request(@CurrentActor() a:Actor,@Body() b:unknown,@Headers('idempotency-key') k?:string){return this.s.adRequest(a,b,k);}
+  @Post('partner/ad-campaigns/:id/archive') archive(@CurrentActor() a:Actor,@Param('id') id:string){return this.s.archiveAd(a,id);}
   @Post('superadmin/ad-campaigns/:id/approve') @Roles('SUPERADMIN') approve(@CurrentActor() a:Actor,@Param('id') id:string,@Body() b:unknown){return this.s.adDecision(a,id,true,b);}
   @Post('superadmin/ad-campaigns/:id/reject') @Roles('SUPERADMIN') reject(@CurrentActor() a:Actor,@Param('id') id:string,@Body() b:unknown){return this.s.adDecision(a,id,false,b);}
 }

@@ -9,6 +9,7 @@ import {
   type Row,
 } from "./components";
 import { SelectionGroup } from "./selections";
+import {TimePicker} from './date-time';
 
 function fieldError(f: Field, data: Row): string | null {
   const v = data[f.key];
@@ -43,8 +44,7 @@ const groups = [
     keys: [
       "region",
       "address",
-      "latitude",
-      "longitude",
+      "map_url",
       "contact_phone",
       "check_in_time",
       "check_out_time",
@@ -74,6 +74,12 @@ export function ProfileWizard({
   onComplete: () => void;
 }) {
   const initial: Row = { ...revision.data };
+  if (
+    !initial.map_url &&
+    typeof initial.latitude === "number" &&
+    typeof initial.longitude === "number"
+  )
+    initial.map_url = `https://www.google.com/maps/search/?api=1&query=${initial.latitude},${initial.longitude}`;
   for (const f of fields) {
     if (initial[f.key] === undefined && !f.required)
       initial[f.key] = ["csv", "checks"].includes(f.type ?? "") ? [] : "";
@@ -317,6 +323,8 @@ export function ProfileWizard({
                           />
                           <span>{f.hint}</span>
                         </div>
+                      ) : f.type === "time" ? (
+                        <TimePicker name={f.key} label={f.label} value={data[f.key]??""} required={f.required} onChange={value=>update(f,value)}/>
                       ) : f.type === "textarea" ? (
                         <textarea
                           name={f.key}
@@ -370,7 +378,8 @@ export function ProfileWizard({
               <button
                 type="button"
                 className="button secondary"
-                disabled={step === 0 || moving}
+                disabled={moving}
+                hidden={step === 0}
                 onClick={() => {
                   void move(step - 1);
                 }}

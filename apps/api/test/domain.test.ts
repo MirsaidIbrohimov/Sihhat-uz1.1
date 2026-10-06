@@ -23,7 +23,7 @@ test('B2: incomplete drafts persist and submission lists every missing requireme
   assert.equal(submitted.status, 422);
   assert.equal(submitted.body.code, 'ONBOARDING_INCOMPLETE');
   const details = submitted.body.details;
-  for (const key of ['description', 'legal_name', 'stir', 'region', 'address', 'latitude', 'longitude', 'contact_phone', 'check_in_time', 'check_out_time', 'photo_ids', 'document_ids', 'terms_accepted', 'rooms', 'rate_plans']) {
+  for (const key of ['description', 'legal_name', 'stir', 'region', 'address', 'map_url', 'contact_phone', 'check_in_time', 'check_out_time', 'photo_ids', 'document_ids', 'terms_accepted', 'rooms', 'rate_plans']) {
     const detail = details.find((d: any) => d.path === key);
     assert.ok(detail, `Missing requirement ${key}`);
     assert.notEqual(detail.field, 'Ma’lumot');

@@ -83,13 +83,20 @@ Future<void> toggleAppearance(BuildContext context) async {
 }
 
 class AppearanceToggle extends StatelessWidget {
-  const AppearanceToggle({super.key});
+  final bool onMasthead;
+  const AppearanceToggle({this.onMasthead = false, super.key});
   @override
   Widget build(BuildContext context) {
     final controller = AppearanceScope.maybeOf(context);
     if (controller == null) return const SizedBox.shrink();
     return IconButton(
       tooltip: appearanceAction(controller.nextMode),
+      style: onMasthead
+          ? IconButton.styleFrom(
+              backgroundColor: const Color(0xff124b42),
+              foregroundColor: Colors.white,
+            )
+          : null,
       icon: Icon(appearanceIcon(controller.nextMode)),
       onPressed: controller.loaded && !controller.saving
           ? () => toggleAppearance(context)

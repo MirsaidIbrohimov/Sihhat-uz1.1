@@ -45,6 +45,16 @@ export class BookingService {
     return {...b,items,events,payment,refund,offline_payments:offline};
   }
   async list(actor:Actor,query:unknown){const i=parse(pageQuery.extend({sanatorium_id:uuid.optional(),status:z.string().max(30).optional()}).strict(),query);if(i.sanatorium_id&&actor.kind!=='CUSTOMER')scope(actor,i.sanatorium_id,'bookings.read');const ids=tenantIds(actor,'bookings.read');const where:any=actor.kind==='CUSTOMER'?{userId:actor.id}:{...(ids?{sanatoriumId:{in:ids}}:{})};if(i.sanatorium_id)where.sanatoriumId=i.sanatorium_id;if(i.status)where.status=i.status;
+    if (actor.kind === 'CUSTOMER') {
+      const hidden = await this.db.$queryRaw<{ id: string }[]>`
+        SELECT b.id FROM "Booking" b LEFT JOIN "PaymentOrder" p ON p."bookingId" = b.id
+        WHERE b."userId" = ${actor.id}::uuid AND b."createdAt" <= ${new Date(Date.now() - 2 * 3600000)}
+          AND b.status IN ('HOLD', 'PAYMENT_PENDING', 'EXPIRED', 'CANCELLED')
+          AND COALESCE(p.status, 'CREATED') NOT IN ('SUCCEEDED', 'REFUNDED')
+          AND NOT EXISTS (SELECT 1 FROM "ProviderTransaction" t WHERE t."orderId" = p.id AND t.state = 2)`;
+      // Hide unpaid history only. Provider polling, inventory, ledger and staff history retain the records.
+      where.NOT = { id: { in: hidden.map(b => b.id) }, status: { in: ['HOLD', 'PAYMENT_PENDING', 'EXPIRED', 'CANCELLED'] } };
+    }
     const[data,total]=await Promise.all([this.db.booking.findMany({where,take:i.limit,skip:(i.page-1)*i.limit,orderBy:{createdAt:'desc'}}),this.db.booking.count({where})]);return paged(data,total,i.page,i.limit);}
   async transition(actor:Actor,id:string,target:'CHECKED_IN'|'CHECKED_OUT'|'NO_SHOW',body:unknown){parse(uuid,id);const i=parse(z.object({version,reason:reason.optional()}).strict(),body);
     return this.db.atomic(async tx=>{const b=await tx.booking.findUnique({where:{id}});if(!b)fail('NOT_FOUND','Bron topilmadi',404);scope(actor,b.sanatoriumId,target==='CHECKED_IN'?'bookings.check_in':'bookings.check_out');await lock(tx,`inventory:${b.sanatoriumId}`);

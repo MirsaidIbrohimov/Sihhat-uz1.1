@@ -161,29 +161,16 @@ export function Inventory() {
           {
             key: "child_prices",
             label: "Bolalar narxi (so‘m)",
-            type: "textarea",
-            hint: "Masalan: 0-5:0; 6-17:150000. Yosh oralig‘lari kesishmasin.",
+            type: "child-prices",
           },
           {
             key: "included",
             label: "Paketga kiradi",
-            type: "csv",
-            hint: "Vergul bilan ajrating.",
+            type: "string-list",
           },
         ],
         submit: (v) => {
-          const child_rules = String(v.child_prices ?? "")
-            .split(";")
-            .filter((s) => s.trim())
-            .map((s) => {
-              const m = /^\s*(\d+)\s*-\s*(\d+)\s*:\s*([\d ,.]+)\s*$/.exec(s);
-              if (!m) throw new Error("Bola narxini 0-5:0 shaklida kiriting.");
-              return {
-                min_age: Number(m[1]),
-                max_age: Number(m[2]),
-                amount: toMinor(m[3]),
-              };
-            });
+          const child_rules = v.child_prices ?? [];
           const { child_prices, included, ...rest } = v;
           return api("/partner/rate-plans", "POST", {
             sanatorium_id: ctx.tenant,
@@ -336,7 +323,7 @@ export function Inventory() {
                     <input
                       type="date"
                       value={start}
-                      onChange={(e) => setStart(e.target.value)}
+                      onChange={(e) => setStart(e.target.value || localDate())}
                     />
                   </label>
                 </div>
@@ -737,8 +724,7 @@ export function Bookings() {
               {
                 key: `children_${n}`,
                 label: `${n + 1}-xona bolalar yoshi`,
-                type: "csv",
-                hint: "Masalan: 4, 9. Bola yo‘q bo‘lsa bo‘sh qoldiring.",
+                type: "ages",
               },
             ]).flat(),
           ],

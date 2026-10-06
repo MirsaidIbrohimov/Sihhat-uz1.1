@@ -19,6 +19,7 @@ import { AuthGuard, Public } from './auth/guard';
 import { Sms } from './auth/sms';
 import { SanatoriumService } from './sanatoriums/sanatorium.service';
 import { SanatoriumController } from './sanatoriums/sanatorium.controller';
+import { MerchantSetupService } from './sanatoriums/merchant-setup.service';
 import { InventoryService } from './inventory/inventory.service';
 import { InventoryController } from './inventory/inventory.controller';
 import { PricingService } from './pricing/pricing.service';
@@ -56,7 +57,7 @@ import { TelegramController } from './telegram/telegram.controller';
 export class CoreModule {}
 @Global() @Module({ providers: [AuthService, StaffService, Sms], controllers: [AuthController, StaffController], exports: [AuthService, StaffService, Sms] })
 export class AuthModule {}
-@Module({ providers: [SanatoriumService], controllers: [SanatoriumController], exports: [SanatoriumService] })
+@Module({ providers: [SanatoriumService,MerchantSetupService], controllers: [SanatoriumController], exports: [SanatoriumService] })
 export class SanatoriumModule {}
 @Global() @Module({ providers:[InventoryService,PricingService,BookingService,MediaService],controllers:[InventoryController,BookingController,MediaController],exports:[PricingService,BookingService,InventoryService] })
 export class BookingModule {}

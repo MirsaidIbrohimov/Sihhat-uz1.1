@@ -4,7 +4,8 @@ import { resolve } from 'node:path';
 import { parse } from 'dotenv';
 
 const root = resolve(import.meta.dirname, '..');
-const files = [...new Set(execFileSync('git', ['ls-files', '--cached', '--others', '--exclude-standard', '-z'], { cwd: root, encoding: 'utf8' }).split('\0').filter(Boolean))];
+// git ls-files includes tracked deletions; scan the files that exist in the worktree.
+const files = [...new Set(execFileSync('git', ['ls-files', '--cached', '--others', '--exclude-standard', '-z'], { cwd: root, encoding: 'utf8' }).split('\0').filter(Boolean))].filter(path => existsSync(resolve(root, path)));
 const values = new Set();
 for (const source of ['.local/secrets/providers.env', 'apps/api/.env', 'apps/mobile/android/key.properties', '.local/android-signing/key.properties']) {
   const path = resolve(root, source);

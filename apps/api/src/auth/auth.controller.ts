@@ -39,6 +39,8 @@ export class AuthController {
     for (const name of ['sihhat_access', 'sihhat_refresh', 'sihhat_csrf']) res.clearCookie(name, { path: '/' });
     return this.auth.logout(actor);
   }
+  @Post('activity') @Roles('STAFF', 'SUPERADMIN')
+  activity(@CurrentActor() actor: Actor) { return this.auth.activity(actor); }
   @Post('change-password') @ApiBody({ schema: apiSchema(changePasswordInput) })
   changePassword(@CurrentActor() actor: Actor, @Body() body: unknown) { return this.auth.changePassword(actor, body); }
   @Patch('profile')

@@ -49,6 +49,7 @@ class Api {
   String? accessToken, refreshToken;
   Future<void>? _refreshing;
   final Map<String, String> _pendingKeys = {};
+  final Map<String, Future<dynamic>> _inFlight = {};
   Api({required this.baseUrl, TokenStore? store, http.Client? client})
     : store = store ?? const SecureTokenStore(),
       client = client ?? http.Client() {
@@ -122,6 +123,34 @@ class Api {
     Json? body,
     bool retry = true,
     String? idempotencyKey,
+  }) {
+    final signature =
+        '$method:$path:${jsonEncode(body)}:${idempotencyKey ?? ''}';
+    if (method == 'GET') {
+      return _send(path, method: method, body: body, retry: retry);
+    }
+    final active = _inFlight[signature];
+    if (active != null) return active;
+    final pending =
+        _send(
+          path,
+          method: method,
+          body: body,
+          retry: retry,
+          idempotencyKey: idempotencyKey,
+        ).whenComplete(() {
+          _inFlight.remove(signature);
+        });
+    _inFlight[signature] = pending;
+    return pending;
+  }
+
+  Future<dynamic> _send(
+    String path, {
+    String method = 'GET',
+    Json? body,
+    bool retry = true,
+    String? idempotencyKey,
   }) async {
     final signature = '$method:$path:${jsonEncode(body)}';
     final mutate = method != 'GET';
@@ -137,9 +166,10 @@ class Api {
         'Idempotency-Key': ?key,
       });
       if (body != null) request.body = jsonEncode(body);
-      response = await http.Response.fromStream(
-        await client.send(request).timeout(const Duration(seconds: 25)),
-      );
+      response = await client
+          .send(request)
+          .then(http.Response.fromStream)
+          .timeout(const Duration(seconds: 25));
     } on TimeoutException {
       throw const ApiException(
         'NETWORK_TIMEOUT',
@@ -164,7 +194,7 @@ class Api {
       } finally {
         _refreshing = null;
       }
-      return send(
+      return _send(
         path,
         method: method,
         body: body,

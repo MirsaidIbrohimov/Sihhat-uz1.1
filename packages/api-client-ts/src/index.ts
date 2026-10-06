@@ -4,6 +4,8 @@ export type Actor = {
   kind: "SUPERADMIN" | "STAFF" | "CUSTOMER";
   name: string;
   mustChangePassword: boolean;
+  idleTimeoutSeconds?: number | null;
+  lastActivityAt?: string;
   memberships: {
     id: string;
     sanatoriumId: string;
@@ -96,12 +98,10 @@ export async function api<T = any>(
       );
     }
   }
-  const value = await response
-    .json()
-    .catch(() => ({
-      code: "INVALID_RESPONSE",
-      message: "Server javobini o‘qib bo‘lmadi.",
-    }));
+  const value = await response.json().catch(() => ({
+    code: "INVALID_RESPONSE",
+    message: "Server javobini o‘qib bo‘lmadi.",
+  }));
   if (!response.ok) {
     if (response.status < 500) pendingKeys.delete(signature);
     throw new ApiError(

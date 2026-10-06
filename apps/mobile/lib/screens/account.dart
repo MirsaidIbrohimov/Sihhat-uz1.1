@@ -127,7 +127,7 @@ class _AiScreenState extends State<AiScreen> {
                         Padding(
                           padding: EdgeInsets.only(top: 8),
                           child: Text(
-                            'AI vaqtincha javob bermadi. Katalog va qo‘llanma asosida javob berildi.',
+                            'AI xizmatiga hozir ulanib bo‘lmadi.',
                             style: TextStyle(
                               fontSize: 10,
                               color: context.colors.muted,
@@ -295,21 +295,28 @@ class SupportScreen extends StatelessWidget {
       ),
     ),
     floatingActionButton: FloatingActionButton.extended(
-      onPressed: () => messageDialog(context, 'Yangi murojaat', (text) async {
-        final r = asJson(
-          await api.send(
-            '/support/tickets',
-            method: 'POST',
-            body: {'title': 'Ilovadan murojaat', 'text': text},
-          ),
-        );
-        if (context.mounted) {
+      onPressed: () async {
+        Json? created;
+        final sent = await messageDialog(context, 'Yangi murojaat', (
+          text,
+        ) async {
+          created = asJson(
+            await api.send(
+              '/support/tickets',
+              method: 'POST',
+              body: {'title': 'Ilovadan murojaat', 'text': text},
+            ),
+          );
+        });
+        if (sent && context.mounted && created != null) {
           Navigator.push(
             context,
-            MaterialPageRoute(builder: (_) => SupportThread(api, r['id'])),
+            MaterialPageRoute(
+              builder: (_) => SupportThread(api, created!['id']),
+            ),
           );
         }
-      }),
+      },
       icon: const Icon(Icons.add),
       label: const Text('Murojaat'),
     ),
@@ -360,7 +367,7 @@ class _SupportThreadState extends State<SupportThread> {
                         method: 'POST',
                         body: {'text': text},
                       );
-                      setState(() => epoch++);
+                      if (mounted) setState(() => epoch++);
                     }),
                 child: const Text('Javob yozish'),
               ),

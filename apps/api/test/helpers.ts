@@ -6,7 +6,7 @@ import { AuthService } from '../src/auth/auth.service';
 import { base32, totp } from '../src/common/crypto';
 
 export const testPassword = 'Test-Sihhat-2026!';
-export async function setup() {
+export async function setup(options:{port?:number}={}) {
   const url = process.env.TEST_DATABASE_URL;
   if (!url || new URL(url).pathname !== '/sihhat_test') throw new Error('Sinov faqat sihhat_testda bajariladi');
   process.env.NODE_ENV = 'test'; process.env.DATABASE_URL = url;
@@ -16,7 +16,7 @@ export async function setup() {
   process.env.TELEGRAM_MODE = 'disabled'; process.env.TELEGRAM_BOT_TOKEN = '';
   process.env.TEZCHECK_API_KEY = ''; process.env.TEZCHECK_CASH_DESK_CODE = ''; process.env.TEZCHECK_WEBHOOK_SECRET = '';
   const { app, document } = await createApp({ quiet: true, swagger: false });
-  await app.listen(0, '127.0.0.1');
+  await app.listen(options.port??0, '127.0.0.1');
   const db = app.get(Db);
   const tables = await db.$queryRaw<{ tablename: string }[]>`SELECT tablename FROM pg_tables WHERE schemaname='public' AND tablename<>'_prisma_migrations'`;
   await db.$executeRawUnsafe(`TRUNCATE ${tables.map(t => '"'+t.tablename.replace(/"/g,'""')+'"').join(',')} CASCADE`);

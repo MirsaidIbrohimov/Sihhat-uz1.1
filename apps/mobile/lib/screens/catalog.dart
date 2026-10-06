@@ -4,106 +4,57 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../data/api.dart';
-import '../data/home_feed.dart';
 import '../widgets.dart';
 import '../design.dart';
 import 'login.dart';
 import 'booking.dart';
-import 'home_info.dart';
 
 class CatalogScreen extends StatefulWidget {
   final Api api;
-  const CatalogScreen(this.api, {super.key});
+  final String initialQuery;
+  final bool showFilters;
+  const CatalogScreen(
+    this.api, {
+    this.initialQuery = '',
+    this.showFilters = false,
+    super.key,
+  });
   @override
   State<CatalogScreen> createState() => _CatalogScreenState();
 }
 
 class _CatalogScreenState extends State<CatalogScreen> {
   final search = TextEditingController();
-  final searchFocus = FocusNode();
-  final searchTarget = GlobalKey();
-  late Future<dynamic> future;
-  late Future<dynamic> adFuture;
   Timer? debounce;
-  String region = '', amenity = '', sort = 'NAME', maxPrice = '';
+  late Future<dynamic> future;
   int page = 1;
-  final selected = <String>{};
-  final saved = <String>{};
-  late final HomeFeed feed;
-  Json? homeData;
-  bool homeLoading = true, homeCached = false;
-  bool favoritesLoaded = false;
-  bool comparing = false;
+  String region = '', amenity = '', maxPrice = '';
   @override
   void initState() {
     super.initState();
+    search.text = widget.initialQuery;
     future = load();
-    adFuture = widget.api.send('/catalog/ads');
-    feed = HomeFeed(widget.api);
-    refreshHome();
-    loadFavorites();
-  }
-
-  @override
-  void didUpdateWidget(covariant CatalogScreen oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    loadFavorites();
-  }
-
-  void loadFavorites() {
-    if (widget.api.signedIn && !favoritesLoaded) {
-      favoritesLoaded = true;
-      widget.api
-          .send('/customer/favorites')
-          .then((r) {
-            if (mounted) {
-              setState(
-                () => saved.addAll(rows(r).map((s) => s['id'] as String)),
-              );
-            }
-          })
-          .catchError((_) {
-            favoritesLoaded = false;
-          });
-    }
-  }
-
-  Future<void> refreshHome() async {
-    if (homeData == null) {
-      final cached = await feed.cached();
-      if (cached != null && mounted) {
-        setState(() {
-          homeData = cached;
-          homeCached = true;
-        });
-      }
-    }
-    try {
-      final data = await feed.refresh();
-      if (mounted) {
-        setState(() {
-          homeData = data;
-          homeCached = false;
-        });
-      }
-    } catch (_) {
-      if (mounted && homeData != null) setState(() => homeCached = true);
-    } finally {
-      if (mounted) setState(() => homeLoading = false);
+    if (widget.showFilters) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) filters();
+      });
     }
   }
 
   Future<dynamic> load() => widget.api.send(
-    '/catalog/sanatoriums${q({'page': page, 'limit': 12, 'sort': sort, if (search.text.trim().isNotEmpty) 'q': search.text.trim(), if (region.isNotEmpty) 'region': region, if (amenity.isNotEmpty) 'amenity': amenity, if (maxPrice.isNotEmpty) 'max_price': (BigInt.parse(maxPrice) * BigInt.from(100)).toString()})}',
+    '/catalog/sanatoriums${q({'page': page, 'limit': 100, 'sort': 'NAME', if (search.text.trim().isNotEmpty) 'q': search.text.trim(), if (region.isNotEmpty) 'region': region, if (amenity.isNotEmpty) 'amenity': amenity, if (maxPrice.isNotEmpty) 'max_price': (BigInt.parse(maxPrice) * BigInt.from(100)).toString()})}',
   );
-  void reload() => setState(() {
-    future = load();
-  });
+  void reload() {
+    if (!mounted) return;
+    setState(() {
+      future = load();
+    });
+  }
+
   @override
   void dispose() {
-    search.dispose();
-    searchFocus.dispose();
     debounce?.cancel();
+    search.dispose();
     super.dispose();
   }
 
@@ -111,126 +62,76 @@ class _CatalogScreenState extends State<CatalogScreen> {
     context,
     MaterialPageRoute(builder: (_) => SanatoriumScreen(widget.api, id)),
   );
-  Future<void> save(Json item) async {
-    if (!await ensureLogin(context, widget.api)) return;
-    try {
-      final id = item['id'] as String;
-      await widget.api.send(
-        '/customer/favorites/$id',
-        method: 'POST',
-        body: {'saved': !saved.contains(id)},
-      );
-      setState(() => saved.contains(id) ? saved.remove(id) : saved.add(id));
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(e.toString())));
-      }
-    }
-  }
-
   Future<void> filters() async {
     final reg = TextEditingController(text: region),
         am = TextEditingController(text: amenity),
         price = TextEditingController(text: maxPrice);
-    String picked = sort;
-    String? priceError;
+    String? error;
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       useSafeArea: true,
-      builder: (c) => ConstrainedBox(
-        constraints: BoxConstraints(
-          maxHeight: MediaQuery.sizeOf(c).height * .9,
-        ),
-        child: SingleChildScrollView(
+      builder: (c) => StatefulBuilder(
+        builder: (c, set) => SingleChildScrollView(
           padding: EdgeInsets.fromLTRB(
-            22,
-            22,
-            22,
-            MediaQuery.viewInsetsOf(c).bottom + 22,
+            20,
+            20,
+            20,
+            MediaQuery.viewInsetsOf(c).bottom + 20,
           ),
-          child: StatefulBuilder(
-            builder: (c, set) => Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                const Text(
-                  'Qidiruv filtrlari',
-                  style: TextStyle(fontSize: 21, fontWeight: FontWeight.w700),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const SectionTitle('Sanatoriya qidirish'),
+              TextField(
+                controller: reg,
+                decoration: const InputDecoration(labelText: 'Hudud'),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: am,
+                decoration: const InputDecoration(
+                  labelText: 'Sharoit, masalan Wi-Fi',
                 ),
-                const SizedBox(height: 20),
-                TextField(
-                  controller: reg,
-                  decoration: const InputDecoration(labelText: 'Hudud'),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: price,
+                keyboardType: TextInputType.number,
+                decoration: InputDecoration(
+                  labelText: 'Eng ko‘p kunlik narx (so‘m)',
+                  errorText: error,
                 ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: am,
-                  decoration: const InputDecoration(
-                    labelText: 'Sharoit, masalan Wi-Fi',
-                  ),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: price,
-                  keyboardType: TextInputType.number,
-                  decoration: InputDecoration(
-                    labelText: 'Eng ko‘p boshlang‘ich narx (so‘m)',
-                    errorText: priceError,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                DropdownButtonFormField<String>(
-                  isExpanded: true,
-                  initialValue: picked,
-                  decoration: const InputDecoration(labelText: 'Saralash'),
-                  items: const [
-                    DropdownMenuItem(
-                      value: 'NAME',
-                      child: Text('Nomi bo‘yicha'),
-                    ),
-                    DropdownMenuItem(
-                      value: 'PRICE',
-                      child: Text('Narxi bo‘yicha'),
-                    ),
-                  ],
-                  onChanged: (v) => set(() => picked = v!),
-                ),
-                const SizedBox(height: 20),
-                FilledButton(
-                  onPressed: () {
-                    if (price.text.isNotEmpty &&
-                        !RegExp(r'^\d{1,15}$').hasMatch(price.text.trim())) {
-                      set(
-                        () => priceError = 'Narxni faqat raqam bilan kiriting.',
-                      );
-                      return;
-                    }
-                    setState(() {
-                      region = reg.text.trim();
-                      amenity = am.text.trim();
-                      maxPrice = price.text.trim();
-                      sort = picked;
-                      page = 1;
-                      future = load();
-                    });
-                    Navigator.pop(c);
-                  },
-                  child: const Text('Natijalarni ko‘rish'),
-                ),
-                TextButton(
-                  onPressed: () => set(() {
-                    reg.clear();
-                    am.clear();
-                    price.clear();
-                    picked = 'NAME';
-                    priceError = null;
-                  }),
-                  child: const Text('Filtrlarni tozalash'),
-                ),
-              ],
-            ),
+              ),
+              const SizedBox(height: 16),
+              FilledButton(
+                onPressed: () {
+                  if (price.text.trim().isNotEmpty &&
+                      !RegExp(r'^\d{1,15}$').hasMatch(price.text.trim())) {
+                    set(() => error = 'Narxni raqam bilan kiriting.');
+                    return;
+                  }
+                  setState(() {
+                    region = reg.text.trim();
+                    amenity = am.text.trim();
+                    maxPrice = price.text.trim();
+                    page = 1;
+                    future = load();
+                  });
+                  Navigator.pop(c);
+                },
+                child: const Text('Natijalarni ko‘rish'),
+              ),
+              TextButton(
+                onPressed: () {
+                  reg.clear();
+                  am.clear();
+                  price.clear();
+                },
+                child: const Text('Filtrlarni tozalash'),
+              ),
+            ],
           ),
         ),
       ),
@@ -244,249 +145,64 @@ class _CatalogScreenState extends State<CatalogScreen> {
   Widget build(BuildContext context) => RefreshIndicator(
     onRefresh: () async {
       reload();
-      adFuture = widget.api.send('/catalog/ads');
-      await Future.wait([future, refreshHome()]);
+      await future;
     },
     child: ListView(
       padding: const EdgeInsets.all(20),
+      physics: const AlwaysScrollableScrollPhysics(),
       children: [
-        TextField(
-          key: searchTarget,
-          controller: search,
-          focusNode: searchFocus,
-          textInputAction: TextInputAction.search,
-          decoration: InputDecoration(
-            hintText: 'Sanatoriya yoki hudud',
-            prefixIcon: const Icon(Icons.search_rounded),
-            suffixIcon: IconButton(
-              tooltip: 'Qidiruv filtrlari',
-              style: IconButton.styleFrom(backgroundColor: context.colors.soft),
+        Row(
+          children: [
+            Expanded(
+              child: TextField(
+                controller: search,
+                decoration: const InputDecoration(
+                  hintText: 'Nomi yoki hududi',
+                  prefixIcon: Icon(Icons.search),
+                ),
+                onChanged: (_) {
+                  debounce?.cancel();
+                  debounce = Timer(const Duration(milliseconds: 350), () {
+                    page = 1;
+                    reload();
+                  });
+                },
+              ),
+            ),
+            const SizedBox(width: 8),
+            IconButton(
               onPressed: filters,
+              tooltip: 'Filtrlar',
               icon: const Icon(Icons.tune),
             ),
-          ),
-          onChanged: (_) {
-            debounce?.cancel();
-            debounce = Timer(const Duration(milliseconds: 400), () {
-              page = 1;
-              reload();
-            });
-          },
+          ],
         ),
-        if (region.isNotEmpty || amenity.isNotEmpty || maxPrice.isNotEmpty)
-          Wrap(
-            spacing: 6,
-            children: [
-              if (region.isNotEmpty)
-                Chip(
-                  label: Text(region),
-                  onDeleted: () {
-                    region = '';
-                    page = 1;
-                    reload();
-                  },
-                ),
-              if (amenity.isNotEmpty)
-                Chip(
-                  label: Text(amenity),
-                  onDeleted: () {
-                    amenity = '';
-                    page = 1;
-                    reload();
-                  },
-                ),
-              if (maxPrice.isNotEmpty)
-                Chip(
-                  label: Text('$maxPrice so‘mgacha'),
-                  onDeleted: () {
-                    maxPrice = '';
-                    page = 1;
-                    reload();
-                  },
-                ),
-            ],
-          ),
-        const SizedBox(height: 15),
-        HomeHighlights(
-          data: homeData,
-          loading: homeLoading,
-          cached: homeCached,
-          region: region,
-          action: TextButton.icon(
-            onPressed: () => setState(() {
-              comparing = !comparing;
-              if (!comparing) selected.clear();
-            }),
-            icon: Icon(
-              comparing ? Icons.close : Icons.compare_arrows,
-              size: 18,
-            ),
-            label: Text(comparing ? 'Bekor qilish' : 'Solishtirish'),
-          ),
-          selectRegion: (value) {
-            region = value;
-            page = 1;
-            reload();
-          },
-        ),
+        const SizedBox(height: 16),
         FutureBuilder(
-          key: const ValueKey('home-ads'),
-          future: adFuture,
-          builder: (c, s) {
-            if (s.connectionState != ConnectionState.done || !s.hasData) {
-              return const SizedBox();
-            }
-            return Column(
-              children: rows(s.data)
-                  .take(1)
-                  .map(
-                    (ad) => Card(
-                      color: context.colors.soft,
-                      child: ListTile(
-                        leading: Icon(
-                          Icons.campaign_outlined,
-                          color: context.colors.primary,
-                        ),
-                        title: Text(ad['title']),
-                        subtitle: Text('Reklama · ${ad['text'] ?? ''}'),
-                        onTap: () {
-                          widget.api
-                              .send(
-                                '/catalog/ads/${ad['id']}/events',
-                                method: 'POST',
-                                body: {'kind': 'CLICK'},
-                              )
-                              .catchError((_) {
-                                return null;
-                              });
-                          open(ad['sanatorium_id']);
-                        },
-                      ),
-                    ),
-                  )
-                  .toList(),
-            );
-          },
-        ),
-        if (selected.isNotEmpty)
-          Padding(
-            padding: const EdgeInsets.only(bottom: 12),
-            child: FilledButton.tonal(
-              onPressed: () => Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => CompareScreen(widget.api, selected.toList()),
-                ),
-              ),
-              child: Text('Solishtirish (${selected.length}/3)'),
-            ),
-          ),
-        FutureBuilder(
-          key: const ValueKey('home-catalog'),
           future: future,
-          builder: (c, s) {
-            final waiting = s.connectionState != ConnectionState.done;
-            final preview =
-                (waiting || s.hasError) &&
-                homeData != null &&
-                page == 1 &&
-                search.text.trim().isEmpty &&
-                region.isEmpty &&
-                amenity.isEmpty &&
-                maxPrice.isEmpty;
-            if (waiting && !preview) return const Busy();
-            if (s.hasError && !preview) {
-              return ErrorView(s.error!, retry: reload);
+          builder: (c, snap) {
+            if (snap.connectionState != ConnectionState.done && !snap.hasData) {
+              return const Busy();
             }
-            final data = preview
-                    ? <String, dynamic>{
-                        'data': homeData!['featured'],
-                        'pages': 1,
-                      }
-                    : asJson(s.data),
-                items = rows(data);
-            if (items.isEmpty) {
-              return const EmptyView(
-                'Tanlangan filtrlar bo‘yicha sanatoriya topilmadi.',
-              );
-            }
+            if (snap.hasError) return ErrorView(snap.error!, retry: reload);
+            final data = asJson(snap.data), items = rows(data);
             return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                if (preview && waiting)
-                  const Padding(
-                    padding: EdgeInsets.only(bottom: 12),
-                    child: LinearProgressIndicator(minHeight: 2),
-                  ),
-                if (preview && s.hasError)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 12),
-                    child: Row(
-                      children: [
-                        const Expanded(
-                          child: Text(
-                            'Katalog yangilanmadi. Quyida oxirgi yuklangan variantlar.',
-                            style: TextStyle(fontSize: 12),
-                          ),
-                        ),
-                        TextButton(
-                          onPressed: reload,
-                          child: const Text('Yangilash'),
-                        ),
-                      ],
-                    ),
-                  ),
+                Text(
+                  '${data['total']} ta sanatoriya',
+                  style: TextStyle(color: context.colors.muted),
+                ),
+                const SizedBox(height: 12),
+                if (items.isEmpty) const EmptyView('Mos sanatoriya topilmadi.'),
                 ...items.map(
-                  (item) => SanatoriumCard(
-                    item: item,
+                  (s) => SanatoriumCard(
+                    item: s,
                     api: widget.api,
-                    open: () => open(item['id']),
-                    trailing: CircleAvatar(
-                      backgroundColor: context.colors.surface,
-                      child: IconButton(
-                        tooltip: saved.contains(item['id'])
-                            ? 'Saqlanganlardan olib tashlash'
-                            : 'Saqlash',
-                        onPressed: () => save(item),
-                        icon: Icon(
-                          saved.contains(item['id'])
-                              ? Icons.favorite
-                              : Icons.favorite_border,
-                          color: context.colors.primary,
-                        ),
-                      ),
-                    ),
-                    footer: comparing
-                        ? CheckboxListTile(
-                            contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 14,
-                            ),
-                            visualDensity: VisualDensity.compact,
-                            controlAffinity: ListTileControlAffinity.leading,
-                            title: const Text(
-                              'Solishtirishga qo‘shish',
-                              style: TextStyle(fontSize: 12),
-                            ),
-                            value: selected.contains(item['id']),
-                            onChanged: (v) => setState(() {
-                              if (v == false) {
-                                selected.remove(item['id']);
-                              } else if (selected.length < 3) {
-                                selected.add(item['id']);
-                              } else {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text(
-                                      'Bir vaqtda 3 ta sanatoriyani solishtirish mumkin.',
-                                    ),
-                                  ),
-                                );
-                              }
-                            }),
-                          )
-                        : null,
+                    open: () => open(s['id']),
                   ),
                 ),
-                if ((data['pages'] as num? ?? 1) > 1)
+                if ((data['pages'] ?? 1) > 1)
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
@@ -497,7 +213,7 @@ class _CatalogScreenState extends State<CatalogScreen> {
                                 reload();
                               }
                             : null,
-                        child: const Text('← Oldingi'),
+                        child: const Text('Oldingi'),
                       ),
                       Text('$page / ${data['pages']}'),
                       TextButton(
@@ -507,7 +223,7 @@ class _CatalogScreenState extends State<CatalogScreen> {
                                 reload();
                               }
                             : null,
-                        child: const Text('Keyingi →'),
+                        child: const Text('Keyingi'),
                       ),
                     ],
                   ),
@@ -515,97 +231,7 @@ class _CatalogScreenState extends State<CatalogScreen> {
             );
           },
         ),
-        HomeUpdates(api: widget.api, data: homeData),
       ],
-    ),
-  );
-}
-
-class FavoritesScreen extends StatelessWidget {
-  final Api api;
-  const FavoritesScreen(this.api, {super.key});
-  @override
-  Widget build(BuildContext context) => AsyncContent(
-    load: () => api.send('/customer/favorites'),
-    builder: (v) => rows(v).isEmpty
-        ? ListView(children: const [EmptyView('Saqlangan sanatoriyalar yo‘q.')])
-        : ListView(
-            padding: const EdgeInsets.all(20),
-            children: rows(v)
-                .map(
-                  (s) => SanatoriumCard(
-                    item: s,
-                    api: api,
-                    open: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => SanatoriumScreen(api, s['id']),
-                      ),
-                    ),
-                  ),
-                )
-                .toList(),
-          ),
-  );
-}
-
-class CompareScreen extends StatelessWidget {
-  final Api api;
-  final List<String> ids;
-  const CompareScreen(this.api, this.ids, {super.key});
-  @override
-  Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('Sanatoriyalarni solishtirish')),
-    body: AsyncContent(
-      load: () => api.send('/catalog/compare${q({'ids': ids.join(',')})}'),
-      builder: (v) => ListView(
-        padding: const EdgeInsets.all(20),
-        children: rows(v)
-            .map(
-              (s) => Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(20),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        s['name'],
-                        style: const TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-                      Text('${s['region']} · ${s['address']}'),
-                      const SizedBox(height: 10),
-                      Text(
-                        'Sharoitlar: ${(s['amenities'] as List).join(', ')}',
-                      ),
-                      Text('Ovqat: ${s['meals']}'),
-                      Text(
-                        'Joylashish: ${s['check_in_time']} · ketish: ${s['check_out_time']}',
-                      ),
-                      ...rows(s['rate_plans']).map(
-                        (r) => Text(
-                          '${r['name']}: ${money(r['baseAmount'])} · ${r['mode'] == 'ROOM' ? 'butun xona' : 'kishi'} uchun',
-                        ),
-                      ),
-                      TextButton(
-                        onPressed: () => Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => SanatoriumScreen(api, s['id']),
-                          ),
-                        ),
-                        child: const Text('Batafsil ko‘rish'),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            )
-            .toList(),
-      ),
     ),
   );
 }
@@ -736,17 +362,12 @@ class SanatoriumScreen extends StatelessWidget {
                   TextButton.icon(
                     onPressed: () => launchUrl(
                       Uri.parse(
-                        'https://www.google.com/maps/search/?api=1&query=${s['latitude']},${s['longitude']}',
+                        s['map_url'] ??
+                            'https://www.google.com/maps/search/?api=1&query=${s['latitude']},${s['longitude']}',
                       ),
                     ),
                     icon: const Icon(Icons.map_outlined),
                     label: const Text('Xaritada ochish'),
-                  ),
-                  TextButton.icon(
-                    onPressed: () =>
-                        launchUrl(Uri(scheme: 'tel', path: s['contact_phone'])),
-                    icon: const Icon(Icons.phone_outlined),
-                    label: Text(s['contact_phone']),
                   ),
                   const Divider(height: 35),
                   const Text(

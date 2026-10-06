@@ -1,4 +1,4 @@
-param([ValidateSet('start', 'status', 'stop')][string]$Action = 'start')
+param([ValidateSet('start', 'status', 'stop')][string]$Action = 'start', [string]$Only = '')
 
 $ErrorActionPreference = 'Stop'
 $workspacePath = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '..')).Path
@@ -11,6 +11,14 @@ $services = @(
     @{ Name = 'superadmin'; Entry = 'node_modules/next/dist/bin/next'; Cwd = 'apps/superadmin-web'; Args = @('start', '--hostname', '127.0.0.1', '--port', '3000'); Url = 'http://127.0.0.1:3000' },
     @{ Name = 'director'; Entry = 'node_modules/next/dist/bin/next'; Cwd = 'apps/partner-web'; Args = @('start', '--hostname', '127.0.0.1', '--port', '3001'); Url = 'http://127.0.0.1:3001' }
 )
+
+if ($Only) {
+    $selectedServices = $Only.Split(',')
+    foreach ($serviceName in $selectedServices) {
+        if ($serviceName -notin $services.Name) { throw 'Unknown local service name.' }
+    }
+    $services = @($services | Where-Object { $_.Name -in $selectedServices })
+}
 
 function Get-OwnedProcess($Service) {
     $markerPath = Join-Path $runtimePath ($Service.Name + '.json')
@@ -73,11 +81,13 @@ if ($Action -eq 'start') {
             throw ('Web build missing for ' + $service.Name + '. Run npm run build:web.')
         }
     }
-    Push-Location $workspacePath
-    try {
-        & node (Join-Path $PSScriptRoot 'local-postgres.mjs') start
-        if ($LASTEXITCODE -ne 0) { throw 'Local PostgreSQL did not start.' }
-    } finally { Pop-Location }
+    if (@($services | Where-Object { $_.Name -in @('api', 'worker', 'telegram') }).Count) {
+        Push-Location $workspacePath
+        try {
+            & node (Join-Path $PSScriptRoot 'local-postgres.mjs') start
+            if ($LASTEXITCODE -ne 0) { throw 'Local PostgreSQL did not start.' }
+        } finally { Pop-Location }
+    }
 }
 
 foreach ($service in $services) {

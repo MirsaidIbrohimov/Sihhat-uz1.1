@@ -21,7 +21,7 @@ export class AuthGuard implements CanActivate {
     const actor = await this.auth.authenticate(token, bearer ? 'MOBILE' : 'WEB');
     req.actor = actor;
     if (!bearer && !['GET', 'HEAD', 'OPTIONS'].includes(req.method)) await this.auth.csrf(actor.sessionId, req.header('X-CSRF-Token'), req.header('Origin'));
-    if (actor.mustChangePassword && !['/auth/me', '/auth/change-password', '/auth/logout'].includes(req.path)) fail('PASSWORD_CHANGE_REQUIRED', 'Birinchi kirishda parolni almashtiring', 403);
+    if (actor.mustChangePassword && !['/auth/me', '/auth/activity', '/auth/change-password', '/auth/logout'].includes(req.path)) fail('PASSWORD_CHANGE_REQUIRED', 'Birinchi kirishda parolni almashtiring', 403);
     const roles = this.reflector.getAllAndOverride<string[]>('roles', [context.getHandler(), context.getClass()]);
     if (roles && !roles.includes(actor.kind)) fail('PERMISSION_DENIED', 'Bu sahifa uchun ruxsat yo‘q', 403);
     return true;

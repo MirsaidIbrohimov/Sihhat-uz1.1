@@ -31,6 +31,15 @@ export class MediaService {
     parse(uuid,id);const asset=await this.db.mediaAsset.findUnique({where:{id}});if(!asset)fail('NOT_FOUND','Fayl topilmadi',404);
     let isPublic=false;
     if(asset.visibility==='PUBLIC'){const s=await this.db.sanatorium.findUnique({where:{id:asset.sanatoriumId}});if(s?.status==='ACTIVE'&&s.publicRevisionId){const r=await this.db.sanatoriumRevision.findUnique({where:{id:s.publicRevisionId}});isPublic=!!(r?.data as any)?.photo_ids?.includes(id);}}
+    if(!isPublic&&asset.visibility==='PUBLIC'&&asset.mime.startsWith('image/')){
+      const s=await this.db.sanatorium.findFirst({where:{id:asset.sanatoriumId,status:'ACTIVE',publicRevisionId:{not:null}}});
+      if(s){
+        const ads=await this.db.adCampaign.findMany({where:{sanatoriumId:asset.sanatoriumId,status:'APPROVED',startsAt:{lte:new Date()},endsAt:{gt:new Date()},data:{path:['image_asset_id'],equals:id}}});
+        for(const ad of ads){
+          if(ad.amount===0n&&(ad.data as any).free===true&&!ad.invoiceId||ad.invoiceId&&await this.db.invoice.findFirst({where:{id:ad.invoiceId,status:'PAID'}})){isPublic=true;break;}
+        }
+      }
+    }
     if(!isPublic){if(!token)fail('NOT_FOUND','Fayl topilmadi',404);const actor=await this.auth.authenticate(token,channel);const recipients=await this.db.messageRecipient.findMany({where:{userId:actor.id},select:{messageId:true}});const shared=await this.db.message.findFirst({where:{id:{in:recipients.map(r=>r.messageId)},assetIds:{has:asset.id}}});if(!shared)scope(actor,asset.sanatoriumId,asset.visibility==='PRIVATE'&&!asset.revisionId?'reports.financial.read':'sanatorium.profile.edit');}
     if(this.config.STORAGE_ADAPTER==='s3'){const s3=this.s3();try{return {mime:asset.mime,url:await getSignedUrl(s3,new GetObjectCommand({Bucket:this.config.S3_BUCKET,Key:asset.key,ResponseContentType:asset.mime}),{expiresIn:60}),public:isPublic};}finally{s3.destroy();}}
     return {mime:asset.mime,bytes:await readFile(this.path(asset.key)),public:isPublic};

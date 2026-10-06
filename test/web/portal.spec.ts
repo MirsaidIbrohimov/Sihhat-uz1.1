@@ -1,7 +1,12 @@
 import { test, expect, type Page } from "@playwright/test";
-import { readFileSync, mkdirSync } from "node:fs";
+import { readFileSync, mkdirSync, existsSync, writeFileSync } from "node:fs";
 import { totp } from "../../apps/api/dist/src/common/crypto";
-const access = JSON.parse(readFileSync(".local/dev-access.json", "utf8"));
+const access = JSON.parse(
+  readFileSync(
+    process.env.SIHHAT_WEB_ACCESS_FILE ?? ".local/dev-access.json",
+    "utf8",
+  ),
+);
 let adminLastStep = -1;
 async function browserApi(
   page: Page,
@@ -36,12 +41,20 @@ async function login(page: Page, kind: "admin" | "director" | "reception") {
   await page.getByLabel("Login", { exact: true }).fill(access[kind].login);
   await page.getByLabel("Parol", { exact: true }).fill(access[kind].password);
   if (kind === "admin") {
+    const stepFile = ".local/runtime/web-test-mfa-step.json";
+    if (existsSync(stepFile))
+      adminLastStep = Math.max(
+        adminLastStep,
+        JSON.parse(readFileSync(stepFile, "utf8")).step,
+      );
     // The API forbids reusing a TOTP. Each separate browser login needs a fresh step.
     while (Math.floor(Date.now() / 30000) <= adminLastStep)
       await page.waitForTimeout(
         Math.max(50, 30000 - (Date.now() % 30000) + 100),
       );
     adminLastStep = Math.floor(Date.now() / 30000);
+    mkdirSync(".local/runtime", { recursive: true });
+    writeFileSync(stepFile, JSON.stringify({ step: adminLastStep }));
     await page
       .getByLabel("Autentifikator kodi")
       .fill(totp(access.admin.mfa_secret, adminLastStep));
@@ -114,7 +127,16 @@ test("Direktor ko‘p xonali bron yaratadi; kalendar va check-in/out serverda ya
       .getByLabel(`${n}-xona tarifi`)
       .selectOption(access.sanatoriums[0].rate_id);
     await page.getByLabel(`${n}-xona kattalari`).fill(String(n));
-    if (n === 2) await page.getByLabel(`${n}-xona bolalar yoshi`).fill("7");
+    if (n === 2) {
+      const ages = page.getByRole("group", {
+        name: `${n}-xona bolalar yoshi`,
+        exact: true,
+      });
+      await ages
+        .getByRole("button", { name: "Bola qo‘shish", exact: true })
+        .click();
+      await ages.getByRole("combobox").selectOption("7");
+    }
   }
   await page
     .getByRole("button", { name: "Narxni hisoblash", exact: true })
@@ -131,14 +153,14 @@ test("Direktor ko‘p xonali bron yaratadi; kalendar va check-in/out serverda ya
   await page
     .getByRole("button", { name: "Joylashtirish", exact: true })
     .click();
-  await page.getByRole("button", { name: "Saqlash", exact: true }).click();
+  await saveDialog(page);
   await expect(
     page.getByRole("button", { name: "Ketishni qayd etish", exact: true }),
   ).toBeVisible();
   await page
     .getByRole("button", { name: "Ketishni qayd etish", exact: true })
     .click();
-  await page.getByRole("button", { name: "Saqlash", exact: true }).click();
+  await saveDialog(page);
   await expect(
     page.locator(".toolbar .badge").filter({ hasText: "Yakunlangan" }),
   ).toBeVisible();
@@ -403,6 +425,7 @@ test("Resepshn moliyaga kira olmaydi; direktor huquqni bekor qilib qayta beradi"
   await expect(permission).toBeChecked();
   await permission.uncheck();
   await director.getByRole("button", { name: "Saqlash", exact: true }).click();
+  await expect(director.getByRole("dialog")).toHaveCount(0);
   await reception.goto("http://localhost:3001/inventory");
   await expect(reception.locator(".error-box")).toContainText("ruxsat");
   await row.getByRole("button", { name: "Ruxsatlar", exact: true }).click();
@@ -410,6 +433,7 @@ test("Resepshn moliyaga kira olmaydi; direktor huquqni bekor qilib qayta beradi"
     .getByRole("switch", { name: "Bronlarni ko‘rish", exact: true })
     .check();
   await director.getByRole("button", { name: "Saqlash", exact: true }).click();
+  await expect(director.getByRole("dialog")).toHaveCount(0);
   await reception.goto("http://localhost:3001/inventory");
   await expect(
     reception.getByRole("heading", { name: "Xonalar va tariflar" }),
@@ -460,6 +484,7 @@ test("Sanatoriya tanlovi xodimlar jadvalini API va sahifada filtrlaydi", async (
 test("Anketa aniq xatolar, checkboxlar va oxirgi tahrirni saqlab rasmlarga o‘tishni qo‘llaydi", async ({
   page,
 }) => {
+  test.setTimeout(180000);
   await login(page, "admin");
   await page
     .getByRole("button", { name: "Sanatoriyalar", exact: true })
@@ -496,7 +521,7 @@ test("Anketa aniq xatolar, checkboxlar va oxirgi tahrirni saqlab rasmlarga o‘t
     await expect(errors).not.toContainText("Invalid input");
     await page
       .getByRole("button", { name: "Yopish", exact: true })
-      .last()
+      .first()
       .click();
     await page
       .getByRole("button", { name: "Bank rekvizitlari", exact: true })
@@ -556,13 +581,14 @@ test("Anketa aniq xatolar, checkboxlar va oxirgi tahrirni saqlab rasmlarga o‘t
     for (const [key, value] of Object.entries({
       region: "Toshkent",
       address: "Sinov ko‘chasi 10",
-      latitude: "41.3",
-      longitude: "69.2",
+      map_url: "https://www.google.com/maps/search/?api=1&query=41.3,69.2",
       contact_phone: "+998901234567",
-      check_in_time: "14:00",
-      check_out_time: "12:00",
     }))
       await page.locator(`[name="${key}"]`).fill(value);
+    await page.getByLabel("Joylashish vaqti — soat").selectOption("14");
+    await page.getByLabel("Joylashish vaqti — daqiqa").selectOption("00");
+    await page.getByLabel("Ketish vaqti — soat").selectOption("12");
+    await page.getByLabel("Ketish vaqti — daqiqa").selectOption("00");
     await page.getByRole("button", { name: "Saqlash va davom etish" }).click();
     await page.getByRole("checkbox", { name: "Wi-Fi", exact: true }).check();
     await page.getByRole("checkbox", { name: "Massaj", exact: true }).check();
@@ -803,4 +829,682 @@ test("Admin va resepsion Telegram bo‘limida server xatosidan keyin qayta urina
     await page.getByRole("button", { name: "Chiqish", exact: true }).click();
     await page.unroute("**/api/telegram/account");
   }
+});
+
+async function section(page: Page, name: string) {
+  const drawer = page.getByRole("button", {
+    name: "Menyuni ochish",
+    exact: true,
+  });
+  if (await drawer.isVisible()) await drawer.click();
+  await page.locator("nav").getByRole("button", { name, exact: true }).click();
+  await expect(page.locator("main .skeletons")).toHaveCount(0);
+  await expect(page.locator("main h1").first()).toBeVisible();
+}
+
+for (const [role, seconds] of [
+  ["admin", 7200],
+  ["director", 14400],
+  ["reception", 14400],
+] as const) {
+  test(`Faolsizlik: ${role} paneli ${seconds / 3600} soatdan keyin loginni ochadi`, async ({
+    page,
+  }) => {
+    await login(page, role);
+    await page.clock.install({ time: new Date() });
+    await page.clock.fastForward((seconds - 2) * 1000);
+    await expect(
+      page.getByRole("button", { name: "Chiqish", exact: true }),
+    ).toBeVisible();
+    const loggedOut = page.waitForResponse(
+      (r) => r.url().endsWith("/auth/logout") && r.status() === 201,
+    );
+    await page.clock.fastForward(2100);
+    await expect(
+      page.getByRole("button", { name: "Kirish", exact: true }),
+    ).toBeVisible();
+    await expect(page.getByRole("status")).toContainText("Faolsizlik sababli");
+    await loggedOut;
+    await page.reload();
+    await expect(
+      page.getByRole("button", { name: "Kirish", exact: true }),
+    ).toBeVisible();
+  });
+}
+
+test("Faolsizlik: foydalanuvchi harakati vaqtni uzaytiradi, avtomatik sessiya tekshiruvi esa uzaytirmaydi", async ({
+  page,
+}) => {
+  await login(page, "director");
+  await page.clock.install({ time: new Date() });
+  await page.clock.fastForward((14400 - 10) * 1000);
+  const touched = page.waitForResponse(
+    (r) => r.url().endsWith("/auth/activity") && r.status() === 201,
+  );
+  await page.keyboard.press("Tab");
+  await touched;
+  await page.clock.fastForward(11000);
+  await expect(
+    page.getByRole("button", { name: "Chiqish", exact: true }),
+  ).toBeVisible();
+  await page.clock.fastForward(14400000);
+  await expect(
+    page.getByRole("button", { name: "Kirish", exact: true }),
+  ).toBeVisible();
+});
+async function openAndCancel(page: Page, name: string) {
+  await page
+    .locator("main")
+    .getByRole("button", { name, exact: true })
+    .first()
+    .click();
+  const dialog = page.getByRole("dialog");
+  await expect(dialog).toBeVisible();
+  await expect(
+    dialog.getByRole("button", { name: "Yopish", exact: true }).first(),
+  ).toBeEnabled();
+  await dialog
+    .getByRole("button", { name: "Yopish", exact: true })
+    .first()
+    .click();
+  await expect(dialog).toHaveCount(0);
+}
+
+async function saveDialog(page: Page, name?: string) {
+  const dialog = page.getByRole("dialog");
+  await (
+    name
+      ? dialog.getByRole("button", { name, exact: true })
+      : dialog.locator(".modal-footer button").last()
+  ).click();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+}
+
+test("Moliya auditi: refund qarori, bank dalili va abonentning lokal to‘lovi", async ({
+  page,
+}) => {
+  test.setTimeout(150000);
+  test.skip(
+    !process.env.SIHHAT_WEB_ACCESS_FILE?.includes("browser-test-access"),
+    "Faqat izolyatsiyalangan lokal adapterlar bilan",
+  );
+  await login(page, "admin");
+  await page
+    .getByLabel("Sanatoriyani tanlash")
+    .selectOption(access.sanatoriums[0].id);
+  await section(page, "Pulni qaytarish");
+  const refund = page
+    .locator("tbody tr")
+    .filter({ hasText: "Faqat UI sinovi uchun" });
+  await refund.getByRole("button", { name: "Rad etish", exact: true }).click();
+  await page
+    .getByRole("dialog")
+    .getByRole("button", { name: "Yopish", exact: true })
+    .first()
+    .click();
+  await refund.getByRole("button", { name: "Ma’qullash", exact: true }).click();
+  await page.getByLabel("Qaror sababi").fill("Lokal auditda tasdiqlandi");
+  await saveDialog(page);
+  await expect(
+    refund.getByRole("button", { name: "Jarayonga olish", exact: true }),
+  ).toBeVisible();
+  await refund
+    .getByRole("button", { name: "Jarayonga olish", exact: true })
+    .click();
+  await saveDialog(page);
+  await expect(refund).toContainText("Bajarilmoqda");
+
+  await section(page, "Sanatoriyaga o‘tkazma");
+  const payout = page.locator("tbody tr").first();
+  await payout
+    .getByRole("button", { name: "Bekor qilish", exact: true })
+    .click();
+  await page
+    .getByRole("dialog")
+    .getByRole("button", { name: "Yopish", exact: true })
+    .first()
+    .click();
+  await payout.getByRole("button", { name: "Ma’qullash", exact: true }).click();
+  await saveDialog(page);
+  await payout
+    .getByRole("button", { name: "Bank natijasi", exact: true })
+    .click();
+  await page.getByLabel("Bank o‘tkazma raqami").fill("LOCAL-UI-AUDIT-001");
+  await page.getByLabel("Bank dalili").setInputFiles({
+    name: "local-proof.png",
+    mimeType: "image/png",
+    buffer: Buffer.from(
+      "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+j8XcAAAAASUVORK5CYII=",
+      "base64",
+    ),
+  });
+  await page.getByLabel("Bank tekshiruvi").check();
+  await saveDialog(page);
+  await expect(payout).toContainText("To‘langan");
+  const proof = await page.request.get(
+    new URL(
+      (await payout
+        .getByRole("link", { name: "Dalil", exact: true })
+        .getAttribute("href")) ?? "",
+      page.url(),
+    ).href,
+  );
+  expect(proof.ok()).toBe(true);
+
+  await section(page, "Abonent va hisoblar");
+  const invoice = page.locator("tbody tr").first();
+  await invoice.getByRole("button", { name: "To‘lash", exact: true }).click();
+  await saveDialog(page, "To‘lovni ochish");
+  await page
+    .getByRole("button", { name: "Sinov to‘lovini tasdiqlash", exact: true })
+    .click();
+  await expect(invoice).toContainText("To‘langan");
+  await page.getByRole("button", { name: "Abonentlar", exact: true }).click();
+  await openAndCancel(page, "Yangi hisob");
+});
+
+test("Muloqot auditi: sharh javobi va moderatsiya, yordam suhbati, xabar va vazifa", async ({
+  page,
+  browser,
+}) => {
+  test.setTimeout(150000);
+  test.skip(
+    !process.env.SIHHAT_WEB_ACCESS_FILE?.includes("browser-test-access"),
+    "Faqat alohida test hisoblari bilan",
+  );
+  await login(page, "admin");
+  await page
+    .getByLabel("Sanatoriyani tanlash")
+    .selectOption(access.sanatoriums[0].id);
+  await section(page, "Sharhlar");
+  const review = page
+    .locator("tbody tr")
+    .filter({ hasText: "UI sinov sharhi" });
+  await review
+    .getByRole("button", { name: "Javob yozish", exact: true })
+    .click();
+  await page
+    .getByRole("dialog")
+    .getByRole("textbox", { name: /^Javob/ })
+    .fill("Fikringiz uchun rahmat");
+  await saveDialog(page);
+  await expect(review).toContainText("Fikringiz uchun rahmat");
+  for (const name of ["Yashirish", "Ko‘rsatish"]) {
+    await review.getByRole("button", { name, exact: true }).click();
+    await page.getByLabel("Moderatsiya sababi").fill("Lokal UI tekshiruvi");
+    await saveDialog(page);
+    await expect(
+      review.getByRole("button", {
+        name: name === "Yashirish" ? "Ko‘rsatish" : "Yashirish",
+        exact: true,
+      }),
+    ).toBeVisible();
+  }
+  await section(page, "Yordam xizmati");
+  const title = `UI yordam ${Date.now()}`;
+  await page
+    .getByRole("button", { name: "Murojaat yaratish", exact: true })
+    .click();
+  await page.getByLabel("Mavzu").fill(title);
+  await page
+    .getByLabel("Murojaat matni")
+    .fill("Test hisobidagi panelni tekshirish");
+  await saveDialog(page);
+  await page
+    .locator("tbody tr")
+    .filter({ hasText: title })
+    .getByRole("button", { name: "Ochish", exact: true })
+    .click();
+  await page.getByRole("button", { name: "Javob yozish", exact: true }).click();
+  await page
+    .getByRole("dialog")
+    .getByRole("textbox", { name: /^Javob/ })
+    .fill("Tekshiruv yakunlandi");
+  await page.getByLabel("Murojaatni yopish").check();
+  await saveDialog(page);
+  await expect(page.locator("main")).toContainText("Tekshiruv yakunlandi");
+  await page
+    .getByRole("button", { name: "← Murojaatlarga qaytish", exact: true })
+    .click();
+  await expect(
+    page.locator("tbody tr").filter({ hasText: title }),
+  ).toContainText("Yopilgan");
+
+  const context = await browser.newContext(),
+    director = await context.newPage();
+  await login(director, "director");
+  await section(director, "Xabarlar");
+  const message = director
+    .locator("tbody tr")
+    .filter({ hasText: "UI sinov xabari" });
+  await message
+    .getByRole("button", { name: "Qabul qildim", exact: true })
+    .click();
+  await saveDialog(director);
+  await expect(
+    message.getByRole("button", { name: "Qabul qildim", exact: true }),
+  ).toHaveCount(0);
+  await section(director, "Vazifalar");
+  const task = director
+    .locator("tbody tr")
+    .filter({ hasText: "UI sinov vazifasi" });
+  await task.getByRole("button", { name: "Qabul qilish", exact: true }).click();
+  await saveDialog(director);
+  await task.getByRole("button", { name: "Bajarildi", exact: true }).click();
+  await director.getByLabel("Natija").fill("Har bir holat lokal tekshirildi");
+  await saveDialog(director);
+  await expect(task).toContainText("Har bir holat lokal tekshirildi");
+  await expect(task.getByRole("button")).toHaveCount(0);
+  await section(director, "Bildirishnomalar");
+  const notification = director
+    .locator("tbody tr")
+    .filter({
+      has: director.getByRole("button", { name: "O‘qilgan", exact: true }),
+    })
+    .first();
+  await notification
+    .getByRole("button", { name: "O‘qilgan", exact: true })
+    .click();
+  await saveDialog(director);
+  await expect(
+    director
+      .locator("tbody tr")
+      .getByRole("button", { name: "O‘qilgan", exact: true }),
+  ).toHaveCount(0);
+  await context.close();
+});
+
+test("Inventar auditi: xona turi, xona, tarif, kunlik narx, chegirma va ta’mir blokini ochish", async ({
+  page,
+}) => {
+  test.setTimeout(180000);
+  await login(page, "director");
+  await section(page, "Xonalar va tariflar");
+  const unique = Date.now(),
+    name = `UI xona turi ${unique}`;
+  await page.getByRole("button", { name: "Xona turlari", exact: true }).click();
+  await page.getByRole("button", { name: "Qo‘shish", exact: true }).click();
+  await page.getByLabel("Xona turi nomi").fill(name);
+  await page.getByLabel("Jami mehmon sig‘imi").fill("4");
+  await page.getByLabel("Kattalar sig‘imi").fill("2");
+  await page.getByLabel("Bolalar sig‘imi").fill("2");
+  const createdType = page.waitForResponse(
+    (r) =>
+      r.url().endsWith("/room-types") &&
+      r.request().method() === "POST" &&
+      r.status() === 201,
+  );
+  await saveDialog(page);
+  const type = await (await createdType).json();
+  await expect(page.locator("tbody")).toContainText(name);
+  await page.getByRole("button", { name: "Xonalar", exact: true }).click();
+  await page.getByRole("button", { name: "Qo‘shish", exact: true }).click();
+  await page
+    .getByRole("dialog")
+    .getByRole("combobox", { name: /^Xona turi/ })
+    .selectOption(type.id);
+  const code = `UI-${unique}`;
+  await page.getByLabel("Xona raqami").fill(code);
+  await saveDialog(page);
+  await expect(page.locator("tbody")).toContainText(code);
+  await page.getByRole("button", { name: "Tariflar", exact: true }).click();
+  await page.getByRole("button", { name: "Qo‘shish", exact: true }).click();
+  const form = page.getByRole("dialog"),
+    rateName = `UI tarif ${unique}`;
+  await form
+    .getByRole("combobox", { name: /^Xona turi/ })
+    .selectOption(type.id);
+  await form.getByLabel("Tarif nomi").fill(rateName);
+  await form.getByLabel("Hisob usuli").selectOption("ROOM");
+  await form.getByLabel("Bir tun narxi").fill("250000");
+  await form.getByLabel("Qaytarish sharti").selectOption({ index: 1 });
+  await saveDialog(page);
+  const rate = page.locator("tbody tr").filter({ hasText: rateName });
+  await rate.getByRole("button", { name: "Tahrirlash", exact: true }).click();
+  await page.getByLabel("Yangi narx").fill("350000");
+  await saveDialog(page);
+  await expect(rate).toContainText("350 000");
+  const localDay = (offset: number) =>
+    new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Tashkent" }).format(
+      Date.now() + offset * 86400000,
+    );
+  await rate.getByRole("button", { name: "Kunlik narx", exact: true }).click();
+  await page.getByRole("dialog").getByLabel(/^Sana/).fill(localDay(5));
+  await page.getByLabel("Kunlik narx (so‘m)").fill("200000");
+  await page.getByLabel("Bu kun sotuvga yopiq").check();
+  await saveDialog(page);
+  await expect(
+    page.locator(".card").filter({
+      has: page.getByRole("heading", {
+        name: "Kunlik o‘zgarishlar",
+        exact: true,
+      }),
+    }),
+  ).toContainText("Yopiq");
+  await page.getByRole("button", { name: "Chegirmalar", exact: true }).click();
+  await page.getByRole("button", { name: "Qo‘shish", exact: true }).click();
+  await page.getByLabel("Chegirma nomi").fill(`UI chegirma ${unique}`);
+  await page.getByRole("dialog").getByLabel(/^Turi/).selectOption("PERCENT");
+  await page.getByLabel("Foiz yoki so‘m").fill("15");
+  await page.getByLabel("Boshlanish — sana").fill(localDay(5));
+  await page.getByLabel("Tugash — sana").fill(localDay(7));
+  await saveDialog(page);
+  await expect(page.locator("tbody")).toContainText("15%");
+  await page
+    .getByRole("button", { name: "Bandlik kalendari", exact: true })
+    .click();
+  await page.getByRole("button", { name: "Ta’mir bloki", exact: true }).click();
+  await page
+    .getByRole("dialog")
+    .getByLabel(/^Xona/)
+    .selectOption({ label: code });
+  await page.getByLabel("Sabab").fill(`UI ta’mir ${unique}`);
+  await saveDialog(page);
+  const block = page
+    .locator("tbody tr")
+    .filter({ hasText: `UI ta’mir ${unique}` });
+  await block
+    .getByRole("button", { name: "Blokni ochish", exact: true })
+    .click();
+  await page.getByLabel("Sabab").fill("Lokal auditda ta’mir yakunlandi");
+  await saveDialog(page);
+  await expect(block).toHaveCount(0);
+  await expect(page.locator(".error-box")).toHaveCount(0);
+});
+
+test("Hisobot auditi: uch sana mezoni, davr filtri va CSV eksport", async ({
+  page,
+}) => {
+  await login(page, "director");
+  await section(page, "Umumiy ko‘rinish");
+  for (const basis of ["CREATED", "PAYMENT", "SERVICE"]) {
+    await page.getByLabel("Bron hisobi mezoni").selectOption(basis);
+    await expect(page.locator("main .skeletons")).toHaveCount(0);
+    await expect(page.locator("main .error-box")).toHaveCount(0);
+  }
+  const date = new Date().toISOString().slice(0, 10);
+  await page.getByLabel("Davr boshi").fill(date.slice(0, 8) + "01");
+  await expect(page.locator("main .skeletons")).toHaveCount(0);
+  const link = page.getByRole("link", {
+    name: "CSV hisobotni yuklash",
+    exact: true,
+  });
+  const exported = await page.request.get(
+    new URL((await link.getAttribute("href")) ?? "", page.url()).href,
+  );
+  expect(exported.ok()).toBe(true);
+  expect(exported.headers()["content-type"]).toContain("text/csv");
+  expect((await exported.body()).length).toBeGreaterThan(20);
+});
+
+for (const role of ["admin", "director", "reception"] as const) {
+  test(`Panel auditi: ${role} barcha bo‘limlar, yuqori tugmalar va telefon menyusi`, async ({
+    page,
+  }, testInfo) => {
+    test.setTimeout(240000);
+    const faults: string[] = [];
+    page.on("pageerror", (e) => faults.push(e.message));
+    await login(page, role);
+    const names = await page.locator("nav button").allTextContents();
+    const reviewed: { section: string; controls: string[] }[] = [];
+    for (const name of names) {
+      await test.step(name.trim(), async () => {
+        await section(page, name.trim());
+        await expect(page.locator("main .error-box")).toHaveCount(0);
+        reviewed.push({
+          section: name.trim(),
+          controls: await page.locator("main button").allTextContents(),
+        });
+      });
+    }
+    await page
+      .getByRole("button", { name: "Parolni almashtirish", exact: true })
+      .click();
+    await expect(page.getByRole("dialog")).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(page.getByRole("dialog")).toHaveCount(0);
+    await page.getByLabel("Bildirishnomalar", { exact: true }).click();
+    await expect(page.locator("main h1")).toHaveText("Bildirishnomalar");
+    await page.setViewportSize({ width: 390, height: 844 });
+    await section(page, names[0].trim());
+    await expect(page.locator(".sidebar")).not.toHaveClass(/open/);
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= window.innerWidth + 1,
+      ),
+    ).toBe(true);
+    mkdirSync(".local/ui-review", { recursive: true });
+    writeFileSync(
+      `.local/ui-review/${role}-controls.json`,
+      JSON.stringify(reviewed, null, 2),
+    );
+    await page.screenshot({
+      path: `.local/ui-review/${role}-mobile.png`,
+      fullPage: true,
+    });
+    await testInfo.attach("Bo‘limlar va ko‘rinadigan tugmalar", {
+      body: JSON.stringify(reviewed, null, 2),
+      contentType: "application/json",
+    });
+    expect(faults).toEqual([]);
+    await page.getByRole("button", { name: "Chiqish", exact: true }).click();
+    await expect(
+      page.getByRole("button", { name: "Kirish", exact: true }),
+    ).toBeVisible();
+  });
+}
+
+test("Panel auditi: barcha asosiy yaratish oynalari, tahrirlar va kalendar bo‘sh sanasi", async ({
+  page,
+}) => {
+  test.setTimeout(240000);
+  const faults: string[] = [];
+  page.on("pageerror", (e) => faults.push(e.message));
+  await login(page, "admin");
+  await page
+    .getByLabel("Sanatoriyani tanlash")
+    .selectOption(access.sanatoriums[0].id);
+  await section(page, "Sanatoriyalar");
+  await openAndCancel(page, "Yangi sanatoriya");
+  const row = page.locator("tbody tr").first();
+  const rowButtons = await row.getByRole("button").allTextContents();
+  for (const name of rowButtons.filter(
+    (name) => name.trim() !== "Profilni ko‘rish",
+  )) {
+    await row.getByRole("button", { name: name.trim(), exact: true }).click();
+    await expect(page.getByRole("dialog")).toBeVisible();
+    await page
+      .getByRole("dialog")
+      .getByRole("button", { name: "Yopish", exact: true })
+      .first()
+      .click();
+  }
+  await section(page, "Jamoa va ruxsatlar");
+  await openAndCancel(page, "Xodim taklif qilish");
+  const staffRow = page
+    .locator("tbody tr")
+    .filter({
+      has: page.getByRole("button", { name: "Ruxsatlar", exact: true }),
+    })
+    .first();
+  if (await staffRow.count()) {
+    for (const label of ["Ruxsatlar", "Parolni tiklash", "Bloklash"]) {
+      if (
+        await staffRow.getByRole("button", { name: label, exact: true }).count()
+      ) {
+        await staffRow
+          .getByRole("button", { name: label, exact: true })
+          .click();
+        await expect(page.getByRole("dialog")).toBeVisible();
+        await page
+          .getByRole("dialog")
+          .getByRole("button", { name: "Yopish", exact: true })
+          .first()
+          .click();
+      }
+    }
+  }
+  await section(page, "Xonalar va tariflar");
+  await page.getByLabel("Kalendar boshi").fill("");
+  await expect(page.locator(".calendar")).toBeVisible();
+  await expect(page.getByLabel("Kalendar boshi")).not.toHaveValue("");
+  await openAndCancel(page, "Ta’mir bloki");
+  for (const tab of ["Xona turlari", "Xonalar", "Tariflar", "Chegirmalar"]) {
+    await page
+      .locator("main")
+      .getByRole("button", { name: tab, exact: true })
+      .click();
+    await openAndCancel(page, "Qo‘shish");
+  }
+  for (const [menu, button] of [
+    ["Sanatoriyaga o‘tkazma", "O‘tkazma tayyorlash"],
+    ["Xabarlar", "Yuborish"],
+    ["Vazifalar", "Vazifa berish"],
+    ["Yordam xizmati", "Murojaat yaratish"],
+    ["To‘lovlarni solishtirish", "Reestr import qilish"],
+    ["Yangilik va tavsiyalar", "Maqola yozish"],
+    ["Reklama", "Reklama so‘rash"],
+  ]) {
+    await section(page, menu);
+    await openAndCancel(page, button);
+  }
+  await section(page, "Abonent va hisoblar");
+  for (const [tab, button] of [
+    ["Abonent tariflari", "Tarif yaratish"],
+    ["Abonentlar", "Abonent biriktirish"],
+    ["Refund shartlari", "Yangi shart"],
+  ]) {
+    await page
+      .locator("main")
+      .getByRole("button", { name: tab, exact: true })
+      .click();
+    await openAndCancel(page, button);
+  }
+  expect(faults).toEqual([]);
+});
+
+test("Anketa: uch javob turi, majburiy maydon, saqlangan javob va admin natijasi", async ({
+  page,
+  browser,
+}) => {
+  test.setTimeout(150000);
+  await login(page, "admin");
+  const title = `UI tekshiruv anketasi ${Date.now()}`;
+  await section(page, "Anketalar");
+  await page
+    .getByRole("button", { name: "Anketa yaratish", exact: true })
+    .click();
+  await page.getByLabel("Savollar soni").fill("3");
+  await page
+    .getByRole("dialog")
+    .getByRole("button", { name: "Saqlash", exact: true })
+    .click();
+  const dialog = page.getByRole("dialog");
+  await expect(dialog.getByLabel("Anketa nomi")).toBeVisible();
+  await dialog.getByLabel("Anketa nomi").fill(title);
+  for (const checkbox of await dialog
+    .locator('input[name="sanatorium_ids"]')
+    .all())
+    await checkbox.check();
+  await dialog
+    .getByRole("textbox", { name: /^1-savol/ })
+    .fill("Xizmat haqida fikringiz");
+  await dialog.getByRole("textbox", { name: /^2-savol/ }).fill("Tayyormisiz");
+  await dialog
+    .getByRole("textbox", { name: /^3-savol/ })
+    .fill("Mehmonlar soni");
+  await dialog.getByLabel("2-javob turi").selectOption("BOOLEAN");
+  await dialog.getByLabel("3-javob turi").selectOption("NUMBER");
+  await dialog.getByRole("button", { name: "Saqlash", exact: true }).click();
+  await expect(dialog).toHaveCount(0);
+  const context = await browser.newContext();
+  const director = await context.newPage();
+  await login(director, "director");
+  await section(director, "Anketalar");
+  const row = director.locator("tbody tr").filter({ hasText: title });
+  await row.getByRole("button", { name: "Javob berish", exact: true }).click();
+  const answer = director.getByRole("dialog");
+  await answer
+    .getByLabel("Xizmat haqida fikringiz")
+    .fill("Qulay va tushunarli");
+  await answer.getByLabel("Tayyormisiz").selectOption("false");
+  await answer.getByLabel("Mehmonlar soni").fill("2");
+  await answer.getByRole("button", { name: "Saqlash", exact: true }).click();
+  await expect(answer).toHaveCount(0);
+  await expect(row).toContainText("Javob berilgan");
+  await director.reload();
+  await expect(row).toContainText("Javob berilgan");
+  await row
+    .getByRole("button", { name: "Javobimni ko‘rish", exact: true })
+    .click();
+  await expect(director.locator("main")).toContainText("Qulay va tushunarli");
+  await expect(director.locator("main")).toContainText("Yo‘q");
+  await director
+    .locator("main")
+    .getByRole("button", { name: "Yopish", exact: true })
+    .first()
+    .click();
+  await page.reload();
+  await expect(
+    page.locator("tbody tr").filter({ hasText: title }),
+  ).toContainText("1 /");
+  await context.close();
+});
+
+test("Reklama: joy tanlash, chegirma, sana, ma’qullash va to‘xtatish public bo‘shliqni boshqaradi", async ({
+  page,
+  browser,
+}) => {
+  test.setTimeout(180000);
+  const context = await browser.newContext(),
+    director = await context.newPage();
+  await login(director, "director");
+  const title = `UI reklama ${Date.now()}`;
+  await section(director, "Reklama");
+  await director
+    .getByRole("button", { name: "Reklama so‘rash", exact: true })
+    .click();
+  const form = director.getByRole("dialog");
+  await form.getByLabel("Reklama sarlavhasi").fill(title);
+  await form.getByLabel("Bosilganda qayerga o‘tsin?").selectOption("URL");
+  await form
+    .getByRole("textbox", { name: /^Havola/ })
+    .fill("https://example.com/taklif");
+  await form
+    .getByRole("button", { name: "Profil rasmi 1", exact: true })
+    .click();
+  await form.getByLabel("Chegirma bormi?").check();
+  await form.getByLabel("Chegirma foizi").fill("15");
+  await form.getByLabel("Chegirma sharti").fill("Ish kunlarida");
+  await form.getByRole("button", { name: "7 kun", exact: true }).click();
+  const localDay = (offset: number) =>
+    new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Tashkent" }).format(
+      Date.now() + offset * 86400000,
+    );
+  await form.getByLabel("Boshlanish — sana").fill(localDay(-1));
+  await form.getByLabel("Tugash — sana").fill(localDay(7));
+  await form
+    .getByRole("button", { name: "Tasdiqlashga yuborish", exact: true })
+    .click();
+  await expect(form).toHaveCount(0);
+  await login(page, "admin");
+  await page
+    .getByLabel("Sanatoriyani tanlash")
+    .selectOption(access.sanatoriums[0].id);
+  await section(page, "Reklama");
+  const row = page.locator("tbody tr").filter({ hasText: title });
+  await row.getByRole("button", { name: "Ma’qullash", exact: true }).click();
+  await saveDialog(page);
+  await expect(row).toContainText("Tasdiqlangan");
+  const publicAds = await browserApi(page, "/catalog/ads");
+  expect(publicAds.body.some((ad: any) => ad.title === title)).toBe(true);
+  await row.getByRole("button", { name: "To‘xtatish", exact: true }).click();
+  await saveDialog(page);
+  await expect(row).toContainText("Arxivlangan");
+  expect(
+    (await browserApi(page, "/catalog/ads")).body.some(
+      (ad: any) => ad.title === title,
+    ),
+  ).toBe(false);
+  await context.close();
 });

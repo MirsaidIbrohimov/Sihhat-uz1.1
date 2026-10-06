@@ -135,8 +135,8 @@ class SanatoriumCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final photos = item['photo_ids'] as List?;
-    return Card(
-      clipBehavior: Clip.antiAlias,
+    return GlassCard(
+      padding: EdgeInsets.zero,
       margin: const EdgeInsets.only(bottom: 16),
       child: InkWell(
         onTap: open,
@@ -294,71 +294,103 @@ class SanatoriumCard extends StatelessWidget {
   }
 }
 
-Future<void> messageDialog(
+Future<bool> messageDialog(
   BuildContext context,
   String title,
   Future<void> Function(String) submit, {
   String button = 'Yuborish',
 }) async {
-  final text = TextEditingController();
-  await showDialog<void>(
+  final sent = await showDialog<bool>(
     context: context,
-    builder: (dialogContext) {
-      bool busy = false;
-      String? error;
-      return StatefulBuilder(
-        builder: (context, set) => AlertDialog(
-          title: Text(title),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: text,
-                minLines: 2,
-                maxLines: 5,
-                decoration: const InputDecoration(labelText: 'Izoh'),
-              ),
-              if (error != null)
-                Padding(
-                  padding: const EdgeInsets.only(top: 12),
-                  child: Text(
-                    error!,
-                    style: TextStyle(
-                      color: Theme.of(context).colorScheme.error,
-                    ),
-                  ),
-                ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: busy ? null : () => Navigator.pop(dialogContext),
-              child: const Text('Yopish'),
-            ),
-            FilledButton(
-              onPressed: busy
-                  ? null
-                  : () async {
-                      if (text.text.trim().length < 3) {
-                        set(() => error = 'Kamida 3 belgi yozing.');
-                        return;
-                      }
-                      set(() => busy = true);
-                      try {
-                        await submit(text.text.trim());
-                        if (dialogContext.mounted) Navigator.pop(dialogContext);
-                      } catch (e) {
-                        set(() => error = e.toString());
-                      } finally {
-                        if (dialogContext.mounted) set(() => busy = false);
-                      }
-                    },
-              child: Text(busy ? 'Yuborilmoqda…' : button),
-            ),
-          ],
-        ),
-      );
-    },
+    barrierDismissible: false,
+    builder: (_) =>
+        _MessageDialog(title: title, submit: submit, button: button),
   );
-  text.dispose();
+  return sent ?? false;
+}
+
+class _MessageDialog extends StatefulWidget {
+  final String title, button;
+  final Future<void> Function(String) submit;
+  const _MessageDialog({
+    required this.title,
+    required this.submit,
+    required this.button,
+  });
+  @override
+  State<_MessageDialog> createState() => _MessageDialogState();
+}
+
+class _MessageDialogState extends State<_MessageDialog> {
+  final text = TextEditingController();
+  bool busy = false;
+  String? error;
+  @override
+  void dispose() {
+    text.dispose();
+    super.dispose();
+  }
+
+  Future<void> send() async {
+    if (busy) return;
+    final value = text.text.trim();
+    if (value.length < 3) {
+      setState(() => error = 'Kamida 3 belgi yozing.');
+      return;
+    }
+    setState(() {
+      busy = true;
+      error = null;
+    });
+    try {
+      await widget.submit(value);
+      if (!mounted) return;
+      setState(() => busy = false);
+      Navigator.pop(context, true);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        busy = false;
+        error = e.toString();
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => PopScope(
+    canPop: !busy,
+    child: AlertDialog(
+      title: Text(widget.title),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          TextField(
+            controller: text,
+            enabled: !busy,
+            minLines: 2,
+            maxLines: 5,
+            decoration: const InputDecoration(labelText: 'Izoh'),
+          ),
+          if (error != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 12),
+              child: Text(
+                error!,
+                style: TextStyle(color: Theme.of(context).colorScheme.error),
+              ),
+            ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: busy ? null : () => Navigator.pop(context),
+          child: const Text('Yopish'),
+        ),
+        FilledButton(
+          onPressed: busy ? null : send,
+          child: Text(busy ? 'Yuborilmoqda…' : widget.button),
+        ),
+      ],
+    ),
+  );
 }

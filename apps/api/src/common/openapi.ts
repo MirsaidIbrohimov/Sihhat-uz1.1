@@ -43,7 +43,7 @@ export function enrichOpenApi(document:OpenAPIObject){
     WebSession:obj({user:ref('PublicUser'),expires_at:timestamp,csrf_token:str}),
     MobileSession:obj({user:ref('PublicUser'),access_token:str,refresh_token:str,csrf_token:str,expires_at:timestamp,refresh_expires_at:timestamp,session_id:id}),
     OtpChallenge:obj({challenge_id:id,expires_at:timestamp,resend_after:{...integer,description:'Seconds until another OTP may be requested.'}}),
-    Actor:obj({id,kind:{...str,enum:['SUPERADMIN','STAFF','CUSTOMER']},name:str,phone:{...str,nullable:true},login:{...str,nullable:true},sessionId:id,mustChangePassword:boolean,memberships:array(obj({id,sanatoriumId:id,role:str,status:str,permissions:array(str),version:integer})),csrf_token:{...str,nullable:true}}),
+    Actor:obj({id,kind:{...str,enum:['SUPERADMIN','STAFF','CUSTOMER']},name:str,phone:{...str,nullable:true},login:{...str,nullable:true},sessionId:id,idleTimeoutSeconds:{...integer,nullable:true,description:'Web idle limit: superadmin 7200, staff 14400 seconds. Mobile has no panel idle limit.'},lastActivityAt:timestamp,mustChangePassword:boolean,memberships:array(obj({id,sanatoriumId:id,role:str,status:str,permissions:array(str),version:integer})),csrf_token:{...str,nullable:true}}),
     PaymentOrder:obj({id,sanatoriumId:id,userId:id,bookingId:{...id,nullable:true},invoiceId:{...id,nullable:true},purpose:{...str,enum:['BOOKING','SUBSCRIPTION','AD']},amount:money,status:{...str,enum:['CREATED','SUCCEEDED','CANCELLED']},paidAt:{...timestamp,nullable:true},createdAt:timestamp}),
     RefundRequest:obj({id,bookingId:id,sanatoriumId:id,requestedBy:id,amount:money,status:{...str,enum:['REQUESTED','APPROVED','REJECTED','PROCESSING','SUCCEEDED']},reason:str,decisionReason:{...str,nullable:true},reserveAccount:str,createdAt:timestamp,completedAt:{...timestamp,nullable:true}}),
     BookingItem:obj({id,sanatoriumId:id,bookingId:id,roomId:id,roomTypeId:id,ratePlanId:id,adults:integer,childrenAges:array(integer),amount:money}),
@@ -60,7 +60,7 @@ export function enrichOpenApi(document:OpenAPIObject){
   schemas.RefundPage=page(ref('RefundRequest'));
   schemas.PublicArticle=obj({id,title:str,summary:str,body:str,kind:{...str,enum:['NEWS','TIP']},published_at:{...timestamp,nullable:true}});
   schemas.HomeFeed=obj({generated_at:timestamp,sanatorium_count:integer,featured:array({type:'object',additionalProperties:true}),regions:array(str),news:array(ref('PublicArticle')),tips:array({type:'object',additionalProperties:true})});
-  schemas.AiReply=obj({message:str,cards:array({type:'object',additionalProperties:true}),faq:array({type:'object',additionalProperties:true}),fallback:boolean,provider_status:{...str,enum:['conversation','catalog','consent_required','connected','unavailable','daily_limit','medical_guidance']},provider_message_shared:boolean,actions:array(str),can_execute_financial_actions:{...boolean,enum:[false]}});
+  schemas.AiReply=obj({message:str,cards:array({type:'object',additionalProperties:true}),faq:array({type:'object',additionalProperties:true}),fallback:boolean,provider_status:{...str,enum:['catalog','consent_required','connected','unavailable','daily_limit']},provider_message_shared:boolean,actions:array(str),can_execute_financial_actions:{...boolean,enum:[false]}});
   const bodies:Record<string,any>={
     '/superadmin/sanatoriums':obj({name:str}),'/superadmin/sanatoriums/{id}/config':obj({version:integer,payment_ready:boolean,subscription_required:boolean},['version','payment_ready']),
     '/superadmin/director-assignments':{$ref:'#/components/schemas/StaffRequest'},'/partner/staff-invitations':{$ref:'#/components/schemas/StaffRequest'},
@@ -81,12 +81,12 @@ export function enrichOpenApi(document:OpenAPIObject){
     '/superadmin/payouts':obj({sanatorium_id:id,booking_ids:array(id)}),'/superadmin/payouts/{id}/verify-bank-result':obj({bank_reference:str,evidence_asset_id:id,verified:{type:'boolean',enum:[true]}}),
     '/superadmin/subscription-plans':obj({name:str,amount:money,period_days:integer,grace_days:integer,features:array(str)}),
     '/superadmin/subscriptions':obj({sanatorium_id:id,plan_id:id,trial_days:integer},['sanatorium_id','plan_id']),
-    '/partner/ad-campaigns':obj({sanatorium_id:id,title:str,placement:{type:'string',enum:['HOME','SEARCH']},starts_at:timestamp,ends_at:timestamp,image_asset_id:id,text:str}),
-    '/superadmin/ad-campaigns/{id}/approve':obj({amount:money,reason:str},['amount']),'/superadmin/ad-campaigns/{id}/reject':requiredReason,
+    '/partner/ad-campaigns':obj({sanatorium_id:id,title:str,placement:{type:'string',enum:['HOME','POPUP']},starts_at:timestamp,ends_at:timestamp,image_asset_id:id,text:str,target_kind:{type:'string',enum:['SANATORIUM','URL']},target_sanatorium_id:id,target_url:{type:'string',format:'uri',maxLength:2048},has_discount:{type:'boolean'},discount_percent:{type:'integer',minimum:1,maximum:100},discount_text:{type:'string',maxLength:120}},['sanatorium_id','title','placement','starts_at','ends_at','image_asset_id']),
+    '/superadmin/ad-campaigns/{id}/approve':obj({reason:str},[]),'/superadmin/ad-campaigns/{id}/reject':requiredReason,
     '/messages':obj({title:str,body:str,kind:{type:'string',enum:['MESSAGE','WARNING']},asset_ids:array(id),recipient_ids:array(id)},['title','body','recipient_ids']),
     '/messages/{id}/receipt':obj({accepted:boolean},[]),'/superadmin/announcements':obj({sanatorium_ids:array(id),title:str,body:str,kind:{type:'string',enum:['MESSAGE','WARNING']},asset_ids:array(id)},['title','body','kind']),
     '/tasks':obj({sanatorium_id:id,assigned_to:id,title:str,body:str,due_at:timestamp}),'/tasks/{id}':obj({version:integer,status:{type:'string',enum:['ACCEPTED','COMPLETED']},reply:str},['version','status']),
-    '/superadmin/surveys':obj({title:str,recipient_ids:array(id),questions:array(obj({id:str,label:str,type:{type:'string',enum:['TEXT','BOOLEAN','NUMBER']},required:boolean}))}),
+    '/superadmin/surveys':obj({title:str,sanatorium_ids:array(id),recipient_ids:array(id),questions:array(obj({id:str,label:str,type:{type:'string',enum:['TEXT','BOOLEAN','NUMBER']},required:boolean}))},['title','questions']),
     '/surveys/{id}/responses':obj({version:integer,answers:{type:'object',additionalProperties:{oneOf:[str,boolean,{type:'number'}]}}}),
     '/reviews':obj({booking_id:id,rating:{type:'integer',minimum:1,maximum:5},text:str}),'/partner/reviews/{id}/reply':obj({reply:str}),'/superadmin/reviews/{id}/moderate':obj({status:{type:'string',enum:['PUBLISHED','HIDDEN']},reason:str}),
     '/support/tickets':obj({title:str,text:str,booking_id:id,sanatorium_id:id},['title','text']),'/support/tickets/{id}/messages':obj({text:str,close:boolean},['text']),

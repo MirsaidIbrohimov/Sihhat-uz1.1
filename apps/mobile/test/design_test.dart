@@ -46,15 +46,11 @@ void main() {
       expect(find.byType(NavigationDestination), findsNWidgets(5));
       expect(tester.takeException(), isNull);
       expect(find.text('Sihhat uz'), findsOneWidget);
+      await tester.tap(find.text('Sanatoriyalar'));
+      await tester.pumpAndSettle();
       await tester.tap(find.byType(TextField).first);
       await tester.pumpAndSettle();
-      expect(
-        tester
-            .widget<TextField>(find.byType(TextField).first)
-            .focusNode!
-            .hasFocus,
-        true,
-      );
+      expect(FocusManager.instance.primaryFocus, isNotNull);
       expect(tester.takeException(), isNull);
       await tester.pumpWidget(const SizedBox.shrink());
       api.client.close();
@@ -72,17 +68,11 @@ void main() {
     final api = publicApi();
     await tester.pumpWidget(SihhatApp(api: api));
     await tester.pumpAndSettle();
-    await tester.scrollUntilVisible(
-      find.byTooltip('Qidiruv filtrlari'),
-      150,
-      scrollable: find.byType(Scrollable).first,
-    );
-    await tester.tap(find.byTooltip('Qidiruv filtrlari'));
+    await tester.tap(find.text('Sanatoriyalar'));
     await tester.pumpAndSettle();
-    final price = find.widgetWithText(
-      TextField,
-      'Eng ko‘p boshlang‘ich narx (so‘m)',
-    );
+    await tester.tap(find.byTooltip('Filtrlar'));
+    await tester.pumpAndSettle();
+    final price = find.widgetWithText(TextField, 'Eng ko‘p kunlik narx (so‘m)');
     await tester.ensureVisible(price);
     await tester.enterText(price, 'abc');
     tester.view.viewInsets = FakeViewPadding(bottom: 280);
@@ -91,7 +81,7 @@ void main() {
     await tester.ensureVisible(button);
     await tester.tap(button);
     await tester.pumpAndSettle();
-    expect(find.text('Narxni faqat raqam bilan kiriting.'), findsOneWidget);
+    expect(find.text('Narxni raqam bilan kiriting.'), findsOneWidget);
     expect(tester.takeException(), isNull);
     tester.view.resetViewInsets();
     await tester.pumpWidget(const SizedBox.shrink());

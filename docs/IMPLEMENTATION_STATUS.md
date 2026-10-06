@@ -1,18 +1,62 @@
 # Sihhat uz — amalga oshirish holati
 
-Yangilangan: 2026-10-05. Asos: ISHLAB_CHIQISH_REJASI.md va SIHHAT_UZ_ARXITEKTURA.md.
+Yangilangan: 2026-10-06. Asos: ISHLAB_CHIQISH_REJASI.md va SIHHAT_UZ_ARXITEKTURA.md.
 
 | Bosqich | Holat | Dalil |
 | --- | --- | --- |
-| B0 — poydevor | Lokal tekshiruv o‘tdi | NestJS, PostgreSQL 18.6, sakkizta migratsiya, health API; migratsiyalar lokal, test va toza scratch bazada qo‘llandi |
-| B1 — hisoblar va ruxsatlar | Lokal tekshiruv o‘tdi | MFA, OTP, tenant, bloklash va CSRF testlari; telefon almashtirish qo‘shildi |
+| B0 — poydevor | Lokal tekshiruv o‘tdi | NestJS, PostgreSQL 18.6, 10 migratsiya va health API; toza scratch bazada barcha 10 migratsiya tekshirildi |
+| B1 — hisoblar va ruxsatlar | Lokal tekshiruv o‘tdi | MFA, OTP, tenant, bloklash, CSRF va telefon almashtirish; superadmin 2 soat, direktor/resepsion 4 soat faolsiz bo‘lsa server sessiyani rad etadi |
 | B2–B8 — backend domenlari | Asosiy lokal oqimlar amalga oshirildi va tekshirildi | Anketa, moderatsiya, xona/narx/bron, Payme va Tezcheck adapterlari, ledger, refund/payout, billing va aloqa APIlari |
 | B9 — katalog, hisobot va AI | Katalog/hisobot, FAQ, Gemini va AI sarfi hisoboti mavjud | Haqiqiy Gemini javobi tekshirildi; rozilik, shaxsiy ma’lumot niqobi, kunlik limit, token/model/davr bo‘yicha sarf, sozlangan narxlar bilan USD taxmini va fallback bor |
-| B10 — backend qabul | Lokal qabul to‘plami o‘tdi; tashqi tekshiruv cheklovlari quyida | PostgreSQLda 62/62 test; OpenAPI va runbook yangilandi; clean migration va avvalgi backup dalillari quyida |
+| B10 — backend qabul | Lokal qabul to‘plami o‘tdi; tashqi tekshiruv cheklovlari quyida | PostgreSQLda 79/79 test; OpenAPI va runbook yangilandi; 10 migratsiya toza scratch bazada tekshirildi; avvalgi backup dalillari quyida |
 | F1/F2 — saytlar | APIga ulangan sahifalar, AI sarfi/Tezcheck holati, Telegram ulash va brauzer sinovlari o‘tdi | Ikkala Next.js buildi, TypeScript; oxirgi umumiy brauzer runida 11/11 ssenariy o‘tdi |
 | Telegram — xodimlar boti | Kod, lokal worker va rasmiy API ulanishi tayyor | Admin/direktor/resepsion menyusi, xavfsiz ulash, ruxsat tekshiruvi, vazifa/murojaat wizardlari va outbox bildirishnomalari; haqiqiy xodim ulashi hali bajarilmagan |
-| F3 — Android | Telefon/SMS tasdig‘idan keyin ochiladigan sahifalar, lokal demo SMS, logo va kunduzgi/tungi rejim, wellness UI va debug preview tayyor | Flutter analyze; 30/30 test; Samsung preview dalillari quyida. Avvalgi bron/tiklanish va release imzo dalillari ham saqlangan; HTTPS API hali belgilanmagan |
+| F3 — Android | Namuna asosidagi UI, o‘z logo, funksional tezkor kartalar, faqat reklama mavjud bo‘lganda chiqadigan joy va debug preview tayyor | Flutter analyze; 38/38 test. Telefon/SMS, bron/tiklanish va oldingi release imzo dalillari saqlangan; haqiqiy HTTPS API hali belgilanmagan |
 | R1 — real pilot | Gemini, Eskiz va Tezcheck rekvizitlari olindi; pilot to‘liq emas | Gemini ulandi, Eskiz standart SMSi yetib keldi, Tezcheck o‘qish endpointlari HTTP 200. Kassa draft; haqiqiy OTP, HTTPS, merchant to‘lovi/webhook, push va real sanatoriya piloti qolgan |
+
+## 2026-10-06 GitHubga tayyorlangan o‘zgarishlar
+
+- Android bosh sahifasi berilgan namunaga moslashtirildi; katalog, bron,
+  AI va yordamga ulangan tezkor kartalar, kichik ekran/katta shrift mosligi,
+  ikki bosqichli bron va takroriy yordam xabarini cheklash qo‘shildi.
+  Ikki soatdan eski to‘lovsiz bron mijoz tarixidan yashiriladi; moliyaviy
+  va xodim yozuvlari saqlanadi.
+- HOME/POPUP reklama joylari, rasm, havola, chegirma va muddat tekshiriladi.
+  Reklama admin tasdiqlagach bepul chiqadi. Bo‘sh yoki xato ro‘yxatda
+  Android reklama blokiga joy ajratmaydi; ro‘yxat davriy yangilanadi.
+- Panellarda sana/soat Toshkent vaqtiga moslashtirildi; anketa savollari,
+  saqlangan javoblar va admin natijalari ko‘rinadi. Xodim/vazifa oluvchilari
+  sanatoriya bo‘yicha filtrlanadi; xonalar va tariflar shakllari yangilandi.
+- Superadminning 2 soat, direktor/resepsionning 4 soat faolsiz sessiyasi
+  serverda rad etiladi. Background tekshiruv va token yangilanishi bu
+  muddatni uzaytirmaydi. O‘ninchi migratsiya `Session.lastActivityAt`ni qo‘shadi.
+  Bootstrap MFA ma’lumoti konsolga chiqarilmaydi, private faylga yoziladi.
+- To‘qqizinchi migratsiya sanatoriyaning merchant ulanish metadata sini
+  qo‘shadi. Bank/STIR, tenant va versiya tekshiriladi. Shaklni saqlash
+  haqiqiy to‘lovni yoqmaydi; direct checkout hali `MERCHANT_NOT_READY`
+  bilan to‘xtaydi. Tafsilotlar [MERCHANT_CONNECTIONS.md](MERCHANT_CONNECTIONS.md)da.
+- Foydalanish tartibi [RUNBOOK.md](RUNBOOK.md), UI qamrovi va cheklovlar
+  [UI_REVIEW.md](UI_REVIEW.md)da. Maxfiy fayllar, lokal hisoblar, baza/media
+  zaxiralari, SDK/keshlar va build/APKlar Gitga kiritilmaydi.
+
+GitHubga yuborish oldidan 2026-10-06 qayta tekshiruv:
+
+| Tekshiruv | Natija |
+| --- | --- |
+| `npm run build:api` | Prisma Client va API TypeScript buildi o‘tdi |
+| `npm run build:web` | Superadmin va hamkorlar Next.js buildlari o‘tdi |
+| `npm run check` | API, ikkala web, API client va UI TypeScript tekshiruvi o‘tdi |
+| `npm test` | Alohida `sihhat_test` bazasida **79/79**, xato/skipped **0** |
+| `npm run mobile:check` | Formatda o‘zgarish **0**, analyzer xatosi **0**, **38/38** test |
+| `npm run db:migrations:verify -w @sihhat/api` | Toza lokal bazada **10 migratsiya**, xona exclusion cheklovi va **4 ledger guard** tekshirildi |
+| `npm run openapi` | `docs/openapi.json` joriy endpoint va sxemalarga mos qayta yaratildi |
+| `npm run check:secrets` | Gitga yuboriladigan fayllarda maxfiy qiymat mosligi **0** |
+
+Lokal PostgreSQL qayta ishga tushirilgandan keyin backend va migratsiya
+tekshiruvlari bajarildi. Brauzerning avvalgi **11/11** dalili saqlanadi;
+Playwright to‘plami va haqiqiy qurilma sinovi bu sanada qayta bajarilmadi.
+Bu lokal tekshiruvlar; haqiqiy provider qabul sinovi yoki production
+deploymenti bajarilgani deb hisoblanmaydi.
 
 ## 2026-10-05 Barcha lokal xizmatlarni ishga tushirish
 

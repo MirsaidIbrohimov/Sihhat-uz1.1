@@ -93,18 +93,18 @@ void main() {
       await tester.enterText(find.byType(TextField).last, sms['code']);
       await tapText('Tasdiqlash');
       expect(api.signedIn, true);
-      await waitFor(find.text('Sog‘lom dam olish shu yerdan boshlanadi.'));
+      await waitFor(find.text('Siz uchun takliflar'));
       await tapText('Bronlar');
       debugPrint('Android test: OTP login passed');
-      await tapText('Katalog');
+      await tapText('Sanatoriyalar');
       await waitFor(find.text(fixture['sanatorium_name']));
       await tapText(fixture['sanatorium_name']);
       await tapText('Sana va xonalarni tanlash');
       await waitFor(find.byType(BookingComposer));
       debugPrint('Android test: booking composer opened');
       await tapText('Yana xona qo‘shish');
-      await tapText('Narx va bo‘sh joyni tekshirish');
-      await waitFor(find.text('Bron hisobi'));
+      await tapText('Davom etish');
+      await waitFor(find.text('2 / 2 · Bronni tasdiqlang'));
       debugPrint('Android test: two-room quote received');
       final name = find.byWidgetPredicate(
         (w) =>
@@ -118,8 +118,8 @@ void main() {
       );
       await reveal(phone);
       await tester.enterText(phone, fixture['phone']);
-      await tapText('Qaytarish shartlarini o‘qidim va qabul qilaman.');
-      await tapText('Xonalarni band qilish va to‘lash');
+      await tapText('Shartlarni o‘qidim va qabul qilaman');
+      await tapText('Bronni tasdiqlash');
       await waitFor(find.byType(BookingScreen));
       await waitFor(find.text('To‘lovga o‘tish'));
       final pending = await api.getPendingBooking();

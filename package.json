@@ -21,6 +21,7 @@
     "dev:partner": "npm run dev -w @sihhat/partner-web",
     "build:web": "npm run build -w @sihhat/superadmin-web && npm run build -w @sihhat/partner-web",
     "test:web": "playwright test",
+    "test:web:fixture": "node node_modules/tsx/dist/cli.mjs --tsconfig apps/api/tsconfig.json apps/api/scripts/web-fixture.ts",
     "backup:verify": "node scripts/backup-restore.mjs",
     "mobile:signing:init": "node scripts/mobile-signing.mjs",
     "mobile:check": "node scripts/check-mobile.mjs",

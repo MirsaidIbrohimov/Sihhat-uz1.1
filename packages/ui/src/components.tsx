@@ -29,6 +29,8 @@ import {
   type Page,
 } from "@sihhat/api-client";
 import { SelectionGroup } from "./selections";
+import { DateTimePicker, TimePicker } from "./date-time";
+import { AgeList, ChildPrices, TextList } from "./value-editors";
 
 export type Row = Record<string, any>;
 export type Field = {
@@ -49,6 +51,9 @@ export type Field = {
     | "checks"
     | "checkbox"
     | "csv"
+    | "ages"
+    | "child-prices"
+    | "string-list"
     | "file"
     | "email";
   required?: boolean;
@@ -67,6 +72,7 @@ export type FormSpec = {
   title: string;
   description?: string;
   fields: Field[];
+  content?: ReactNode;
   submit: (values: Row) => Promise<unknown>;
   button?: string;
   done?: () => void;
@@ -127,15 +133,27 @@ export const options = (rows: Row[], label = "name", id = "id") =>
   }));
 export const list = (value: any): Row[] =>
   Array.isArray(value) ? value : (value?.data ?? []);
-export const date = (value: any) =>
-  value
-    ? new Intl.DateTimeFormat("uz-UZ", {
-        timeZone: "Asia/Tashkent",
-        day: "2-digit",
-        month: "short",
-        year: "numeric",
-      }).format(new Date(value))
-    : "—";
+export function date(value: any) {
+  const parsed = value ? new Date(value) : null;
+  if (!parsed || Number.isNaN(parsed.getTime())) return "—";
+  return new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Asia/Tashkent",
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  })
+    .format(parsed)
+    .replaceAll("/", ".");
+}
+export function dateTime(value: any) {
+  if (date(value) === "—") return "—";
+  return `${date(value)} ${new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Asia/Tashkent",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).format(new Date(value))}`;
+}
 export const localDate = (offset = 0) =>
   new Date(Date.now() + offset * 86400000).toLocaleDateString("en-CA", {
     timeZone: "Asia/Tashkent",
@@ -513,6 +531,7 @@ export function useAction() {
     ctx.form({
       title,
       fields,
+      button: fields.length ? "Saqlash" : title,
       submit: (v) => api(path, method, { ...body, ...v }),
       done: () => {
         ctx.refresh();
@@ -543,6 +562,28 @@ export async function uploadAsset(
     base64,
   });
 }
+function FormField({
+  type,
+  className,
+  children,
+}: {
+  type: Field["type"];
+  className: string;
+  children: ReactNode;
+}) {
+  // Composite controls carry their own names; wrapping them in one label
+  // incorrectly renames their first button and associates multiple inputs.
+  const Container = [
+    "ages",
+    "child-prices",
+    "string-list",
+    "time",
+    "datetime-local",
+  ].includes(type ?? "")
+    ? "div"
+    : "label";
+  return <Container className={className}>{children}</Container>;
+}
 export function FormDialog({
   spec,
   onClose,
@@ -556,11 +597,12 @@ export function FormDialog({
     [error, setError] = useState<string | null>(null),
     [details, setDetails] = useState<Row[]>([]);
   const formRef = useRef<HTMLFormElement>(null),
-    id = useId();
+    id = useId(),
+    busyRef = useRef(false);
   useEffect(() => {
     const previous = document.activeElement as HTMLElement;
     const listener = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && !busy) onClose();
+      if (e.key === "Escape" && !busyRef.current) onClose();
       if (e.key === "Tab") {
         const nodes = Array.from(
           formRef.current?.querySelectorAll<HTMLElement>(
@@ -586,9 +628,11 @@ export function FormDialog({
       document.removeEventListener("keydown", listener);
       previous?.focus();
     };
-  }, [busy, onClose]);
+  }, [onClose]);
   async function submit(e: React.FormEvent) {
     e.preventDefault();
+    if (busyRef.current) return;
+    busyRef.current = true;
     setBusy(true);
     setError(null);
     setDetails([]);
@@ -598,9 +642,23 @@ export function FormDialog({
       for (const f of spec.fields) {
         const v = data.get(f.key);
         if (f.type === "checkbox") values[f.key] = v === "on";
-        else if (["multi", "switches", "checks"].includes(f.type ?? ""))
+        else if (
+          ["ages", "child-prices", "string-list"].includes(f.type ?? "")
+        ) {
+          const list = JSON.parse(String(v ?? "[]"));
+          if (!Array.isArray(list))
+            throw new Error(`${f.label}: tanlovni tekshiring.`);
+          if (f.required && !list.length)
+            throw new Error(`${f.label}: kamida bitta band kiriting.`);
+          values[f.key] =
+            f.type === "child-prices"
+              ? list.map((row) => ({ ...row, amount: toMinor(row.amount) }))
+              : list;
+        } else if (["multi", "switches", "checks"].includes(f.type ?? "")) {
           values[f.key] = data.getAll(f.key);
-        else if (f.type === "file") {
+          if (f.required && !values[f.key].length)
+            throw new Error(`${f.label}: kamida bittasini belgilang.`);
+        } else if (f.type === "file") {
           if (v instanceof File && v.size) values[f.key] = v;
         } else if (v !== null && String(v) !== "") {
           values[f.key] =
@@ -627,6 +685,7 @@ export function FormDialog({
       if (e instanceof ApiError && Array.isArray(e.details))
         setDetails(e.details);
     } finally {
+      busyRef.current = false;
       setBusy(false);
     }
   }
@@ -654,94 +713,125 @@ export function FormDialog({
           </button>
         </div>
         <form ref={formRef} onSubmit={submit}>
-          <div className="form-grid">
-            {spec.fields.map((f) =>
-              f.type === "switches" || f.type === "checks" ? (
-                <SelectionGroup
-                  key={f.key}
-                  name={f.key}
-                  label={f.label}
-                  options={f.options ?? []}
-                  defaultValue={f.value ?? []}
-                  switches={f.type === "switches"}
-                  hint={f.hint}
-                />
-              ) : (
-                <label
-                  key={f.key}
-                  className={`field ${f.type === "textarea" || f.type === "multi" ? "wide" : ""}`}
-                >
-                  <span>
-                    {f.label}
-                    {f.required && <b className="required"> *</b>}
-                  </span>
-                  {f.type === "textarea" ? (
-                    <textarea
-                      name={f.key}
-                      defaultValue={f.value ?? ""}
-                      required={f.required}
-                      minLength={f.minLength}
-                      maxLength={f.maxLength}
-                      rows={4}
-                    />
-                  ) : f.type === "select" || f.type === "multi" ? (
-                    <select
-                      name={f.key}
-                      multiple={f.type === "multi"}
-                      defaultValue={f.value ?? (f.type === "multi" ? [] : "")}
-                      required={f.required}
-                    >
-                      {f.type !== "multi" && <option value="">Tanlang</option>}
-                      {f.options?.map((o) => (
-                        <option
-                          value={o.value}
-                          disabled={o.disabled}
-                          key={o.value}
-                        >
-                          {o.label}
-                        </option>
-                      ))}
-                    </select>
-                  ) : f.type === "checkbox" ? (
-                    <div className="check-field">
-                      <input
+          <fieldset disabled={busy} className="form-grid form-fields">
+            {spec.content ??
+              spec.fields.map((f) =>
+                f.type === "switches" || f.type === "checks" ? (
+                  <SelectionGroup
+                    key={f.key}
+                    name={f.key}
+                    label={f.label}
+                    options={f.options ?? []}
+                    defaultValue={f.value ?? []}
+                    switches={f.type === "switches"}
+                    hint={f.hint}
+                  />
+                ) : (
+                  <FormField
+                    key={f.key}
+                    type={f.type}
+                    className={`field ${f.type === "textarea" || f.type === "multi" ? "wide" : ""}`}
+                  >
+                    <span>
+                      {f.label}
+                      {f.required && <b className="required"> *</b>}
+                    </span>
+                    {f.type === "ages" ? (
+                      <AgeList name={f.key} label={f.label} value={f.value} />
+                    ) : f.type === "child-prices" ? (
+                      <ChildPrices
                         name={f.key}
-                        type="checkbox"
-                        defaultChecked={!!f.value}
+                        label={f.label}
+                        value={f.value}
+                      />
+                    ) : f.type === "string-list" ? (
+                      <TextList name={f.key} label={f.label} value={f.value} />
+                    ) : f.type === "time" ? (
+                      <TimePicker
+                        name={f.key}
+                        label={f.label}
+                        value={f.value ?? ""}
                         required={f.required}
                       />
-                      <span>{f.hint ?? "Ha"}</span>
-                    </div>
-                  ) : (
-                    <input
-                      name={f.key}
-                      type={
-                        ["money", "csv"].includes(f.type ?? "")
-                          ? "text"
-                          : (f.type ?? "text")
-                      }
-                      defaultValue={
-                        f.type === "file" ? undefined : (f.value ?? "")
-                      }
-                      required={f.required}
-                      min={f.min}
-                      max={f.max}
-                      step={f.step}
-                      minLength={f.minLength}
-                      maxLength={f.maxLength}
-                      pattern={f.pattern}
-                      accept={f.accept}
-                      inputMode={f.type === "money" ? "decimal" : undefined}
-                      autoComplete={
-                        f.type === "password" ? "new-password" : undefined
-                      }
-                    />
-                  )}{" "}
-                  {f.hint && f.type !== "checkbox" && <small>{f.hint}</small>}
-                </label>
-              ),
-            )}
-          </div>
+                    ) : f.type === "datetime-local" ? (
+                      <>
+                        <DateTimePicker
+                          name={f.key}
+                          label={f.label}
+                          value={f.value ?? ""}
+                          required={f.required}
+                        />
+                        <small>Toshkent vaqti (UTC+5), 24 soatlik format</small>
+                      </>
+                    ) : f.type === "textarea" ? (
+                      <textarea
+                        name={f.key}
+                        defaultValue={f.value ?? ""}
+                        required={f.required}
+                        minLength={f.minLength}
+                        maxLength={f.maxLength}
+                        rows={4}
+                      />
+                    ) : f.type === "select" || f.type === "multi" ? (
+                      <select
+                        name={f.key}
+                        multiple={f.type === "multi"}
+                        defaultValue={f.value ?? (f.type === "multi" ? [] : "")}
+                        required={f.required}
+                      >
+                        {f.type !== "multi" && (
+                          <option value="">Tanlang</option>
+                        )}
+                        {f.options?.map((o) => (
+                          <option
+                            value={o.value}
+                            disabled={o.disabled}
+                            key={o.value}
+                          >
+                            {o.label}
+                          </option>
+                        ))}
+                      </select>
+                    ) : f.type === "checkbox" ? (
+                      <div className="check-field">
+                        <input
+                          name={f.key}
+                          type="checkbox"
+                          defaultChecked={!!f.value}
+                          required={f.required}
+                        />
+                        <span>{f.hint ?? "Ha"}</span>
+                      </div>
+                    ) : (
+                      <input
+                        name={f.key}
+                        type={
+                          ["money", "csv"].includes(f.type ?? "")
+                            ? "text"
+                            : (f.type ?? "text")
+                        }
+                        defaultValue={
+                          f.type === "file" ? undefined : (f.value ?? "")
+                        }
+                        required={f.required}
+                        min={f.min}
+                        max={f.max}
+                        step={f.step}
+                        minLength={f.minLength}
+                        maxLength={f.maxLength}
+                        pattern={f.pattern}
+                        accept={f.accept}
+                        inputMode={f.type === "money" ? "decimal" : undefined}
+                        autoComplete={
+                          f.type === "password" ? "new-password" : undefined
+                        }
+                      />
+                    )}{" "}
+                    {f.hint && f.type !== "checkbox" && <small>{f.hint}</small>}
+                  </FormField>
+                ),
+              )}
+          </fieldset>
           {error && <ErrorBox message={error} />}{" "}
           {!!details.length && (
             <ul className="validation-list">

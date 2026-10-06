@@ -30,6 +30,7 @@ const schema = z.object({
   WORKER_MODE: z.enum(['database', 'redis']).default('database'),
   REDIS_URL: z.string().default('redis://127.0.0.1:6379'),
   PAYMENT_MODE: z.enum(['local', 'payme', 'tezcheck']).default('local'),
+  BOOKING_SETTLEMENT_MODE: z.enum(['direct', 'legacy_platform']).default('direct'),
   TEZCHECK_API_KEY: z.string().default(''),
   TEZCHECK_CASH_DESK_CODE: z.string().max(128).default(''),
   TEZCHECK_WEBHOOK_SECRET: z.string().default(''),
@@ -72,6 +73,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
   if (c.SMS_ADAPTER === 'eskiz' && !c.ESKIZ_TOKEN && !(c.ESKIZ_EMAIL && c.ESKIZ_PASSWORD)) throw new Error('Eskiz: API token yoki login rekvizitlari kerak');
   if (!c.ESKIZ_OTP_TEMPLATE.includes('{code}')) throw new Error('Eskiz: OTP shablonida {code} bo‘lishi kerak');
   if (c.NODE_ENV === 'production') {
+    if (c.BOOKING_SETTLEMENT_MODE !== 'direct') throw new Error('Production: yangi bronlar sanatoriyaning o‘z merchant hisobiga yo‘naltirilishi kerak');
     if (c.SMS_ADAPTER === 'eskiz' && !c.ESKIZ_OTP_APPROVED) throw new Error('Production: Eskiz OTP hisobini va shablonini tasdiqlash kerak');
     if (c.SMS_ADAPTER === 'local' || (c.SMS_ADAPTER === 'http' && (!c.SMS_HTTP_URL || !c.SMS_HTTP_TOKEN))) throw new Error('Production: haqiqiy SMS adapteri kerak');
     if (c.PAYMENT_MODE === 'local' || (c.PAYMENT_MODE === 'payme' && (!c.PAYME_KEY || !c.PAYME_MERCHANT_ID))) throw new Error('Production: merchant rekvizitlari kerak');

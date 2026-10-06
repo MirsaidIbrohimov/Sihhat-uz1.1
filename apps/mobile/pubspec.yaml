@@ -66,6 +66,7 @@ flutter:
   uses-material-design: true
   assets:
     - assets/branding/sihhat-logo.jpg
+    - assets/illustrations/wellness-retreat.png
 
   # To add assets to your application, add an assets section, like this:
   # assets:

@@ -47,7 +47,7 @@ class _BookingComposerState extends State<BookingComposer> {
   Json newRoom() => {
     'rate_id': rows(widget.sanatorium['rate_plans']).first['id'],
     'adults': 1,
-    'children': '',
+    'children': <int>[],
   };
   @override
   void dispose() {
@@ -64,18 +64,7 @@ class _BookingComposerState extends State<BookingComposer> {
       'check_out': dateOnly(dates.end),
       'items': items.map((item) {
         final r = rates.firstWhere((r) => r['id'] == item['rate_id']);
-        final children = item['children']
-            .toString()
-            .split(',')
-            .where((s) => s.trim().isNotEmpty)
-            .map((s) => int.tryParse(s.trim()) ?? -1)
-            .toList();
-        if (children.any((a) => a < 0 || a > 17)) {
-          throw const ApiException(
-            'AGE_INVALID',
-            'Bolalar yoshi 0–17 orasida bo‘lsin.',
-          );
-        }
+        final children = List<int>.from(item['children']);
         return {
           'room_type_id': r['roomTypeId'],
           'rate_plan_id': r['id'],
@@ -155,273 +144,356 @@ class _BookingComposerState extends State<BookingComposer> {
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final s = widget.sanatorium, rates = rows(s['rate_plans']);
-    return Scaffold(
-      appBar: AppBar(title: const Text('Bron yaratish')),
-      bottomNavigationBar: ActionDock(
-        amount: quote == null ? null : money(quote!['amount']),
-        caption: 'Yakuniy bron narxi',
-        label: busy
-            ? 'Hisoblanmoqda…'
-            : quote == null
-            ? 'Narx va bo‘sh joyni tekshirish'
-            : 'Xonalarni band qilish va to‘lash',
-        onPressed: busy
-            ? null
-            : quote == null
-            ? calculate
-            : accepted
-            ? hold
-            : null,
-      ),
-      body: ListView(
-        padding: const EdgeInsets.all(20),
+  Future<void> pickDates() async {
+    final now = DateTime.now();
+    final result = await showDateRangePicker(
+      context: context,
+      firstDate: DateTime(now.year, now.month, now.day),
+      lastDate: DateTime(now.year + 2, now.month, now.day),
+      initialDateRange: dates,
+      helpText: 'Kelish va ketish sanalari',
+      saveText: 'Tanlash',
+    );
+    if (mounted && result != null) changed(() => dates = result);
+  }
+
+  Widget room(int n, Json item, List<Json> rates, Json s) {
+    final rate = rates.firstWhere((r) => r['id'] == item['rate_id']);
+    final type = rows(s['room_types'])
+        .firstWhere((r) => r['id'] == rate['roomTypeId']);
+    final children = List<int>.from(item['children']);
+    return GlassCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            s['name'],
-            style: TextStyle(
-              fontSize: 23,
-              fontWeight: FontWeight.w700,
-              color: context.colors.ink,
-            ),
-          ),
-          const SizedBox(height: 16),
-          Container(
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: context.colors.soft,
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Text(
-              quote == null
-                  ? '1. Sana  →  2. Xona va mehmonlar  →  3. Bron hisobi'
-                  : 'Bron hisobi tayyor. Mehmon ma’lumotlari va qaytarish shartlarini tasdiqlang.',
-              style: TextStyle(
-                color: context.colors.primary,
-                fontSize: 12,
-                height: 1.5,
-              ),
-            ),
-          ),
-          const SizedBox(height: 16),
-          Card(
-            child: ListTile(
-              leading: Icon(Icons.date_range, color: context.colors.primary),
-              title: Text('${dateOnly(dates.start)} — ${dateOnly(dates.end)}'),
-              subtitle: Text('${dates.duration.inDays} tun'),
-              trailing: const Icon(Icons.edit_calendar_outlined),
-              onTap: busy
-                  ? null
-                  : () async {
-                      final now = DateTime.now(),
-                          result = await showDateRangePicker(
-                            context: context,
-                            firstDate: DateTime(now.year, now.month, now.day),
-                            lastDate: DateTime(
-                              now.year + 2,
-                              now.month,
-                              now.day,
-                            ),
-                            initialDateRange: dates,
-                            helpText: 'Kelish va ketish sanalari',
-                            saveText: 'Tanlash',
-                          );
-                      if (mounted && result != null) {
-                        changed(() => dates = result);
-                      }
-                    },
-            ),
-          ),
-          const SizedBox(height: 16),
-          ...items.asMap().entries.map((e) {
-            final n = e.key,
-                item = e.value,
-                rate = rates.firstWhere((r) => r['id'] == item['rate_id']),
-                type = rows(s['room_types'])
-                    .firstWhere((t) => t['id'] == rate['roomTypeId']);
-            return Card(
-              child: Padding(
-                padding: const EdgeInsets.all(18),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          '${n + 1}-xona',
-                          style: const TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                        if (items.length > 1)
-                          IconButton(
-                            tooltip: 'Xonani olib tashlash',
-                            onPressed: busy
-                                ? null
-                                : () => changed(() => items.removeAt(n)),
-                            icon: const Icon(Icons.close),
-                          ),
-                      ],
-                    ),
-                    DropdownButtonFormField<String>(
-                      key: ValueKey('rate-$n-${item['rate_id']}'),
-                      initialValue: item['rate_id'],
-                      isExpanded: true,
-                      decoration: const InputDecoration(
-                        labelText: 'Xona va tarif',
-                      ),
-                      items: rates
-                          .map(
-                            (r) => DropdownMenuItem<String>(
-                              value: r['id'],
-                              child: Text(
-                                '${r['name']} · ${money(r['baseAmount'])}',
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                          )
-                          .toList(),
-                      onChanged: busy
-                          ? null
-                          : (v) => changed(() => item['rate_id'] = v),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      '${type['name']} · sig‘im ${type['maxGuests']} mehmon',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: context.colors.muted,
-                      ),
-                    ),
-                    Row(
-                      children: [
-                        const Expanded(child: Text('Kattalar')),
-                        IconButton(
-                          onPressed: busy || item['adults'] <= 1
-                              ? null
-                              : () => changed(() => item['adults']--),
-                          icon: const Icon(Icons.remove_circle_outline),
-                        ),
-                        Text('${item['adults']}'),
-                        IconButton(
-                          onPressed: busy || item['adults'] >= type['maxAdults']
-                              ? null
-                              : () => changed(() => item['adults']++),
-                          icon: const Icon(Icons.add_circle_outline),
-                        ),
-                      ],
-                    ),
-                    TextFormField(
-                      key: ValueKey(item),
-                      initialValue: item['children'],
-                      enabled: !busy,
-                      keyboardType: TextInputType.number,
-                      decoration: const InputDecoration(
-                        labelText: 'Bolalar yoshi',
-                        hintText: 'Masalan: 4, 9',
-                        helperText: 'Bola yo‘q bo‘lsa bo‘sh qoldiring.',
-                      ),
-                      onChanged: (v) => changed(() => item['children'] = v),
-                    ),
-                  ],
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  '${n + 1}-xona',
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
               ),
-            );
-          }),
-          if (items.length < 10)
+              if (items.length > 1)
+                IconButton(
+                  tooltip: 'Xonani olib tashlash',
+                  onPressed: busy
+                      ? null
+                      : () => changed(() => items.removeAt(n)),
+                  icon: const Icon(Icons.close),
+                ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          DropdownButtonFormField<String>(
+            key: ValueKey('rate-$n-${item['rate_id']}'),
+            initialValue: item['rate_id'],
+            isExpanded: true,
+            decoration: const InputDecoration(labelText: 'Xona turi'),
+            items: rates
+                .map(
+                  (r) => DropdownMenuItem<String>(
+                    value: r['id'],
+                    child: Text(
+                      '${r['name']} · ${money(r['baseAmount'])}',
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                )
+                .toList(),
+            onChanged: busy
+                ? null
+                : (v) => changed(() {
+                    item['rate_id'] = v;
+                    final selected = rates.firstWhere((r) => r['id'] == v);
+                    final capacity = rows(s['room_types'])
+                        .firstWhere((r) => r['id'] == selected['roomTypeId']);
+                    item['adults'] = (item['adults'] as int).clamp(
+                      1,
+                      capacity['maxAdults'] as int,
+                    );
+                    item['children'] = <int>[];
+                  }),
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              const Expanded(child: Text('Kattalar')),
+              IconButton(
+                tooltip: 'Kattani kamaytirish',
+                onPressed: busy || item['adults'] <= 1
+                    ? null
+                    : () => changed(() => item['adults']--),
+                icon: const Icon(Icons.remove_circle_outline),
+              ),
+              Text(
+                '${item['adults']}',
+                style: const TextStyle(fontWeight: FontWeight.w700),
+              ),
+              IconButton(
+                tooltip: 'Kattani qo‘shish',
+                onPressed:
+                    busy ||
+                        item['adults'] >= type['maxAdults'] ||
+                        item['adults'] + children.length >= type['maxGuests']
+                    ? null
+                    : () => changed(() => item['adults']++),
+                icon: const Icon(Icons.add_circle_outline),
+              ),
+            ],
+          ),
+          for (var c = 0; c < children.length; c++)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: DropdownButtonFormField<int>(
+                      key: ValueKey('child-$n-$c-${children[c]}'),
+                      initialValue: children[c],
+                      decoration: InputDecoration(
+                        labelText: '${c + 1}-bola yoshi',
+                      ),
+                      items: List.generate(
+                        18,
+                        (age) => DropdownMenuItem(
+                          value: age,
+                          child: Text('$age yosh'),
+                        ),
+                      ),
+                      onChanged: busy
+                          ? null
+                          : (v) => changed(() {
+                              children[c] = v!;
+                              item['children'] = children;
+                            }),
+                    ),
+                  ),
+                  IconButton(
+                    tooltip: 'Bolani olib tashlash',
+                    onPressed: busy
+                        ? null
+                        : () => changed(() {
+                            children.removeAt(c);
+                            item['children'] = children;
+                          }),
+                    icon: const Icon(Icons.close),
+                  ),
+                ],
+              ),
+            ),
+          if (children.length < type['maxChildren'] &&
+              item['adults'] + children.length < type['maxGuests'])
             TextButton.icon(
               onPressed: busy
                   ? null
-                  : () => changed(() => items.add(newRoom())),
-              icon: const Icon(Icons.add),
-              label: const Text('Yana xona qo‘shish'),
+                  : () => changed(() => item['children'] = [...children, 5]),
+              icon: const Icon(Icons.child_care_outlined),
+              label: const Text('Bola qo‘shish'),
             ),
-          const SizedBox(height: 16),
-          if (error != null) ErrorView(error!),
-          if (quote != null) ...[
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final s = widget.sanatorium, rates = rows(s['rate_plans']);
+    final confirming = quote != null;
+    return Scaffold(
+      appBar: AppBar(title: const Text('Bron qilish')),
+      bottomNavigationBar: ActionDock(
+        amount: confirming ? money(quote!['amount']) : null,
+        caption: '${dates.duration.inDays} tun · ${items.length} xona',
+        label: busy
+            ? 'Kutilmoqda…'
+            : confirming
+            ? 'Bronni tasdiqlash'
+            : 'Davom etish',
+        onPressed: busy
+            ? null
+            : confirming
+            ? (accepted ? hold : null)
+            : calculate,
+      ),
+      body: GlassBackdrop(
+        child: ListView(
+          key: ValueKey(confirming),
+          padding: const EdgeInsets.all(20),
+          children: [
+            Text(
+              s['name'],
+              style: TextStyle(
+                fontSize: 23,
+                fontWeight: FontWeight.w800,
+                color: context.colors.ink,
+              ),
+            ),
+            const SizedBox(height: 10),
+            Text(
+              confirming
+                  ? '2 / 2 · Bronni tasdiqlang'
+                  : '1 / 2 · Sana va mehmonlarni tanlang',
+              style: TextStyle(
+                color: context.colors.primary,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
             const SizedBox(height: 20),
-            Card(
-              color: context.colors.soft,
-              child: Padding(
-                padding: const EdgeInsets.all(20),
+            if (!confirming) ...[
+              GlassCard(
+                padding: EdgeInsets.zero,
+                child: ListTile(
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 12,
+                  ),
+                  leading: Icon(
+                    Icons.date_range_outlined,
+                    color: context.colors.primary,
+                  ),
+                  title: Text(
+                    '${dateOnly(dates.start)} — ${dateOnly(dates.end)}',
+                  ),
+                  subtitle: Text('${dates.duration.inDays} tun'),
+                  trailing: const Icon(Icons.edit_calendar_outlined),
+                  onTap: busy ? null : pickDates,
+                ),
+              ),
+              ...items.asMap().entries.map(
+                (e) => room(e.key, e.value, rates, s),
+              ),
+              if (items.length < 10)
+                OutlinedButton.icon(
+                  onPressed: busy
+                      ? null
+                      : () => changed(() => items.add(newRoom())),
+                  icon: const Icon(Icons.add),
+                  label: const Text('Yana xona qo‘shish'),
+                ),
+            ] else ...[
+              GlassCard(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
-                      'Bron hisobi',
-                      style: TextStyle(
-                        fontWeight: FontWeight.w700,
-                        fontSize: 19,
-                      ),
+                    Text(
+                      '${dateOnly(dates.start)} — ${dateOnly(dates.end)}',
+                      style: const TextStyle(fontWeight: FontWeight.w700),
                     ),
                     const SizedBox(height: 12),
                     ...rows(quote!['data']['items']).map(
                       (i) => Padding(
-                        padding: const EdgeInsets.only(bottom: 10),
+                        padding: const EdgeInsets.only(bottom: 8),
                         child: Text(
-                          '${i['room_type_name']} · ${quote!['data']['nights']} tun: ${money(i['amount'])}',
+                          '${i['room_type_name']} · ${quote!['data']['nights']} tun · ${money(i['amount'])}',
                         ),
                       ),
                     ),
+                    const Divider(),
                     Text(
                       'Jami: ${money(quote!['amount'])}',
                       style: TextStyle(
                         fontWeight: FontWeight.w800,
-                        fontSize: 21,
+                        fontSize: 23,
                         color: context.colors.primary,
                       ),
                     ),
-                    const SizedBox(height: 12),
-                    ...rows(quote!['data']['policies']).map(
-                      (p) => Text(
-                        '${p['name']}${p['kind'] == 'FULL_BEFORE_CUTOFF' ? ' · kelishdan ${p['cutoff_hours']} soat oldingacha to‘liq refund' : ''}',
-                        style: const TextStyle(fontSize: 12, height: 1.8),
-                      ),
+                    TextButton.icon(
+                      onPressed: busy ? null : () => changed(() {}),
+                      icon: const Icon(Icons.edit_outlined),
+                      label: const Text('Sana yoki xonani o‘zgartirish'),
                     ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Taklif 10 daqiqa amal qiladi. Bron yaratishda narx va inventar yana tekshiriladi.',
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: context.colors.muted,
+                  ],
+                ),
+              ),
+              GlassCard(
+                child: AutofillGroup(
+                  child: Column(
+                    children: [
+                      TextField(
+                        controller: name,
+                        enabled: !busy,
+                        textCapitalization: TextCapitalization.words,
+                        textInputAction: TextInputAction.next,
+                        decoration: const InputDecoration(
+                          labelText: 'Mehmon ism-familiyasi',
+                          prefixIcon: Icon(Icons.person_outline),
+                        ),
+                        autofillHints: const [AutofillHints.name],
+                      ),
+                      const SizedBox(height: 16),
+                      TextField(
+                        controller: phone,
+                        enabled: !busy,
+                        keyboardType: TextInputType.phone,
+                        autofillHints: const [AutofillHints.telephoneNumber],
+                        decoration: const InputDecoration(
+                          labelText: 'Mehmon telefoni',
+                          prefixIcon: Icon(Icons.phone_outlined),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              GlassCard(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 4,
+                ),
+                child: Column(
+                  children: [
+                    ExpansionTile(
+                      tilePadding: EdgeInsets.zero,
+                      title: const Text(
+                        'Bekor qilish va pulni qaytarish shartlari',
+                        style: TextStyle(fontSize: 14),
+                      ),
+                      children: [
+                        ...rows(quote!['data']['policies']).map(
+                          (p) => Padding(
+                            padding: const EdgeInsets.only(bottom: 12),
+                            child: Text(
+                              p['kind'] == 'FULL_BEFORE_CUTOFF'
+                                  ? '${p['name']}. Kelishdan ${p['cutoff_hours']} soat oldingacha to‘liq qaytariladi.'
+                                  : '${p['name']}. To‘lov qaytarilmaydi.',
+                              style: TextStyle(
+                                color: context.colors.muted,
+                                fontSize: 13,
+                                height: 1.5,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    CheckboxListTile(
+                      contentPadding: EdgeInsets.zero,
+                      value: accepted,
+                      controlAffinity: ListTileControlAffinity.leading,
+                      onChanged: busy
+                          ? null
+                          : (v) => setState(() => accepted = v ?? false),
+                      title: const Text(
+                        'Shartlarni o‘qidim va qabul qilaman',
+                        style: TextStyle(fontSize: 14),
                       ),
                     ),
                   ],
                 ),
               ),
-            ),
-            const SizedBox(height: 20),
-            TextField(
-              controller: name,
-              decoration: const InputDecoration(
-                labelText: 'Mehmon ism-familiyasi',
+            ],
+            if (error != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 16),
+                child: ErrorView(error!),
               ),
-              autofillHints: const [AutofillHints.name],
-            ),
-            const SizedBox(height: 14),
-            TextField(
-              controller: phone,
-              keyboardType: TextInputType.phone,
-              decoration: const InputDecoration(labelText: 'Mehmon telefoni'),
-            ),
-            CheckboxListTile(
-              contentPadding: EdgeInsets.zero,
-              value: accepted,
-              onChanged: busy
-                  ? null
-                  : (v) => setState(() => accepted = v ?? false),
-              title: const Text(
-                'Qaytarish shartlarini o‘qidim va qabul qilaman.',
-                style: TextStyle(fontSize: 13),
-              ),
-            ),
+            const SizedBox(height: 24),
           ],
-          const SizedBox(height: 30),
-        ],
+        ),
       ),
     );
   }
@@ -434,8 +506,31 @@ class BookingsScreen extends StatefulWidget {
   State<BookingsScreen> createState() => _BookingsScreenState();
 }
 
-class _BookingsScreenState extends State<BookingsScreen> {
+class _BookingsScreenState extends State<BookingsScreen>
+    with WidgetsBindingObserver {
   int page = 1, epoch = 0;
+  Timer? timer;
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    timer = Timer.periodic(const Duration(minutes: 1), (_) {
+      if (mounted) setState(() => epoch++);
+    });
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed && mounted) setState(() => epoch++);
+  }
+
+  @override
+  void dispose() {
+    timer?.cancel();
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) => AsyncContent(
     key: ValueKey('$page:$epoch'),
@@ -883,20 +978,22 @@ class _BookingScreenState extends State<BookingScreen>
                         ),
                       ),
                     ),
-                  if (b['status'] == 'HOLD')
+                  if (['HOLD', 'PAYMENT_PENDING'].contains(b['status']))
                     TextButton(
-                      onPressed: () => messageDialog(
-                        context,
-                        'To‘lovsiz bronni bekor qilish',
-                        (reason) async {
-                          await widget.api.send(
-                            '/customer/bookings/${widget.id}/cancel',
-                            method: 'POST',
-                            body: {'reason': reason},
-                          );
-                          await refresh();
-                        },
-                      ),
+                      onPressed: busy
+                          ? null
+                          : () => messageDialog(
+                              context,
+                              'Bronni bekor qilish',
+                              (reason) async {
+                                await widget.api.send(
+                                  '/customer/bookings/${widget.id}/cancel',
+                                  method: 'POST',
+                                  body: {'reason': reason},
+                                );
+                                await refresh();
+                              },
+                            ),
                       child: const Text('Bronni bekor qilish'),
                     ),
                   if (b['payment']?['status'] == 'SUCCEEDED' &&

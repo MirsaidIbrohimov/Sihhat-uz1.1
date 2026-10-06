@@ -1,10 +1,13 @@
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-const forest = Color(0xff16634d);
-const midnight = Color(0xff183c32);
-const mint = Color(0xffe7f2ec);
-const canvasColor = Color(0xfff5f8f6);
+const forest = Color(0xff00866c);
+const midnight = Color(0xff083f38);
+const mint = Color(0xffe6f5f0);
+const canvasColor = Color(0xfff6faf9);
+const masthead = Color(0xff043b33);
 const muted = Color(0xff657b72);
 
 @immutable
@@ -30,7 +33,7 @@ class SihhatColors extends ThemeExtension<SihhatColors> {
       soft: dark ? const Color(0xff203e31) : mint,
       canvas: dark ? const Color(0xff101d18) : canvasColor,
       surface: dark ? const Color(0xff1b2c24) : Colors.white,
-      border: dark ? const Color(0xff3c5548) : const Color(0xffe3ebe6),
+      border: dark ? const Color(0xff3c5548) : const Color(0xffdcece6),
       warning: dark ? const Color(0xff45371e) : const Color(0xfffff2dc),
     );
   }
@@ -131,7 +134,7 @@ ThemeData sihhatTheme({Brightness brightness = Brightness.light}) {
       ),
     ),
     cardTheme: CardThemeData(
-      color: colors.surface,
+      color: colors.surface.withValues(alpha: .78),
       elevation: 0,
       margin: const EdgeInsets.only(bottom: 12),
       shape: RoundedRectangleBorder(
@@ -142,7 +145,7 @@ ThemeData sihhatTheme({Brightness brightness = Brightness.light}) {
     ),
     inputDecorationTheme: InputDecorationTheme(
       filled: true,
-      fillColor: colors.surface,
+      fillColor: colors.surface.withValues(alpha: .85),
       contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 18),
       border: border,
       enabledBorder: border,
@@ -174,15 +177,15 @@ ThemeData sihhatTheme({Brightness brightness = Brightness.light}) {
       style: IconButton.styleFrom(minimumSize: const Size(48, 48)),
     ),
     navigationBarTheme: NavigationBarThemeData(
-      height: 74,
-      backgroundColor: colors.surface,
+      height: 76,
+      backgroundColor: masthead,
       surfaceTintColor: Colors.transparent,
-      indicatorColor: colors.soft,
+      indicatorColor: const Color(0xff087d63),
       iconTheme: WidgetStateProperty.resolveWith(
         (states) => IconThemeData(
           color: states.contains(WidgetState.selected)
-              ? colors.primary
-              : colors.muted,
+              ? const Color(0xff66e1b9)
+              : const Color(0xffbbd6d0),
         ),
       ),
       labelTextStyle: WidgetStateProperty.resolveWith(
@@ -192,8 +195,8 @@ ThemeData sihhatTheme({Brightness brightness = Brightness.light}) {
               ? FontWeight.w800
               : FontWeight.w500,
           color: states.contains(WidgetState.selected)
-              ? colors.primary
-              : colors.muted,
+              ? const Color(0xff66e1b9)
+              : const Color(0xffbbd6d0),
         ),
       ),
     ),
@@ -221,95 +224,179 @@ ThemeData sihhatTheme({Brightness brightness = Brightness.light}) {
   );
 }
 
+class GlassBackdrop extends StatelessWidget {
+  final Widget child;
+  const GlassBackdrop({required this.child, super.key});
+  @override
+  Widget build(BuildContext context) => DecoratedBox(
+    decoration: BoxDecoration(
+      gradient: LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [
+          context.colors.soft,
+          context.colors.canvas,
+          context.colors.soft.withValues(alpha: .45),
+        ],
+        stops: const [0, .6, 1],
+      ),
+    ),
+    child: child,
+  );
+}
+
+class GlassCard extends StatelessWidget {
+  final Widget child;
+  final EdgeInsetsGeometry padding, margin;
+  const GlassCard({
+    required this.child,
+    this.padding = const EdgeInsets.all(20),
+    this.margin = const EdgeInsets.only(bottom: 16),
+    super.key,
+  });
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: margin,
+    child: ClipRRect(
+      borderRadius: BorderRadius.circular(26),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+        child: Container(
+          padding: padding,
+          decoration: BoxDecoration(
+            color: context.colors.surface.withValues(alpha: .68),
+            borderRadius: BorderRadius.circular(26),
+            border: Border.all(
+              color: context.colors.surface.withValues(alpha: .85),
+            ),
+          ),
+          child: Material(type: MaterialType.transparency, child: child),
+        ),
+      ),
+    ),
+  );
+}
+
 class WellnessHero extends StatelessWidget {
   final VoidCallback? search;
   const WellnessHero({this.search, super.key});
   @override
   Widget build(BuildContext context) => ClipRRect(
-    borderRadius: BorderRadius.circular(28),
-    child: Container(
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0xff124e3e), Color(0xff2d8063)],
+    borderRadius: BorderRadius.circular(22),
+    child: Stack(
+      children: [
+        Positioned.fill(
+          child: Image.asset(
+            'assets/illustrations/wellness-retreat.png',
+            fit: BoxFit.cover,
+            alignment: Alignment.centerRight,
+            excludeFromSemantics: true,
+          ),
         ),
-      ),
-      child: Stack(
-        children: [
-          const Positioned.fill(
-            child: ExcludeSemantics(
-              child: CustomPaint(painter: RetreatLandscape(dark: true)),
+        Positioned.fill(
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  const Color(0xff043c33).withValues(alpha: .94),
+                  const Color(0xff043c33).withValues(alpha: .60),
+                  Colors.transparent,
+                ],
+                stops: const [0, .57, 1],
+              ),
             ),
           ),
-          Padding(
-            padding: const EdgeInsets.all(24),
+        ),
+        Padding(
+          padding: const EdgeInsets.all(18),
+          child: FractionallySizedBox(
+            widthFactor: .78,
+            alignment: Alignment.centerLeft,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Row(
-                  children: [
-                    Icon(
-                      Icons.spa_outlined,
-                      color: Color(0xffd6e9b6),
-                      size: 18,
-                    ),
-                    SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        'O‘ZINGIZ UCHUN VAQT',
-                        style: TextStyle(
-                          color: Color(0xffd6e9b6),
-                          fontSize: 10,
-                          letterSpacing: 1.5,
-                          fontWeight: FontWeight.w700,
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 6,
+                  ),
+                  decoration: BoxDecoration(
+                    color: const Color(0xff158364).withValues(alpha: .8),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.spa_rounded, color: Colors.white, size: 15),
+                      SizedBox(width: 6),
+                      Flexible(
+                        child: Text(
+                          'Yangi imkoniyat',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                       ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 14),
-                const Text(
-                  'Sog‘lom dam olish shu yerdan boshlanadi.',
-                  style: TextStyle(
-                    fontSize: 27,
-                    fontWeight: FontWeight.w800,
-                    color: Colors.white,
-                    height: 1.17,
-                    letterSpacing: -.7,
+                    ],
                   ),
                 ),
-                const SizedBox(height: 12),
-                const Text(
-                  'O‘zbekiston sanatoriyalarini kashf eting.',
+                const SizedBox(height: 10),
+                const Text.rich(
+                  TextSpan(
+                    children: [
+                      TextSpan(text: 'Sog‘lom hayot\nsari '),
+                      TextSpan(
+                        text: 'bir qadam!',
+                        style: TextStyle(color: Color(0xff4dd5aa)),
+                      ),
+                    ],
+                  ),
                   style: TextStyle(
-                    color: Color(0xffe1eee5),
-                    fontSize: 13,
-                    height: 1.5,
+                    fontSize: 23,
+                    height: 1.12,
+                    color: Colors.white,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                const Text(
+                  'O‘zingizga mos sanatoriya va sog‘lomlashtirish maskanini toping, bron qiling.',
+                  style: TextStyle(
+                    color: Color(0xffe2f5ed),
+                    fontSize: 12,
+                    height: 1.45,
                   ),
                 ),
                 if (search != null) ...[
-                  const SizedBox(height: 18),
-                  FilledButton.icon(
+                  const SizedBox(height: 14),
+                  FilledButton(
                     onPressed: search,
                     style: FilledButton.styleFrom(
-                      backgroundColor: const Color(0xffe6f0c6),
+                      backgroundColor: const Color(0xff4dd5aa),
                       foregroundColor: midnight,
-                      minimumSize: const Size(48, 48),
+                      minimumSize: const Size(48, 44),
                       padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 12,
+                        horizontal: 14,
+                        vertical: 10,
                       ),
                     ),
-                    icon: const Icon(Icons.search_rounded, size: 20),
-                    label: const Text('Sanatoriya topish'),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Flexible(child: Text('Qidirishni boshlash')),
+                        SizedBox(width: 8),
+                        Icon(Icons.arrow_forward_rounded, size: 18),
+                      ],
+                    ),
                   ),
                 ],
               ],
             ),
           ),
-        ],
-      ),
+        ),
+      ],
     ),
   );
 }

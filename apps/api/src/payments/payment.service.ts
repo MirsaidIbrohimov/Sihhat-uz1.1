@@ -28,6 +28,10 @@ export class PaymentService {
   async checkout(actor:Actor,bookingId:string,key:string|undefined){parse(uuid,bookingId);return this.db.idempotent(actor.id,'payment.checkout',key,{booking_id:bookingId},async tx=>{
     const b=await tx.booking.findUnique({where:{id:bookingId}});if(!b||b.userId!==actor.id)fail('NOT_FOUND','Bron topilmadi',404);await financialLock(tx,b.sanatoriumId);const current=await tx.booking.findUniqueOrThrow({where:{id:bookingId}});
     if(!['HOLD','PAYMENT_PENDING'].includes(current.status)||(current.status==='HOLD'&&current.holdExpiresAt!<=new Date()))fail('PAYMENT_UNAVAILABLE','Bron to‘lov uchun yaroqli emas');
+    if(this.config.PAYMENT_MODE!=='local'&&this.config.BOOKING_SETTLEMENT_MODE==='direct') {
+      const old = await tx.paymentOrder.findUnique({where:{bookingId}});
+      if(!old||!await tx.providerTransaction.findFirst({where:{orderId:old.id,state:{in:[1,2]}}}))fail('MERCHANT_NOT_READY','Sanatoriyaning o‘z to‘lov hisobi hali ulanmagan.',503);
+    }
     const order=await tx.paymentOrder.upsert({where:{bookingId},create:{bookingId,sanatoriumId:b.sanatoriumId,userId:actor.id,purpose:'BOOKING',amount:b.amount},update:{}});return this.checkoutResult(order);
   });}
   checkoutResult(order:{id:string;amount:bigint;purpose:string}){

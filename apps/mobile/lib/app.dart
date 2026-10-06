@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 
 import 'data/api.dart';
@@ -8,6 +9,8 @@ import 'design.dart';
 import 'screens/account.dart';
 import 'screens/booking.dart';
 import 'screens/catalog.dart';
+import 'screens/home.dart';
+import 'screens/advertisements.dart';
 import 'screens/login.dart';
 
 class SihhatApp extends StatefulWidget {
@@ -172,11 +175,19 @@ class _HomeState extends State<Home> {
   bool ready = false;
   String? error;
   int tab = 0, epoch = 0;
+  final homeSearch = TextEditingController();
+  String catalogQuery = '';
   @override
   void initState() {
     super.initState();
     error = widget.sessionError;
-    restore();
+    restore().then((_) {
+      if (!mounted || widget.sessionError != null) return;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) showEntranceAdvertisement(context, widget.api);
+      });
+      WidgetsBinding.instance.ensureVisualUpdate();
+    });
   }
 
   Future<void> restore() async {
@@ -184,6 +195,28 @@ class _HomeState extends State<Home> {
       if (mounted) setState(() => ready = true);
       final pending = await widget.api.getPendingBooking();
       if (pending != null && widget.api.signedIn && mounted) {
+        try {
+          final booking = asJson(
+            await widget.api.send('/customer/bookings/$pending'),
+          );
+          final created = DateTime.tryParse(
+            booking['createdAt']?.toString() ?? '',
+          );
+          if (created != null &&
+              DateTime.now().difference(created) >= const Duration(hours: 2) &&
+              [
+                'HOLD',
+                'PAYMENT_PENDING',
+                'EXPIRED',
+                'CANCELLED',
+              ].contains(booking['status']) &&
+              booking['payment']?['status'] != 'SUCCEEDED') {
+            await widget.api.pendingBooking(null);
+            return;
+          }
+        } catch (_) {
+          /* Keep payment recovery available when the server is unreachable. */
+        }
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (mounted) {
             Navigator.push(
@@ -209,6 +242,21 @@ class _HomeState extends State<Home> {
     if (mounted) setState(() => epoch++);
   }
 
+  @override
+  void dispose() {
+    homeSearch.dispose();
+    super.dispose();
+  }
+
+  void openCatalog([String query = '']) {
+    FocusManager.instance.primaryFocus?.unfocus();
+    setState(() {
+      catalogQuery = query.trim();
+      tab = 1;
+      epoch++;
+    });
+  }
+
   Future<void> navigate(int n) async {
     if (!ready) return;
     if (n > 0 && n < 4 && !await ensureLogin(context, widget.api)) return;
@@ -218,30 +266,126 @@ class _HomeState extends State<Home> {
   @override
   Widget build(BuildContext context) {
     final bodies = [
-      CatalogScreen(widget.api, key: ValueKey('catalog-$epoch')),
-      FavoritesScreen(widget.api, key: ValueKey('favorites-$epoch')),
+      HomeScreen(
+        widget.api,
+        key: ValueKey('home-$epoch'),
+        onNavigate: navigate,
+        onCatalog: () => openCatalog(),
+      ),
+      CatalogScreen(
+        widget.api,
+        initialQuery: catalogQuery,
+        key: ValueKey('catalog-$epoch'),
+      ),
       BookingsScreen(widget.api, key: ValueKey('bookings-$epoch')),
       AiScreen(widget.api, key: ValueKey('ai-$epoch')),
       ProfileScreen(widget.api, changed, key: ValueKey('profile-$epoch')),
     ];
     return Scaffold(
       appBar: AppBar(
-        toolbarHeight: 64,
+        toolbarHeight: tab == 0 ? 82 : 64,
+        backgroundColor: tab == 0 ? masthead : null,
+        foregroundColor: tab == 0 ? Colors.white : null,
+        systemOverlayStyle: tab == 0
+            ? SystemUiOverlayStyle.light.copyWith(
+                statusBarColor: Colors.transparent,
+              )
+            : null,
+        shape: tab == 0
+            ? const RoundedRectangleBorder(
+                borderRadius: BorderRadius.vertical(
+                  bottom: Radius.circular(22),
+                ),
+              )
+            : null,
+        bottom: tab == 0
+            ? PreferredSize(
+                preferredSize: const Size.fromHeight(66),
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
+                  child: TextField(
+                    controller: homeSearch,
+                    textInputAction: TextInputAction.search,
+                    maxLength: 100,
+                    style: const TextStyle(color: Colors.white, fontSize: 13),
+                    onSubmitted: openCatalog,
+                    decoration: InputDecoration(
+                      counterText: '',
+                      hintText: 'Sanatoriya yoki hudud qidiring…',
+                      hintStyle: const TextStyle(
+                        color: Color(0xffbbd6d0),
+                        fontSize: 13,
+                      ),
+                      prefixIcon: const Icon(
+                        Icons.search_rounded,
+                        color: Color(0xffbbd6d0),
+                      ),
+                      suffixIcon: IconButton(
+                        tooltip: 'Qidirish',
+                        onPressed: () => openCatalog(homeSearch.text),
+                        icon: const Icon(
+                          Icons.arrow_forward_rounded,
+                          color: Color(0xff66e1b9),
+                        ),
+                      ),
+                      fillColor: const Color(0xff124b42),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 13,
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(28),
+                        borderSide: const BorderSide(color: Color(0xff3f7f70)),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(28),
+                        borderSide: const BorderSide(color: Color(0xff66e1b9)),
+                      ),
+                    ),
+                  ),
+                ),
+              )
+            : null,
         title: tab == 0
             ? Row(
                 children: [
                   const SihhatLogo(),
                   const SizedBox(width: 11),
-                  Expanded(
-                    child: Text(
-                      'Sihhat uz',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 23,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: -.7,
-                      ),
+                  const Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text.rich(
+                          TextSpan(
+                            children: [
+                              TextSpan(text: 'Sihhat '),
+                              TextSpan(
+                                text: 'uz',
+                                style: TextStyle(color: Color(0xff4dd5aa)),
+                              ),
+                            ],
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 23,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: -.7,
+                          ),
+                        ),
+                        SizedBox(height: 3),
+                        Text(
+                          'Sog‘lom dam olish hamrohingiz',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: Color(0xffbbd6d0),
+                            fontSize: 9,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ],
@@ -249,7 +393,7 @@ class _HomeState extends State<Home> {
             : Text(
                 [
                   'Sihhat uz',
-                  'Saqlanganlar',
+                  'Sanatoriyalar',
                   'Mening bronlarim',
                   'Sihhat yordamchisi',
                   'Profil',
@@ -257,7 +401,7 @@ class _HomeState extends State<Home> {
                 style: const TextStyle(fontWeight: FontWeight.w800),
               ),
         actions: [
-          const AppearanceToggle(),
+          AppearanceToggle(onMasthead: tab == 0),
           IconButton(
             tooltip: 'Bildirishnomalar',
             onPressed: !ready
@@ -274,7 +418,10 @@ class _HomeState extends State<Home> {
                     }
                   },
             style: IconButton.styleFrom(
-              backgroundColor: context.colors.surface,
+              backgroundColor: tab == 0
+                  ? const Color(0xff124b42)
+                  : context.colors.surface,
+              foregroundColor: tab == 0 ? Colors.white : context.colors.primary,
             ),
             icon: const Icon(Icons.notifications_none_rounded),
           ),
@@ -307,7 +454,9 @@ class _HomeState extends State<Home> {
                 alignment: Alignment.topCenter,
                 child: ConstrainedBox(
                   constraints: const BoxConstraints(maxWidth: 720),
-                  child: bodies[tab],
+                  child: tab == 0
+                      ? bodies[tab]
+                      : GlassBackdrop(child: bodies[tab]),
                 ),
               ),
             ),
@@ -316,38 +465,42 @@ class _HomeState extends State<Home> {
       ),
       bottomNavigationBar: DecoratedBox(
         decoration: BoxDecoration(
-          border: Border(top: BorderSide(color: context.colors.border)),
+          color: masthead,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
         ),
-        child: NavigationBar(
-          selectedIndex: tab,
-          onDestinationSelected: navigate,
-          destinations: const [
-            NavigationDestination(
-              icon: Icon(Icons.home_outlined),
-              selectedIcon: Icon(Icons.home_rounded),
-              label: 'Bosh sahifa',
-            ),
-            NavigationDestination(
-              icon: Icon(Icons.favorite_border),
-              selectedIcon: Icon(Icons.favorite),
-              label: 'Saqlangan',
-            ),
-            NavigationDestination(
-              icon: Icon(Icons.bookmark_border),
-              selectedIcon: Icon(Icons.bookmark),
-              label: 'Bronlar',
-            ),
-            NavigationDestination(
-              icon: Icon(Icons.chat_bubble_outline),
-              selectedIcon: Icon(Icons.chat_bubble),
-              label: 'AI yordam',
-            ),
-            NavigationDestination(
-              icon: Icon(Icons.person_outline),
-              selectedIcon: Icon(Icons.person),
-              label: 'Profil',
-            ),
-          ],
+        child: ClipRRect(
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+          child: NavigationBar(
+            selectedIndex: tab,
+            onDestinationSelected: navigate,
+            destinations: const [
+              NavigationDestination(
+                icon: Icon(Icons.home_outlined),
+                selectedIcon: Icon(Icons.home_rounded),
+                label: 'Bosh sahifa',
+              ),
+              NavigationDestination(
+                icon: Icon(Icons.apartment_outlined),
+                selectedIcon: Icon(Icons.apartment),
+                label: 'Sanatoriyalar',
+              ),
+              NavigationDestination(
+                icon: Icon(Icons.bookmark_border),
+                selectedIcon: Icon(Icons.bookmark),
+                label: 'Bronlar',
+              ),
+              NavigationDestination(
+                icon: Icon(Icons.chat_bubble_outline),
+                selectedIcon: Icon(Icons.chat_bubble),
+                label: 'AI yordam',
+              ),
+              NavigationDestination(
+                icon: Icon(Icons.person_outline),
+                selectedIcon: Icon(Icons.person),
+                label: 'Profil',
+              ),
+            ],
+          ),
         ),
       ),
     );

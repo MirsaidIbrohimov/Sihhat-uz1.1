@@ -1,95 +1,53 @@
-# Sihhat.uz Android ilovasi
+# Sihhat uz Android ilovasi
 
-Flutter mijoz ilovasi: sanatoriya katalogi va tafsilotlari, SMS-kod bilan kirish,
-saqlanganlar, bir nechta xonani bron qilish, to‘lov holati, bron QR-kodi,
-qaytarish so‘rovi, sharhlar, profil va bildirishnomalar. Tokenlar hamda
-tugallanmagan bron identifikatori qurilmaning xavfsiz saqlash xizmatida saqlanadi.
-To‘lov natijasi backend tasdig‘idan olinadi.
+Flutter mijoz ilovasi: SMS orqali kirish, sanatoriya qidirish va filtrlar,
+tafsilotlar, bir nechta xonali bron, to‘lov holati, QR, qaytarish so‘rovi,
+profil, bildirishnomalar, yordam xizmati va serverdan ishlaydigan AI.
 
-Shu kompyuterga USB orqali ulangan telefon uchun tayyor APK:
-`.local/releases/sihhat-uz-preview.apk`. Loyiha ildizida `npm run local:start`
-API, saytlar va USB reverse ulanishini ochadi; `npm run local:status` holatni
-ko‘rsatadi. Kompyuter yoki telefon qayta ulanganida `local:start`ni yana bajaring.
-Bu debug APK lokal API va demo SMS bilan ishlaydi; kompyuter yoqilgan va
-USB debugging faol bo‘lishi kerak. Release uchun haqiqiy HTTPS API zarur.
+2026-10-05 interfeys `Apk xatolari/Сиҳҳат уз_ Здоровье под контролем.png`
+namunasiga moslashtirildi: to‘q yashil sarlavha va qidiruv, manzarali banner,
+to‘rtta tezkor karta, gorizontal sanatoriyalar, tezkor xizmatlar va beshta
+pastki navigatsiya tugmasi. Kichik ekran yoki katta shriftda tezkor kartalar
+ikki ustunga joylashadi. Tugmalar mavjud katalog, filtr, bron, AI va yordam
+sahifalariga ulangan. Klinika, dori qidirish yoki tahlil natijalari xizmatlari
+bu versiyada mavjud emas; ularning ishlamaydigan tugmalari qo‘shilmagan.
 
-2026-10-04: foydalanuvchi bergan Sihhat uz logosi bosh sahifa, kirish,
-launcher va ochilish ekraniga qo‘shildi. Android 12+ splashdagi logoning
-pastki yozuvi kesilishi atrofidagi shaffof bo‘sh joy bilan tuzatildi.
-Bosh sahifa/loginidagi **oy/quyosh tugmasi** hamda **Profil → Ilova
-ko‘rinishi**dagi tugma har bosishda kunduzgi va tungi rejimni almashtiradi.
-Faqat ikki rejim mavjud; boshlang‘ich rejim kunduzgi. Eski `system` qiymati
-kunduzgi rejimga o‘tadi. Tanlov
-xavfsiz lokal xotirada saqlanadi, qayta ochilganda tiklanadi va logoutda
-o‘chmaydi. Matn, kartalar, filtrlar, login, bron, to‘lov va AI ranglari
-rejimga moslashadi; QR oq fonda qoladi.
+O‘z logomiz `assets/branding/sihhat-logo.jpg`da; Flutter nusxasi
+`apps/mobile/assets/branding`da. Web/launcher/splash variantlari
+`npm run brand:assets` bilan tayyorlanadi. Bannerning
+`assets/illustrations/wellness-retreat.png` tasviri AI yordamida yaratilgan
+dekorativ manzara. Katalog kartalarida haqiqiy backend ma’lumotlari va profil
+rasmlari ishlatiladi; rasm yoki reyting bo‘lmasa soxta rasm/reyting qo‘yilmaydi.
 
-Ilova birinchi ochilganda va faol sessiya bo‘lmaganda avval telefon orqali
-kirish oynasi chiqadi. SMS tasdiqlanguncha katalog va asosiy navigatsiya
-ochilmaydi. Tasdiqlash yangi mijoz hisobini yaratadi yoki mavjud hisobga
-kiradi; qayta ochilganda saqlangan sessiya tekshiriladi. Hisobdan chiqish
-yoki bekor qilingan sessiya login oynasiga qaytaradi.
+HOME reklama server faol reklama qaytargandagina chiqadi. Ro‘yxat bo‘sh,
+so‘rov kutilayotgan yoki xato bo‘lsa reklama sarlavhasi, kartasi, spinneri
+va ajratilgan bo‘sh joy yo‘q. Reklama public keshga yozilmaydi.
+Ro‘yxat har 30 soniyada, ilovaga qaytilganda va pastga tortilganda yangilanadi.
+POPUP faqat kirishda alohida ochiladi, yopish mumkin; reklama bo‘lmasa
+dialog chiqmaydi. To‘xtatilgan/muddati tugagan reklamani API qaytarmaydi.
 
-Demo sinov: backendning lokal `apps/api/.env` faylida
-`NODE_ENV=development`, `SMS_ADAPTER=local`, `DEMO_OTP_ENABLED=true`.
-Repo ildizidagi `npm run mobile:preview -- <serial>` Flutterga
-`--dart-define=DEMO_OTP_ENABLED=true` beradi. **Kod yuborish**dan so‘ng
-demo SMS kodi ekranda chiqadi. **Demo koddan foydalanish** uni maydonga
-qo‘yadi; **Tasdiqlash** orqali kiriladi. Haqiqiy SMS yuborilmaydi.
-Kod oddiy server OTP tekshiruvidan o‘tadi; universal yoki doimiy kod yo‘q.
-Backend demo opt-in faqat lokal development/test SMS adapteriga ruxsat
-beradi; Flutter panelni faqat debug va demo flagda ko‘rsatadi.
-Flutter analyzer xatosiz, **27/27 unit/widget test** o‘tdi.
+Ilova sessiyasiz telefon/SMS kirishidan boshlanadi. Tasdiqqacha katalog va
+asosiy navigatsiya ochilmaydi. Tokenlar hamda tugallanmagan bron identifikatori
+xavfsiz saqlanadi; sessiya qayta tekshiriladi. Chiqish ichki sahifalarni yopadi.
+To‘lov holati backend tasdig‘idan olinadi; qaytish havolasi to‘lovni tasdiqlamaydi.
+Kunduzgi/tungi ko‘rinish oy/quyosh tugmasi yoki Profil orqali almashtiriladi;
+tanlov ilova qayta ochilganda va logoutdan keyin saqlanadi.
 
-Asl logo `assets/branding/sihhat-logo.jpg`da (repo ildizi), Flutter varianti
-`apps/mobile/assets/branding`da. Web/Android variantlarini asl tasvirni
-o‘zgartirmasdan o‘lchash uchun repo ildizida `npm run brand:assets`.
+USB telefon uchun lokal debug APK: `.local/releases/sihhat-uz-preview.apk`.
+Loyiha ildizida `npm run local:start` API, saytlar va USB reverse ulanishini,
+`npm run local:status` ularning holatini boshqaradi.
+`npm run mobile:preview -- <android-serial>` yangi APKni yig‘adi, o‘rnatadi
+va ochadi. API `http://127.0.0.1:4000`; kompyuter va USB ulanishi kerak.
 
-2026-10-03 UI yangilanishi: umumiy wellness mavzusi, kattaroq sanatoriya
-kartalari, qulay qidiruv va filtrlar, sanatoriya/bron/to‘lov sahifalaridagi
-doim ko‘rinadigan amallar. SMS oynasida raqamni tuzatish mumkin. 320px ekran,
-1.3x shrift va klaviatura bilan filtr tekshirildi; analyzer va 20/20 test o‘tdi.
-Tog‘ manzarasi kodda chizilgan dekorativ tasvir, real sanatoriya fotosi emas.
-Haqiqiy sanatoriya rasmlari backenddan olinadi.
+Lokal demo SMS uchun backendda `NODE_ENV=development`,
+`SMS_ADAPTER=local`, `DEMO_OTP_ENABLED=true`. Preview debug flagni beradi.
+Telefon → **Kod yuborish** → **Demo koddan foydalanish** → **Tasdiqlash**.
+Kod har safar yaratiladi, TTL va urinish cheklovlari bor; haqiqiy SMS yuborilmaydi.
+Release demo kodni ko‘rsatmaydi, haqiqiy HTTPS va signing konfiguratsiyasini talab qiladi.
 
-Dizayn yo‘nalishlari: [Wellness Booking App](https://dribbble.com/shots/27227441-Wellness-Booking-App-Calm-Seamless-Experience-UI)
-va [Luma Retreats](https://dribbble.com/shots/27159696-Luma-Retreats-An-Immersive-Mobile-Booking-Interface).
-Interfeys Flutter komponentlari bilan amalga oshirilgan; namunalar rasmi yoki kodi ko‘chirilmagan.
-Tezcheck havolasi tashqi HTTPS sahifada ochiladi; kalit APKda bo‘lmaydi.
-
-Yangi arm64 debug preview Samsung SM-A165Fga o‘rnatildi: avval telefon
-logini, keyin autentifikatsiyalangan bosh sahifa kuzatildi. Lokal bazada
-yangi OTP tasdig‘i, mijoz va mobil sessiya qayd etildi. Telefon faol
-ishlatilgani uchun avtomatik login/OS restart ssenariysi bu buildda
-yakunlangan deb belgilanmadi; sessiya/logout unit-widgetlarda tekshirildi. APK ichida
-24 ta maxfiy qiymat bayt namunasi tekshirildi, moslik topilmadi. Build va
-qurilma dalillari `.local/releases/android-preview.json` hamda
-`.local/branding/login-gate/server-review.json`da. Debug API lokal HTTP/USB bilan;
-bu haqiqiy merchant payment return yoki signed HTTPS release sinovi emas.
-Gradle 8 GB Windows xotirasiga mos 2 GB heap va 2 worker bilan yig‘ildi.
-
-Kirish va saqlangan sessiya tekshiruvidan so‘ng bosh sahifada sanatoriyalar soni, hududlar,
-boshlang‘ich tariflar, yangiliklar, foydali tavsiyalar va bron yo‘riqnomasi
-ko‘rinadi. Yangilik va tavsiyalar superadmin panelidan boshqariladi. Oxirgi
-public ma’lumotlar hostga bog‘langan xavfsiz keshda 7 kungacha saqlanadi;
-oflayn holat belgilanadi, narx va mavjudlik bron hisobida qayta tekshiriladi.
-Gemini yordamchisi serverdan ishlaydi; tashqi xizmatga savol yuborish uchun
-mijozning roziligi olinadi. API kalitlari ilovaga kiritilmaydi.
-
-2026-10-02: analyzer va 17 ta unit/widget testi o‘tdi. Bosh sahifa, sekin
-session tekshiruvi, oflayn kesh, hudud filtri va login qilmasdan yangilik
-o‘qish tekshirildi. Yangi debug preview Samsungga o‘rnatildi; APKda haqiqiy
-server kalitlari/parollari topilmadi.
-
-Lokal API ishlab turganda, loyiha ildizida:
-
-```powershell
-npm run mobile:preview -- <android-serial>
-```
-
-Natija `.local/releases/sihhat-uz-preview.apk`; serial berilsa skript USB
-port reverse, o‘rnatish va ochishni bajaradi. API `http://127.0.0.1:4000`;
-bu debug build. Release tartibi quyida.
+Tekshiruvlar va qolgan cheklovlar [amalga oshirish holati](../../docs/IMPLEMENTATION_STATUS.md),
+[UI auditi](../../docs/UI_REVIEW.md) va [runbook](../../docs/RUNBOOK.md)da.
+APK, hisoblar, sirlar, test rasmlari va qurilma dalillari Gitga kiritilmaydi.
 
 ## Ishga tushirish
 

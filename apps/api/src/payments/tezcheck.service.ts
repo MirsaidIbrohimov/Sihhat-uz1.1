@@ -106,6 +106,8 @@ export class TezcheckService {
       where: { orderId: order.id },
     });
     if (!record) {
+      if (order.bookingId && this.config.BOOKING_SETTLEMENT_MODE === 'direct')
+        fail('MERCHANT_NOT_READY', 'Sanatoriyaning o‘z to‘lov hisobi hali ulanmagan. Yordam xizmatiga murojaat qiling.', 503);
       const desk = await this.client.readyDesk(); // A draft/suspended desk must not consume a booking hold.
       record = await this.db.atomic(async (tx) => {
         await financialLock(tx, order.sanatoriumId);
@@ -226,7 +228,7 @@ export class TezcheckService {
     });
   }
 
-  async process(id: string) {
+  async process(id: string, cancelUnpaid = false) {
     const claimed = await this.claim(id);
     if (!claimed) return;
     let { record } = claimed;
@@ -319,7 +321,7 @@ export class TezcheckService {
         !["processing", "requires_action"].includes(
           status.payment?.state ?? "",
         ) &&
-        (record.expiresAt <= new Date() ||
+        (cancelUnpaid || record.expiresAt <= new Date() ||
           ["revoked", "expired"].includes(status.bill.state))
       ) {
         // Cancellation is not a refund. A 409 or unknown result keeps inventory reserved for reconciliation.
@@ -423,6 +425,21 @@ export class TezcheckService {
         data: { leasedUntil: null, leaseToken: null },
       });
     }
+  }
+
+  async cancelBooking(actor: Actor, bookingId: string) {
+    const booking = await this.db.booking.findUnique({ where: { id: bookingId } });
+    if (!booking || booking.userId !== actor.id) fail('NOT_FOUND', 'Bron topilmadi.', 404);
+    const order = await this.db.paymentOrder.findUnique({ where: { bookingId } });
+    if (!order) return;
+    const bill = await this.db.tezcheckBill.findUnique({ where: { orderId: order.id } });
+    if (!bill || terminal.includes(bill.state)) return;
+    if (order.status === 'SUCCEEDED' || bill.state === 'PAID') fail('REFUND_REQUEST_REQUIRED', 'To‘langan bron uchun pulni qaytarish so‘rovini yuboring.', 422);
+    // Processing owns a lease, checks the provider, and releases inventory only on confirmed cancellation.
+    await this.process(bill.id, true);
+    const current = await this.db.paymentOrder.findUniqueOrThrow({ where: { id: order.id } });
+    if (current.status === 'SUCCEEDED') fail('REFUND_REQUEST_REQUIRED', 'To‘lov tasdiqlandi. Pulni qaytarish so‘rovini yuboring.', 422);
+    if (current.status !== 'CANCELLED') fail('PAYMENT_CANCELLATION_PENDING', 'To‘lov holati tekshirilmoqda. Bir ozdan keyin bekor qilishni qayta bosing.', 409);
   }
 
   private async settle(tx: Tx, record: TezcheckBill, status: TezStatus) {

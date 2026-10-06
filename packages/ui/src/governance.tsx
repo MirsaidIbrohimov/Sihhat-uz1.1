@@ -3,6 +3,7 @@ import { useState } from "react";
 import { BedDouble, BookOpen, Coins, Leaf, Users, Wallet } from "lucide-react";
 import { api, formatMoney, query } from "@sihhat/api-client";
 import { ProfileWizard } from "./wizard";
+import { MerchantSetupPanel } from "./merchant-setup";
 import {
   facilityOptions,
   sanatoriumAmenities,
@@ -568,22 +569,11 @@ const profileFields: Field[] = [
     maxLength: 500,
   },
   {
-    key: "latitude",
-    label: "Kenglik",
-    type: "number",
-    step: "any",
+    key: "map_url",
+    label: "Google Maps yoki Yandex Maps havolasi",
     required: true,
-    min: -90,
-    max: 90,
-  },
-  {
-    key: "longitude",
-    label: "Uzunlik",
-    type: "number",
-    step: "any",
-    required: true,
-    min: -180,
-    max: 180,
+    maxLength: 2048,
+    hint: "Xaritada sanatoriya joyini tanlang, Ulashish tugmasidan havolani nusxalab shu yerga joylang.",
   },
   {
     key: "contact_phone",
@@ -954,106 +944,114 @@ export function Profile({ id }: { id?: string }) {
             </Card>
           )}
           {tab === "bank" && (
-            <Card
-              title="Bank rekvizitlari"
-              aside={
-                <Act
-                  onClick={() =>
-                    action(
-                      "Bank rekvizitlarini yuborish",
-                      `/partner/sanatoriums/${tenant}/bank-revisions`,
-                      {},
-                      [
-                        {
-                          key: "legal_name",
-                          label: "Yuridik nom",
-                          required: true,
-                        },
-                        {
-                          key: "account",
-                          label: "Hisob raqami",
-                          required: true,
-                          pattern: "[0-9]{20}",
-                        },
-                        {
-                          key: "mfo",
-                          label: "MFO",
-                          required: true,
-                          pattern: "[0-9]{5}",
-                        },
-                        {
-                          key: "stir",
-                          label: "STIR",
-                          required: true,
-                          pattern: "[0-9]{9}",
-                        },
-                      ],
-                    )
-                  }
-                >
-                  Yangi rekvizit
-                </Act>
-              }
-            >
-              <div className="card-body muted">
-                Bank rekvizitlarini platforma superadmini tekshiradi va
-                tasdiqlaydi.
-                {ctx.admin
-                  ? " Quyidagi kutilayotgan rekvizitlarni tekshirib, «Tasdiqlash» tugmasini bosing."
-                  : " Tasdiqlangandan keyin holati yangilanadi."}
-              </div>
-              {banks.loading ? (
-                <Loading />
-              ) : banks.error ? (
-                <ErrorBox message={banks.error} />
-              ) : (
-                <Table
-                  rows={list(banks.data)}
-                  columns={[
-                    { label: "Yuridik nom", render: (r) => r.data.legal_name },
-                    { label: "Hisob raqami", render: (r) => r.data.account },
-                    { label: "MFO", render: (r) => r.data.mfo },
-                    { label: "STIR", render: (r) => r.data.stir },
-                    {
-                      label: "Holati",
-                      render: (r) =>
-                        r.status === "PENDING" ? (
-                          "Superadmin tasdig‘i kutilmoqda"
-                        ) : (
-                          <Badge value={r.status} />
-                        ),
-                    },
-                  ]}
-                  actions={
-                    ctx.admin
-                      ? (r) =>
-                          r.status === "PENDING" && (
-                            <Act
-                              onClick={() =>
-                                ctx.form({
-                                  title: "Bank rekvizitini tasdiqlash",
-                                  description:
-                                    "Yuridik nom, hisob raqami, MFO va STIRni tekshirgandan keyin tasdiqlang.",
-                                  fields: [],
-                                  button: "Tasdiqlash",
-                                  submit: () =>
-                                    api(
-                                      `/superadmin/bank-revisions/${r.id}/approve`,
-                                      "POST",
-                                      {},
-                                    ),
-                                  done: ctx.refresh,
-                                })
-                              }
-                            >
-                              Tasdiqlash
-                            </Act>
-                          )
-                      : undefined
-                  }
-                />
+            <>
+              <Card
+                title="Bank rekvizitlari"
+                aside={
+                  <Act
+                    onClick={() =>
+                      action(
+                        "Bank rekvizitlarini yuborish",
+                        `/partner/sanatoriums/${tenant}/bank-revisions`,
+                        {},
+                        [
+                          {
+                            key: "legal_name",
+                            label: "Yuridik nom",
+                            required: true,
+                          },
+                          {
+                            key: "account",
+                            label: "Hisob raqami",
+                            required: true,
+                            pattern: "[0-9]{20}",
+                          },
+                          {
+                            key: "mfo",
+                            label: "MFO",
+                            required: true,
+                            pattern: "[0-9]{5}",
+                          },
+                          {
+                            key: "stir",
+                            label: "STIR",
+                            required: true,
+                            pattern: "[0-9]{9}",
+                          },
+                        ],
+                      )
+                    }
+                  >
+                    Yangi rekvizit
+                  </Act>
+                }
+              >
+                <div className="card-body muted">
+                  Bank rekvizitlarini platforma superadmini tekshiradi va
+                  tasdiqlaydi.
+                  {ctx.admin
+                    ? " Quyidagi kutilayotgan rekvizitlarni tekshirib, «Tasdiqlash» tugmasini bosing."
+                    : " Tasdiqlangandan keyin holati yangilanadi."}
+                </div>
+                {banks.loading ? (
+                  <Loading />
+                ) : banks.error ? (
+                  <ErrorBox message={banks.error} />
+                ) : (
+                  <Table
+                    rows={list(banks.data)}
+                    columns={[
+                      {
+                        label: "Yuridik nom",
+                        render: (r) => r.data.legal_name,
+                      },
+                      { label: "Hisob raqami", render: (r) => r.data.account },
+                      { label: "MFO", render: (r) => r.data.mfo },
+                      { label: "STIR", render: (r) => r.data.stir },
+                      {
+                        label: "Holati",
+                        render: (r) =>
+                          r.status === "PENDING" ? (
+                            "Superadmin tasdig‘i kutilmoqda"
+                          ) : (
+                            <Badge value={r.status} />
+                          ),
+                      },
+                    ]}
+                    actions={
+                      ctx.admin
+                        ? (r) =>
+                            r.status === "PENDING" && (
+                              <Act
+                                onClick={() =>
+                                  ctx.form({
+                                    title: "Bank rekvizitini tasdiqlash",
+                                    description:
+                                      "Yuridik nom, hisob raqami, MFO va STIRni tekshirgandan keyin tasdiqlang.",
+                                    fields: [],
+                                    button: "Tasdiqlash",
+                                    submit: () =>
+                                      api(
+                                        `/superadmin/bank-revisions/${r.id}/approve`,
+                                        "POST",
+                                        {},
+                                      ),
+                                    done: ctx.refresh,
+                                  })
+                                }
+                              >
+                                Tasdiqlash
+                              </Act>
+                            )
+                        : undefined
+                    }
+                  />
+                )}
+              </Card>
+              {(ctx.admin || ctx.allowed("bank.request")) && (
+                <MerchantSetupPanel tenant={tenant} banks={list(banks.data)} />
               )}
-            </Card>
+            </>
           )}
         </>
       )}

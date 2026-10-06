@@ -15,6 +15,12 @@ export const staffLoginInput = z.object({ login: loginSchema, password: z.string
 export const otpRequestInput = z.object({ phone: phoneSchema }).strict();
 export const otpVerifyInput = z.object({ challenge_id: uuid, code: z.string().regex(/^\d{6}$/) }).strict();
 export const changePasswordInput = z.object({ current_password: z.string().max(128), new_password: passwordSchema }).strict();
+export const webIdleTimeoutSeconds = (kind: string) => kind === 'SUPERADMIN' ? 2 * 3600 : kind === 'STAFF' ? 4 * 3600 : null;
+const idleExpired = (session: { channel: string; lastActivityAt: Date }, kind: string) => {
+  const seconds = session.channel === 'WEB' ? webIdleTimeoutSeconds(kind) : null;
+  return seconds !== null && Date.now() - session.lastActivityAt.getTime() >= seconds * 1000;
+};
+const idleFailure = () => fail('SESSION_IDLE_EXPIRED', 'Faolsizlik sababli hisobdan chiqdingiz. Qayta kiring.', 401);
 
 @Injectable()
 export class AuthService {
@@ -93,11 +99,11 @@ export class AuthService {
     if (!result) fail('OTP_INVALID', 'Kod xato, muddati tugagan yoki ishlatilgan', 401);
     return result;
   }
-  async issue(tx: Tx, userId: string, channel: string) {
+  async issue(tx: Tx, userId: string, channel: string, lastActivityAt = new Date()) {
     const token = opaque(), refresh = opaque(), csrf = opaque();
     const expiresAt = new Date(Date.now() + 30 * 60_000);
     const refreshExpiresAt = new Date(Date.now() + 30 * 86400_000);
-    const session = await tx.session.create({ data: { userId, channel, tokenHash: hash(token), refreshHash: hash(refresh), csrfHash: hash(csrf), expiresAt, refreshExpiresAt } });
+    const session = await tx.session.create({ data: { userId, channel, tokenHash: hash(token), refreshHash: hash(refresh), csrfHash: hash(csrf), expiresAt, refreshExpiresAt, lastActivityAt } });
     return { access_token: token, refresh_token: refresh, csrf_token: csrf, expires_at: expiresAt, refresh_expires_at: refreshExpiresAt, session_id: session.id };
   }
   async authenticate(token: string, channel: 'WEB' | 'MOBILE'): Promise<Actor> {
@@ -105,9 +111,13 @@ export class AuthService {
     if (!session || session.revokedAt || session.expiresAt <= new Date() || session.channel !== channel) fail('UNAUTHENTICATED', 'Qayta kiring', 401);
     const user = await this.db.user.findUnique({ where: { id: session.userId } });
     if (!user || user.status !== 'ACTIVE') fail('UNAUTHENTICATED', 'Hisob bloklangan', 401);
+    if (idleExpired(session, user.kind)) {
+      await this.db.session.updateMany({ where: { id: session.id, revokedAt: null }, data: { revokedAt: new Date() } });
+      idleFailure();
+    }
     const memberships = await this.db.membership.findMany({ where: { userId: user.id } });
     if (user.kind === 'STAFF' && !memberships.some(m => m.status === 'ACTIVE')) fail('STAFF_NOT_APPROVED', 'Xodim vakolati faol emas', 403);
-    return { id: user.id, name: user.name, phone:user.phone, login:user.login, kind: user.kind, sessionId: session.id, mustChangePassword: user.mustChangePassword, memberships: memberships.map(m => ({ id: m.id, sanatoriumId: m.sanatoriumId, role: m.role, status: m.status, permissions: m.status === 'ACTIVE' ? effective(m) : [], version: m.version })) };
+    return { id: user.id, name: user.name, phone:user.phone, login:user.login, kind: user.kind, sessionId: session.id, idleTimeoutSeconds: channel === 'WEB' ? webIdleTimeoutSeconds(user.kind) : null, lastActivityAt: session.lastActivityAt.toISOString(), mustChangePassword: user.mustChangePassword, memberships: memberships.map(m => ({ id: m.id, sanatoriumId: m.sanatoriumId, role: m.role, status: m.status, permissions: m.status === 'ACTIVE' ? effective(m) : [], version: m.version })) };
   }
   async csrf(sessionId: string, token: string | undefined, origin: string | undefined) {
     if (!token || !origin || !this.config.CORS_ORIGINS.split(',').includes(origin)) fail('CSRF_INVALID', 'Sahifani yangilab qayta urinib ko‘ring', 403);
@@ -115,16 +125,33 @@ export class AuthService {
     if (!session || session.csrfHash !== hash(token)) fail('CSRF_INVALID', 'Sessiya himoyasi xatosi', 403);
   }
   async refresh(refreshToken: string, channel: 'WEB' | 'MOBILE', csrf?: string, origin?: string) {
-    return this.db.atomic(async tx => {
+    const result = await this.db.atomic(async tx => {
       await lock(tx, `refresh:${hash(refreshToken)}`);
       const session = await tx.session.findUnique({ where: { refreshHash: hash(refreshToken) } });
       if (!session || session.revokedAt || session.refreshExpiresAt <= new Date() || session.channel !== channel) fail('UNAUTHENTICATED', 'Qayta kiring', 401);
       if (channel === 'WEB') await this.csrf(session.id, csrf, origin);
       const user = await tx.user.findUniqueOrThrow({ where: { id: session.userId } });
       if (user.status !== 'ACTIVE' || (user.kind === 'STAFF' && !await tx.membership.count({ where: { userId: user.id, status: 'ACTIVE' } }))) fail('UNAUTHENTICATED', 'Hisob faol emas', 401);
+      if (idleExpired(session, user.kind)) {
+        await tx.session.update({ where: { id: session.id }, data: { revokedAt: new Date() } });
+        return null;
+      }
       await tx.session.update({ where: { id: session.id }, data: { revokedAt: new Date() } });
-      return { ...await this.issue(tx, user.id, channel), user: this.publicUser(user) };
+      return { ...await this.issue(tx, user.id, channel, session.lastActivityAt), user: this.publicUser(user) };
     });
+    if (!result) idleFailure();
+    return result;
+  }
+  async activity(actor: Actor) {
+    const now = new Date();
+    const seconds = webIdleTimeoutSeconds(actor.kind);
+    if (seconds === null) fail('PERMISSION_DENIED', 'Faqat boshqaruv paneli uchun', 403);
+    const touched = await this.db.session.updateMany({
+      where: { id: actor.sessionId, channel: 'WEB', revokedAt: null, lastActivityAt: { gt: new Date(now.getTime() - seconds * 1000) } },
+      data: { lastActivityAt: now },
+    });
+    if (!touched.count) idleFailure();
+    return { last_activity_at: now.toISOString(), idle_timeout_seconds: seconds };
   }
   async logout(actor: Actor) { await this.db.session.update({ where: { id: actor.sessionId }, data: { revokedAt: new Date() } }); return { success: true }; }
   async changePassword(actor: Actor, body: unknown) {

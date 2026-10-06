@@ -11,6 +11,7 @@ import {
   PageHeading,
   Table,
   date,
+  dateTime,
   label,
   list,
   moneyColumn,
@@ -22,6 +23,7 @@ import {
   useRemote,
   type Row,
 } from "./components";
+import { AdvertisementFields, advertisementFields } from "./ad-fields";
 export function Finance({ kind }: { kind: "refunds" | "payouts" }) {
   const ctx = usePortal(),
     action = useAction();
@@ -283,7 +285,7 @@ export function Billing({ kind }: { kind: "billing" | "ads" }) {
     [tab, setTab] = useState("invoices"),
     [checkout, setCheckout] = useState<Row | null>(null);
   const plans = useRemote(
-      ctx.admin ? "/superadmin/subscription-plans" : null,
+      kind === "billing" && ctx.admin ? "/superadmin/subscription-plans" : null,
       ctx.epoch,
     ),
     profile = useRemote(
@@ -305,50 +307,51 @@ export function Billing({ kind }: { kind: "billing" | "ads" }) {
   }
   function requestAd() {
     const revision = profile.data?.revisions?.find(
-        (r: Row) => r.id === profile.data.publicRevisionId,
-      ),
-      photos = revision?.data?.photo_ids ?? [];
-    action(
-      "Reklama so‘rovi",
-      "/partner/ad-campaigns",
-      { sanatorium_id: ctx.tenant },
-      [
-        { key: "title", label: "Sarlavha", required: true },
-        {
-          key: "placement",
-          label: "Joylashuv",
-          type: "select",
-          required: true,
-          options: [
-            { value: "HOME", label: "Bosh sahifa" },
-            { value: "SEARCH", label: "Qidiruv" },
-          ],
-        },
-        {
-          key: "starts_at",
-          label: "Boshlanish",
-          type: "datetime-local",
-          required: true,
-        },
-        {
-          key: "ends_at",
-          label: "Tugash",
-          type: "datetime-local",
-          required: true,
-        },
-        {
-          key: "image_asset_id",
-          label: "Tasdiqlangan profil rasmi",
-          type: "select",
-          required: true,
-          options: photos.map((id: string, n: number) => ({
-            value: id,
-            label: `Rasm ${n + 1}`,
-          })),
-        },
-        { key: "text", label: "Reklama matni", type: "textarea" },
-      ],
+      (r: Row) => r.id === profile.data.publicRevisionId,
     );
+    const photos = revision?.data?.photo_ids ?? [];
+    const uploaded = new Map<File, string>();
+    ctx.form({
+      title: "Reklama joylash",
+      description:
+        "Rasm va taklifni kiriting. Admin tasdiqlagach ilovada bepul chiqadi.",
+      fields: advertisementFields,
+      content: (
+        <AdvertisementFields
+          tenant={ctx.tenant}
+          tenants={ctx.tenants}
+          photos={photos}
+        />
+      ),
+      button: "Tasdiqlashga yuborish",
+      submit: async (values) => {
+        const { photo_file, ...input } = values;
+        let image = input.image_asset_id;
+        if (photo_file instanceof File) {
+          image = uploaded.get(photo_file);
+          if (!image) {
+            const result = await uploadAsset(
+              photo_file,
+              ctx.tenant,
+              undefined,
+              "PUBLIC",
+            );
+            image = result.id;
+            uploaded.set(photo_file, image);
+          }
+        }
+        if (!image)
+          throw new Error(
+            "Reklama rasmini yuklang yoki profil rasmini tanlang.",
+          );
+        return api("/partner/ad-campaigns", "POST", {
+          sanatorium_id: ctx.tenant,
+          ...input,
+          image_asset_id: image,
+        });
+      },
+      done: ctx.refresh,
+    });
   }
   return (
     <>
@@ -356,7 +359,7 @@ export function Billing({ kind }: { kind: "billing" | "ads" }) {
         title={kind === "ads" ? "Reklama kampaniyalari" : "Abonent va hisoblar"}
         subtitle={
           kind === "ads"
-            ? "Reklama narxi admin ma’qullaganda belgilanadi; ko‘rinish uchun to‘lov talab qilinadi."
+            ? "Admin tasdiqlagan reklamalar belgilangan muddatda ilovada bepul chiqadi."
             : "Bron uchun komissiya olinmaydi. Platforma xizmatlari alohida hisob bilan to‘lanadi."
         }
       >
@@ -399,7 +402,7 @@ export function Billing({ kind }: { kind: "billing" | "ads" }) {
                   {
                     key: "features",
                     label: "Xizmatlar",
-                    type: "csv",
+                    type: "string-list",
                     required: true,
                   },
                 ],
@@ -520,64 +523,128 @@ export function Billing({ kind }: { kind: "billing" | "ads" }) {
           columns={[
             { label: "Kampaniya", key: "title" },
             {
+              label: "Ilovadagi holati",
+              render: (r) =>
+                (
+                  ({
+                    WAITING_APPROVAL: "Admin tasdig‘i kutilmoqda",
+                    REJECTED: "Rad etilgan",
+                    ARCHIVED: "To‘xtatilgan",
+                    WAITING_FREE_PUBLICATION: "Bepul joylashni bosing",
+                    SCHEDULED: "Boshlanish sanasi kutilmoqda",
+                    EXPIRED: "Muddati tugagan",
+                    SANATORIUM_HIDDEN: "Sanatoriya ochiq emas",
+                    LIVE: "Ilovada chiqmoqda",
+                  }) as Record<string, string>
+                )[r.publication_status] ?? r.publication_status,
+            },
+            {
               label: "Joylashuv",
               render: (r) =>
-                r.placement === "HOME" ? "Bosh sahifa" : "Qidiruv",
+                r.placement === "POPUP"
+                  ? "Kirishda qalqib chiqadi"
+                  : "Bosh sahifa",
             },
             {
               label: "Davr",
-              render: (r) => `${date(r.startsAt)} — ${date(r.endsAt)}`,
+              render: (r) => `${dateTime(r.startsAt)} — ${dateTime(r.endsAt)}`,
             },
-            moneyColumn,
-            statusColumn,
+            {
+              label: "Ochadigan joy",
+              render: (r) =>
+                r.data?.target_kind === "URL" ? (
+                  <a href={r.data.target_url} target="_blank" rel="noreferrer">
+                    Havola
+                  </a>
+                ) : (
+                  "Sanatoriya"
+                ),
+            },
+            {
+              label: "Chegirma",
+              render: (r) =>
+                r.data?.has_discount ? (
+                  <span className="ad-discount">
+                    {r.data.discount_percent
+                      ? `${r.data.discount_percent}%`
+                      : r.data.discount_text}
+                  </span>
+                ) : (
+                  "Yo‘q"
+                ),
+            },
           ]}
           actions={
             ctx.admin
               ? (r) =>
-                  r.status === "PENDING" && (
+                  ((r.status === "PENDING" ||
+                    r.publication_status === "WAITING_FREE_PUBLICATION") && (
                     <>
                       <Act
                         onClick={() =>
                           action(
-                            "Reklama narxini belgilash",
+                            "Reklamani bepul joylash",
                             `/superadmin/ad-campaigns/${r.id}/approve`,
                             {},
-                            [
-                              {
-                                key: "amount",
-                                label: "Davr narxi (so‘m)",
-                                type: "money",
-                                required: true,
-                              },
-                            ],
+                            [],
                           )
                         }
                       >
                         Ma’qullash
                       </Act>
+                      {r.status === "PENDING" && (
+                        <Act
+                          danger
+                          onClick={() =>
+                            action(
+                              "Reklamani rad etish",
+                              `/superadmin/ad-campaigns/${r.id}/reject`,
+                              {},
+                              [
+                                {
+                                  key: "reason",
+                                  label: "Sabab",
+                                  required: true,
+                                  minLength: 3,
+                                },
+                              ],
+                            )
+                          }
+                        >
+                          Rad etish
+                        </Act>
+                      )}
+                    </>
+                  )) ||
+                  (r.status === "APPROVED" &&
+                    r.publication_status !== "EXPIRED" && (
                       <Act
                         danger
                         onClick={() =>
                           action(
-                            "Reklamani rad etish",
-                            `/superadmin/ad-campaigns/${r.id}/reject`,
-                            {},
-                            [
-                              {
-                                key: "reason",
-                                label: "Sabab",
-                                required: true,
-                                minLength: 3,
-                              },
-                            ],
+                            "Reklamani to‘xtatish",
+                            `/partner/ad-campaigns/${r.id}/archive`,
                           )
                         }
                       >
-                        Rad etish
+                        To‘xtatish
                       </Act>
-                    </>
+                    ))
+              : (r) =>
+                  r.status === "APPROVED" &&
+                  r.publication_status !== "EXPIRED" && (
+                    <Act
+                      danger
+                      onClick={() =>
+                        action(
+                          "Reklamani to‘xtatish",
+                          `/partner/ad-campaigns/${r.id}/archive`,
+                        )
+                      }
+                    >
+                      To‘xtatish
+                    </Act>
                   )
-              : undefined
           }
         />
       ) : tab === "invoices" ? (

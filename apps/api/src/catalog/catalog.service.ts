@@ -16,7 +16,20 @@ export class CatalogService{
   async get(id:string){parse(uuid,id);const s=await this.db.sanatorium.findFirst({where:{...await this.where(),id}});if(!s)fail('NOT_FOUND','Sanatoriya topilmadi',404);const revision=await this.db.sanatoriumRevision.findUniqueOrThrow({where:{id:s.publicRevisionId!}});const [room_types,rawRates,reviews]=await Promise.all([this.db.roomType.findMany({where:{sanatoriumId:id,active:true}}),this.db.ratePlan.findMany({where:{sanatoriumId:id,active:true}}),this.db.review.findMany({where:{sanatoriumId:id,status:'PUBLISHED'},select:{id:true,rating:true,text:true,reply:true,createdAt:true},take:50,orderBy:{createdAt:'desc'}})]);const policies=await this.db.refundPolicy.findMany({where:{id:{in:rawRates.map(r=>r.policyId)}}});return {id:s.id,...publicProfile(revision.data),room_types,rate_plans:rawRates.map(r=>({...r,policy:policies.find(p=>p.id===r.policyId)})),reviews:reviews.map(r=>({...r,verified_stay:true})),online_booking_available:s.paymentReady&&rawRates.length>0};}
   async favorites(actor:Actor){const saved=await this.db.favorite.findMany({where:{userId:actor.id}});const all=await this.list({limit:100});return all.data.filter((r:any)=>saved.some(f=>f.sanatoriumId===r.id));}
   async favorite(actor:Actor,id:string,body:unknown){parse(uuid,id);const i=parse(z.object({saved:z.boolean()}).strict(),body);if(i.saved){await this.get(id);await this.db.favorite.upsert({where:{userId_sanatoriumId:{userId:actor.id,sanatoriumId:id}},create:{userId:actor.id,sanatoriumId:id},update:{}});}else await this.db.favorite.deleteMany({where:{userId:actor.id,sanatoriumId:id}});return {saved:i.saved};}
-  async ads(){const candidates=await this.db.adCampaign.findMany({where:{status:'APPROVED',startsAt:{lte:new Date()},endsAt:{gt:new Date()},invoiceId:{not:null}}});const rows=[];for(const ad of candidates){const invoice=await this.db.invoice.findUnique({where:{id:ad.invoiceId!}});if(invoice?.status!=='PAID'||!await this.db.sanatorium.findFirst({where:{...await this.where(),id:ad.sanatoriumId}}))continue;rows.push({id:ad.id,sanatorium_id:ad.sanatoriumId,title:ad.title,placement:ad.placement,...ad.data as object,sponsored:true,label:'Reklama'});}return rows;}
+  async ads() {
+    const candidates = await this.db.adCampaign.findMany({ where: { status: 'APPROVED', startsAt: { lte: new Date() }, endsAt: { gt: new Date() } }, orderBy: { startsAt: 'desc' } });
+    const eligible = await this.where(); const rows = [];
+    for (const ad of candidates) {
+      const invoice = ad.invoiceId ? await this.db.invoice.findUnique({ where: { id: ad.invoiceId } }) : null;
+      const published = ad.amount === 0n && (ad.data as any).free === true && !ad.invoiceId || invoice?.status === 'PAID';
+      if (!published || !await this.db.sanatorium.findFirst({ where: { ...eligible, id: ad.sanatoriumId } })) continue;
+      const data=ad.data as any;
+      const target=data.target_kind==='URL'?{kind:'URL',url:data.target_url}:{kind:'SANATORIUM',sanatorium_id:data.target_sanatorium_id??ad.sanatoriumId};
+      if(target.kind==='SANATORIUM'&&!await this.db.sanatorium.findFirst({where:{...eligible,id:target.sanatorium_id}}))continue;
+      rows.push({ id: ad.id, sanatorium_id: ad.sanatoriumId, title: ad.title, placement: ad.placement==='SEARCH'?'HOME':ad.placement, ...data, target, sponsored: true, label: 'Reklama' });
+    }
+    return rows;
+  }
   async adEvent(id:string,body:unknown,ip:string){parse(uuid,id);const i=parse(z.object({kind:z.enum(['IMPRESSION','CLICK'])}).strict(),body);if(!(await this.ads()).some(a=>a.id===id))fail('NOT_FOUND','Reklama mavjud emas',404);const key=hash(`${id}:${i.kind}:${ip}:${Math.floor(Date.now()/900000)}`);await this.db.adEvent.upsert({where:{dedupeKey:key},create:{campaignId:id,kind:i.kind,dedupeKey:key},update:{}});return {success:true};}
   async entries(){return this.db.catalogEntry.findMany({orderBy:[{kind:'asc'},{name:'asc'}]});}
 }

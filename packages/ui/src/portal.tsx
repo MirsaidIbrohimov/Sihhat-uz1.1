@@ -1,5 +1,5 @@
 "use client";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ArrowRight,
   Bell,
@@ -24,7 +24,14 @@ import {
   Users,
   Wallet,
 } from "lucide-react";
-import { api, can, restoreSession, type Actor } from "@sihhat/api-client";
+import {
+  api,
+  ApiError,
+  can,
+  restoreSession,
+  type Actor,
+} from "@sihhat/api-client";
+import { useIdleSession } from "./session-idle";
 import { PublicArticles } from "./articles";
 import { TelegramSettings } from "./telegram";
 import {
@@ -115,7 +122,12 @@ const links = [
     admin: true,
   },
   { id: "messages", label: "Xabarlar", icon: Mail, group: "Aloqa" },
-  { id: "articles", label: "Yangilik va tavsiyalar", icon: FileText, admin: true },
+  {
+    id: "articles",
+    label: "Yangilik va tavsiyalar",
+    icon: FileText,
+    admin: true,
+  },
   { id: "tasks", label: "Vazifalar", icon: ClipboardList },
   {
     id: "surveys",
@@ -137,9 +149,11 @@ const links = [
 function Login({
   mode,
   onLogin,
+  notice,
 }: {
   mode: "admin" | "partner";
   onLogin: (a: Actor) => void;
+  notice?: string;
 }) {
   const [busy, setBusy] = useState(false),
     [error, setError] = useState("");
@@ -170,8 +184,16 @@ function Login({
     <div className="login-screen">
       <div className="login-art">
         <div className="brand">
-          <img className="brand-logo" src="/branding/sihhat-logo.jpg" alt="Sihhat uz logosi" width={56} height={56} />
-          <span>sihhat<span style={{ fontWeight: 400 }}>.uz</span></span>
+          <img
+            className="brand-logo"
+            src="/branding/sihhat-logo.jpg"
+            alt="Sihhat uz logosi"
+            width={56}
+            height={56}
+          />
+          <span>
+            sihhat<span style={{ fontWeight: 400 }}>.uz</span>
+          </span>
         </div>
         <div className="login-story">
           <p className="eyebrow">SOG‘LOM DAM OLISH, OSON BOSHQARUV</p>
@@ -193,7 +215,13 @@ function Login({
       </div>
       <div className="login-form-wrap">
         <form className="login-form" onSubmit={login}>
-          <img className="login-logo" src="/branding/sihhat-logo.jpg" alt="Sihhat uz logosi" width={112} height={112} />
+          <img
+            className="login-logo"
+            src="/branding/sihhat-logo.jpg"
+            alt="Sihhat uz logosi"
+            width={112}
+            height={112}
+          />
           <p className="eyebrow">
             {mode === "admin" ? "SUPERADMIN PANELI" : "SANATORIYA PANELI"}
           </p>
@@ -201,6 +229,11 @@ function Login({
           <p className="muted">
             Ishni davom ettirish uchun hisobingizga kiring.
           </p>
+          {notice && (
+            <p className="alert-note" role="status">
+              {notice}
+            </p>
+          )}
           <label className="field">
             <span>Login</span>
             <input name="login" required autoComplete="username" autoFocus />
@@ -225,7 +258,10 @@ function Login({
                 maxLength={6}
                 autoComplete="one-time-code"
               />
-              <small>Autentifikator ilovasidagi joriy 6 raqamli kod.</small>
+              <small>
+                Telefoningizdagi Google Authenticator yoki Microsoft
+                Authenticator ilovasining joriy 6 raqamli kodi.
+              </small>
             </label>
           )}
           {error && <ErrorBox message={error} />}
@@ -291,24 +327,47 @@ export function Portal({ mode }: { mode: "admin" | "partner" }) {
     [form, setForm] = useState<FormSpec | null>(null),
     [toast, setToast] = useState(""),
     [epoch, setEpoch] = useState(0),
+    [idleNotice, setIdleNotice] = useState(""),
     [tenantError, setTenantError] = useState("");
+  const sessionGeneration = useRef(0);
+  const clearSession = useCallback((reason = "") => {
+    sessionGeneration.current++;
+    setActor(null);
+    setTenants([]);
+    setForm(null);
+    setMenu(false);
+    setTenantError("");
+    setIdleNotice(reason);
+  }, []);
+  const expired = useCallback(
+    () => clearSession("Faolsizlik sababli hisobdan chiqdingiz. Qayta kiring."),
+    [clearSession],
+  );
+  useIdleSession(actor, expired);
   const admin = mode === "admin";
   const refresh = useCallback(() => setEpoch((n) => n + 1), []);
   const notice = useCallback((s: string) => setToast(s), []);
-  const session = useCallback(
-    () =>
-      restoreSession()
-        .then((a) => {
-          if (a.kind !== (admin ? "SUPERADMIN" : "STAFF")) {
-            setActor(null);
-            return;
-          }
-          setActor(a);
-        })
-        .catch(() => setActor(null))
-        .finally(() => setReady(true)),
-    [admin],
-  );
+  const session = useCallback(() => {
+    const generation = sessionGeneration.current;
+    return restoreSession()
+      .then((a) => {
+        if (sessionGeneration.current !== generation) return;
+        if (a.kind !== (admin ? "SUPERADMIN" : "STAFF")) {
+          setActor(null);
+          return;
+        }
+        setActor(a);
+      })
+      .catch((error) => {
+        if (sessionGeneration.current !== generation) return;
+        clearSession(
+          error instanceof ApiError && error.code === "SESSION_IDLE_EXPIRED"
+            ? error.message
+            : "",
+        );
+      })
+      .finally(() => setReady(true));
+  }, [admin, clearSession]);
   useEffect(() => {
     void session();
     const timer = setInterval(() => {
@@ -355,7 +414,10 @@ export function Portal({ mode }: { mode: "admin" | "partner" }) {
     return (
       <Login
         mode={mode}
+        notice={idleNotice}
         onLogin={(a) => {
+          sessionGeneration.current++;
+          setIdleNotice("");
           setActor(a);
           refresh();
         }}
@@ -477,8 +539,16 @@ export function Portal({ mode }: { mode: "admin" | "partner" }) {
               go("dashboard");
             }}
           >
-            <img className="brand-logo" src="/branding/sihhat-logo.jpg" alt="Sihhat uz logosi" width={56} height={56} />
-            <span>sihhat<span style={{ fontWeight: 400 }}>.uz</span></span>
+            <img
+              className="brand-logo"
+              src="/branding/sihhat-logo.jpg"
+              alt="Sihhat uz logosi"
+              width={56}
+              height={56}
+            />
+            <span>
+              sihhat<span style={{ fontWeight: 400 }}>.uz</span>
+            </span>
           </a>
           <div className="brand-sub">
             {admin ? "Platforma boshqaruvi" : "Sanatoriya boshqaruvi"}
@@ -568,8 +638,7 @@ export function Portal({ mode }: { mode: "admin" | "partner" }) {
                 onClick={() =>
                   api("/auth/logout", "POST", {})
                     .then(() => {
-                      setActor(null);
-                      setTenants([]);
+                      clearSession();
                     })
                     .catch((e) => notice(e.message))
                 }

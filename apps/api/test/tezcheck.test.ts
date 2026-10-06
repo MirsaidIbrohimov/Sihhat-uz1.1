@@ -29,6 +29,7 @@ after(async () => {
 function fake() {
   Object.assign(config, {
     PAYMENT_MODE: "tezcheck",
+    BOOKING_SETTLEMENT_MODE: "legacy_platform",
     TEZCHECK_API_KEY: "fake-tezcheck-key",
     TEZCHECK_CASH_DESK_CODE: "fake-desk",
     TEZCHECK_WEBHOOK_SECRET: "fake-webhook-secret",
@@ -184,6 +185,7 @@ async function checkout(user: any, id: string, key = user.key()) {
     }),
   };
 }
+
 
 test("Tezcheck: signed read works; draft desk rejects checkout without changing inventory", async () => {
   const provider = fake();
@@ -687,4 +689,27 @@ test("Tezcheck: invoice checkout credits deferred services and cannot be paid by
     ).status,
     403,
   );
+});
+
+test('Tezcheck cancellation: unpaid bill closes once; paid or processing bill never releases a reserved room', async () => {
+  const provider = fake(), unpaid = await booking();
+  const { record } = await checkout(unpaid.user, unpaid.id);
+  assert.ok(record);
+  const result = await unpaid.user.call(`/customer/bookings/${unpaid.id}/cancel`, 'POST', { reason: 'Safar bekor bo‘ldi' }, unpaid.user.key());
+  assert.equal(result.status, 201); assert.equal(provider.state.cancels, 1);
+  assert.equal((await unpaid.user.call(`/customer/bookings/${unpaid.id}/cancel`, 'POST', { reason: 'Safar bekor bo‘ldi' }, unpaid.user.key())).status, 201);
+  assert.equal(provider.state.cancels, 1);
+  assert.equal(await ctx.db.roomAllocation.count({ where: { bookingId: unpaid.id, active: true } }), 0);
+  const paid = await booking(), paidCheckout = await checkout(paid.user, paid.id);
+  provider.paid(paidCheckout.record!.billId!);
+  const blocked = await paid.user.call(`/customer/bookings/${paid.id}/cancel`, 'POST', { reason: 'Bekor qilish' }, paid.user.key());
+  assert.equal(blocked.body.code, 'REFUND_REQUEST_REQUIRED');
+  assert.equal((await paid.user.call(`/customer/bookings/${paid.id}`)).body.status, 'CONFIRMED');
+  assert.equal(await ctx.db.roomAllocation.count({ where: { bookingId: paid.id, active: true } }), 1);
+  const processing = await booking(), processingCheckout = await checkout(processing.user, processing.id);
+  const processingRecord = provider.paid(processingCheckout.record!.billId!);
+  processingRecord.bill.paid = false; processingRecord.bill.state = 'active'; processingRecord.payment.state = 'processing';
+  const pending = await processing.user.call(`/customer/bookings/${processing.id}/cancel`, 'POST', { reason: 'Bekor qilish' }, processing.user.key());
+  assert.equal(pending.body.code, 'PAYMENT_CANCELLATION_PENDING');
+  assert.equal(await ctx.db.roomAllocation.count({ where: { bookingId: processing.id, active: true } }), 1);
 });

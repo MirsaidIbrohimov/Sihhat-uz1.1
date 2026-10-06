@@ -50,6 +50,7 @@ model Session {
   channel String
   expiresAt DateTime
   refreshExpiresAt DateTime
+  lastActivityAt DateTime @default(now())
   revokedAt DateTime?
   createdAt DateTime @default(now())
   @@index([userId])
@@ -119,6 +120,21 @@ model CatalogEntry {
   name String
   code String
   @@unique([kind, code])
+}
+
+model MerchantSetup {
+  id String @id @default(uuid()) @db.Uuid
+  sanatoriumId String @unique @db.Uuid
+  bankRevisionId String? @db.Uuid
+  legalName String
+  stir String
+  merchantId String?
+  cashDeskCode String?
+  status String @default("WAITING_MERCHANT")
+  settlementMode String @default("DIRECT")
+  version Int @default(1)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model MediaAsset {

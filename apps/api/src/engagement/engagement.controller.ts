@@ -1,4 +1,4 @@
-import { Body,Controller,Get,Inject,Param,Patch,Post,Query } from '@nestjs/common';
+import { Body,Controller,Get,Headers,Inject,Param,Patch,Post,Query } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { CurrentActor,Roles } from '../auth/guard';
 import type { Actor } from '../auth/permissions';
@@ -21,9 +21,9 @@ export class EngagementController{
   @Post('partner/reviews/:id/reply') @Roles('STAFF','SUPERADMIN') reviewReply(@CurrentActor() a:Actor,@Param('id') id:string,@Body() b:unknown){return this.s.reviewReply(a,id,b);}
   @Post('superadmin/reviews/:id/moderate') @Roles('SUPERADMIN') moderate(@CurrentActor() a:Actor,@Param('id') id:string,@Body() b:unknown){return this.s.moderateReview(a,id,b);}
   @Get('support/tickets') tickets(@CurrentActor() a:Actor){return this.s.tickets(a);}
-  @Post('support/tickets') ticket(@CurrentActor() a:Actor,@Body() b:unknown){return this.s.ticket(a,b);}
+  @Post('support/tickets') ticket(@CurrentActor() a:Actor,@Body() b:unknown,@Headers('idempotency-key') key?:string){return this.s.ticket(a,b,key);}
   @Get('support/tickets/:id') ticketGet(@CurrentActor() a:Actor,@Param('id') id:string){return this.s.ticketGet(a,id);}
-  @Post('support/tickets/:id/messages') ticketReply(@CurrentActor() a:Actor,@Param('id') id:string,@Body() b:unknown){return this.s.ticketReply(a,id,b);}
+  @Post('support/tickets/:id/messages') ticketReply(@CurrentActor() a:Actor,@Param('id') id:string,@Body() b:unknown,@Headers('idempotency-key') key?:string){return this.s.ticketReply(a,id,b,key);}
   @Get('notifications') notifications(@CurrentActor() a:Actor){return this.s.notifications(a);}
   @Post('notifications/:id/read') notificationRead(@CurrentActor() a:Actor,@Param('id') id:string){return this.s.notificationRead(a,id);}
 }

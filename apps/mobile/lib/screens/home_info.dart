@@ -5,86 +5,10 @@ import '../data/home_feed.dart';
 import '../widgets.dart';
 import '../design.dart';
 
-class HomeHighlights extends StatelessWidget {
-  final Json? data;
-  final bool loading, cached;
-  final String region;
-  final ValueChanged<String> selectRegion;
-  final Widget? action;
-  const HomeHighlights({
-    required this.data,
-    required this.loading,
-    required this.cached,
-    required this.region,
-    required this.selectRegion,
-    this.action,
-    super.key,
-  });
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        if (loading && data == null)
-          const Padding(
-            padding: EdgeInsets.symmetric(vertical: 14),
-            child: LinearProgressIndicator(minHeight: 2),
-          ),
-        if (data != null) ...[
-          if (cached)
-            Padding(
-              padding: const EdgeInsets.only(top: 10),
-              child: Text(
-                'Saqlangan ma’lumot · ${_updated(data!['generated_at'])}. Narx va mavjudlik bron hisobida yangilanadi.',
-                style: TextStyle(fontSize: 11, color: context.colors.muted),
-              ),
-            ),
-          if ((data!['regions'] as List? ?? []).isNotEmpty) ...[
-            const SizedBox(height: 18),
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.only(right: 8),
-                    child: ChoiceChip(
-                      label: const Text('Barchasi'),
-                      selected: region.isEmpty,
-                      onSelected: (_) => selectRegion(''),
-                    ),
-                  ),
-                  ...(data!['regions'] as List).map(
-                    (r) => Padding(
-                      padding: const EdgeInsets.only(right: 8),
-                      child: ChoiceChip(
-                        label: Text(r.toString()),
-                        selected: region == r,
-                        onSelected: (_) => selectRegion(r.toString()),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ],
-        const SizedBox(height: 18),
-        Row(
-          children: [
-            const Expanded(child: SectionTitle('Sanatoriyalar')),
-            ?action,
-          ],
-        ),
-        const SizedBox(height: 10),
-      ],
-    );
-  }
-}
-
 String _updated(dynamic value) {
   final date = DateTime.tryParse(value?.toString() ?? '')?.toLocal();
   if (date == null) return '';
-  return '${date.day.toString().padLeft(2, '0')}.${date.month.toString().padLeft(2, '0')}.${date.year} ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
+  return '${date.day.toString().padLeft(2, '0')}.${date.month.toString().padLeft(2, '0')}.${date.year}';
 }
 
 class HomeUpdates extends StatelessWidget {

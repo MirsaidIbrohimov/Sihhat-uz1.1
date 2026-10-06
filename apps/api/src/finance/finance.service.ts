@@ -3,12 +3,13 @@ import { z } from 'zod';
 import { Db,audit,emit,type Tx } from '../common/db';
 import { parse,uuid,positiveMoney,reason,fail,pageQuery,paged } from '../common/errors';
 import { Actor,scope,requirePlatform,tenantIds } from '../auth/permissions';
-import { financialLock,refundReserve } from '../payments/payment.service';
+import { PaymentService,financialLock,refundReserve } from '../payments/payment.service';
+import { TezcheckService } from '../payments/tezcheck.service';
 import { bookingBalance,post } from '../ledger/ledger';
 
 @Injectable()
 export class FinanceService{
-  constructor(@Inject(Db) readonly db:Db){}
+  constructor(@Inject(Db) readonly db:Db,@Inject(PaymentService) readonly payments:PaymentService,@Inject(TezcheckService) readonly tezcheck:TezcheckService){}
   private async booking(tx:Tx,actor:Actor,id:string,permission='refunds.request'){
     const b=await tx.booking.findUnique({where:{id}});if(!b)fail('NOT_FOUND','Bron topilmadi',404);if(actor.kind==='CUSTOMER'){if(b.userId!==actor.id)fail('NOT_FOUND','Bron topilmadi',404);}else scope(actor,b.sanatoriumId,permission);await financialLock(tx,b.sanatoriumId);return tx.booking.findUniqueOrThrow({where:{id}});
   }
@@ -22,7 +23,30 @@ export class FinanceService{
   async refundDecision(actor:Actor,id:string,approve:boolean,body:unknown){requirePlatform(actor,'refunds.approve');parse(uuid,id);const i=parse(z.object({reason}).strict(),body);return this.db.atomic(async tx=>{const r=await tx.refundRequest.findUnique({where:{id}});if(!r)fail('NOT_FOUND','So‘rov topilmadi',404);await financialLock(tx,r.sanatoriumId);const current=await tx.refundRequest.findUniqueOrThrow({where:{id}});if(current.status!=='REQUESTED')fail('STATE_CONFLICT','Qaytarish holati o‘zgargan');
       if(approve)await refundReserve(tx,current);const changed=await tx.refundRequest.update({where:{id},data:{status:approve?'APPROVED':'REJECTED',decisionReason:i.reason}});await audit(tx,actor.id,approve?'refund.approved':'refund.rejected',id,r.sanatoriumId,undefined,i);return {...changed,next_action:approve?'Merchant kabinetida qaytarishni boshlang; natija provayder callbacki bilan tasdiqlanadi':null};});}
   async refundProcess(actor:Actor,id:string){requirePlatform(actor,'refunds.approve');parse(uuid,id);return this.db.atomic(async tx=>{const r=await tx.refundRequest.findUnique({where:{id}});if(!r)fail('NOT_FOUND','So‘rov topilmadi',404);await financialLock(tx,r.sanatoriumId);const changed=await tx.refundRequest.updateMany({where:{id,status:'APPROVED'},data:{status:'PROCESSING'}});if(!changed.count)fail('STATE_CONFLICT','Faqat ma’qullangan refundni boshlash mumkin');await audit(tx,actor.id,'refund.processing',id,r.sanatoriumId);return {status:'PROCESSING',confirmation_source:'provider_callback'};});}
-  async cancelUnpaid(actor:Actor,id:string,body:unknown,key?:string){parse(uuid,id);const i=parse(z.object({reason}).strict(),body);return this.db.idempotent(actor.id,'booking.cancel',key,{id,...i},async tx=>{const b=await this.booking(tx,actor,id);if(b.status==='PAYMENT_PENDING')fail('PROVIDER_CANCELLATION_REQUIRED','To‘lov provayderda kutilmoqda. Yordam xizmatiga bekor qilish murojaatini yuboring');if(b.status!=='HOLD')fail('REFUND_REQUEST_REQUIRED','To‘langan bron uchun qaytarish so‘rovi kerak');await tx.booking.update({where:{id},data:{status:'CANCELLED',version:{increment:1}}});await tx.roomAllocation.updateMany({where:{bookingId:id,active:true},data:{active:false}});await tx.paymentOrder.updateMany({where:{bookingId:id,status:'CREATED'},data:{status:'CANCELLED'}});await tx.bookingEvent.create({data:{bookingId:id,actorId:actor.id,status:'CANCELLED',reason:i.reason}});await audit(tx,actor.id,'booking.cancelled',id,b.sanatoriumId);return {success:true};});}
+  async cancelUnpaid(actor: Actor, id: string, body: unknown, key?: string) {
+    parse(uuid, id); const i = parse(z.object({ reason }).strict(), body);
+    if (!key || !/^[\w:.-]{8,128}$/.test(key)) fail('IDEMPOTENCY_KEY_REQUIRED', 'Bekor qilish kaliti kerak.', 422);
+    await this.tezcheck.cancelBooking(actor, id);
+    return this.db.idempotent(actor.id, 'booking.cancel', key, { id, ...i }, async tx => {
+      const b = await this.booking(tx, actor, id);
+      const order = await tx.paymentOrder.findUnique({ where: { bookingId: id } });
+      const active = order ? await tx.providerTransaction.findMany({ where: { orderId: order.id, state: { in: [1, 2] } } }) : [];
+      if (order?.status === 'SUCCEEDED' || active.some(p => p.state === 2) || !['HOLD', 'PAYMENT_PENDING', 'EXPIRED', 'CANCELLED'].includes(b.status))
+        fail('REFUND_REQUEST_REQUIRED', 'To‘langan bron uchun pulni qaytarish so‘rovini yuboring.', 422);
+      const bill = order ? await tx.tezcheckBill.findUnique({ where: { orderId: order.id } }) : null;
+      if (bill && !['CANCELLED', 'TEST'].includes(bill.state)) fail('PAYMENT_CANCELLATION_PENDING', 'To‘lov holati hali tekshirilmoqda. Bekor qilishni qayta bosing.', 409);
+      if (active.some(p => p.provider !== 'PAYME')) fail('PAYMENT_CANCELLATION_PENDING', 'To‘lov holatini tekshirish kerak.', 409);
+      for (const p of active) await this.payments.cancel(tx, p.providerId, 5);
+      if (b.status !== 'CANCELLED' && !active.length) {
+        await tx.booking.update({ where: { id }, data: { status: 'CANCELLED', version: { increment: 1 } } });
+        await tx.bookingEvent.create({ data: { bookingId: id, actorId: actor.id, status: 'CANCELLED', reason: i.reason } });
+        await audit(tx, actor.id, 'booking.cancelled', id, b.sanatoriumId, undefined, i);
+      }
+      await tx.roomAllocation.updateMany({ where: { bookingId: id, active: true }, data: { active: false } });
+      await tx.paymentOrder.updateMany({ where: { bookingId: id, status: { in: ['CREATED', 'PENDING'] } }, data: { status: 'CANCELLED' } });
+      return { success: true, status: 'CANCELLED' };
+    });
+  }
   async refunds(actor:Actor,query:unknown){requirePlatform(actor,'refunds.approve');const i=parse(pageQuery,query);const[data,total]=await Promise.all([this.db.refundRequest.findMany({take:i.limit,skip:(i.page-1)*i.limit,orderBy:{createdAt:'desc'}}),this.db.refundRequest.count()]);return paged(data,total,i.page,i.limit);}
   async payoutCreate(actor:Actor,body:unknown,key?:string){requirePlatform(actor,'payouts.manage');const i=parse(z.object({sanatorium_id:uuid,booking_ids:z.array(uuid).min(1).max(100)}).strict(),body);if(new Set(i.booking_ids).size!==i.booking_ids.length)fail('DUPLICATE_BOOKING','Takroriy bron IDsi bor',422);
     return this.db.idempotent(actor.id,'payout.create',key,i,async tx=>{await financialLock(tx,i.sanatorium_id);const s=await tx.sanatorium.findUnique({where:{id:i.sanatorium_id}});if(!s?.bankRevisionId)fail('BANK_NOT_APPROVED','Tasdiqlangan bank rekviziti kerak');const bank=await tx.bankRevision.findUniqueOrThrow({where:{id:s.bankRevisionId}});if(bank.status!=='APPROVED')fail('BANK_NOT_APPROVED','Rekvizit tasdiqlanmagan');
