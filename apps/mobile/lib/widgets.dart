@@ -1,6 +1,9 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 
 import 'data/api.dart';
+import 'data/catalog_cache.dart';
 import 'design.dart';
 
 class Busy extends StatelessWidget {
@@ -59,6 +62,155 @@ class AsyncContent extends StatefulWidget {
   const AsyncContent({required this.load, required this.builder, super.key});
   @override
   State<AsyncContent> createState() => _AsyncContentState();
+}
+
+/// Show saved content immediately, then update it without hiding it on outages.
+class CachedContent extends StatefulWidget {
+  final Future<dynamic> Function() cached, refresh;
+  final Widget Function(dynamic value) builder;
+  final Listenable? changes;
+  final bool clearWhenMissing;
+  const CachedContent({
+    required this.cached,
+    required this.refresh,
+    required this.builder,
+    this.changes,
+    this.clearWhenMissing = false,
+    super.key,
+  });
+  @override
+  State<CachedContent> createState() => _CachedContentState();
+}
+
+class _CachedContentState extends State<CachedContent> {
+  dynamic value;
+  Object? error;
+  bool loading = true;
+  int request = 0;
+  @override
+  void initState() {
+    super.initState();
+    widget.changes?.addListener(readCache);
+    initial();
+  }
+
+  Future<void> readCache() async {
+    final data = await widget.cached();
+    if (mounted && data != null) setState(() => value = data);
+    if (mounted && data == null && widget.clearWhenMissing && value != null) {
+      setState(() {
+        value = null;
+        loading = false;
+        error = 'Sanatoriya hozir katalogda mavjud emas.';
+      });
+    }
+  }
+
+  Future<void> initial() async {
+    await readCache();
+    if (mounted) await refresh();
+  }
+
+  Future<void> refresh() async {
+    final current = ++request;
+    try {
+      final data = await widget.refresh();
+      if (mounted && current == request) {
+        setState(() {
+          value = data;
+          error = null;
+        });
+      }
+    } catch (e) {
+      if (mounted && current == request) {
+        setState(() {
+          if (e is ApiException && [401, 403, 404].contains(e.status)) {
+            value = null;
+          }
+          error = e;
+        });
+      }
+    } finally {
+      if (mounted && current == request) setState(() => loading = false);
+    }
+  }
+
+  @override
+  void dispose() {
+    widget.changes?.removeListener(readCache);
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (value != null) {
+      return RefreshIndicator(onRefresh: refresh, child: widget.builder(value));
+    }
+    if (loading) return const Busy();
+    return ErrorView(
+      error ?? 'Ma’lumotlarni yuklash uchun internetga ulaning.',
+      retry: refresh,
+    );
+  }
+}
+
+class SanatoriumPhoto extends StatefulWidget {
+  final Api api;
+  final String id;
+  final BoxFit fit;
+  final Widget fallback;
+  const SanatoriumPhoto({
+    required this.api,
+    required this.id,
+    this.fit = BoxFit.cover,
+    this.fallback = const SizedBox(),
+    super.key,
+  });
+  @override
+  State<SanatoriumPhoto> createState() => _SanatoriumPhotoState();
+}
+
+class _SanatoriumPhotoState extends State<SanatoriumPhoto> {
+  late Future<File?> future;
+  @override
+  void initState() {
+    super.initState();
+    CatalogCache(widget.api).addListener(updated);
+    load();
+  }
+
+  void load() => future = CatalogCache(widget.api).photos.file(widget.id);
+  @override
+  void didUpdateWidget(covariant SanatoriumPhoto oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.api != widget.api) {
+      CatalogCache(oldWidget.api).removeListener(updated);
+      CatalogCache(widget.api).addListener(updated);
+    }
+    if (oldWidget.api != widget.api || oldWidget.id != widget.id) load();
+  }
+
+  void updated() {
+    if (mounted) setState(load);
+  }
+
+  @override
+  void dispose() {
+    CatalogCache(widget.api).removeListener(updated);
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => FutureBuilder<File?>(
+    future: future,
+    builder: (_, result) => result.data == null
+        ? widget.fallback
+        : Image.file(
+            result.data!,
+            fit: widget.fit,
+            errorBuilder: (_, _, _) => widget.fallback,
+          ),
+  );
 }
 
 class _AsyncContentState extends State<AsyncContent> {
@@ -165,10 +317,10 @@ class SanatoriumCard extends StatelessWidget {
                     ),
                   ),
                   if (photos?.isNotEmpty == true)
-                    Image.network(
-                      api.image(photos!.first),
+                    SanatoriumPhoto(
+                      api: api,
+                      id: photos!.first.toString(),
                       fit: BoxFit.cover,
-                      errorBuilder: (_, _, _) => const SizedBox(),
                     ),
                   Positioned(
                     left: 16,

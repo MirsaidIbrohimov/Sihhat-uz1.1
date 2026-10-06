@@ -149,7 +149,9 @@ void main() {
       await tester.enterText(find.byType(TextField).first, 'Toshkent');
       await tester.pump(const Duration(milliseconds: 400));
       await tester.pumpAndSettle();
-      expect(queries.last['q'], 'Toshkent');
+      // The full catalogue is downloaded; subsequent searches run offline.
+      expect(queries.last['q'], isNull);
+      expect(find.text(item['name']), findsOneWidget);
       expect(queries.first['limit'], '100');
       expect(tester.takeException(), isNull);
       await tester.pumpWidget(const SizedBox.shrink());
@@ -240,7 +242,8 @@ void main() {
       await tester.enterText(find.byType(TextField), 'Toshkent');
       await tester.testTextInput.receiveAction(TextInputAction.search);
       await tester.pumpAndSettle();
-      expect(queries.last['q'], 'Toshkent');
+      expect(queries.last['q'], isNull);
+      expect(find.text(item['name']), findsOneWidget);
       expect(find.byType(CatalogScreen), findsOneWidget);
       await tester.tap(find.text('Bosh sahifa'));
       await tester.pumpAndSettle();

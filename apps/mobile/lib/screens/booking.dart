@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
@@ -9,11 +8,18 @@ import 'package:url_launcher/url_launcher.dart';
 import '../data/api.dart';
 import '../widgets.dart';
 import '../design.dart';
+import 'login.dart';
 
 class BookingComposer extends StatefulWidget {
   final Api api;
   final Json sanatorium;
-  const BookingComposer(this.api, this.sanatorium, {super.key});
+  final String? initialRateId;
+  const BookingComposer(
+    this.api,
+    this.sanatorium, {
+    this.initialRateId,
+    super.key,
+  });
   @override
   State<BookingComposer> createState() => _BookingComposerState();
 }
@@ -35,17 +41,19 @@ class _BookingComposerState extends State<BookingComposer> {
       end: DateTime(now.year, now.month, now.day + 3),
     );
     items.add(newRoom());
-    widget.api.store.read('profile').then((p) {
+    widget.api.cachedProfile().then((p) {
       if (p != null && mounted) {
-        final user = asJson(jsonDecode(p));
-        name.text = user['name'] == 'Mijoz' ? '' : user['name'] ?? '';
-        phone.text = user['phone'] ?? '+998';
+        name.text = p['name'] == 'Mijoz' ? '' : p['name'] ?? '';
+        phone.text = p['phone'] ?? '+998';
       }
     });
   }
 
   Json newRoom() => {
-    'rate_id': rows(widget.sanatorium['rate_plans']).first['id'],
+    'rate_id': items.isNotEmpty
+        ? items.last['rate_id']
+        : widget.initialRateId ??
+              rows(widget.sanatorium['rate_plans']).first['id'],
     'adults': 1,
     'children': <int>[],
   };
@@ -82,11 +90,21 @@ class _BookingComposerState extends State<BookingComposer> {
     error = null;
   });
   Future<void> calculate() async {
+    if (busy) return;
+    if (dates.duration.inDays < 1) {
+      setState(
+        () =>
+            error = 'Kelish va ketish sanalari orasida kamida bir tun bo‘lsin.',
+      );
+      return;
+    }
     setState(() {
       busy = true;
       error = null;
     });
     try {
+      if (!await ensureLogin(context, widget.api)) return;
+      if (!mounted) return;
       final result = asJson(
         await widget.api.send(
           '/customer/quotes',
@@ -96,7 +114,15 @@ class _BookingComposerState extends State<BookingComposer> {
       );
       if (mounted) setState(() => quote = result);
     } catch (e) {
-      if (mounted) setState(() => error = e.toString());
+      if (mounted) {
+        setState(
+          () => error =
+              e is ApiException &&
+                  ['NETWORK_ERROR', 'NETWORK_TIMEOUT'].contains(e.code)
+              ? 'To‘lovga o‘tish uchun internetga ulaning. Tanlovlaringiz saqlanadi.'
+              : e.toString(),
+        );
+      }
     } finally {
       if (mounted) setState(() => busy = false);
     }
@@ -162,62 +188,99 @@ class _BookingComposerState extends State<BookingComposer> {
     final type = rows(s['room_types'])
         .firstWhere((r) => r['id'] == rate['roomTypeId']);
     final children = List<int>.from(item['children']);
+    final types = rows(s['room_types'])
+        .where((type) => rates.any((rate) => rate['roomTypeId'] == type['id']))
+        .toList();
+    final typeRates = rates
+        .where((r) => r['roomTypeId'] == type['id'])
+        .toList();
     return GlassCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  '${n + 1}-xona',
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w700,
+          if (items.length > 1)
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    '${n + 1}-xona',
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                 ),
-              ),
-              if (items.length > 1)
-                IconButton(
-                  tooltip: 'Xonani olib tashlash',
-                  onPressed: busy
-                      ? null
-                      : () => changed(() => items.removeAt(n)),
-                  icon: const Icon(Icons.close),
-                ),
-            ],
-          ),
+                if (items.length > 1)
+                  IconButton(
+                    tooltip: 'Xonani olib tashlash',
+                    onPressed: busy
+                        ? null
+                        : () => changed(() => items.removeAt(n)),
+                    icon: const Icon(Icons.close),
+                  ),
+              ],
+            ),
           const SizedBox(height: 8),
           DropdownButtonFormField<String>(
-            key: ValueKey('rate-$n-${item['rate_id']}'),
-            initialValue: item['rate_id'],
+            key: ValueKey('type-$n-${type['id']}'),
+            initialValue: type['id'],
             isExpanded: true,
             decoration: const InputDecoration(labelText: 'Xona turi'),
-            items: rates
+            items: types
                 .map(
                   (r) => DropdownMenuItem<String>(
                     value: r['id'],
-                    child: Text(
-                      '${r['name']} · ${money(r['baseAmount'])}',
-                      overflow: TextOverflow.ellipsis,
-                    ),
+                    child: Text(r['name'], overflow: TextOverflow.ellipsis),
                   ),
                 )
                 .toList(),
             onChanged: busy
                 ? null
                 : (v) => changed(() {
-                    item['rate_id'] = v;
-                    final selected = rates.firstWhere((r) => r['id'] == v);
-                    final capacity = rows(s['room_types'])
-                        .firstWhere((r) => r['id'] == selected['roomTypeId']);
+                    item['rate_id'] = rates.firstWhere(
+                      (r) => r['roomTypeId'] == v,
+                    )['id'];
+                    final capacity = types.firstWhere((r) => r['id'] == v);
                     item['adults'] = (item['adults'] as int).clamp(
                       1,
-                      capacity['maxAdults'] as int,
+                      (capacity['maxAdults'] as int).clamp(
+                        1,
+                        capacity['maxGuests'] as int,
+                      ),
                     );
                     item['children'] = <int>[];
                   }),
           ),
+          const SizedBox(height: 12),
+          if (typeRates.length > 1)
+            DropdownButtonFormField<String>(
+              key: ValueKey('rate-$n-${item['rate_id']}'),
+              initialValue: item['rate_id'],
+              isExpanded: true,
+              decoration: const InputDecoration(labelText: 'Tarif'),
+              items: typeRates
+                  .map(
+                    (r) => DropdownMenuItem<String>(
+                      value: r['id'],
+                      child: Text(
+                        '${r['name']} · ${money(r['baseAmount'])}',
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  )
+                  .toList(),
+              onChanged: busy
+                  ? null
+                  : (v) => changed(() => item['rate_id'] = v),
+            )
+          else
+            Text(
+              '${rate['name']} · ${money(rate['baseAmount'])} / tun',
+              style: TextStyle(
+                color: context.colors.primary,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
           const SizedBox(height: 12),
           Row(
             children: [
@@ -245,54 +308,67 @@ class _BookingComposerState extends State<BookingComposer> {
               ),
             ],
           ),
-          for (var c = 0; c < children.length; c++)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 10),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: DropdownButtonFormField<int>(
-                      key: ValueKey('child-$n-$c-${children[c]}'),
-                      initialValue: children[c],
-                      decoration: InputDecoration(
-                        labelText: '${c + 1}-bola yoshi',
-                      ),
-                      items: List.generate(
-                        18,
-                        (age) => DropdownMenuItem(
-                          value: age,
-                          child: Text('$age yosh'),
+          if (type['maxChildren'] > 0)
+            ExpansionTile(
+              tilePadding: EdgeInsets.zero,
+              title: Text(
+                children.isEmpty
+                    ? 'Bolalar bilan kelaman'
+                    : '${children.length} bola',
+              ),
+              children: [
+                for (var c = 0; c < children.length; c++)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 10),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: DropdownButtonFormField<int>(
+                            key: ValueKey('child-$n-$c-${children[c]}'),
+                            initialValue: children[c],
+                            decoration: InputDecoration(
+                              labelText: '${c + 1}-bola yoshi',
+                            ),
+                            items: List.generate(
+                              18,
+                              (age) => DropdownMenuItem(
+                                value: age,
+                                child: Text('$age yosh'),
+                              ),
+                            ),
+                            onChanged: busy
+                                ? null
+                                : (v) => changed(() {
+                                    children[c] = v!;
+                                    item['children'] = children;
+                                  }),
+                          ),
                         ),
-                      ),
-                      onChanged: busy
-                          ? null
-                          : (v) => changed(() {
-                              children[c] = v!;
-                              item['children'] = children;
-                            }),
+                        IconButton(
+                          tooltip: 'Bolani olib tashlash',
+                          onPressed: busy
+                              ? null
+                              : () => changed(() {
+                                  children.removeAt(c);
+                                  item['children'] = children;
+                                }),
+                          icon: const Icon(Icons.close),
+                        ),
+                      ],
                     ),
                   ),
-                  IconButton(
-                    tooltip: 'Bolani olib tashlash',
+                if (children.length < type['maxChildren'] &&
+                    item['adults'] + children.length < type['maxGuests'])
+                  TextButton.icon(
                     onPressed: busy
                         ? null
-                        : () => changed(() {
-                            children.removeAt(c);
-                            item['children'] = children;
-                          }),
-                    icon: const Icon(Icons.close),
+                        : () => changed(
+                            () => item['children'] = [...children, 5],
+                          ),
+                    icon: const Icon(Icons.child_care_outlined),
+                    label: const Text('Bola qo‘shish'),
                   ),
-                ],
-              ),
-            ),
-          if (children.length < type['maxChildren'] &&
-              item['adults'] + children.length < type['maxGuests'])
-            TextButton.icon(
-              onPressed: busy
-                  ? null
-                  : () => changed(() => item['children'] = [...children, 5]),
-              icon: const Icon(Icons.child_care_outlined),
-              label: const Text('Bola qo‘shish'),
+              ],
             ),
         ],
       ),
@@ -304,7 +380,7 @@ class _BookingComposerState extends State<BookingComposer> {
     final s = widget.sanatorium, rates = rows(s['rate_plans']);
     final confirming = quote != null;
     return Scaffold(
-      appBar: AppBar(title: const Text('Bron qilish')),
+      appBar: AppBar(title: Text(confirming ? 'To‘lov' : 'Sana va xona')),
       bottomNavigationBar: ActionDock(
         amount: confirming ? money(quote!['amount']) : null,
         caption: '${dates.duration.inDays} tun · ${items.length} xona',
@@ -312,7 +388,7 @@ class _BookingComposerState extends State<BookingComposer> {
             ? 'Kutilmoqda…'
             : confirming
             ? 'Bronni tasdiqlash'
-            : 'Davom etish',
+            : 'To‘lovga o‘tish',
         onPressed: busy
             ? null
             : confirming
@@ -332,24 +408,14 @@ class _BookingComposerState extends State<BookingComposer> {
                 color: context.colors.ink,
               ),
             ),
-            const SizedBox(height: 10),
-            Text(
-              confirming
-                  ? '2 / 2 · Bronni tasdiqlang'
-                  : '1 / 2 · Sana va mehmonlarni tanlang',
-              style: TextStyle(
-                color: context.colors.primary,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 16),
             if (!confirming) ...[
               GlassCard(
                 padding: EdgeInsets.zero,
                 child: ListTile(
                   contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 20,
-                    vertical: 12,
+                    horizontal: 16,
+                    vertical: 4,
                   ),
                   leading: Icon(
                     Icons.date_range_outlined,
@@ -367,12 +433,18 @@ class _BookingComposerState extends State<BookingComposer> {
                 (e) => room(e.key, e.value, rates, s),
               ),
               if (items.length < 10)
-                OutlinedButton.icon(
-                  onPressed: busy
-                      ? null
-                      : () => changed(() => items.add(newRoom())),
-                  icon: const Icon(Icons.add),
-                  label: const Text('Yana xona qo‘shish'),
+                ExpansionTile(
+                  tilePadding: EdgeInsets.zero,
+                  title: const Text('Qo‘shimcha xona'),
+                  children: [
+                    TextButton.icon(
+                      onPressed: busy
+                          ? null
+                          : () => changed(() => items.add(newRoom())),
+                      icon: const Icon(Icons.add),
+                      label: const Text('Yana xona qo‘shish'),
+                    ),
+                  ],
                 ),
             ] else ...[
               GlassCard(
@@ -390,15 +462,6 @@ class _BookingComposerState extends State<BookingComposer> {
                         child: Text(
                           '${i['room_type_name']} · ${quote!['data']['nights']} tun · ${money(i['amount'])}',
                         ),
-                      ),
-                    ),
-                    const Divider(),
-                    Text(
-                      'Jami: ${money(quote!['amount'])}',
-                      style: TextStyle(
-                        fontWeight: FontWeight.w800,
-                        fontSize: 23,
-                        color: context.colors.primary,
                       ),
                     ),
                     TextButton.icon(
@@ -860,16 +923,16 @@ class _BookingScreenState extends State<BookingScreen>
                     '${b['checkIn'].toString().substring(0, 10)} — ${b['checkOut'].toString().substring(0, 10)}',
                   ),
                   const SizedBox(height: 18),
-                  Text(
-                    money(b['amount']),
-                    style: TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.w700,
-                      color: context.colors.primary,
+                  if (!['HOLD', 'PAYMENT_PENDING'].contains(b['status']))
+                    Text(
+                      money(b['amount']),
+                      style: TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.w700,
+                        color: context.colors.primary,
+                      ),
                     ),
-                  ),
                   const SizedBox(height: 12),
-                  Text('Mehmon: ${b['guest']['name']}'),
                   if (b['holdExpiresAt'] != null && b['status'] == 'HOLD')
                     Text(
                       'To‘lov muddati: ${DateTime.parse(b['holdExpiresAt']).toLocal()}',
@@ -885,15 +948,25 @@ class _BookingScreenState extends State<BookingScreen>
                     ),
                   if (error != null) ErrorView(error!, retry: refresh),
                   const SizedBox(height: 16),
-                  ...rows(b['items']).map(
-                    (i) => Card(
-                      child: ListTile(
-                        leading: const Icon(Icons.bed_outlined),
-                        title: Text(
-                          '${i['adults']} katta · ${(i['childrenAges'] as List).length} bola',
+                  Card(
+                    child: ExpansionTile(
+                      title: const Text('Bron ma’lumotlari'),
+                      childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                      expandedCrossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Mehmon: ${b['guest']['name']}'),
+                        ...rows(b['items']).map(
+                          (i) => Card(
+                            child: ListTile(
+                              leading: const Icon(Icons.bed_outlined),
+                              title: Text(
+                                '${i['adults']} katta · ${(i['childrenAges'] as List).length} bola',
+                              ),
+                              subtitle: Text(money(i['amount'])),
+                            ),
+                          ),
                         ),
-                        subtitle: Text(money(i['amount'])),
-                      ),
+                      ],
                     ),
                   ),
                   if ([

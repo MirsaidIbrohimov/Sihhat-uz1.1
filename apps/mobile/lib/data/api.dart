@@ -46,8 +46,11 @@ class Api {
   final TokenStore store;
   final http.Client client;
   final ValueNotifier<bool> session = ValueNotifier(false);
+  final ValueNotifier<int> profileRevision = ValueNotifier(0);
   String? accessToken, refreshToken;
   Future<void>? _refreshing;
+  Future<Json>? _profileRequest;
+  int _sessionVersion = 0;
   final Map<String, String> _pendingKeys = {};
   final Map<String, Future<dynamic>> _inFlight = {};
   Api({required this.baseUrl, TokenStore? store, http.Client? client})
@@ -87,7 +90,7 @@ class Api {
     await store.write('access', access);
     await store.write('refresh', refresh);
     if (result['user'] != null) {
-      await store.write('profile', jsonEncode(result['user']));
+      await saveProfile(asJson(result['user']));
     }
     accessToken = access;
     refreshToken = refresh;
@@ -95,12 +98,16 @@ class Api {
   }
 
   Future<void> clear() async {
+    _sessionVersion++;
     accessToken = null;
     refreshToken = null;
     await store.write('access', null);
     await store.write('refresh', null);
     await store.write('pending_booking', null);
     await store.write('profile', null);
+    await store.write('profile_server', null);
+    await store.write('ai_consent', null);
+    profileRevision.value++;
     session.value = false;
   }
 
@@ -152,6 +159,7 @@ class Api {
     bool retry = true,
     String? idempotencyKey,
   }) async {
+    final sessionVersion = _sessionVersion;
     final signature = '$method:$path:${jsonEncode(body)}';
     final mutate = method != 'GET';
     final key = mutate
@@ -222,7 +230,40 @@ class Api {
       );
     }
     _pendingKeys.remove(signature);
+    if (signedIn &&
+        sessionVersion == _sessionVersion &&
+        (path == '/auth/me' || path == '/auth/profile')) {
+      await saveProfile(asJson(value));
+    }
     return value;
+  }
+
+  Future<Json?> cachedProfile() async {
+    try {
+      final server = await store.read('profile_server');
+      if (server != null && server != baseUrl) return null;
+      final raw = await store.read('profile');
+      return raw == null ? null : asJson(jsonDecode(raw));
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<Json> refreshProfile() => _profileRequest ??= (() async {
+    return asJson(await send('/auth/me'));
+  })().whenComplete(() => _profileRequest = null);
+
+  Future<void> saveProfile(Json value) async {
+    if (value['id'] is! String) return;
+    final previous = await cachedProfile();
+    final profile = {
+      if (previous?['id'] == value['id']) ...?previous,
+      for (final key in ['id', 'name', 'phone', 'kind'])
+        if (value.containsKey(key)) key: value[key],
+    };
+    await store.write('profile', jsonEncode(profile));
+    await store.write('profile_server', baseUrl);
+    profileRevision.value++;
   }
 
   Future<void> logout() async {

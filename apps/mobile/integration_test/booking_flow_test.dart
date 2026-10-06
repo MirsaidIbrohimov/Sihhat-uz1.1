@@ -93,18 +93,19 @@ void main() {
       await tester.enterText(find.byType(TextField).last, sms['code']);
       await tapText('Tasdiqlash');
       expect(api.signedIn, true);
-      await waitFor(find.text('Siz uchun takliflar'));
+      await waitFor(find.text('Mashhur sanatoriyalar'));
       await tapText('Bronlar');
       debugPrint('Android test: OTP login passed');
       await tapText('Sanatoriyalar');
       await waitFor(find.text(fixture['sanatorium_name']));
       await tapText(fixture['sanatorium_name']);
-      await tapText('Sana va xonalarni tanlash');
+      await tapText('Shu tarifni tanlash');
       await waitFor(find.byType(BookingComposer));
       debugPrint('Android test: booking composer opened');
+      await tapText('Qo‘shimcha xona');
       await tapText('Yana xona qo‘shish');
-      await tapText('Davom etish');
-      await waitFor(find.text('2 / 2 · Bronni tasdiqlang'));
+      await tapText('To‘lovga o‘tish');
+      await waitFor(find.text('Mehmon ism-familiyasi'));
       debugPrint('Android test: two-room quote received');
       final name = find.byWidgetPredicate(
         (w) =>

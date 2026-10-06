@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../data/api.dart';
 import '../data/home_feed.dart';
+import '../data/catalog_cache.dart';
 import '../design.dart';
 import '../widgets.dart';
 import 'account.dart';
@@ -34,6 +35,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     feed = HomeFeed(widget.api);
+    CatalogCache(widget.api).addListener(catalogChanged);
     refresh();
     timer = Timer.periodic(const Duration(seconds: 30), (_) {
       refreshAds();
@@ -43,6 +45,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   @override
   void dispose() {
     timer?.cancel();
+    CatalogCache(widget.api).removeListener(catalogChanged);
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
@@ -70,6 +73,14 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 
   Future<void> refreshInfo() async {
+    final saved = await feed.cached();
+    if (mounted && data == null && saved != null) {
+      setState(() {
+        data = saved;
+        cached = true;
+        loading = false;
+      });
+    }
     try {
       final value = await feed.refresh();
       if (mounted) {
@@ -84,9 +95,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       final value = await feed.cached();
       if (mounted) {
         setState(() {
-          data = value;
-          cached = value != null;
-          error = value == null ? e.toString() : null;
+          data ??= value;
+          cached = data != null;
+          error = data == null && CatalogCache(widget.api).items.isEmpty
+              ? e.toString()
+              : null;
           loading = false;
         });
       }
@@ -95,6 +108,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   Future<void> refresh() async {
     await Future.wait([refreshInfo(), refreshAds()]);
+  }
+
+  void catalogChanged() {
+    if (mounted) setState(() {});
   }
 
   void navigate(int tab) {
@@ -145,7 +162,13 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   @override
   Widget build(BuildContext context) {
-    final featured = rows(data?['featured']);
+    final catalog = CatalogCache(widget.api);
+    var featured = rows(data?['featured']);
+    if (catalog.hasSnapshot) {
+      final ids = catalog.items.map((item) => item['id']).toSet();
+      featured = featured.where((item) => ids.contains(item['id'])).toList();
+      if (featured.isEmpty) featured = catalog.items.take(6).toList();
+    }
     return RefreshIndicator(
       onRefresh: refresh,
       child: ListView(
@@ -184,8 +207,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             icon: Icons.spa_outlined,
             onAll: widget.onCatalog ?? () => navigate(1),
           ),
-          if (loading && data == null) const Busy(),
-          if (error != null) ErrorView(error!, retry: refresh),
+          if (loading && data == null && featured.isEmpty) const Busy(),
+          if (error != null && featured.isEmpty)
+            ErrorView(error!, retry: refresh),
           if (cached)
             Padding(
               padding: const EdgeInsets.only(bottom: 12),
@@ -427,10 +451,10 @@ class FeaturedSanatoriumCard extends StatelessWidget {
                     ),
                   ),
                   if (photos.isNotEmpty)
-                    Image.network(
-                      api.image(photos.first),
+                    SanatoriumPhoto(
+                      api: api,
+                      id: photos.first.toString(),
                       fit: BoxFit.cover,
-                      errorBuilder: (_, _, _) => const SizedBox.shrink(),
                     ),
                   Positioned(
                     left: 10,

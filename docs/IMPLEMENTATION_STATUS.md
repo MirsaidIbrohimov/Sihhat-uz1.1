@@ -11,8 +11,52 @@ Yangilangan: 2026-10-06. Asos: ISHLAB_CHIQISH_REJASI.md va SIHHAT_UZ_ARXITEKTURA
 | B10 — backend qabul | Lokal qabul to‘plami o‘tdi; tashqi tekshiruv cheklovlari quyida | PostgreSQLda 79/79 test; OpenAPI va runbook yangilandi; 10 migratsiya toza scratch bazada tekshirildi; avvalgi backup dalillari quyida |
 | F1/F2 — saytlar | APIga ulangan sahifalar, AI sarfi/Tezcheck holati, Telegram ulash va brauzer sinovlari o‘tdi | Ikkala Next.js buildi, TypeScript; oxirgi umumiy brauzer runida 11/11 ssenariy o‘tdi |
 | Telegram — xodimlar boti | Kod, lokal worker va rasmiy API ulanishi tayyor | Admin/direktor/resepsion menyusi, xavfsiz ulash, ruxsat tekshiruvi, vazifa/murojaat wizardlari va outbox bildirishnomalari; haqiqiy xodim ulashi hali bajarilmagan |
-| F3 — Android | Namuna asosidagi UI, o‘z logo, funksional tezkor kartalar, faqat reklama mavjud bo‘lganda chiqadigan joy va debug preview tayyor | Flutter analyze; 38/38 test. Telefon/SMS, bron/tiklanish va oldingi release imzo dalillari saqlangan; haqiqiy HTTPS API hali belgilanmagan |
+| F3 — Android | Namuna asosidagi UI, o‘z logo, internetsiz katalog/profil/rasmlar, xona turi bo‘yicha tarif tanlash, ixcham bron/to‘lov va debug preview | Flutter analyze xatosiz; 47/47 test. Telefon/SMS, bron/tiklanish va oldingi release imzo dalillari saqlangan; haqiqiy HTTPS API hali belgilanmagan |
 | R1 — real pilot | Gemini, Eskiz va Tezcheck rekvizitlari olindi; pilot to‘liq emas | Gemini ulandi, Eskiz standart SMSi yetib keldi, Tezcheck o‘qish endpointlari HTTP 200. Kassa draft; haqiqiy OTP, HTTPS, merchant to‘lovi/webhook, push va real sanatoriya piloti qolgan |
+
+## 2026-10-06 Android: internetsiz katalog, profil va tariflar
+
+- Katalog APKga qattiq yozilmagan: barcha server sahifalari yuklanadi va
+  API hosti bo‘yicha saqlanadi. Oldin ochilmagan profillar, xona turlari,
+  tariflar va public rasmlar ham oldindan olinadi. Rasmlar ilovaning
+  doimiy fayl papkasida; katalogning yetti kunlik cheklovi olib tashlandi.
+- Ochilish/resume, Android internet qaytishi va faol holatda har daqiqa
+  yangilaydi. Bir vaqtda bitta sync, profil/rasm so‘rovlari ham birlashtiriladi.
+  Barcha sahifalar olinmasa eski ro‘yxat saqlanadi. Muvaffaqiyatli sync yangi
+  e’lonlarni qo‘shadi va chiqarilganlarini o‘chiradi; qidirish/filtr offline.
+- Profil ismi va telefoni login, `/auth/me`, ism va telefon tahriridan keyin
+  saqlanadi. Saqlangan hisob tarmoqni kutmasdan ochiladi, sessiya background
+  tekshiriladi. Logout shaxsiy profil/AI roziligini tozalaydi; logoutdan
+  keyin kelgan eski profil javobi shaxsiy nusxani qayta yaratmaydi.
+  Ism tahriri dialogining controller hayoti yopilish animatsiyasiga moslandi.
+- Sanatoriya profilida tariflar xona turi bo‘yicha guruhlanadi va tanlangan
+  tarif bron shakliga o‘tadi. Xona turi tarif ro‘yxatini filtrlaydi. Sana/xona
+  tanlash offline, **To‘lovga o‘tish** server quoteini oladi. Bolalar va
+  qo‘shimcha xona sozlamalari yig‘ilgan; to‘lovda takroriy narx olib tashlandi,
+  mehmon/xona tafsilotlari **Bron ma’lumotlari**ga yig‘ildi. Hold yangi quote
+  va serverning amaldagi policy IDlarini talab qiladi.
+- Chatdagi Gemini yozuvi va doimiy checkbox olib tashlandi; tashqi AI
+  roziligi birinchi xabardan oldin alohida dialogda olinadi. Voz kechilganda
+  hech qanday AI so‘rovi yuborilmaydi.
+- `npm run mobile:check -- --format`: analyzer xatosi **0**, unit/widget
+  **47/47**. Sinovlar 101 ta e’lon va barcha sahifalar, ochilmagan tariflar,
+  restart/uzilish/yangilanish, API hosti va rasm fayllari, offline profil
+  tahriri, logoutdan keyingi javob, xona turi/tarif/quote va AI roziligini qamradi.
+  Test providerlari fake; rasmiy SMS/to‘lov qabuli yoki production deployment
+  sifatida belgilanmaydi. Backend/web to‘plamlari bu o‘zgarishda qayta bajarilmadi.
+- Yangi debug APK Samsung SM-A165Fga USB orqali o‘rnatildi. Lokal API
+  ulanishini uzib, ilovani qayta ochganda saqlangan bosh sahifa va katalog
+  telefonda ochildi. Qurilmaning mobil interneti o‘chirilmagan: bu API
+  mavjud bo‘lmagan holat tekshiruvi. Qurilmadagi tarif/profil/to‘lov oqimi
+  bu safar to‘liq qayta tekshirilmadi; ularning offline dalili yuqoridagi
+  unit/widget sinovlaridir. Tekshiruvdan keyin lokal API aloqasi tiklandi.
+  APK API manzili `http://127.0.0.1:4000`, build turi debug;
+  SHA-256 `95df26d4d928c45364a0fbcbd845ee4309f4f7d8aa5bf221c9eeefe65745707c`.
+  APKda 45 ta maxfiy qiymat bayt namunasi tekshirildi, moslik topilmadi;
+  manba tekshiruvi ham o‘tdi. APK va qurilma dalillari `.local`da, Gitga kirmaydi.
+- Foydalanish va qo‘lda tekshirish: [RUNBOOK.md](RUNBOOK.md),
+  [Android README](../apps/mobile/README.md). Ilova yopiq bo‘lsa sync keyingi
+  ochilishda; dastlabki telefon/SMS kirishi va katalog yuklash aloqa talab qiladi.
 
 ## 2026-10-06 GitHubga tayyorlangan o‘zgarishlar
 

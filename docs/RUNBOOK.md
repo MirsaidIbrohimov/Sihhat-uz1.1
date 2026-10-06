@@ -141,13 +141,43 @@ sonini ko‘radi. Sanalar `05.10.2026` shaklida, vazifa/reklama vaqtlari
 Toshkent vaqtida soat va daqiqa bilan ko‘rsatiladi. Kalendar sanasi
 tozalansa bugungi sanaga qaytadi.
 
-Bron: sana/xona/mehmon soni → **Davom etish** → ism/telefon/shartlar →
+Bron: sanatoriya profilida xona turi va **Shu tarifni tanlash** →
+sana/xona/mehmon soni → **To‘lovga o‘tish** → ism/telefon/shartlar →
 **Bronni tasdiqlash**. Bola yoshi alohida tanlanadi; sanatoriya telefoni
 oldindan ko‘rsatilmaydi. Ikki soatdan eski to‘lovsiz bron mijoz tarixidan
 yashiriladi; bazadagi moliya, xodim tarixi va to‘langan bron o‘chirilmaydi.
 `HOLD` va `PAYMENT_PENDING`ni bekor qilishda providerning to‘lovsiz holati
 tasdiqlanadi. To‘langan bron refund oqimidan foydalanadi; noaniq provider
 holatida rezerv saqlanadi.
+
+### Androidda internet bo‘lmaganda
+
+Dastlabki kirish va yuklashdan keyin katalog, qidirish/filtrlar, sanatoriya
+profili, yuklangan rasmlar, xona turlari va tariflar telefonda saqlanadi.
+Shaxsiy profil ismi/telefoni ham saqlanadi; qayta ochishda server javobi
+kutilmaydi. Serverdagi sessiya background tekshiriladi; logout yoki server
+tasdiqlagan bekor qilish shaxsiy nusxani o‘chiradi. Ommaviy katalog qoladi.
+Ma’lumotlar APK ichiga qattiq yozilmagan va yetti kundan keyin yo‘qolmaydi.
+
+Ilova ochilganda/resumeda, Android internetga qayta ulanganda va faol
+holatda har daqiqada barcha katalog sahifalari tekshiriladi. Yangi
+sanatoriyalar, to‘liq profil/tariflar va rasmlar oldin ochilmasa ham yuklanadi.
+To‘liq ro‘yxat kelmaganda eski nusxa saqlanadi. Muvaffaqiyatli yangilanish
+yangi e’lonlarni qo‘shadi va e’londan olinganlarni ro‘yxatdan chiqaradi.
+Ilova butunlay yopiq bo‘lsa yuklash keyingi ochilishda davom etadi.
+
+Tarif profilida xona turi bo‘yicha tanlanadi. **Sana va xona** sahifasi
+internetsiz ishlaydi; **Bolalar bilan kelaman** va **Qo‘shimcha xona**
+kerak bo‘lganda ochiladi. **To‘lovga o‘tish** serverda joriy narx va bo‘sh
+joyni hisoblaydi. Internet bo‘lmasa tanlovlar shu sahifada qoladi va aloqa
+so‘raladi. Yakuniy shartlar server quoteidan olinadi; offline narx
+yakuniy hisob yoki tasdiqlangan bron deb ko‘rsatilmaydi.
+
+Qo‘lda tekshirish: internet bilan ilovaga kiring va yuklash tugashini kuting;
+internet/API ulanishini uzing, ilovani qayta oching → katalog/qidirish →
+sanatoriya/tarif → sana/xona va **Profil**ni ko‘ring. **To‘lovga o‘tish**da
+aloqa so‘ralishi kerak. Ulanishni tiklang va yangi/yangilangan e’lon hamda
+tarif avtomatik kelishini tekshiring. APK debug/local ekanini dalilda yozing.
 
 Yordam xabari yuborilayotganda tugma va matn maydoni bloklanadi. Bir xil
 so‘rovlar bir tarmoq so‘rovi va idempotency kalitidan foydalanadi; server ham
@@ -157,7 +187,10 @@ urinish mumkin. Sun’iy kutish qo‘shilmagan; umumiy tarmoq muddati 25 soniya.
 ## AI suhbat va bron tilagi
 
 **Sihhat yordamchisi** javobni va keyingi savolni Gemini orqali o‘zi yozadi.
-Tayyor dialog ketma-ketligi yo‘q. Rozilik belgilansa joriy xabar va oxirgi
+Tayyor dialog ketma-ketligi yo‘q. Birinchi xabarda alohida AI rozilik
+dialogi ochiladi; **Davom etish** tanlansa rozilik shu login uchun saqlanadi,
+**Keyinroq** tanlansa xabar yuborilmaydi. Chatda Gemini yozuvi va doimiy
+checkbox ko‘rsatilmaydi. Rozilik olinsa joriy xabar va oxirgi
 12 user/assistant xabari niqoblanib yuboriladi. Tarix qurilma ekranining
 xotirasida; yangi doimiy suhbat jadvali yo‘q. Roziliksiz provider chaqirilmaydi.
 Provider ishlamasa ulanish xatosi va katalogdan qidirish taklifi beriladi.
@@ -477,7 +510,8 @@ yetib keldi. Eskiz OTP shabloni tasdiqlanmagan; development adapteri lokal.
 Superadminning `Yangilik va tavsiyalar` sahifasi `NEWS`/`TIP` maqolalarini
 qoralama, e’lon va arxiv holatlarida boshqaradi. `/catalog/home` va
 `/catalog/news/:id` faqat e’lon qilingan ma’lumotlarni qaytaradi. Android
-public feedni login tugashidan oldin ko‘rsatadi; kesh 7 kun va API hostiga
+public feedni saqlangan hisobda server javobini kutmasdan ko‘rsatadi;
+kesh muddatsiz va API hostiga
 bog‘langan. Saqlangan narx/mavjudlik yakuniy bron hisobi sifatida ishlatilmaydi.
 
 `NODE_ENV=production` real SMS, tanlangan Payme/Tezcheck merchant rekvizitlari, S3, Redis va HTTPS originlarni talab qiladi; lokal payment-confirm endpointi yopiladi. Tezcheck kassasi ham haqiqiy to‘lov qabul qilishga tayyor bo‘lishi kerak. Production superadminini demo seed orqali yaratmang. `BOOTSTRAP_LOGIN` va `BOOTSTRAP_PASSWORD`ni secret muhitida berib, `npm run bootstrap -w @sihhat/api`dan foydalaning; bir martalik MFA kaliti/URI private enrollment fayliga yoziladi, logga chiqarilmaydi. Yuqoridagi “Panel faolsizligi va telefondagi autentifikator” tartibi bilan telefonga ulang.

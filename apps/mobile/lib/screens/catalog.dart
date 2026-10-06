@@ -4,9 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../data/api.dart';
+import '../data/catalog_cache.dart';
 import '../widgets.dart';
 import '../design.dart';
-import 'login.dart';
 import 'booking.dart';
 
 class CatalogScreen extends StatefulWidget {
@@ -26,14 +26,17 @@ class CatalogScreen extends StatefulWidget {
 class _CatalogScreenState extends State<CatalogScreen> {
   final search = TextEditingController();
   Timer? debounce;
-  late Future<dynamic> future;
+  late CatalogCache catalog;
   int page = 1;
   String region = '', amenity = '', maxPrice = '';
   @override
   void initState() {
     super.initState();
     search.text = widget.initialQuery;
-    future = load();
+    catalog = CatalogCache(widget.api)..addListener(updated);
+    catalog.load().then((_) {
+      if (mounted) catalog.sync();
+    });
     if (widget.showFilters) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) filters();
@@ -41,19 +44,29 @@ class _CatalogScreenState extends State<CatalogScreen> {
     }
   }
 
-  Future<dynamic> load() => widget.api.send(
-    '/catalog/sanatoriums${q({'page': page, 'limit': 100, 'sort': 'NAME', if (search.text.trim().isNotEmpty) 'q': search.text.trim(), if (region.isNotEmpty) 'region': region, if (amenity.isNotEmpty) 'amenity': amenity, if (maxPrice.isNotEmpty) 'max_price': (BigInt.parse(maxPrice) * BigInt.from(100)).toString()})}',
+  Json load() => catalog.search(
+    page: page,
+    query: search.text,
+    region: region,
+    amenity: amenity,
+    maxPrice: maxPrice,
   );
-  void reload() {
+  void updated() {
     if (!mounted) return;
     setState(() {
-      future = load();
+      if (page > (load()['pages'] as int).clamp(1, 1000000)) page = 1;
     });
+  }
+
+  void reload() {
+    if (!mounted) return;
+    setState(() {});
   }
 
   @override
   void dispose() {
     debounce?.cancel();
+    catalog.removeListener(updated);
     search.dispose();
     super.dispose();
   }
@@ -117,7 +130,6 @@ class _CatalogScreenState extends State<CatalogScreen> {
                     amenity = am.text.trim();
                     maxPrice = price.text.trim();
                     page = 1;
-                    future = load();
                   });
                   Navigator.pop(c);
                 },
@@ -143,10 +155,7 @@ class _CatalogScreenState extends State<CatalogScreen> {
 
   @override
   Widget build(BuildContext context) => RefreshIndicator(
-    onRefresh: () async {
-      reload();
-      await future;
-    },
+    onRefresh: catalog.sync,
     child: ListView(
       padding: const EdgeInsets.all(20),
       physics: const AlwaysScrollableScrollPhysics(),
@@ -178,14 +187,19 @@ class _CatalogScreenState extends State<CatalogScreen> {
           ],
         ),
         const SizedBox(height: 16),
-        FutureBuilder(
-          future: future,
-          builder: (c, snap) {
-            if (snap.connectionState != ConnectionState.done && !snap.hasData) {
+        Builder(
+          builder: (c) {
+            if (!catalog.loaded ||
+                !catalog.hasSnapshot && catalog.error == null) {
               return const Busy();
             }
-            if (snap.hasError) return ErrorView(snap.error!, retry: reload);
-            final data = asJson(snap.data), items = rows(data);
+            if (!catalog.hasSnapshot && catalog.error != null) {
+              return ErrorView(
+                'Sanatoriyalarni birinchi marta yuklash uchun internetga ulaning.',
+                retry: catalog.sync,
+              );
+            }
+            final data = load(), items = rows(data);
             return Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
@@ -243,15 +257,15 @@ class SanatoriumScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Scaffold(
     appBar: AppBar(title: const Text('Sanatoriya')),
-    body: AsyncContent(
-      load: () => api.send('/catalog/sanatoriums/$id'),
+    body: CachedContent(
+      cached: () => CatalogCache(api).cachedDetail(id),
+      refresh: () => CatalogCache(api).refreshDetail(id),
+      changes: CatalogCache(api),
+      clearWhenMissing: true,
       builder: (v) {
         final s = asJson(v),
-            photos = s['photo_ids'] as List,
+            photos = s['photo_ids'] as List? ?? [],
             rates = rows(s['rate_plans']);
-        final amounts =
-            rates.map((r) => BigInt.parse(r['baseAmount'].toString())).toList()
-              ..sort();
         return Column(
           children: [
             Expanded(
@@ -266,10 +280,11 @@ class SanatoriumScreen extends StatelessWidget {
                             .map(
                               (p) => ClipRRect(
                                 borderRadius: BorderRadius.circular(20),
-                                child: Image.network(
-                                  api.image(p),
+                                child: SanatoriumPhoto(
+                                  api: api,
+                                  id: p.toString(),
                                   fit: BoxFit.cover,
-                                  errorBuilder: (_, _, _) => Icon(
+                                  fallback: Icon(
                                     Icons.landscape,
                                     size: 70,
                                     color: context.colors.primary,
@@ -311,20 +326,43 @@ class SanatoriumScreen extends StatelessWidget {
                     '${s['region']} · ${s['address']}',
                     style: TextStyle(color: context.colors.muted),
                   ),
+                  const SizedBox(height: 20),
+                  const SectionTitle('Xonalar va tariflar'),
+                  ...rows(s['room_types'])
+                      .where(
+                        (type) => rates.any(
+                          (rate) => rate['roomTypeId'] == type['id'],
+                        ),
+                      )
+                      .map(
+                        (type) => _tariffs(
+                          context,
+                          s,
+                          type,
+                          rates
+                              .where((rate) => rate['roomTypeId'] == type['id'])
+                              .toList(),
+                        ),
+                      ),
+                  if (rates.isEmpty)
+                    const Text('Tariflar hozircha mavjud emas.'),
                   const SizedBox(height: 15),
-                  Text(s['description'], style: const TextStyle(height: 1.8)),
+                  Text(
+                    s['description'] ?? '',
+                    style: const TextStyle(height: 1.8),
+                  ),
                   const SizedBox(height: 18),
                   Wrap(
                     spacing: 8,
                     runSpacing: 5,
-                    children: (s['amenities'] as List)
+                    children: (s['amenities'] as List? ?? [])
                         .map((a) => Chip(label: Text(a)))
                         .toList(),
                   ),
                   _info(
                     context,
                     'Xizmatlar',
-                    (s['services'] as List).join(', '),
+                    (s['services'] as List? ?? []).join(', '),
                   ),
                   _info(context, 'Ovqatlanish', s['meals']),
                   const SizedBox(height: 16),
@@ -369,47 +407,6 @@ class SanatoriumScreen extends StatelessWidget {
                     icon: const Icon(Icons.map_outlined),
                     label: const Text('Xaritada ochish'),
                   ),
-                  const Divider(height: 35),
-                  const Text(
-                    'Xonalar va tariflar',
-                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
-                  ),
-                  ...rates.map(
-                    (r) => Card(
-                      child: Padding(
-                        padding: const EdgeInsets.all(18),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              r['name'],
-                              style: const TextStyle(
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                            Text(
-                              '${money(r['baseAmount'])} · bir tun · ${r['mode'] == 'ROOM' ? 'butun xona' : 'kishi'} uchun',
-                            ),
-                            Text(
-                              r['policy']['name'],
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: context.colors.muted,
-                              ),
-                            ),
-                            if ((r['packageDetails']?['included'] as List?)
-                                    ?.isNotEmpty ==
-                                true)
-                              Text(
-                                (r['packageDetails']['included'] as List).join(
-                                  ', ',
-                                ),
-                              ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
                   const SizedBox(height: 28),
                   const Text(
                     'Tekshirilgan yashash sharhlari',
@@ -447,29 +444,66 @@ class SanatoriumScreen extends StatelessWidget {
                 ],
               ),
             ),
-            ActionDock(
-              amount: amounts.isEmpty ? null : money(amounts.first),
-              caption: 'Boshlang‘ich tarif',
-              label: s['online_booking_available'] == true
-                  ? 'Sana va xonalarni tanlash'
-                  : 'Onlayn bron hozir yopiq',
-              onPressed:
-                  s['online_booking_available'] == true && rates.isNotEmpty
-                  ? () async {
-                      if (await ensureLogin(context, api) && context.mounted) {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => BookingComposer(api, s),
-                          ),
-                        );
-                      }
-                    }
-                  : null,
-            ),
           ],
         );
       },
+    ),
+  );
+  Widget _tariffs(
+    BuildContext context,
+    Json s,
+    Json type,
+    List<Json> rates,
+  ) => Card(
+    child: Padding(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            type['name'] ?? '',
+            style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 18),
+          ),
+          Text(
+            '${type['maxGuests']} kishigacha',
+            style: TextStyle(color: context.colors.muted, fontSize: 12),
+          ),
+          for (final rate in rates) ...[
+            const Divider(height: 24),
+            Text(
+              rate['name'] ?? '',
+              style: const TextStyle(fontWeight: FontWeight.w600),
+            ),
+            Text(
+              '${money(rate['baseAmount'])} / tun${rate['mode'] == 'PERSON' ? ' · kishi uchun' : ' · butun xona'}',
+              style: TextStyle(
+                color: context.colors.primary,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            if (rate['policy']?['name'] != null)
+              Text(
+                rate['policy']['name'],
+                style: TextStyle(color: context.colors.muted, fontSize: 12),
+              ),
+            if ((rate['packageDetails']?['included'] as List?)?.isNotEmpty ==
+                true)
+              Text((rate['packageDetails']['included'] as List).join(', ')),
+            const SizedBox(height: 8),
+            FilledButton.tonal(
+              key: ValueKey('select-rate-${rate['id']}'),
+              onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) =>
+                      BookingComposer(api, s, initialRateId: rate['id']),
+                ),
+              ),
+              child: const Text('Shu tarifni tanlash'),
+            ),
+          ],
+        ],
+      ),
     ),
   );
   Widget _info(BuildContext context, String title, dynamic text) => Padding(

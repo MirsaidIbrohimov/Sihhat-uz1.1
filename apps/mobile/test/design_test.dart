@@ -89,8 +89,12 @@ void main() {
   });
 
   testWidgets(
-    'sanatorium booking action stays visible before scrolling long details',
+    'sanatorium tariffs precede long details and pass the selected rate to booking',
     (tester) async {
+      tester.view.physicalSize = const Size(360, 800);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
       final api = Api(
         baseUrl: 'http://localhost',
         store: MemoryStore(),
@@ -114,10 +118,20 @@ void main() {
             'rate_plans': [
               {
                 'id': 'rate',
+                'roomTypeId': 'type',
                 'name': 'Standart',
                 'baseAmount': '45000000',
                 'mode': 'ROOM',
                 'policy': {'name': 'Kelishgacha qaytarish'},
+              },
+            ],
+            'room_types': [
+              {
+                'id': 'type',
+                'name': 'Standart xona',
+                'maxAdults': 2,
+                'maxChildren': 1,
+                'maxGuests': 3,
               },
             ],
             'reviews': [],
@@ -131,14 +145,11 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
-      expect(
-        find.text('Sana va xonalarni tanlash').hitTestable(),
-        findsOneWidget,
-      );
-      final initial = tester.getTopLeft(find.byType(ActionDock));
-      await tester.drag(find.byType(ListView), const Offset(0, -450));
+      expect(find.text('Shu tarifni tanlash').hitTestable(), findsOneWidget);
+      await tester.tap(find.text('Shu tarifni tanlash'));
       await tester.pumpAndSettle();
-      expect(tester.getTopLeft(find.byType(ActionDock)), initial);
+      expect(find.text('Standart xona'), findsOneWidget);
+      expect(find.text('To‘lovga o‘tish'), findsOneWidget);
       expect(tester.takeException(), isNull);
       await tester.pumpWidget(const SizedBox.shrink());
       api.client.close();

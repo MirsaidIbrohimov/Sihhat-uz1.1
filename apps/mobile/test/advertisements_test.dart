@@ -31,6 +31,7 @@ Json detail() => {
   'services': <String>[],
   'photo_ids': <String>[],
   'rate_plans': <Json>[],
+  'room_types': <Json>[],
   'meals': 'Uch mahal',
   'child_rules': 'Bolalar uchun',
   'medical_requirements': 'Aniqlang',

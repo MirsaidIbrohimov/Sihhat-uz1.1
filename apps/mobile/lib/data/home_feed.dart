@@ -12,8 +12,7 @@ class HomeFeed {
       if (raw == null) return null;
       final value = asJson(jsonDecode(raw));
       final date = DateTime.tryParse(value['generated_at'] ?? '');
-      if (date == null ||
-          DateTime.now().difference(date) > const Duration(days: 7)) {
+      if (date == null) {
         return null;
       }
       return value;

@@ -19,7 +19,7 @@ Kanonik repozitoriya: [MirsaidIbrohimov/Sihhat-uz1.1](https://github.com/Mirsaid
 
 Backendni production uchun 100% tayyor deb hisoblashga hali asos yo‘q. Haqiqiy HTTPS API, Tezcheck kassasini faollashtirish va haqiqiy merchant to‘lovi/webhook, Eskiz hisobini test rejimidan chiqarish va OTP matnini tasdiqlatish, push, staging Redis/S3 hamda real sanatoriya/bank piloti qolgan. Payme bevosita ulanishi tanlansa uning rasmiy rekvizitlari va qabul sinovi kerak. Batafsil dalillar va cheklovlar [amalga oshirish holati](docs/IMPLEMENTATION_STATUS.md)da.
 
-2026-10-06 backend **79/79**, mobil **38/38 unit/widget**, TypeScript, API va ikkala web buildi, Flutter analyzer o‘tdi. Barcha **10 migratsiya** toza alohida lokal bazada tekshirildi; OpenAPI yangilandi. Brauzerning avvalgi **11/11** natijasi [holat hujjati](docs/IMPLEMENTATION_STATUS.md)da saqlanadi; brauzer to‘plami bu safar qayta bajarilmadi. Lokal provider javoblari rasmiy merchant qabulining o‘rnini bosmaydi.
+2026-10-06 backend **79/79**, mobil **47/47 unit/widget**, TypeScript, API va ikkala web buildi, Flutter analyzer o‘tdi. Barcha **10 migratsiya** toza alohida lokal bazada tekshirildi; OpenAPI yangilandi. Mobil to‘plam internetsiz katalog/profil va tarif tanlashdan keyin qayta o‘tdi. Backend/web natijalari shu kundagi oldingi tekshiruvga tegishli; brauzerning avvalgi **11/11** natijasi [holat hujjati](docs/IMPLEMENTATION_STATUS.md)da saqlanadi. Lokal provider javoblari rasmiy merchant qabulining o‘rnini bosmaydi.
 
 Yangilangan bosh sahifa, AI suhbat va bron tasdig‘i yozuvli APK USB orqali Samsung SM-A165F qurilmasiga o‘rnatildi. Avvalgi login sinovida telefon/SMS tasdig‘idan keyin asosiy sahifa ochildi va lokal bazada yangi OTP tasdig‘i, mijoz hamda mobil sessiya qayd etildi. Oxirgi APK ichida 45 ta maxfiy qiymat bayt namunasi tekshirildi, moslik topilmadi. Bu lokal APIga ulanadigan **debug preview**; imzolangan oldingi release namunasi vaqtinchalik `https://api.sihhat.invalid` manziliga ega. Haqiqiy HTTPS manzili belgilangach release qayta yig‘iladi. APKlar va qurilma dalillari repozitoriyaga kiritilmaydi.
 
@@ -80,6 +80,27 @@ sanatoriya telefoni bron oldidan ko‘rsatilmaydi. Ikki soatdan eski to‘lovsiz
 bron mijoz tarixidan yashiriladi; to‘langan bron va xodim yozuvlari saqlanadi.
 Yordam xabarlari bir xil so‘rov kaliti bilan takroriy yozuv yaratmaydi.
 Foydalanish tartibi [runbook](docs/RUNBOOK.md)da.
+
+## Androidda internetsiz katalog va tarif tanlash
+
+Ilova sanatoriyalarni kodga yozib qo‘ymaydi: serverdagi barcha katalog
+sahifalarini, to‘liq profillar, xona turlari va tariflarni telefonga yuklaydi.
+Yuklangan ma’lumot va rasmlar internet bo‘lmaganda ham ochiladi; saqlangan
+katalogning muddati tugab yo‘qolmaydi. Ilova ochilganda, unga qaytilganda,
+Android internet qaytganini bildirganda va faol holatda har daqiqada yangilaydi.
+Yangi e’lonlar yuklanadi, serverdan chiqarilganlari muvaffaqiyatli yangilanishda
+ro‘yxatdan olinadi. Birinchi yuklash va telefon/SMS orqali dastlabki kirish
+uchun aloqa kerak.
+
+Sanatoriya profilida tariflar xona turi bo‘yicha ko‘rsatiladi. **Shu tarifni
+tanlash** sana/xona shaklini tanlangan tarif bilan ochadi; qidirish, tarif va
+sana tanlash internetni talab qilmaydi. **To‘lovga o‘tish** joriy narx va bo‘sh
+joyni serverda tekshiradi, keyin ism/telefon va amaldagi shartlar tasdiqlanadi.
+Bolalar va qo‘shimcha xona sozlamalari yopiq bo‘limlarda. Shaxsiy profilning
+ismi va telefoni ham saqlanadi va internetsiz darhol ochiladi; hisobdan
+chiqilganda shaxsiy ma’lumot o‘chadi. AI oynasida Gemini yozuvi va doimiy
+checkbox yo‘q; tashqi AI uchun rozilik birinchi xabardan oldin alohida olinadi.
+Foydalanish va tekshirish tartibi [runbook](docs/RUNBOOK.md)da.
 
 ## Logo va ilova ko‘rinishi
 

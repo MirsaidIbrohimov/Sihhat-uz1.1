@@ -26,6 +26,33 @@ Ro‘yxat har 30 soniyada, ilovaga qaytilganda va pastga tortilganda yangilanadi
 POPUP faqat kirishda alohida ochiladi, yopish mumkin; reklama bo‘lmasa
 dialog chiqmaydi. To‘xtatilgan/muddati tugagan reklamani API qaytarmaydi.
 
+2026-10-06: barcha katalog sahifalari, oldin ochilmagan sanatoriya profillari,
+xona turlari va tariflar serverdan yuklanib saqlanadi. Qidirish va filtrlar
+saqlangan katalogda ham ishlaydi. Profil rasmlari `path_provider` orqali
+ilovaning doimiy fayl papkasida saqlanadi; katalog va rasmlar API hostiga
+bog‘langan. Muddati tugashi sabab ma’lumot yo‘qolmaydi. Ilova ochilishi,
+resume, Android internet ulanishi qaytishi va faol holatda har daqiqa
+sinxronlashni boshlaydi; bir vaqtda takroriy sinxronlash yaratilmaydi.
+Serverdan barcha sahifalar kelmaguncha avvalgi ro‘yxat almashtirilmaydi.
+Yangi sanatoriyalar yuklanadi, e’londan olinganlari muvaffaqiyatli
+sinxronlashdan keyin ro‘yxatdan yo‘qoladi. Dastlabki yuklash internet talab qiladi.
+
+Tariflar sanatoriya profilida xona turi bo‘yicha chiqadi. **Shu tarifni
+tanlash** bron shakliga shu tarifni beradi. Sana, xona, tarif va mehmonlar
+internetsiz tanlanadi. Bolalar va qo‘shimcha xonalar yig‘ilgan bo‘limlarda;
+**To‘lovga o‘tish**dan keyingina server joriy narx/mavjudlikni hisoblaydi.
+Tasdiqlash amaldagi server quote va policy IDlarini ishlatadi; saqlangan
+tarifdan hold yoki to‘lov tasdig‘i yaratilmaydi. To‘lov ekranida takroriy narx
+olib tashlandi, mehmon/xona tafsilotlari **Bron ma’lumotlari**ga yig‘ildi.
+
+Profil nomi va telefoni login, `/auth/me`, profil tahriri va telefon
+tasdig‘idan keyin xavfsiz saqlanadi. Saqlangan hisob bilan ilova tarmoq
+javobini kutmasdan ochiladi; sessiya serverda background tekshiriladi.
+Logout yoki server rad etgan sessiya shaxsiy nusxani tozalaydi.
+AI oynasida Gemini texnik yozuvi va doimiy rozilik checkboxi yo‘q;
+birinchi xabar oldidan tashqi AIga rozilik alohida dialogda olinadi.
+Rozilikdan voz kechilganda xabar yuborilmaydi; logout rozilikni ham tozalaydi.
+
 Ilova sessiyasiz telefon/SMS kirishidan boshlanadi. Tasdiqqacha katalog va
 asosiy navigatsiya ochilmaydi. Tokenlar hamda tugallanmagan bron identifikatori
 xavfsiz saqlanadi; sessiya qayta tekshiriladi. Chiqish ichki sahifalarni yopadi.

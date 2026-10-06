@@ -17,7 +17,37 @@ class AiScreen extends StatefulWidget {
 class _AiScreenState extends State<AiScreen> {
   final input = TextEditingController();
   final messages = <Json>[];
-  bool busy = false, share = false;
+  bool busy = false, share = false, askingConsent = false;
+
+  Future<bool> consent() async {
+    if (share || await widget.api.store.read('ai_consent') == 'true') {
+      return share = true;
+    }
+    if (!mounted) return false;
+    final agreed = await showDialog<bool>(
+      context: context,
+      builder: (c) => AlertDialog(
+        title: const Text('AI yordamchi'),
+        content: const Text(
+          'Tavsiyalar olish uchun savolingiz va suhbatdagi tanlovlaringiz tashqi AI xizmatida qayta ishlanadi. Telefon va email yashiriladi.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(c, false),
+            child: const Text('Keyinroq'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(c, true),
+            child: const Text('Davom etish'),
+          ),
+        ],
+      ),
+    );
+    if (agreed != true) return false;
+    await widget.api.store.write('ai_consent', 'true');
+    return share = true;
+  }
+
   @override
   void dispose() {
     input.dispose();
@@ -26,7 +56,13 @@ class _AiScreenState extends State<AiScreen> {
 
   Future<void> send() async {
     final text = input.text.trim();
-    if (text.isEmpty || busy) return;
+    if (text.isEmpty || busy || askingConsent) return;
+    setState(() => askingConsent = true);
+    if (!await consent()) {
+      if (mounted) setState(() => askingConsent = false);
+      return;
+    }
+    if (!mounted) return;
     final history = messages
         .where((m) => m['error'] != true)
         .map(
@@ -39,6 +75,7 @@ class _AiScreenState extends State<AiScreen> {
         )
         .toList();
     setState(() {
+      askingConsent = false;
       messages.add({'user': true, 'message': text});
       busy = true;
       input.clear();
@@ -111,17 +148,6 @@ class _AiScreenState extends State<AiScreen> {
                           height: 1.7,
                         ),
                       ),
-                      if (m['provider_status'] == 'connected')
-                        Padding(
-                          padding: EdgeInsets.only(top: 8),
-                          child: Text(
-                            'Gemini · tasdiqlangan katalog va qo‘llanma',
-                            style: TextStyle(
-                              fontSize: 10,
-                              color: context.colors.primary,
-                            ),
-                          ),
-                        ),
                       if (m['provider_status'] == 'unavailable' ||
                           m['provider_status'] == 'daily_limit')
                         Padding(
@@ -163,15 +189,6 @@ class _AiScreenState extends State<AiScreen> {
           ],
         ),
       ),
-      CheckboxListTile(
-        dense: true,
-        value: share,
-        onChanged: (v) => setState(() => share = v ?? false),
-        title: const Text(
-          'Suhbatdagi tanlov ma’lumotlarimni Gemini xizmatiga yuborishga roziman',
-          style: TextStyle(fontSize: 11),
-        ),
-      ),
       SafeArea(
         top: false,
         child: Padding(
@@ -191,7 +208,7 @@ class _AiScreenState extends State<AiScreen> {
               ),
               const SizedBox(width: 10),
               IconButton.filled(
-                onPressed: busy ? null : send,
+                onPressed: busy || askingConsent ? null : send,
                 icon: const Icon(Icons.send_outlined),
               ),
             ],
@@ -389,63 +406,11 @@ class ProfileScreen extends StatefulWidget {
 class _ProfileScreenState extends State<ProfileScreen> {
   int epoch = 0;
   Future<void> edit(Json p) async {
-    final name = TextEditingController(text: p['name']);
-    await showDialog<void>(
+    final saved = await showDialog<bool>(
       context: context,
-      builder: (c) {
-        String? error;
-        bool busy = false;
-        return StatefulBuilder(
-          builder: (c, set) => AlertDialog(
-            title: const Text('Profilni tahrirlash'),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(
-                  controller: name,
-                  decoration: const InputDecoration(labelText: 'Ism-familiya'),
-                ),
-                if (error != null)
-                  Text(
-                    error!,
-                    style: TextStyle(
-                      color: Theme.of(context).colorScheme.error,
-                    ),
-                  ),
-              ],
-            ),
-            actions: [
-              TextButton(
-                onPressed: busy ? null : () => Navigator.pop(c),
-                child: const Text('Yopish'),
-              ),
-              FilledButton(
-                onPressed: busy
-                    ? null
-                    : () async {
-                        set(() => busy = true);
-                        try {
-                          await widget.api.send(
-                            '/auth/profile',
-                            method: 'PATCH',
-                            body: {'name': name.text.trim()},
-                          );
-                          if (c.mounted) Navigator.pop(c);
-                          if (mounted) setState(() => epoch++);
-                        } catch (e) {
-                          set(() => error = e.toString());
-                        } finally {
-                          if (c.mounted) set(() => busy = false);
-                        }
-                      },
-                child: const Text('Saqlash'),
-              ),
-            ],
-          ),
-        );
-      },
+      builder: (_) => _ProfileNameDialog(widget.api, p['name'] ?? ''),
     );
-    name.dispose();
+    if (saved == true && mounted) setState(() => epoch++);
   }
 
   @override
@@ -468,9 +433,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ],
       );
     }
-    return AsyncContent(
+    return CachedContent(
       key: ValueKey(epoch),
-      load: () => widget.api.send('/auth/me'),
+      cached: widget.api.cachedProfile,
+      refresh: widget.api.refreshProfile,
+      changes: widget.api.profileRevision,
       builder: (v) {
         final p = asJson(v);
         return ListView(
@@ -487,7 +454,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
             const SizedBox(height: 18),
             Text(
-              p['name'],
+              p['name'] ?? 'Mijoz',
               textAlign: TextAlign.center,
               style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 24),
             ),
@@ -563,6 +530,80 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 }
 
+class _ProfileNameDialog extends StatefulWidget {
+  final Api api;
+  final String initialName;
+  const _ProfileNameDialog(this.api, this.initialName);
+  @override
+  State<_ProfileNameDialog> createState() => _ProfileNameDialogState();
+}
+
+class _ProfileNameDialogState extends State<_ProfileNameDialog> {
+  late final name = TextEditingController(text: widget.initialName);
+  bool busy = false;
+  String? error;
+  @override
+  void dispose() {
+    name.dispose();
+    super.dispose();
+  }
+
+  Future<void> save() async {
+    setState(() {
+      busy = true;
+      error = null;
+    });
+    try {
+      await widget.api.send(
+        '/auth/profile',
+        method: 'PATCH',
+        body: {'name': name.text.trim()},
+      );
+      if (mounted) {
+        setState(() => busy = false);
+        Navigator.pop(context, true);
+      }
+    } catch (e) {
+      if (mounted) setState(() => error = e.toString());
+    } finally {
+      if (mounted) setState(() => busy = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => PopScope(
+    canPop: !busy,
+    child: AlertDialog(
+      title: const Text('Profilni tahrirlash'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          TextField(
+            controller: name,
+            enabled: !busy,
+            decoration: const InputDecoration(labelText: 'Ism-familiya'),
+          ),
+          if (error != null)
+            Text(
+              error!,
+              style: TextStyle(color: Theme.of(context).colorScheme.error),
+            ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: busy ? null : () => Navigator.pop(context),
+          child: const Text('Yopish'),
+        ),
+        FilledButton(
+          onPressed: busy ? null : save,
+          child: const Text('Saqlash'),
+        ),
+      ],
+    ),
+  );
+}
+
 class PhoneChangeScreen extends StatefulWidget {
   final Api api;
   const PhoneChangeScreen(this.api, {super.key});
@@ -611,6 +652,13 @@ class _PhoneChangeScreenState extends State<PhoneChangeScreen> {
             'new_code': next.text,
           },
         );
+        final profile = await widget.api.cachedProfile();
+        if (profile != null) {
+          await widget.api.saveProfile({
+            ...profile,
+            'phone': phone.text.trim(),
+          });
+        }
         if (mounted) Navigator.pop(context);
       }
     } catch (e) {

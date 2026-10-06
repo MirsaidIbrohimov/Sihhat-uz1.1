@@ -10,6 +10,30 @@ import 'package:sihhat_mobile/screens/account.dart';
 import 'api_test.dart' show MemoryStore;
 
 void main() {
+  testWidgets('declining AI consent sends no message to the provider', (
+    tester,
+  ) async {
+    var calls = 0;
+    final api = Api(
+      baseUrl: 'http://localhost',
+      store: MemoryStore(),
+      client: MockClient((_) async {
+        calls++;
+        return http.Response('{}', 200);
+      }),
+    );
+    await tester.pumpWidget(MaterialApp(home: Scaffold(body: AiScreen(api))));
+    await tester.enterText(find.byType(TextField), 'Toshkentda dam olish');
+    await tester.tap(find.byIcon(Icons.send_outlined));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Keyinroq'));
+    await tester.pumpAndSettle();
+    expect(calls, 0);
+    expect(await api.store.read('ai_consent'), isNull);
+    expect(find.textContaining('Gemini'), findsNothing);
+    await tester.pumpWidget(const SizedBox.shrink());
+    api.client.close();
+  });
   testWidgets('AI sends prior turns once and excludes response errors', (
     tester,
   ) async {
@@ -50,6 +74,10 @@ void main() {
       await tester.enterText(find.byType(TextField), message);
       await tester.tap(find.byIcon(Icons.send_outlined));
       await tester.pumpAndSettle();
+      if (find.text('Davom etish').evaluate().isNotEmpty) {
+        await tester.tap(find.text('Davom etish'));
+        await tester.pumpAndSettle();
+      }
     }
 
     await send('Salom');
@@ -66,7 +94,9 @@ void main() {
       ),
       true,
     );
-    expect(requests.last['share_with_provider'], false);
+    expect(requests.last['share_with_provider'], true);
+    expect(find.textContaining('Gemini'), findsNothing);
+    expect(find.byType(CheckboxListTile), findsNothing);
     expect(tester.takeException(), isNull);
     await tester.pumpWidget(const SizedBox.shrink());
     api.client.close();

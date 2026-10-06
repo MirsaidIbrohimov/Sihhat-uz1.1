@@ -1,8 +1,12 @@
+import 'dart:async';
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 
 import 'data/api.dart';
+import 'data/catalog_cache.dart';
 import 'appearance.dart';
 import 'branding.dart';
 import 'design.dart';
@@ -117,6 +121,11 @@ class _EntryState extends State<_Entry> {
     try {
       await widget.api.restore();
       if (widget.api.signedIn) {
+        if (await widget.api.cachedProfile() != null) {
+          // Saved profiles/catalogue must open without waiting for a network.
+          unawaited(validateSession());
+          return;
+        }
         try {
           // A revoked/expired session must be checked before opening the home.
           await widget.api.send('/auth/me');
@@ -132,6 +141,16 @@ class _EntryState extends State<_Entry> {
       if (mounted) error = e.toString();
     } finally {
       if (mounted) setState(() => checking = false);
+    }
+  }
+
+  Future<void> validateSession() async {
+    try {
+      await widget.api.send('/auth/me');
+    } on ApiException catch (e) {
+      if (e.status == 401) await widget.api.clear();
+    } catch (_) {
+      // The last signed-in profile remains readable during a network outage.
     }
   }
 
@@ -171,15 +190,35 @@ class Home extends StatefulWidget {
   State<Home> createState() => _HomeState();
 }
 
-class _HomeState extends State<Home> {
+class _HomeState extends State<Home> with WidgetsBindingObserver {
   bool ready = false;
   String? error;
   int tab = 0, epoch = 0;
   final homeSearch = TextEditingController();
   String catalogQuery = '';
+  Timer? catalogTimer;
+  StreamSubscription<dynamic>? connection;
+  bool active = true;
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    CatalogCache(widget.api).sync();
+    catalogTimer = Timer.periodic(const Duration(minutes: 1), (_) {
+      if (active) CatalogCache(widget.api).sync();
+    });
+    if (Platform.isAndroid) {
+      connection = const EventChannel('uz.sihhat/connectivity')
+          .receiveBroadcastStream()
+          .listen(
+            (online) {
+              if (online == true && active) refreshDownloads();
+            },
+            onError: (_) {
+              /* Refresh on resume if the native connection listener is unavailable. */
+            },
+          );
+    }
     error = widget.sessionError;
     restore().then((_) {
       if (!mounted || widget.sessionError != null) return;
@@ -216,6 +255,7 @@ class _HomeState extends State<Home> {
           }
         } catch (_) {
           /* Keep payment recovery available when the server is unreachable. */
+          return;
         }
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (mounted) {
@@ -244,8 +284,24 @@ class _HomeState extends State<Home> {
 
   @override
   void dispose() {
+    catalogTimer?.cancel();
+    connection?.cancel();
+    WidgetsBinding.instance.removeObserver(this);
     homeSearch.dispose();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    active = state == AppLifecycleState.resumed;
+    if (active) refreshDownloads();
+  }
+
+  void refreshDownloads() {
+    CatalogCache(widget.api).sync();
+    if (widget.api.signedIn) {
+      widget.api.refreshProfile().catchError((_) => <String, dynamic>{});
+    }
   }
 
   void openCatalog([String query = '']) {
@@ -259,7 +315,7 @@ class _HomeState extends State<Home> {
 
   Future<void> navigate(int n) async {
     if (!ready) return;
-    if (n > 0 && n < 4 && !await ensureLogin(context, widget.api)) return;
+    if ((n == 2 || n == 3) && !await ensureLogin(context, widget.api)) return;
     if (mounted) setState(() => tab = n);
   }
 
