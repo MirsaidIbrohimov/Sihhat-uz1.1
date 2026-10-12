@@ -6,7 +6,19 @@ import 'package:http/http.dart' as http;
 import 'package:integration_test/integration_test.dart';
 import 'package:sihhat_mobile/app.dart';
 import 'package:sihhat_mobile/data/api.dart';
+import 'package:sihhat_mobile/data/booking_cache.dart';
+import 'package:sihhat_mobile/data/catalog_cache.dart';
 import 'package:sihhat_mobile/screens/booking.dart';
+import 'package:sihhat_mobile/screens/catalog.dart';
+import 'package:sihhat_mobile/screens/home.dart';
+import 'package:qr_flutter/qr_flutter.dart';
+
+class OfflineClient extends http.BaseClient {
+  @override
+  Future<http.StreamedResponse> send(http.BaseRequest request) async {
+    throw http.ClientException('Offline device acceptance', request.url);
+  }
+}
 
 Future<Json> bridge(String path, [Json? body]) async {
   final uri = Uri.parse('http://127.0.0.1:4001$path');
@@ -26,7 +38,7 @@ void main() {
   testWidgets('Android OS force-stop and payment-return recovery', (
     tester,
   ) async {
-    final api = Api(baseUrl: const String.fromEnvironment('API_BASE_URL'));
+    var api = Api(baseUrl: const String.fromEnvironment('API_BASE_URL'));
     Json? finalReport;
     Future<void> waitFor(Finder finder) async {
       for (var n = 0; n < 180; n++) {
@@ -83,6 +95,7 @@ void main() {
           ),
         );
         await api.tokens(login);
+        await CatalogCache(api).sync();
         final sanatorium = asJson(
           await api.send('/catalog/sanatoriums/${fixture['sanatorium_id']}'),
         );
@@ -152,6 +165,7 @@ void main() {
           await api.send('/customer/bookings/${hold['id']}'),
         );
         expect(booking['status'], 'PAYMENT_PENDING');
+        await BookingCache(api).remember(booking);
         finalReport = {
           'event': 'prepared',
           'booking_id': hold['id'],
@@ -163,9 +177,17 @@ void main() {
       } else {
         // A new Android process reads the actual secure store. The host
         // supplies public expected IDs, never access/refresh tokens.
+        if (state['phase'] == 'restore_confirmed') {
+          api.client.close();
+          api = Api(baseUrl: api.baseUrl, client: OfflineClient());
+        }
         await api.restore();
         expect(api.signedIn, true);
-        expect(asJson(await api.send('/auth/me'))['id'], state['user_id']);
+        if (state['phase'] == 'restore_confirmed') {
+          expect((await api.cachedProfile())?['id'], state['user_id']);
+        } else {
+          expect(asJson(await api.send('/auth/me'))['id'], state['user_id']);
+        }
         final pending = await api.getPendingBooking();
         if (state['phase'] == 'restore_payment') {
           expect(pending, state['booking_id']);
@@ -194,6 +216,7 @@ void main() {
           expect(confirmed['status'], 'CONFIRMED');
           expect(confirmed['payment']['status'], 'SUCCEEDED');
           expect((confirmed['items'] as List).length, 2);
+          await BookingCache(api).remember(confirmed);
           expect(await api.getPendingBooking(), isNull);
           finalReport = {
             'event': 'confirmed',
@@ -205,17 +228,37 @@ void main() {
           expect(state['phase'], 'restore_confirmed');
           expect(pending, isNull);
           await tester.pumpWidget(SihhatApp(api: api));
-          await waitFor(find.text('Sog‘lom dam olish shu yerdan boshlanadi.'));
+          await waitFor(find.byType(HomeScreen));
           expect(find.byType(BookingScreen), findsNothing);
           await tapText('Bronlar');
           await waitFor(find.text(state['reference']));
           await tapText(state['reference']);
           await waitFor(find.text('Bron tasdiqlangan'));
+          expect(find.byType(QrImageView), findsOneWidget);
+          final catalog = CatalogCache(api);
+          await catalog.load();
+          final photoSite = catalog.items.firstWhere(
+            (s) => (s['photo_ids'] as List? ?? []).length >= 4,
+          );
+          final photoIds = (photoSite['photo_ids'] as List).cast<String>();
+          for (final id in photoIds.take(4)) {
+            expect(await catalog.photos.file(id), isNotNull);
+          }
+          await tester.pumpWidget(
+            MaterialApp(home: SanatoriumScreen(api, photoSite['id'])),
+          );
+          await waitFor(find.byKey(const ValueKey('sanatorium-gallery')));
+          expect(find.text('1 / ${photoIds.length}'), findsOneWidget);
+          await tester.tap(find.byKey(const ValueKey('gallery-next')));
+          await tester.pumpAndSettle();
+          expect(find.text('2 / ${photoIds.length}'), findsOneWidget);
           finalReport = {
             'event': 'completed',
             'session_restored': true,
             'pending_cleared': true,
             'booking_visible': true,
+            'offline_booking_and_qr': true,
+            'offline_catalog_and_four_photos': true,
           };
         }
       }

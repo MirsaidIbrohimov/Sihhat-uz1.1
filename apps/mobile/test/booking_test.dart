@@ -153,11 +153,15 @@ void main() {
       await tester.tap(find.text('To‘lovga o‘tish'));
       await tester.pumpAndSettle();
       final accept = find.text('Shartlarni o‘qidim va qabul qilaman');
-      await tester.ensureVisible(accept);
+      await tester.scrollUntilVisible(
+        accept,
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
       await tester.pumpAndSettle();
       await tester.tap(accept);
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Bronni tasdiqlash'));
+      await tester.tap(find.widgetWithText(FilledButton, 'Bronni tasdiqlash'));
       await tester.pumpAndSettle();
       expect(holds.single['quote_id'], 'fresh-quote');
       expect(holds.single['accepted_policy_versions'], ['fresh-policy']);

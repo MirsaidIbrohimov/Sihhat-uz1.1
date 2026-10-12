@@ -2,6 +2,7 @@ import { config } from "dotenv";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { randomUUID } from "node:crypto";
+import { createServer } from "node:http";
 import { Client, setup, staff, testPassword } from "../test/helpers";
 import { sanatorium, customer, quote, hold, pay } from "../test/fixtures";
 import { hash } from "../src/common/db";
@@ -69,6 +70,34 @@ async function main() {
       "POST",
       { version: member.version },
     );
+  const accountantCreated = await checked(
+    director.client,
+    "/partner/staff-invitations",
+    "POST",
+    {
+      sanatorium_id: first.id,
+      role: "ACCOUNTANT",
+      name: "Browser hisobchi",
+      login: "browser.accountant",
+      phone: "+998921111112",
+      temporary_password: testPassword,
+    },
+  );
+  await checked(
+    ctx.admin,
+    `/superadmin/staff-approvals/${accountantCreated.membership.id}/approve`,
+    "POST",
+    { version: accountantCreated.membership.version },
+  );
+  const accountantClient = new Client(ctx.base);
+  await checked(accountantClient, "/auth/staff/login", "POST", {
+    login: "browser.accountant",
+    password: testPassword,
+  });
+  await checked(accountantClient, "/auth/change-password", "POST", {
+    current_password: testPassword,
+    new_password: `${testPassword}Changed`,
+  });
   const date = (days: number) =>
     new Date(Date.now() + days * 86400000).toISOString().slice(0, 10);
   const client = await customer(ctx.base, ctx.auth);
@@ -176,7 +205,93 @@ async function main() {
       payload: { topic: "task.assigned" },
     },
   });
+  const customerAccount = await checked(client, "/auth/me");
+  await ctx.db.sanatorium.update({
+    where: { id: second.id },
+    data: { name: "Ikkinchi sinov sanatoriyasi" },
+  });
+  const secondRevision = await ctx.db.sanatoriumRevision.findUniqueOrThrow({
+    where: { id: second.revision.id },
+  });
+  await ctx.db.sanatoriumRevision.update({
+    where: { id: second.revision.id },
+    data: {
+      data: {
+        ...(secondRevision.data as any),
+        name: "Ikkinchi sinov sanatoriyasi",
+      },
+    },
+  });
+  const mobileFixture = {
+    key: randomUUID(),
+    phone: customerAccount.phone,
+    sanatorium_id: first.id,
+  };
+  const mobileBridge = createServer(async (request, response) => {
+    response.setHeader("Content-Type", "application/json");
+    response.setHeader("Cache-Control", "no-store");
+    if (request.headers["x-test-key"] !== mobileFixture.key) {
+      response.writeHead(403);
+      return response.end("{}");
+    }
+    try {
+      if (request.method === "GET" && request.url === "/fixture") {
+        const target = await ctx.db.sanatorium.findUniqueOrThrow({
+          where: { id: first.id },
+        });
+        const revision = target.publicRevisionId
+          ? await ctx.db.sanatoriumRevision.findUnique({
+              where: { id: target.publicRevisionId },
+            })
+          : null;
+        return response.end(
+          JSON.stringify({
+            ...mobileFixture,
+            key: undefined,
+            sanatorium_name: (revision?.data as any)?.name ?? target.name,
+          }),
+        );
+      }
+      const match = /^\/otp\/([a-f0-9-]{36})$/.exec(request.url ?? "");
+      if (request.method === "GET" && match) {
+        const challenge = await ctx.db.otpChallenge.findUnique({
+          where: { id: match[1] },
+        });
+        const code = ctx.auth.sms.sent.get(match[1]);
+        if (
+          !challenge ||
+          challenge.phone !== mobileFixture.phone ||
+          challenge.expiresAt <= new Date() ||
+          !code
+        )
+          throw new Error("Invalid fixture OTP");
+        return response.end(JSON.stringify({ code }));
+      }
+      response.writeHead(404);
+      response.end("{}");
+    } catch {
+      response.writeHead(400);
+      response.end('{"error":"Mahalliy sinov so‘rovi bajarilmadi"}');
+    }
+  });
+  await new Promise<void>((resolveReady, reject) => {
+    mobileBridge.once("error", reject);
+    mobileBridge.listen(4001, "127.0.0.1", resolveReady);
+  });
+  const closeApi = closeFixture;
+  closeFixture = async () => {
+    await new Promise<void>((resolveClosed) =>
+      mobileBridge.close(() => resolveClosed()),
+    );
+    await closeApi?.();
+  };
+  writeFileSync(
+    resolve(local, "mobile-test.json"),
+    JSON.stringify(mobileFixture),
+    { mode: 0o600 },
+  );
   const access = {
+    customer: { phone: customerAccount.phone, user_id: customerAccount.id },
     sanatoriums: [first, second].map((s) => ({
       id: s.id,
       rate_id: s.rate.id,
@@ -190,6 +305,10 @@ async function main() {
     director: { login: "browser.director", password: `${testPassword}Changed` },
     reception: {
       login: "browser.reception",
+      password: `${testPassword}Changed`,
+    },
+    accountant: {
+      login: "browser.accountant",
       password: `${testPassword}Changed`,
     },
   };
@@ -215,6 +334,7 @@ async function main() {
     "staff-login:admin.test",
     "staff-login:browser.director",
     "staff-login:browser.reception",
+    "staff-login:browser.accountant",
   ].map(hash);
   await ctx.db.rateLimit.deleteMany({ where: { id: { in: loginCounters } } });
   let lastCounterReset = Date.now();
@@ -229,7 +349,7 @@ async function main() {
     try {
       if (JSON.parse(readFileSync(stopPath, "utf8")).token === token) {
         clearInterval(interval);
-        void ctx.app.close();
+        void closeFixture?.();
       }
     } catch {
       /* Ignore stale or incomplete requests. */

@@ -30,12 +30,26 @@ const draftProfileSchema = profileSchema.partial().extend({
   photo_ids: z.array(uuid).max(30).optional(), document_ids: z.array(uuid).max(15).optional(),
 }).strict();
 export const draftInput = z.object({ version, data: draftProfileSchema }).strict();
+export const featuredInput = z.object({ version, featured: z.boolean() }).strict();
 export function publicProfile(data: any) {
   const { legal_name, stir, document_ids, terms_accepted, contact_phone, ...publicData } = data; return publicData;
 }
 @Injectable()
 export class SanatoriumService {
   constructor(@Inject(Db) readonly db: Db) {}
+  async featured(actor: Actor, id: string, body: unknown) {
+    requirePlatform(actor, 'sanatoriums.manage'); parse(uuid, id);
+    const input = parse(featuredInput, body);
+    return this.db.atomic(async tx => {
+      const before = await tx.sanatorium.findUnique({ where: { id } });
+      if (!before) fail('NOT_FOUND', 'Sanatoriya topilmadi', 404);
+      const changed = await tx.sanatorium.updateMany({ where: { id, version: input.version }, data: { featuredOnHome: input.featured, version: { increment: 1 } } });
+      if (!changed.count) fail('VERSION_CONFLICT', 'Sanatoriya o‘zgargan. Sahifani yangilang.');
+      const after = await tx.sanatorium.findUniqueOrThrow({ where: { id } });
+      await audit(tx, actor.id, 'sanatorium.featured_updated', id, id, { featured_on_home: before.featuredOnHome }, { featured_on_home: after.featuredOnHome });
+      return after;
+    });
+  }
   async create(actor: Actor, body: unknown) {
     requirePlatform(actor, 'sanatoriums.manage'); const input = parse(z.object({ name: z.string().trim().min(2).max(150) }).strict(), body);
     return this.db.atomic(async tx => {
@@ -49,7 +63,7 @@ export class SanatoriumService {
     const where = ids ? { id: { in: ids } } : {};
     const [data, total] = await Promise.all([this.db.sanatorium.findMany({ where, skip: (page-1)*limit, take: limit, orderBy: { createdAt: 'desc' } }), this.db.sanatorium.count({ where })]);
     const revisions = await this.db.sanatoriumRevision.findMany({ where: { sanatoriumId: { in: data.map(s => s.id) } }, orderBy: { createdAt: 'desc' } });
-    return paged(data.map(s => ({ ...s, revision: revisions.find(r => r.sanatoriumId === s.id && r.status !== 'APPROVED') ?? revisions.find(r => r.id === s.publicRevisionId) })), total, page, limit);
+    return paged(data.map(s => actor.kind !== 'SUPERADMIN' && actor.memberships.some(m => m.sanatoriumId === s.id && m.status === 'ACTIVE' && m.role === 'ACCOUNTANT') ? {id: s.id, name: s.name, status: s.status} : ({ ...s, revision: revisions.find(r => r.sanatoriumId === s.id && r.status !== 'APPROVED') ?? revisions.find(r => r.id === s.publicRevisionId) })), total, page, limit);
   }
   async get(actor: Actor, id: string) {
     parse(uuid, id); scope(actor, id);

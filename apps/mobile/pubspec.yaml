@@ -66,8 +66,17 @@ flutter:
   # the material Icons class.
   uses-material-design: true
   assets:
+    - assets/welcome-retreat.png
     - assets/branding/sihhat-logo.jpg
     - assets/illustrations/wellness-retreat.png
+    - assets/licenses/
+  fonts:
+    - family: Manrope
+      fonts:
+        - asset: assets/fonts/Manrope.ttf
+    - family: DMSans
+      fonts:
+        - asset: assets/fonts/DMSans.ttf
 
   # To add assets to your application, add an assets section, like this:
   # assets:

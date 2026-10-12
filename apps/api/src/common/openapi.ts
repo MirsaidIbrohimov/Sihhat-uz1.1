@@ -1,13 +1,14 @@
 import type {OpenAPIObject} from '@nestjs/swagger';
 import {apiSchema} from '../auth/auth.controller';
-import {staffInput} from '../auth/staff.service';
+import {staffInput,staffInvitationInput} from '../auth/staff.service';
 import {quoteInput} from '../pricing/pricing.service';
 import {holdInput,guestInput} from '../bookings/booking.service';
 import {rateInput,roomTypeInput} from '../inventory/inventory.service';
-import {draftInput} from '../sanatoriums/sanatorium.service';
+import {draftInput,featuredInput} from '../sanatoriums/sanatorium.service';
 import { aiInput } from '../ai/ai.service';
 import { articleInput, articleUpdate } from '../catalog/home.service';
 import { updateInput } from '../telegram/types';
+import { adInput, adUpdateInput } from '../billing/ad-input';
 
 const str={type:'string'},id={type:'string',format:'uuid'},integer={type:'integer'},boolean={type:'boolean'},timestamp={type:'string',format:'date-time'},date={type:'string',format:'date'},money={type:'string',pattern:'^(0|[1-9][0-9]*)$',description:'UZS, tiyin. Integer string.'};
 const array=(items:any)=>({type:'array',items});
@@ -30,7 +31,7 @@ export function enrichOpenApi(document:OpenAPIObject){
   document.components.securitySchemes.TezcheckWebhook={type:'apiKey',in:'header',name:'X-Checkout-Signature',description:'HMAC-SHA256 over timestamp.delivery_id.raw_body; timestamp and delivery headers required. Body event id is deduplicated.'};
   const schemas=document.components.schemas;
   Object.assign(schemas,{
-    QuoteRequest:apiSchema(quoteInput),HoldRequest:apiSchema(holdInput),StaffRequest:apiSchema(staffInput),RatePlanRequest:apiSchema(rateInput),RoomTypeRequest:apiSchema(roomTypeInput),DraftRequest:apiSchema(draftInput),Guest:apiSchema(guestInput),
+    QuoteRequest:apiSchema(quoteInput),HoldRequest:apiSchema(holdInput),StaffRequest:apiSchema(staffInput),StaffInvitationRequest:apiSchema(staffInvitationInput),RatePlanRequest:apiSchema(rateInput),RoomTypeRequest:apiSchema(roomTypeInput),DraftRequest:apiSchema(draftInput),Guest:apiSchema(guestInput),
     ApiError:obj({code:str,message:str,details:{nullable:true},request_id:{type:'string',format:'uuid'}},['code','message','request_id']),
     Booking:obj({id,reference:str,sanatoriumId:id,userId:{...id,nullable:true},quoteId:id,status:{type:'string',enum:['HOLD','PAYMENT_PENDING','CONFIRMED','CHECKED_IN','CHECKED_OUT','CANCELLED','EXPIRED','NO_SHOW','PAYMENT_EXCEPTION']},source:str,checkIn:timestamp,checkOut:timestamp,amount:money,snapshot:{type:'object',additionalProperties:true},guest:{$ref:'#/components/schemas/Guest'},holdExpiresAt:{...timestamp,nullable:true},providerExpiresAt:{...timestamp,nullable:true},version:integer,createdAt:timestamp,updatedAt:timestamp}),
     Quote:obj({id,userId:id,sanatoriumId:id,amount:money,pricingVersion:integer,bodyHash:str,data:{type:'object',description:'request, items, daily breakdown, policy snapshots, subtotal_amount, total_amount, discount, nights',additionalProperties:true},expiresAt:timestamp,createdAt:timestamp}),
@@ -54,16 +55,25 @@ export function enrichOpenApi(document:OpenAPIObject){
     TelegramConnection:obj({enabled:boolean,bot_username:str,account:{type:'object',nullable:true,properties:{telegram_user_id:str,display_name:str,username:{...str,nullable:true},connected_at:timestamp,blocked:boolean}},link:{type:'object',nullable:true,properties:{id,expires_at:timestamp,claimed:boolean,telegram_user_id:{...str,nullable:true},display_name:{...str,nullable:true},username:{...str,nullable:true}}}}),
   });
   const bookingSchema=schemas.Booking as any;
-  schemas.BookingDetail=obj({...bookingSchema.properties,items:array(ref('BookingItem')),events:array(ref('BookingEvent')),payment:{...schemas.PaymentOrder,nullable:true},refund:{...schemas.RefundRequest,nullable:true},offline_payments:array(ref('OfflinePayment'))});
-  schemas.BookingPage=page(ref('Booking'));
+  schemas.BookingDetail=obj({...bookingSchema.properties,items:array(ref('BookingItem')),events:array(ref('BookingEvent')),payment:{...schemas.PaymentOrder,nullable:true},refund:{...schemas.RefundRequest,nullable:true},offline_payments:array(ref('OfflinePayment')),history_preserved:boolean,sanatorium_name:{...str,nullable:true}});
+  schemas.BookingListItem=obj({...bookingSchema.properties,payment_status:{...str,nullable:true},history_preserved:boolean,sanatorium_name:{...str,nullable:true}});
+  schemas.BookingPage=page(ref('BookingListItem'));
   schemas.PaymentPage=page(ref('PaymentOrder'));
   schemas.RefundPage=page(ref('RefundRequest'));
   schemas.PublicArticle=obj({id,title:str,summary:str,body:str,kind:{...str,enum:['NEWS','TIP']},published_at:{...timestamp,nullable:true}});
   schemas.HomeFeed=obj({generated_at:timestamp,sanatorium_count:integer,featured:array({type:'object',additionalProperties:true}),regions:array(str),news:array(ref('PublicArticle')),tips:array({type:'object',additionalProperties:true})});
   schemas.AiReply=obj({message:str,cards:array({type:'object',additionalProperties:true}),faq:array({type:'object',additionalProperties:true}),fallback:boolean,provider_status:{...str,enum:['catalog','consent_required','connected','unavailable','daily_limit']},provider_message_shared:boolean,actions:array(str),can_execute_financial_actions:{...boolean,enum:[false]}});
+  const signedMoney={...str,pattern:'^-?(0|[1-9][0-9]*)$',description:'UZS, tiyin. Integer string.'};
+  schemas.Report=obj({
+    sanatorium:{...obj({id,name:str}),nullable:true},generated_at:timestamp,
+    period:obj({from:date,to:{...date,description:'Exclusive end date in Asia/Tashkent.'},to_exclusive:{...boolean,enum:[true]},timezone:{...str,enum:['Asia/Tashkent']},booking_basis:{...str,enum:['CREATED','PAYMENT','SERVICE']},payment_basis:str,refund_basis:str,payout_basis:str,service_basis:str,offline_basis:str}),
+    bookings:integer,booking_statuses:{type:'object',additionalProperties:integer},room_nights:integer,guest_nights:integer,sellable_room_nights:integer,occupancy:{type:'number'},
+    gmv:signedMoney,refunds:signedMoney,net_online_receipts:signedMoney,verified_offline_receipts:signedMoney,offline_cash_receipts:signedMoney,offline_terminal_receipts:signedMoney,unverified_offline_receipts:signedMoney,paid_payouts:signedMoney,
+    sanatorium_payable:signedMoney,refund_payable:signedMoney,payout_in_transit:signedMoney,receivable:signedMoney,deferred_service_revenue:signedMoney,platform_revenue:signedMoney,currency:{...str,enum:['UZS']},minor_unit:{...str,enum:['tiyin']},
+  },['sanatorium','generated_at','period','bookings','booking_statuses','room_nights','guest_nights','sellable_room_nights','occupancy']);
   const bodies:Record<string,any>={
-    '/superadmin/sanatoriums':obj({name:str}),'/superadmin/sanatoriums/{id}/config':obj({version:integer,payment_ready:boolean,subscription_required:boolean},['version','payment_ready']),
-    '/superadmin/director-assignments':{$ref:'#/components/schemas/StaffRequest'},'/partner/staff-invitations':{$ref:'#/components/schemas/StaffRequest'},
+    '/superadmin/sanatoriums':obj({name:str}),'/superadmin/sanatoriums/{id}/featured':apiSchema(featuredInput),'/superadmin/sanatoriums/{id}/config':obj({version:integer,payment_ready:boolean,subscription_required:boolean},['version','payment_ready']),
+    '/superadmin/director-assignments':{$ref:'#/components/schemas/StaffRequest'},'/partner/staff-invitations':{$ref:'#/components/schemas/StaffInvitationRequest'},
     '/partner/staff/{id}/permissions':obj({version:integer,grants:array(str),denies:array(str),ceiling:array(str)},['version','grants','denies']),
     '/partner/sanatorium-revisions/{id}':{$ref:'#/components/schemas/DraftRequest'},'/partner/sanatorium-revisions/{id}/submit':obj({version:integer}),
     '/partner/sanatoriums/{id}/bank-revisions':obj({legal_name:str,account:str,mfo:str,stir:str}),
@@ -81,8 +91,10 @@ export function enrichOpenApi(document:OpenAPIObject){
     '/superadmin/payouts':obj({sanatorium_id:id,booking_ids:array(id)}),'/superadmin/payouts/{id}/verify-bank-result':obj({bank_reference:str,evidence_asset_id:id,verified:{type:'boolean',enum:[true]}}),
     '/superadmin/subscription-plans':obj({name:str,amount:money,period_days:integer,grace_days:integer,features:array(str)}),
     '/superadmin/subscriptions':obj({sanatorium_id:id,plan_id:id,trial_days:integer},['sanatorium_id','plan_id']),
-    '/partner/ad-campaigns':obj({sanatorium_id:id,title:str,placement:{type:'string',enum:['HOME','POPUP']},starts_at:timestamp,ends_at:timestamp,image_asset_id:id,text:str,target_kind:{type:'string',enum:['SANATORIUM','URL']},target_sanatorium_id:id,target_url:{type:'string',format:'uri',maxLength:2048},has_discount:{type:'boolean'},discount_percent:{type:'integer',minimum:1,maximum:100},discount_text:{type:'string',maxLength:120}},['sanatorium_id','title','placement','starts_at','ends_at','image_asset_id']),
-    '/superadmin/ad-campaigns/{id}/approve':obj({reason:str},[]),'/superadmin/ad-campaigns/{id}/reject':requiredReason,
+    '/partner/ad-campaigns':apiSchema(adInput),
+    '/superadmin/ad-campaigns/{id}':apiSchema(adUpdateInput),
+    '/partner/ad-campaigns/{id}/archive':obj({version:integer},[]),
+    '/superadmin/ad-campaigns/{id}/approve':obj({reason:str,version:integer},[]),'/superadmin/ad-campaigns/{id}/reject':obj({reason,version:integer},['reason']),
     '/messages':obj({title:str,body:str,kind:{type:'string',enum:['MESSAGE','WARNING']},asset_ids:array(id),recipient_ids:array(id)},['title','body','recipient_ids']),
     '/messages/{id}/receipt':obj({accepted:boolean},[]),'/superadmin/announcements':obj({sanatorium_ids:array(id),title:str,body:str,kind:{type:'string',enum:['MESSAGE','WARNING']},asset_ids:array(id)},['title','body','kind']),
     '/tasks':obj({sanatorium_id:id,assigned_to:id,title:str,body:str,due_at:timestamp}),'/tasks/{id}':obj({version:integer,status:{type:'string',enum:['ACCEPTED','COMPLETED']},reply:str},['version','status']),
@@ -123,7 +135,7 @@ export function enrichOpenApi(document:OpenAPIObject){
       if(['/partner/bookings','/customer/bookings','/superadmin/bookings'].includes(path))addParameters([query('status',{...str,maxLength:30})]);
       if(path==='/catalog/sanatoriums')addParameters([query('q',{...str,maxLength:100}),query('region',{...str,maxLength:80}),query('amenity',{...str,maxLength:80}),query('max_price',money),query('sort',{...str,enum:['NAME','PRICE'],default:'NAME'})]);
       if(path==='/catalog/compare')addParameters([query('ids',{...str,pattern:'^[0-9a-fA-F-]{36}(,[0-9a-fA-F-]{36}){0,2}$',description:'One to three comma-separated sanatorium UUIDs.'},true)]);
-      if(['/partner/reports','/superadmin/reports','/partner/reports/export'].includes(path))addParameters([query('sanatorium_id',id),query('from',date,true),query('to',date,true),query('booking_basis',{...str,enum:['CREATED','PAYMENT','SERVICE'],default:'SERVICE'}),query('financial',{...str,enum:['true','false'],default:'false'})]);
+      if(['/partner/reports','/superadmin/reports','/partner/reports/export','/partner/reports/export.xlsx'].includes(path))addParameters([query('sanatorium_id',id),query('from',date,true),query('to',date,true),query('booking_basis',{...str,enum:['CREATED','PAYMENT','SERVICE'],default:'SERVICE'}),query('financial',{...str,enum:['true','false'],default:'false'})]);
     }
     if(path==='/auth/refresh'){
       operation.security=[{refreshCookie:[],CSRF:[]},{}];
@@ -165,7 +177,9 @@ export function enrichOpenApi(document:OpenAPIObject){
     else if(method==='get'&&/^\/(customer|partner)\/bookings\/\{id\}$/.test(path))response.content['application/json'].schema=ref('BookingDetail');
     if(['/auth/staff/login','/auth/customer/otp/request','/auth/customer/otp/verify','/auth/me'].includes(path))response.content['application/json'].schema=ref({'/auth/staff/login':'WebSession','/auth/customer/otp/request':'OtpChallenge','/auth/customer/otp/verify':'MobileSession','/auth/me':'Actor'}[path]!);
     if(path==='/auth/refresh')response.content['application/json'].schema={oneOf:[ref('WebSession'),ref('MobileSession')]};
-    if(method==='get'&&path==='/partner/reports/export')response.content={'text/csv':{schema:{type:'string'},example:'\uFEFFko‘rsatkich,qiymat\n"bookings","1"'}};
+    if(method==='get'&&['/partner/reports','/superadmin/reports'].includes(path))response.content['application/json'].schema=ref('Report');
+    if(method==='get'&&path==='/partner/reports/export')response.content={'text/csv':{schema:{type:'string'},example:'\uFEFF"Ko‘rsatkich","Qiymat","Birlik"\r\n"Bronlar soni","1","son"'}};
+    if(method==='get'&&path==='/partner/reports/export.xlsx')response.content={'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet':{schema:{type:'string',format:'binary'}}};
     if(method==='get'&&path==='/media/{id}'){
       response.content=Object.fromEntries(['image/png','image/jpeg','image/webp','application/pdf'].map(mime=>[mime,{schema:{type:'string',format:'binary'}}]));
       operation.responses['302']={description:'Short-lived S3 media URL',headers:{Location:{schema:{type:'string',format:'uri'}}}};

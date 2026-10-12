@@ -17,6 +17,43 @@ http.Response reply(Object body) => http.Response.bytes(
 );
 
 void main() {
+  testWidgets(
+    'bot replies appear automatically in an open help thread and stay visible during an outage',
+    (tester) async {
+      final messages = <Json>[
+        {'userId': 'customer', 'text': 'Mening savolim'},
+      ];
+      var offline = false;
+      final api = Api(
+        baseUrl: 'http://localhost',
+        store: MemoryStore(),
+        client: MockClient((_) async {
+          if (offline) throw http.ClientException('offline');
+          return reply({
+            'id': 'ticket',
+            'userId': 'customer',
+            'title': 'Yordam',
+            'status': 'OPEN',
+            'messages': messages,
+          });
+        }),
+      );
+      await tester.pumpWidget(MaterialApp(home: SupportThread(api, 'ticket')));
+      await tester.pumpAndSettle();
+      messages.add({'userId': 'admin', 'text': 'Bot orqali javob'});
+      await tester.pump(const Duration(seconds: 5));
+      await tester.pumpAndSettle();
+      expect(find.text('Bot orqali javob'), findsOneWidget);
+      expect(find.text('Yordam xizmati'), findsOneWidget);
+      offline = true;
+      await tester.pump(const Duration(seconds: 5));
+      await tester.pumpAndSettle();
+      expect(find.text('Bot orqali javob'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+      await tester.pumpWidget(const SizedBox.shrink());
+      api.client.close();
+    },
+  );
   test('simultaneous identical support mutations share one request and one idempotency key', () async {
     var count = 0;
     final response = Completer<http.Response>();
@@ -47,7 +84,7 @@ void main() {
   });
 
   testWidgets(
-    'sending stays disabled across keyboard changes; dialog closes before thread opens and reply appears once',
+    'sending stays disabled across keyboard changes; form closes before thread opens and reply appears once',
     (tester) async {
       var created = 0, sent = 0;
       final response = Completer<http.Response>();
@@ -81,10 +118,10 @@ void main() {
       addTearDown(tester.view.resetViewInsets);
       await tester.pumpWidget(MaterialApp(home: SupportScreen(api)));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Murojaat'));
+      await tester.tap(find.text('Yangi murojaat'));
       await tester.pumpAndSettle();
       await tester.enterText(find.byType(TextField), 'Birinchi xabar');
-      await tester.tap(find.text('Yuborish'));
+      await tester.tap(find.text('Murojaat yuborish'));
       await tester.pump();
       tester.view.viewInsets = FakeViewPadding(bottom: 180);
       await tester.pump();
@@ -104,10 +141,8 @@ void main() {
       expect(find.byType(SupportThread), findsOneWidget);
       expect(find.byType(AlertDialog), findsNothing);
       expect(find.text('Birinchi xabar'), findsOneWidget);
-      await tester.tap(find.text('Javob yozish'));
-      await tester.pumpAndSettle();
       await tester.enterText(find.byType(TextField), 'Ikkinchi xabar');
-      await tester.tap(find.text('Yuborish'));
+      await tester.tap(find.byTooltip('Yuborish'));
       await tester.pumpAndSettle();
       expect(sent, 1);
       expect(find.text('Ikkinchi xabar'), findsOneWidget);

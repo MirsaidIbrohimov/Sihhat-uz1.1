@@ -15,6 +15,7 @@ export class BookingController {
   @Get('customer/bookings/:id') @Roles('CUSTOMER') customerGet(@CurrentActor() a:Actor,@Param('id') id:string){return this.service.get(a,id);}
   @Get('partner/bookings') @Roles('STAFF','SUPERADMIN') list(@CurrentActor() a:Actor,@Query() q:unknown){return this.service.list(a,q);}
   @Get('superadmin/bookings') @Roles('SUPERADMIN') adminList(@CurrentActor() a:Actor,@Query() q:unknown){return this.service.list(a,q);}
+  @Get('partner/bookings/daily') @Roles('STAFF','SUPERADMIN') daily(@CurrentActor() a:Actor,@Query() q:unknown){return this.service.daily(a,q);}
   @Get('partner/bookings/:id') @Roles('STAFF','SUPERADMIN') get(@CurrentActor() a:Actor,@Param('id') id:string){return this.service.get(a,id);}
   @Post('partner/bookings/manual') @Roles('STAFF','SUPERADMIN') manual(@CurrentActor() a:Actor,@Body() b:unknown,@Headers('idempotency-key') k?:string){return this.service.manual(a,b,k);}
   @Post('partner/bookings/:id/check-in') @Roles('STAFF','SUPERADMIN') checkin(@CurrentActor() a:Actor,@Param('id') id:string,@Body() b:unknown){return this.service.transition(a,id,'CHECKED_IN',b);}

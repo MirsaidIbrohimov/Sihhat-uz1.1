@@ -4,28 +4,33 @@ import { Db,hash } from '../common/db';
 import { parse,uuid,money,fail,pageQuery,paged } from '../common/errors';
 import { publicProfile } from '../sanatoriums/sanatorium.service';
 import type { Actor } from '../auth/permissions';
+import { adPublicationStatus, adTarget } from '../billing/ad-publication';
 
 @Injectable()
 export class CatalogService{
   constructor(@Inject(Db) readonly db:Db){}
-  private async where(){const eligible=await this.db.subscription.findMany({where:{status:{in:['ACTIVE','TRIAL','PAST_DUE']},graceEndsAt:{gt:new Date()}},select:{sanatoriumId:true}});return {status:'ACTIVE',publicRevisionId:{not:null},OR:[{subscriptionRequired:false},{id:{in:eligible.map(s=>s.sanatoriumId)}}]};}
-  async list(query:unknown){const i=parse(pageQuery.extend({q:z.string().trim().max(100).optional(),region:z.string().max(80).optional(),amenity:z.string().max(80).optional(),max_price:money.optional(),sort:z.enum(['NAME','PRICE']).default('NAME')}).strict(),query);const all=await this.db.sanatorium.findMany({where:await this.where()});const revisions=await this.db.sanatoriumRevision.findMany({where:{id:{in:all.map(s=>s.publicRevisionId!)}}});const rates=await this.db.ratePlan.findMany({where:{sanatoriumId:{in:all.map(s=>s.id)},active:true},select:{sanatoriumId:true,baseAmount:true}});const ratings=await this.db.review.groupBy({by:['sanatoriumId'],where:{status:'PUBLISHED',sanatoriumId:{in:all.map(s=>s.id)}},_avg:{rating:true},_count:{id:true}});
-    let rows=all.map(s=>{const r=revisions.find(r=>r.id===s.publicRevisionId)!;const data=publicProfile(r.data);const prices=rates.filter(r=>r.sanatoriumId===s.id).map(r=>r.baseAmount);const amount=prices.length?prices.reduce((a,b)=>a<b?a:b):null;const rating=ratings.find(r=>r.sanatoriumId===s.id);return {id:s.id,...data,from_amount:amount?.toString()??null,price_label:'Boshlang‘ich tarif; yakuniy narx bron hisobida',online_booking_available:s.paymentReady&&prices.length>0,rating:rating?{average:rating._avg.rating,count:rating._count.id}:null};});
+  // Publication controls browsing. Billing readiness controls online booking separately.
+  private async where(){return {status:'ACTIVE',publicRevisionId:{not:null}};}
+  private async bookable(ids:string[]){return new Set((await this.db.subscription.findMany({where:{sanatoriumId:{in:ids},status:{in:['ACTIVE','TRIAL','PAST_DUE']},graceEndsAt:{gt:new Date()}},select:{sanatoriumId:true}})).map(s=>s.sanatoriumId));}
+  private async publicRows(featuredOnly=false){const all=await this.db.sanatorium.findMany({where:{...await this.where(),...(featuredOnly?{featuredOnHome:true}:{})}});const revisions=await this.db.sanatoriumRevision.findMany({where:{id:{in:all.map(s=>s.publicRevisionId!)}}});const rates=await this.db.ratePlan.findMany({where:{sanatoriumId:{in:all.map(s=>s.id)},active:true},select:{sanatoriumId:true,baseAmount:true}});const ratings=await this.db.review.groupBy({by:['sanatoriumId'],where:{status:'PUBLISHED',sanatoriumId:{in:all.map(s=>s.id)}},_avg:{rating:true},_count:{id:true}});
+    const bookable=await this.bookable(all.map(s=>s.id));
+    return all.map(s=>{const r=revisions.find(r=>r.id===s.publicRevisionId)!;const data=publicProfile(r.data);const prices=rates.filter(r=>r.sanatoriumId===s.id).map(r=>r.baseAmount);const amount=prices.length?prices.reduce((a,b)=>a<b?a:b):null;const rating=ratings.find(r=>r.sanatoriumId===s.id);return {id:s.id,...data,featured_on_home:s.featuredOnHome,from_amount:amount?.toString()??null,price_label:'Boshlang‘ich tarif; yakuniy narx bron hisobida',online_booking_available:s.paymentReady&&prices.length>0&&(!s.subscriptionRequired||bookable.has(s.id)),rating:rating?{average:rating._avg.rating,count:rating._count.id}:null};});
+  }
+  async featured(){return (await this.publicRows(true)).sort((a,b)=>String(a.name).localeCompare(String(b.name)));}
+  async list(query:unknown){const i=parse(pageQuery.extend({q:z.string().trim().max(100).optional(),region:z.string().max(80).optional(),amenity:z.string().max(80).optional(),max_price:money.optional(),sort:z.enum(['NAME','PRICE']).default('NAME')}).strict(),query);let rows=await this.publicRows();
     if(i.q){const q=i.q.toLocaleLowerCase();rows=rows.filter(r=>`${r.name} ${r.description} ${r.region}`.toLocaleLowerCase().includes(q));}if(i.region)rows=rows.filter(r=>r.region===i.region);if(i.amenity)rows=rows.filter(r=>r.amenities?.includes(i.amenity));if(i.max_price)rows=rows.filter(r=>r.from_amount!==null&&BigInt(r.from_amount)<=BigInt(i.max_price!));rows.sort((a,b)=>i.sort==='PRICE'?(BigInt(a.from_amount??'9000000000000000000')<BigInt(b.from_amount??'9000000000000000000')?-1:1):String(a.name).localeCompare(String(b.name)));return paged(rows.slice((i.page-1)*i.limit,i.page*i.limit),rows.length,i.page,i.limit);
   }
-  async get(id:string){parse(uuid,id);const s=await this.db.sanatorium.findFirst({where:{...await this.where(),id}});if(!s)fail('NOT_FOUND','Sanatoriya topilmadi',404);const revision=await this.db.sanatoriumRevision.findUniqueOrThrow({where:{id:s.publicRevisionId!}});const [room_types,rawRates,reviews]=await Promise.all([this.db.roomType.findMany({where:{sanatoriumId:id,active:true}}),this.db.ratePlan.findMany({where:{sanatoriumId:id,active:true}}),this.db.review.findMany({where:{sanatoriumId:id,status:'PUBLISHED'},select:{id:true,rating:true,text:true,reply:true,createdAt:true},take:50,orderBy:{createdAt:'desc'}})]);const policies=await this.db.refundPolicy.findMany({where:{id:{in:rawRates.map(r=>r.policyId)}}});return {id:s.id,...publicProfile(revision.data),room_types,rate_plans:rawRates.map(r=>({...r,policy:policies.find(p=>p.id===r.policyId)})),reviews:reviews.map(r=>({...r,verified_stay:true})),online_booking_available:s.paymentReady&&rawRates.length>0};}
+  async get(id:string){parse(uuid,id);const s=await this.db.sanatorium.findFirst({where:{...await this.where(),id}});if(!s)fail('NOT_FOUND','Sanatoriya topilmadi',404);const revision=await this.db.sanatoriumRevision.findUniqueOrThrow({where:{id:s.publicRevisionId!}});const [room_types,rawRates,reviews]=await Promise.all([this.db.roomType.findMany({where:{sanatoriumId:id,active:true}}),this.db.ratePlan.findMany({where:{sanatoriumId:id,active:true}}),this.db.review.findMany({where:{sanatoriumId:id,status:'PUBLISHED'},select:{id:true,rating:true,text:true,reply:true,createdAt:true},take:50,orderBy:{createdAt:'desc'}})]);const policies=await this.db.refundPolicy.findMany({where:{id:{in:rawRates.map(r=>r.policyId)}}});const bookable=await this.bookable([id]);return {id:s.id,...publicProfile(revision.data),room_types,rate_plans:rawRates.map(r=>({...r,policy:policies.find(p=>p.id===r.policyId)})),reviews:reviews.map(r=>({...r,verified_stay:true})),online_booking_available:s.paymentReady&&rawRates.length>0&&(!s.subscriptionRequired||bookable.has(id))};}
   async favorites(actor:Actor){const saved=await this.db.favorite.findMany({where:{userId:actor.id}});const all=await this.list({limit:100});return all.data.filter((r:any)=>saved.some(f=>f.sanatoriumId===r.id));}
   async favorite(actor:Actor,id:string,body:unknown){parse(uuid,id);const i=parse(z.object({saved:z.boolean()}).strict(),body);if(i.saved){await this.get(id);await this.db.favorite.upsert({where:{userId_sanatoriumId:{userId:actor.id,sanatoriumId:id}},create:{userId:actor.id,sanatoriumId:id},update:{}});}else await this.db.favorite.deleteMany({where:{userId:actor.id,sanatoriumId:id}});return {saved:i.saved};}
   async ads() {
-    const candidates = await this.db.adCampaign.findMany({ where: { status: 'APPROVED', startsAt: { lte: new Date() }, endsAt: { gt: new Date() } }, orderBy: { startsAt: 'desc' } });
-    const eligible = await this.where(); const rows = [];
+    const now = new Date();
+    const candidates = await this.db.adCampaign.findMany({ where: { status: 'APPROVED', startsAt: { lte: now }, endsAt: { gt: now } }, orderBy: { startsAt: 'desc' } });
+    const rows = [];
     for (const ad of candidates) {
-      const invoice = ad.invoiceId ? await this.db.invoice.findUnique({ where: { id: ad.invoiceId } }) : null;
-      const published = ad.amount === 0n && (ad.data as any).free === true && !ad.invoiceId || invoice?.status === 'PAID';
-      if (!published || !await this.db.sanatorium.findFirst({ where: { ...eligible, id: ad.sanatoriumId } })) continue;
+      if (await adPublicationStatus(this.db,ad,now) !== 'LIVE') continue;
       const data=ad.data as any;
-      const target=data.target_kind==='URL'?{kind:'URL',url:data.target_url}:{kind:'SANATORIUM',sanatorium_id:data.target_sanatorium_id??ad.sanatoriumId};
-      if(target.kind==='SANATORIUM'&&!await this.db.sanatorium.findFirst({where:{...eligible,id:target.sanatorium_id}}))continue;
+      const target=adTarget(ad);
       rows.push({ id: ad.id, sanatorium_id: ad.sanatoriumId, title: ad.title, placement: ad.placement==='SEARCH'?'HOME':ad.placement, ...data, target, sponsored: true, label: 'Reklama' });
     }
     return rows;

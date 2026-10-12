@@ -6,6 +6,7 @@ import '../data/api.dart';
 import '../data/home_feed.dart';
 import '../data/catalog_cache.dart';
 import '../design.dart';
+import '../concept_ui.dart';
 import '../widgets.dart';
 import 'account.dart';
 import 'advertisements.dart';
@@ -167,7 +168,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     if (catalog.hasSnapshot) {
       final ids = catalog.items.map((item) => item['id']).toSet();
       featured = featured.where((item) => ids.contains(item['id'])).toList();
-      if (featured.isEmpty) featured = catalog.items.take(6).toList();
+      if (data == null) {
+        featured = catalog.items
+            .where((item) => item['featured_on_home'] == true)
+            .toList();
+      }
     }
     return RefreshIndicator(
       onRefresh: refresh,
@@ -181,110 +186,79 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             actions: [
               HomeShortcut(
                 'Sanatoriya\nqidirish',
-                Icons.search_rounded,
+                'search',
                 widget.onCatalog ?? () => navigate(1),
               ),
-              HomeShortcut(
-                'Hudud va\nsharoitlar',
-                Icons.forest_outlined,
-                filters,
-              ),
-              HomeShortcut(
-                'AI bilan\ntanlash',
-                Icons.auto_awesome_outlined,
-                () => navigate(3),
-              ),
-              HomeShortcut(
-                'Bronlarim',
-                Icons.event_available_outlined,
-                () => navigate(2),
-              ),
+              HomeShortcut('Hudud va\nsharoitlar', 'leaf', filters),
+              HomeShortcut('AI bilan\ntanlash', 'sparkles', () => navigate(3)),
+              HomeShortcut('Bronlarim', 'calendar-check', () => navigate(2)),
             ],
           ),
           const SizedBox(height: 14),
-          HomeSectionHeading(
-            'Mashhur sanatoriyalar',
-            icon: Icons.spa_outlined,
-            onAll: widget.onCatalog ?? () => navigate(1),
-          ),
-          if (loading && data == null && featured.isEmpty) const Busy(),
-          if (error != null && featured.isEmpty)
-            ErrorView(error!, retry: refresh),
-          if (cached)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 12),
-              child: Text(
-                'Saqlangan ma’lumot. Narx va mavjudlik bron hisobida yangilanadi.',
-                style: TextStyle(color: context.colors.muted, fontSize: 12),
+          if (ads.isNotEmpty)
+            Column(
+              key: const ValueKey('home-advertisements'),
+              children: [
+                for (final ad in ads)
+                  AdvertisementCard(
+                    key: ValueKey(ad['id']),
+                    api: widget.api,
+                    ad: ad,
+                    onOpen: () => openAdvertisement(context, widget.api, ad),
+                  ),
+              ],
+            )
+          else ...[
+            HomeSectionHeading(
+              'Mashhur sanatoriyalar',
+              icon: 'leaf',
+              onAll: widget.onCatalog ?? () => navigate(1),
+            ),
+            if (loading && data == null && featured.isEmpty) const Busy(),
+            if (error != null && featured.isEmpty)
+              ErrorView(error!, retry: refresh),
+            if (cached)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: Text(
+                  'Saqlangan ma’lumot. Narx va mavjudlik bron hisobida yangilanadi.',
+                  style: TextStyle(color: context.colors.muted, fontSize: 12),
+                ),
               ),
-            ),
-          if (!loading && error == null && featured.isEmpty)
-            const EmptyView(
-              'Sanatoriyalar e’lon qilingach shu yerda ko‘rinadi.',
-            ),
-          if (featured.isNotEmpty)
-            SingleChildScrollView(
-              key: const ValueKey('featured-sanatoriums'),
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  for (final item in featured)
-                    Padding(
-                      padding: const EdgeInsets.only(right: 12),
-                      child: SizedBox(
-                        width: MediaQuery.sizeOf(context).width < 400
-                            ? 224
-                            : 244,
-                        child: FeaturedSanatoriumCard(
-                          api: widget.api,
-                          item: item,
+            if (!loading && error == null && featured.isEmpty)
+              const EmptyView('Hozircha mashhur sanatoriyalar yo‘q.'),
+            if (featured.isNotEmpty)
+              SingleChildScrollView(
+                key: const ValueKey('featured-sanatoriums'),
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    for (final item in featured)
+                      Padding(
+                        padding: const EdgeInsets.only(right: 12),
+                        child: SizedBox(
+                          width: MediaQuery.sizeOf(context).width < 400
+                              ? 224
+                              : 244,
+                          child: FeaturedSanatoriumCard(
+                            api: widget.api,
+                            item: item,
+                          ),
                         ),
                       ),
-                    ),
-                ],
+                  ],
+                ),
               ),
-            ),
-          // Without an ad, its heading, loading state, and spacing are absent.
-          if (ads.isNotEmpty)
-            Padding(
-              key: const ValueKey('home-advertisements'),
-              padding: const EdgeInsets.only(top: 16),
-              child: Column(
-                children: [
-                  for (final ad in ads)
-                    AdvertisementCard(
-                      key: ValueKey(ad['id']),
-                      api: widget.api,
-                      ad: ad,
-                      onOpen: () => openAdvertisement(context, widget.api, ad),
-                    ),
-                ],
-              ),
-            ),
-          const HomeSectionHeading(
-            'Tezkor xizmatlar',
-            icon: Icons.stars_outlined,
-          ),
+          ],
+          const HomeSectionHeading('Tezkor xizmatlar', icon: 'sparkles'),
           HomeShortcuts(
             compact: true,
             actions: [
-              HomeShortcut('Narx va\nsharoit', Icons.tune_rounded, filters),
-              HomeShortcut(
-                'Bron\nholati',
-                Icons.fact_check_outlined,
-                () => navigate(2),
-              ),
-              HomeShortcut(
-                'Yordam\nxizmati',
-                Icons.support_agent_rounded,
-                support,
-              ),
-              HomeShortcut(
-                'AI\nyordam',
-                Icons.chat_bubble_outline_rounded,
-                () => navigate(3),
-              ),
+              HomeShortcut('Narx va\nsharoit', 'sliders-horizontal', filters),
+              HomeShortcut('Bron\nholati', 'file-text', () => navigate(2)),
+              HomeShortcut('Yordam\nxizmati', 'headphones', support),
+              HomeShortcut('AI\nyordam', 'message-square', () => navigate(3)),
             ],
           ),
           HomeUpdates(api: widget.api, data: data),
@@ -296,7 +270,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
 class HomeShortcut {
   final String label;
-  final IconData icon;
+  final String icon;
   final VoidCallback onTap;
   const HomeShortcut(this.label, this.icon, this.onTap);
 }
@@ -342,7 +316,7 @@ class HomeShortcuts extends StatelessWidget {
                             color: context.colors.soft,
                             shape: BoxShape.circle,
                           ),
-                          child: Icon(
+                          child: SihhatIcon(
                             action.icon,
                             size: 26,
                             color: context.colors.primary,
@@ -373,7 +347,7 @@ class HomeShortcuts extends StatelessWidget {
 
 class HomeSectionHeading extends StatelessWidget {
   final String title;
-  final IconData icon;
+  final String icon;
   final VoidCallback? onAll;
   const HomeSectionHeading(
     this.title, {
@@ -386,7 +360,7 @@ class HomeSectionHeading extends StatelessWidget {
     padding: const EdgeInsets.symmetric(vertical: 14),
     child: Row(
       children: [
-        Icon(icon, color: context.colors.primary, size: 23),
+        SihhatIcon(icon, color: context.colors.primary, size: 23),
         const SizedBox(width: 8),
         Expanded(
           child: Text(
@@ -402,8 +376,8 @@ class HomeSectionHeading extends StatelessWidget {
           IconButton(
             tooltip: 'Barcha sanatoriyalarni ko‘rish',
             onPressed: onAll,
-            icon: Icon(
-              Icons.arrow_forward_ios_rounded,
+            icon: SihhatIcon(
+              'chevron-right',
               size: 17,
               color: context.colors.primary,
             ),
@@ -444,8 +418,8 @@ class FeaturedSanatoriumCard extends StatelessWidget {
                 children: [
                   ColoredBox(
                     color: context.colors.soft,
-                    child: Icon(
-                      Icons.landscape_outlined,
+                    child: SihhatIcon(
+                      'building-2',
                       color: context.colors.primary,
                       size: 46,
                     ),
@@ -490,8 +464,8 @@ class FeaturedSanatoriumCard extends StatelessWidget {
                       (rating?['count'] ?? 0) > 0) ...[
                     Row(
                       children: [
-                        const Icon(
-                          Icons.star_rounded,
+                        const SihhatIcon(
+                          'star',
                           color: Color(0xffe7b325),
                           size: 18,
                         ),
@@ -517,8 +491,8 @@ class FeaturedSanatoriumCard extends StatelessWidget {
                   const SizedBox(height: 6),
                   Row(
                     children: [
-                      Icon(
-                        Icons.location_on_outlined,
+                      SihhatIcon(
+                        'map-pin',
                         color: context.colors.primary,
                         size: 15,
                       ),
@@ -551,8 +525,8 @@ class FeaturedSanatoriumCard extends StatelessWidget {
                           ),
                         ),
                       ),
-                      Icon(
-                        Icons.chevron_right_rounded,
+                      SihhatIcon(
+                        'chevron-right',
                         color: context.colors.primary,
                       ),
                     ],

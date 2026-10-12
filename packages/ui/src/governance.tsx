@@ -1,9 +1,28 @@
 "use client";
-import { useState } from "react";
-import { BedDouble, BookOpen, Coins, Leaf, Users, Wallet } from "lucide-react";
+import { useEffect, useState } from "react";
+import {
+  ArrowUpRight,
+  BedDouble,
+  BookOpen,
+  CalendarDays,
+  Clock,
+  Coins,
+  CreditCard,
+  Download,
+  FileText,
+  Info,
+  RotateCcw,
+  Sparkles,
+  Users,
+  Wallet,
+} from "lucide-react";
 import { api, formatMoney, query } from "@sihhat/api-client";
 import { ProfileWizard } from "./wizard";
+import { ListFilters, useSavedFilters } from "./list-filters";
+import { newPasswordFields } from "./password-fields";
+import { XlsxDownload } from "./report-download";
 import { MerchantSetupPanel } from "./merchant-setup";
+import { PhotoGallery } from "./photo-gallery";
 import {
   facilityOptions,
   sanatoriumAmenities,
@@ -19,6 +38,7 @@ import {
   ErrorBox,
   Loading,
   PageHeading,
+  StatValue,
   Table,
   date,
   label,
@@ -73,6 +93,11 @@ const receptionDefaults = [
   "surveys.respond",
   "support.read",
 ];
+const accountantDefaults = [
+  "reports.operational.read",
+  "reports.financial.read",
+  "reports.export",
+];
 export function Dashboard() {
   const ctx = usePortal(),
     today = localDate(),
@@ -118,6 +143,7 @@ export function Dashboard() {
         }
       >
         <div className="date-filter">
+          <CalendarDays size={17} aria-hidden="true" />
           <input
             aria-label="Davr boshi"
             type="date"
@@ -142,21 +168,6 @@ export function Dashboard() {
           </select>
         </div>
       </PageHeading>
-      <div className="hero-card">
-        <p className="eyebrow">
-          {ctx.admin ? "SHAFFOF HISOB-KITOB" : "SIHHAT.UZ HAMKORI"}
-        </p>
-        <h2>
-          {ctx.admin
-            ? "Mehmonlar oqimi. Aniq moliya."
-            : "Mehmonlar uchun tayyor bo‘ling."}
-        </h2>
-        <p>
-          Hisobot Asia/Tashkent vaqtida yuritiladi. Ketish kuni yangi bron uchun
-          ochiq. Tanlangan davrning oxirgi sanasi hisobga kirmaydi.
-        </p>
-        <Leaf className="hero-graphic" size={105} />
-      </div>
       {remote.loading ? (
         <Loading />
       ) : remote.error ? (
@@ -190,7 +201,7 @@ export function Dashboard() {
                   detail: financial
                     ? "Tasdiqlangan onlayn to‘lovlar"
                     : "Davrga to‘g‘ri kelgan yashash",
-                  icon: Users,
+                  icon: financial ? CreditCard : Users,
                 },
                 {
                   title: ctx.admin
@@ -210,19 +221,43 @@ export function Dashboard() {
                       : "Davr ichidagi sotilgan tunlar",
                   icon: Coins,
                 },
-              ].map((s) => (
-                <div className="stat-card" key={s.title}>
+              ].map((s, index) => (
+                <div
+                  className={`stat-card ${index === 3 ? "featured-stat" : ""}`}
+                  key={s.title}
+                >
                   <div className="stat-icon">
                     <s.icon size={17} />
                   </div>
                   <div className="stat-label">{s.title}</div>
-                  <div className="stat-number">{s.value}</div>
+                  <StatValue value={s.value} />
                   <div className="stat-detail">{s.detail}</div>
                 </div>
               ))}
             </div>
-            <div className="two-cols">
-              <Card title="Bronlar holati">
+            <details className="report-context">
+              <summary>
+                <Info size={15} />
+                Hisoblash tartibi · Toshkent vaqti
+              </summary>
+              <p>
+                Hisobot Toshkent vaqti (UTC+5) bo‘yicha. Davrning oxirgi sanasi
+                hisobga kirmaydi; ketish kuni yangi bron uchun ochiq.
+              </p>
+            </details>
+            <div className="two-cols dashboard-main-grid">
+              <Card
+                title="Bronlar holati"
+                className="dashboard-chart"
+                aside={
+                  <span className="period-pill">
+                    {date(from)} — {date(to)}
+                  </span>
+                }
+              >
+                <p className="card-description">
+                  Tanlangan davrga tegishli bronlar
+                </p>
                 <div className="chart-wrap">
                   {Object.keys(r.booking_statuses).length ? (
                     <div className="bar-chart">
@@ -240,7 +275,7 @@ export function Dashboard() {
                                       Number,
                                     ),
                                   )) *
-                                  110,
+                                  170,
                               ),
                             }}
                           />
@@ -251,33 +286,65 @@ export function Dashboard() {
                   ) : (
                     <Empty text="Bu davrda bronlar yo‘q" />
                   )}
-                  <p className="chart-legend">
-                    Hisob mezoni:{" "}
-                    {basis === "SERVICE"
-                      ? "yashash davri"
-                      : basis === "PAYMENT"
-                        ? "to‘lov sanasi"
-                        : "yaratilgan sana"}
-                  </p>
+                  <div className="chart-legend">
+                    <span>
+                      Hisob mezoni:{" "}
+                      {basis === "SERVICE"
+                        ? "yashash davri"
+                        : basis === "PAYMENT"
+                          ? "to‘lov sanasi"
+                          : "yaratilgan sana"}
+                    </span>
+                    <strong>Jami {r.bookings} ta bron</strong>
+                  </div>
                 </div>
               </Card>
               <Card
+                className="dashboard-balances"
                 title={
                   financial ? "Hisob-kitob qoldiqlari" : "Xonalar bandligi"
                 }
               >
+                <p className="card-description">
+                  {financial
+                    ? "Davr oxirigacha hisoblangan"
+                    : "Sotiladigan xona-tunlar bo‘yicha"}
+                </p>
                 <div className="number-list">
                   {financial ? (
                     [
-                      ["Sof onlayn tushum", r.net_online_receipts],
-                      ["Mijozga qaytarilgan", r.refunds],
-                      ["Refund majburiyati", r.refund_payable],
-                      ["Bankka yuborilayotgan", r.payout_in_transit],
-                      ["Undiriladigan summa", r.receivable],
-                    ].map(([key, n]) => (
-                      <div className="number-row" key={key}>
-                        <span>{key}</span>
-                        <strong>{formatMoney(n)}</strong>
+                      {
+                        title: "Sof onlayn tushum",
+                        value: r.net_online_receipts,
+                        icon: CreditCard,
+                      },
+                      {
+                        title: "Mijozga qaytarilgan",
+                        value: r.refunds,
+                        icon: RotateCcw,
+                      },
+                      {
+                        title: "Refund majburiyati",
+                        value: r.refund_payable,
+                        icon: Clock,
+                      },
+                      {
+                        title: "Bankka yuborilayotgan",
+                        value: r.payout_in_transit,
+                        icon: ArrowUpRight,
+                      },
+                      {
+                        title: "Undiriladigan summa",
+                        value: r.receivable,
+                        icon: FileText,
+                      },
+                    ].map(({ title, value, icon: Icon }) => (
+                      <div className="number-row" key={title}>
+                        <span>
+                          <Icon size={18} aria-hidden="true" />
+                          {title}
+                        </span>
+                        <strong>{formatMoney(value)}</strong>
                       </div>
                     ))
                   ) : (
@@ -301,68 +368,191 @@ export function Dashboard() {
                 </div>
               </Card>
             </div>
-            {ctx.admin && (
-              <Card title="AI sarfi">
-                {aiUsage.loading ? (
-                  <Loading />
-                ) : aiUsage.error ? (
-                  <ErrorBox message={aiUsage.error} retry={aiUsage.reload} />
-                ) : (
-                  aiUsage.data && (
-                    <>
-                      <p>
-                        {aiUsage.data.requests} ta so‘rov ·{" "}
-                        {aiUsage.data.input_tokens} kirish tokeni ·{" "}
-                        {aiUsage.data.output_tokens} chiqish tokeni
-                      </p>
-                      <p className="muted">
-                        Xarajat joriy sozlangan narxlar asosida taxmin qilinadi.
-                        Provayder invoicei kelgach haqiqiy xarajat aniqlanadi.{" "}
-                        {aiUsage.data.unmetered_requests} ta so‘rovda token
-                        sarfi to‘liq olinmagan.
-                      </p>
-                      <Table
-                        rows={aiUsage.data.groups}
-                        columns={[
-                          { label: "Model", key: "model" },
-                          { label: "Natija", key: "outcome" },
-                          { label: "So‘rovlar", key: "requests" },
-                          {
-                            label: "Taxminiy xarajat, USD",
-                            render: (row: Row) =>
-                              row.estimated_cost_usd ??
-                              "Narx yoki token sarfi mavjud emas",
-                          },
-                        ]}
-                      />
-                    </>
-                  )
-                )}
-              </Card>
-            )}
-            {ctx.allowed("reports.export") && (
-              <a
-                className="button secondary"
-                href={
-                  "/api/partner/reports/export" +
-                  query({
-                    sanatorium_id: ctx.admin ? undefined : ctx.tenant,
-                    from,
-                    to,
-                    booking_basis: basis,
-                    financial: String(financial),
-                  })
-                }
-              >
-                CSV hisobotni yuklash
-              </a>
-            )}
+            <div className="two-cols dashboard-tools">
+              {ctx.admin && (
+                <Card
+                  title="AI sarfi"
+                  className="ai-card"
+                  aside={<Sparkles size={19} />}
+                >
+                  {aiUsage.loading ? (
+                    <Loading />
+                  ) : aiUsage.error ? (
+                    <ErrorBox message={aiUsage.error} retry={aiUsage.reload} />
+                  ) : (
+                    aiUsage.data && (
+                      <>
+                        <dl className="ai-metrics">
+                          <div>
+                            <dd>{aiUsage.data.requests}</dd>
+                            <dt>so‘rov</dt>
+                          </div>
+                          <div>
+                            <dd>{aiUsage.data.input_tokens}</dd>
+                            <dt>kirish tokeni</dt>
+                          </div>
+                          <div>
+                            <dd>{aiUsage.data.output_tokens}</dd>
+                            <dt>chiqish tokeni</dt>
+                          </div>
+                        </dl>
+                        <p className="muted ai-note">
+                          Xarajat joriy sozlangan narxlar asosida taxmin
+                          qilinadi. Provayder invoicei kelgach haqiqiy xarajat
+                          aniqlanadi. {aiUsage.data.unmetered_requests} ta
+                          so‘rovda token sarfi to‘liq olinmagan.
+                        </p>
+                        {!!aiUsage.data.groups?.length && (
+                          <details className="ai-breakdown">
+                            <summary>Model va xarajat tafsilotlari</summary>
+                            <Table
+                              rows={aiUsage.data.groups}
+                              columns={[
+                                { label: "Model", key: "model" },
+                                { label: "Natija", key: "outcome" },
+                                { label: "So‘rovlar", key: "requests" },
+                                {
+                                  label: "Taxminiy xarajat, USD",
+                                  render: (row: Row) =>
+                                    row.estimated_cost_usd ??
+                                    "Narx yoki token sarfi mavjud emas",
+                                },
+                              ]}
+                            />
+                          </details>
+                        )}
+                      </>
+                    )
+                  )}
+                </Card>
+              )}
+              {!ctx.admin && (
+                <Card title="Tezkor amallar" aside={<BookOpen size={19} />}>
+                  <div className="card-body quick-actions">
+                    <p className="muted">
+                      Kundalik ishlar uchun kerakli bo‘limni oching.
+                    </p>
+                    {ctx.allowed("bookings.read") && (
+                      <button
+                        className="button soft"
+                        onClick={() => ctx.go("bookings")}
+                      >
+                        <BookOpen size={17} />
+                        Bronlarni ko‘rish
+                      </button>
+                    )}
+                    {ctx.allowed("inventory.manage") && (
+                      <button
+                        className="button soft"
+                        onClick={() => ctx.go("inventory")}
+                      >
+                        <CalendarDays size={17} />
+                        Xonalar va tariflar
+                      </button>
+                    )}
+                  </div>
+                </Card>
+              )}
+              {ctx.allowed("reports.export") && (
+                <Card title="Hisobotni yuklash" aside={<FileText size={19} />}>
+                  <div className="card-body export-card">
+                    <XlsxDownload
+                      href={
+                        "/api/partner/reports/export.xlsx" +
+                        query({
+                          sanatorium_id: ctx.admin ? undefined : ctx.tenant,
+                          from,
+                          to,
+                          financial: String(financial),
+                          booking_basis: basis,
+                        })
+                      }
+                    />
+                    <p className="muted">
+                      Tanlangan davr bo‘yicha CSV nusxasini saqlang.
+                    </p>
+                    <a
+                      className="button soft"
+                      href={
+                        "/api/partner/reports/export" +
+                        query({
+                          sanatorium_id: ctx.admin ? undefined : ctx.tenant,
+                          from,
+                          to,
+                          booking_basis: basis,
+                          financial: String(financial),
+                        })
+                      }
+                    >
+                      <Download size={17} />
+                      CSV hisobotni yuklash
+                    </a>
+                  </div>
+                </Card>
+              )}
+            </div>
           </>
         )
       )}
     </>
   );
 }
+function FeaturedSanatoriumChoice({ row }: { row: Row }) {
+  const ctx = usePortal();
+  const [featured, setFeatured] = useState(row.featuredOnHome === true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  useEffect(
+    () => setFeatured(row.featuredOnHome === true),
+    [row.featuredOnHome],
+  );
+  return (
+    <div>
+      <label className="featured-choice">
+        <input
+          type="checkbox"
+          aria-label={`Mashhur sanatoriya: ${row.name}`}
+          checked={featured}
+          disabled={saving || !ctx.allowed("sanatoriums.manage")}
+          onChange={async (event) => {
+            const featured = event.target.checked;
+            setFeatured(featured);
+            setSaving(true);
+            setError(null);
+            try {
+              await api(`/superadmin/sanatoriums/${row.id}/featured`, "PATCH", {
+                version: row.version,
+                featured,
+              });
+              ctx.notice(
+                featured
+                  ? "Mashhur sanatoriyalarga qo‘shildi."
+                  : "Mashhur sanatoriyalardan chiqarildi.",
+              );
+              ctx.refresh();
+            } catch (cause) {
+              setFeatured(row.featuredOnHome === true);
+              setError(
+                cause instanceof Error
+                  ? cause.message
+                  : "Tanlovni saqlab bo‘lmadi.",
+              );
+            } finally {
+              setSaving(false);
+            }
+          }}
+        />
+        <span>{saving ? "Saqlanmoqda…" : "Bosh sahifada"}</span>
+      </label>
+      {error && (
+        <span className="featured-choice-error" role="alert">
+          {error}
+        </span>
+      )}
+    </div>
+  );
+}
+
 export function Sanatoriums() {
   const ctx = usePortal(),
     action = useAction(),
@@ -380,7 +570,7 @@ export function Sanatoriums() {
     <>
       <PageHeading
         title="Sanatoriyalar"
-        subtitle="Yangi hamkorlar, profil tahrirlari va e’lon holati."
+        subtitle="Mashhur ustunidagi tick bilan bosh sahifa uchun sanatoriyalarni tanlang. Faqat faol va e’lon qilingan profillar ko‘rinadi; reklama bo‘lsa shu joyni egallaydi."
       >
         <AddButton
           onClick={() =>
@@ -399,6 +589,7 @@ export function Sanatoriums() {
       </PageHeading>
       <DataPanel
         path="/superadmin/sanatoriums"
+        title="Sanatoriyalar ro‘yxati"
         columns={[
           {
             label: "Sanatoriya",
@@ -412,6 +603,10 @@ export function Sanatoriums() {
             ),
           },
           statusColumn,
+          {
+            label: "Mashhur",
+            render: (r) => <FeaturedSanatoriumChoice row={r} />,
+          },
           {
             label: "Profil tahriri",
             render: (r) =>
@@ -668,6 +863,7 @@ export function Profile({ id }: { id?: string }) {
     setEditing(true);
   }
   function file(kind: "photo" | "document") {
+    const uploaded = new Map<File, string>();
     ctx.form({
       title: kind === "photo" ? "Sanatoriya rasmini yuklash" : "Hujjat yuklash",
       fields: [
@@ -675,25 +871,49 @@ export function Profile({ id }: { id?: string }) {
           key: "file",
           label: "Fayl",
           type: "file",
+          multiple: kind === "photo",
           required: true,
           accept:
             kind === "photo"
               ? "image/png,image/jpeg,image/webp"
               : "application/pdf,image/png,image/jpeg",
-          hint: "8 MB gacha. Hujjatlar faqat vakolatli xodimlarga ko‘rinadi.",
+          hint:
+            kind === "photo"
+              ? "Bir vaqtning o‘zida 4 ta yoki undan ko‘p surat tanlang. Jami 30 tagacha; har biri 8 MBgacha."
+              : "8 MB gacha. Hujjatlar faqat vakolatli xodimlarga ko‘rinadi.",
         },
       ],
       submit: async (v) => {
-        const asset = await uploadAsset(
-          v.file,
-          tenant,
-          r.id,
-          kind === "photo" ? "PUBLIC" : "PRIVATE",
-        );
         const key = kind === "photo" ? "photo_ids" : "document_ids";
+        const files: File[] = Array.isArray(v.file) ? v.file : [v.file];
+        if (
+          (data[key]?.length ?? 0) + files.length >
+          (kind === "photo" ? 30 : 15)
+        )
+          throw new Error(
+            kind === "photo"
+              ? "Jami 30 tagacha surat yuklash mumkin."
+              : "Jami 15 tagacha hujjat yuklash mumkin.",
+          );
+        for (const selected of files) {
+          if (!uploaded.has(selected)) {
+            const asset = await uploadAsset(
+              selected,
+              tenant,
+              r.id,
+              kind === "photo" ? "PUBLIC" : "PRIVATE",
+            );
+            uploaded.set(selected, asset.id);
+          }
+        }
         return api(`/partner/sanatorium-revisions/${r.id}`, "PATCH", {
           version: r.version,
-          data: { [key]: [...(data[key] ?? []), asset.id] },
+          data: {
+            [key]: [
+              ...(data[key] ?? []),
+              ...files.map((f) => uploaded.get(f)!),
+            ],
+          },
         });
       },
       done: ctx.refresh,
@@ -792,6 +1012,27 @@ export function Profile({ id }: { id?: string }) {
         <Empty text="Profil tahriri topilmadi" />
       ) : (
         <>
+          <section className="profile-cover" aria-label="Sanatoriya haqida">
+            <div>
+              <p className="eyebrow">SIHHAT.UZ HAMKORI</p>
+              <h2>{data.name ?? s.name}</h2>
+              <p>
+                {data.region ?? "Hudud kiritilmagan"} ·{" "}
+                {data.address ?? "Manzil kiritilmagan"}
+              </p>
+              <Badge value={r.status} />
+            </div>
+            <img
+              src={
+                data.photo_ids?.[0]
+                  ? `/api/media/${data.photo_ids[0]}`
+                  : "/branding/welcome-retreat.png"
+              }
+              alt={data.photo_ids?.[0] ? "Sanatoriya muqovasi" : ""}
+              width={230}
+              height={130}
+            />
+          </section>
           <div className="tabs">
             {[
               ["profile", "Profil"],
@@ -910,18 +1151,29 @@ export function Profile({ id }: { id?: string }) {
             >
               <div className="card-body">
                 <h3>Rasmlar</h3>
-                <div className="file-list">
-                  {(data.photo_ids ?? []).map((id: string, n: number) => (
-                    <a
-                      key={id}
-                      href={`/api/media/${id}`}
-                      target="_blank"
-                      rel="noreferrer"
-                    >
-                      Rasm {n + 1}
-                    </a>
-                  ))}
-                </div>
+                <PhotoGallery
+                  ids={data.photo_ids ?? []}
+                  editable={
+                    edit && ["DRAFT", "CHANGES_REQUESTED"].includes(r.status)
+                  }
+                  save={async (ids) => {
+                    try {
+                      await api(
+                        `/partner/sanatorium-revisions/${r.id}`,
+                        "PATCH",
+                        { version: r.version, data: { photo_ids: ids } },
+                      );
+                      ctx.refresh();
+                    } catch (error) {
+                      ctx.notice(
+                        error instanceof Error
+                          ? error.message
+                          : "Suratlarni saqlab bo‘lmadi.",
+                      );
+                      throw error;
+                    }
+                  }}
+                />
                 <h3 style={{ marginTop: 25 }}>Hujjatlar</h3>
                 <div className="file-list">
                   {(data.document_ids ?? []).map((id: string, n: number) => (
@@ -1062,6 +1314,9 @@ export function Staff() {
   const ctx = usePortal(),
     action = useAction(),
     [credentials, setCredentials] = useState<Row | null>(null);
+  const filters = useSavedFilters("staff", { status: "", role: "" });
+  const [search, setSearch] = useState(""),
+    [q, setQ] = useState("");
   function invite(director = false) {
     ctx.form({
       title: director ? "Direktor tayinlash" : "Xodim taklif qilish",
@@ -1080,6 +1335,22 @@ export function Staff() {
                 required: true,
                 value: ctx.tenant,
                 options: options(ctx.tenants),
+              },
+            ]
+          : []),
+        ...(!director
+          ? [
+              {
+                key: "role",
+                label: "Lavozim",
+                type: "select" as const,
+                required: true,
+                value: "RECEPTION",
+                options: [
+                  { value: "RECEPTION", label: "Resepshn" },
+                  { value: "ACCOUNTANT", label: "Hisobchi" },
+                ],
+                hint: "Hisobchi faqat o‘z sanatoriyasining hisobotlarini ko‘radi va yuklaydi.",
               },
             ]
           : []),
@@ -1118,7 +1389,11 @@ export function Staff() {
   function permissionEdit(r: Row) {
     const selected = r.permissions.filter((p: string) => p in permissions),
       defaults =
-        r.role === "DIRECTOR" ? Object.keys(permissions) : receptionDefaults;
+        r.role === "DIRECTOR"
+          ? Object.keys(permissions)
+          : r.role === "ACCOUNTANT"
+            ? accountantDefaults
+            : receptionDefaults;
     ctx.form({
       title: `${r.user?.name} — ruxsatlar`,
       description: ctx.admin
@@ -1130,15 +1405,20 @@ export function Staff() {
           label: "Ruxsat etilgan amallar",
           type: "switches",
           value: selected,
-          options: Object.entries(permissions).map(([value, label]) => ({
-            value,
-            label,
-            disabled:
-              !ctx.admin &&
-              (r.adminDenies.includes(value) ||
-                (r.ceiling.length && !r.ceiling.includes(value)) ||
-                !ctx.allowed(value)),
-          })),
+          options: Object.entries(permissions)
+            .filter(
+              ([value]) =>
+                r.role !== "ACCOUNTANT" || accountantDefaults.includes(value),
+            )
+            .map(([value, label]) => ({
+              value,
+              label,
+              disabled:
+                !ctx.admin &&
+                (r.adminDenies.includes(value) ||
+                  (r.ceiling.length && !r.ceiling.includes(value)) ||
+                  !ctx.allowed(value)),
+            })),
           hint: "Har bir ruxsatni tugma bilan yoqing yoki o‘chiring, so‘ng saqlang.",
         },
       ],
@@ -1161,7 +1441,7 @@ export function Staff() {
     <>
       <PageHeading
         title="Jamoa va ruxsatlar"
-        subtitle="Direktor va resepshn vakolatlari har bir amal uchun tekshiriladi."
+        subtitle="Direktor, resepshn va hisobchi vakolatlari har bir amal uchun tekshiriladi."
       >
         <AddButton onClick={() => invite()}>Xodim taklif qilish</AddButton>
         {ctx.admin && (
@@ -1186,10 +1466,36 @@ export function Staff() {
           </button>
         </div>
       )}
+      <ListFilters
+        search={search}
+        setSearch={setSearch}
+        apply={() => setQ(search.trim())}
+        reset={() => {
+          setSearch("");
+          setQ("");
+          filters.reset();
+        }}
+        filters={filters.values}
+        setFilter={filters.set}
+        roles
+        statuses={[
+          "ACTIVE",
+          "PENDING_APPROVAL",
+          "REJECTED",
+          "REVOKED",
+          "BLOCKED",
+        ]}
+        placeholder="Xodim ismi, login yoki telefon"
+      />
       <DataPanel
         key={ctx.tenant}
         path="/partner/staff"
-        params={{ sanatorium_id: ctx.tenant || undefined }}
+        params={{
+          sanatorium_id: ctx.tenant || undefined,
+          q: q || undefined,
+          status: filters.values.status || undefined,
+          role: filters.values.role || undefined,
+        }}
         columns={[
           {
             label: "Xodim",
@@ -1246,7 +1552,7 @@ export function Staff() {
                 </Act>
               </>
             )}
-            {(ctx.admin || r.role === "RECEPTION") &&
+            {(ctx.admin || ["RECEPTION", "ACCOUNTANT"].includes(r.role)) &&
               ctx.allowed("staff.permissions.manage") &&
               r.status === "ACTIVE" && (
                 <Act onClick={() => permissionEdit(r)}>Ruxsatlar</Act>
@@ -1273,24 +1579,24 @@ export function Staff() {
                 Bloklash
               </Act>
             )}
-            {ctx.admin && (
+            {(ctx.admin ||
+              (ctx.allowed("staff.reset") &&
+                ["RECEPTION", "ACCOUNTANT"].includes(r.role) &&
+                r.status === "ACTIVE")) && (
               <Act
                 onClick={() =>
                   ctx.form({
                     title: "Parolni tiklash",
-                    fields: [],
-                    submit: async () => {
-                      const result = await api(
-                        `/superadmin/staff/${r.userId}/reset-password`,
+                    description: `${r.user.name} uchun yangi parol o‘rnating. Saqlangach kiritilgan parol amal qiladi va oldingi kirishlar yopiladi.`,
+                    fields: newPasswordFields,
+                    submit: (values) =>
+                      api(
+                        ctx.admin
+                          ? `/superadmin/staff/${r.userId}/reset-password`
+                          : `/partner/staff/${r.id}/reset-password`,
                         "POST",
-                        {},
-                      );
-                      setCredentials({
-                        name: r.user.name,
-                        login: r.user.login,
-                        password: result.temporary_password,
-                      });
-                    },
+                        values,
+                      ),
                     done: ctx.refresh,
                   })
                 }

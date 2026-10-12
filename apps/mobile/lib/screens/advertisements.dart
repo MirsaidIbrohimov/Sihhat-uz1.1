@@ -3,6 +3,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../data/api.dart';
 import '../design.dart';
+import '../concept_ui.dart' show SihhatIcon;
 import 'catalog.dart';
 
 void advertisementEvent(Api api, Json ad, String kind) {
@@ -113,8 +114,8 @@ class _AdvertisementCardState extends State<AdvertisementCard> {
                   errorBuilder: (_, _, _) => Container(
                     height: 130,
                     color: context.colors.soft,
-                    child: Icon(
-                      Icons.spa_outlined,
+                    child: SihhatIcon(
+                      'leaf',
                       size: 48,
                       color: context.colors.primary,
                     ),
@@ -201,7 +202,7 @@ class _AdvertisementCardState extends State<AdvertisementCard> {
                         ),
                       ),
                       const Spacer(),
-                      Icon(Icons.arrow_forward, color: context.colors.primary),
+                      SihhatIcon('arrow-right', color: context.colors.primary),
                     ],
                   ),
                 ],
@@ -251,7 +252,7 @@ Future<void> showEntranceAdvertisement(BuildContext context, Api api) async {
                       IconButton(
                         tooltip: 'Reklamani yopish',
                         onPressed: () => Navigator.pop(dialogContext, false),
-                        icon: const Icon(Icons.close),
+                        icon: const SihhatIcon('x'),
                       ),
                     ],
                   ),

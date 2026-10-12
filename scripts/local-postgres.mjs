@@ -2,6 +2,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync, openSync, closeSync
 import { resolve, join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
+import { setTimeout as delay } from 'node:timers/promises';
 
 const root = resolve(import.meta.dirname, '..');
 const local = join(root, '.local');
@@ -28,7 +29,19 @@ if (!existsSync(join(data, 'PG_VERSION'))) {
   writeFileSync(join(data, 'pg_hba.conf'), '# Faqat shu loyihaning loopback muhiti\nhost all all 127.0.0.1/32 trust\nhost all all ::1/128 trust\n');
 }
 if (run('pg_ctl', ['-D', data, 'status'], true).status !== 0) {
-  run('pg_ctl', ['-D', data, '-l', join(local, 'postgres.log'), '-o', '-h 127.0.0.1 -p 55432', '-w', 'start']);
+  // Recovery after an interrupted shutdown can outlast pg_ctl's default wait.
+  // Start once, then wait for connections without interrupting WAL recovery.
+  run('pg_ctl', ['-D', data, '-l', join(local, 'postgres.log'), '-o', '-h 127.0.0.1 -p 55432', '-W', 'start']);
+}
+const readyDeadline = Date.now() + 10 * 60_000;
+let nextNotice = 0;
+while (run('pg_isready', ['-h', '127.0.0.1', '-p', '55432', '-U', 'sihhat_local', '-d', 'postgres', '-t', '3'], true).status !== 0) {
+  if (Date.now() >= readyDeadline) throw new Error('PostgreSQL 10 daqiqada tayyor bo‘lmadi. .local/postgres.logni tekshiring; tiklanayotgan server to‘xtatilmadi.');
+  if (Date.now() >= nextNotice) {
+    console.log('PostgreSQL ulanishga tayyor bo‘lishi kutilmoqda; uzilgan ishning tiklanishi davom etishi mumkin.');
+    nextNotice = Date.now() + 30_000;
+  }
+  await delay(1000);
 }
 for (const dbName of ['sihhat', 'sihhat_test']) {
   const found = run('psql', ['-h', '127.0.0.1', '-p', '55432', '-U', 'sihhat_local', '-d', 'postgres', '-tAc', `SELECT 1 FROM pg_database WHERE datname='${dbName}'`]);
@@ -41,4 +54,4 @@ if (!existsSync(envPath)) {
     .replace('replace-with-64-hex-characters', randomBytes(32).toString('hex'));
   writeFileSync(envPath, template, { mode: 0o600 });
 }
-console.log('Lokal PostgreSQL tayyor: 127.0.0.1:55432, bazalar: sihhat / sihhat_test. API .env yaratildi (sirlar chiqarilmadi).');
+console.log('Lokal PostgreSQL tayyor: 127.0.0.1:55432, bazalar: sihhat / sihhat_test. API .env mavjud (sirlar chiqarilmadi).');

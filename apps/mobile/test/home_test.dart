@@ -10,6 +10,8 @@ import 'package:sihhat_mobile/data/api.dart';
 import 'package:sihhat_mobile/data/home_feed.dart';
 import 'package:sihhat_mobile/screens/catalog.dart';
 import 'package:sihhat_mobile/screens/home.dart';
+import 'package:sihhat_mobile/concept_ui.dart';
+import 'package:sihhat_mobile/data/catalog_cache.dart';
 
 import 'api_test.dart' show MemoryStore;
 
@@ -43,7 +45,45 @@ Json home() => {
 
 void main() {
   testWidgets(
-    'home shows featured sanatoriums and only HOME advertisements, then refreshes them',
+    'offline home uses only administrator choices and ignores the former automatic feed cache',
+    (tester) async {
+      final store = MemoryStore();
+      store.data['public_home_http%3A%2F%2Flocalhost'] = jsonEncode(home());
+      final api = Api(
+        baseUrl: 'http://localhost',
+        store: store,
+        client: MockClient((_) async => throw http.ClientException('offline')),
+      );
+      final cache = CatalogCache(api);
+      cache.hasSnapshot = true;
+      cache.items = [
+        {...item, 'featured_on_home': false},
+        {
+          ...item,
+          'id': 'chosen',
+          'name': 'Admin tanlagan maskan',
+          'featured_on_home': true,
+        },
+      ];
+      await tester.pumpWidget(
+        MaterialApp(home: Scaffold(body: HomeScreen(api))),
+      );
+      await tester.pumpAndSettle();
+      await tester.scrollUntilVisible(
+        find.text('Admin tanlagan maskan'),
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      expect(find.text(item['name']), findsNothing);
+      expect(find.text('Admin tanlagan maskan'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+      await tester.pumpWidget(const SizedBox.shrink());
+      api.client.close();
+    },
+  );
+
+  testWidgets(
+    'HOME advertisements replace featured sanatoriums in their slot and restore them when absent',
     (tester) async {
       final paths = <String>[];
       var ads = <Json>[
@@ -80,7 +120,8 @@ void main() {
         MaterialApp(home: Scaffold(body: HomeScreen(api))),
       );
       await tester.pumpAndSettle();
-      expect(find.text(item['name']), findsOneWidget);
+      expect(find.text(item['name']), findsNothing);
+      expect(find.text('Mashhur sanatoriyalar'), findsNothing);
       await tester.scrollUntilVisible(
         find.text('Birinchi reklama'),
         250,
@@ -112,6 +153,16 @@ void main() {
       );
       expect(find.text('Yangi reklama'), findsOneWidget);
       expect(find.text('Birinchi reklama'), findsNothing);
+      ads = [];
+      await tester.pump(const Duration(seconds: 30));
+      await tester.pumpAndSettle();
+      await tester.scrollUntilVisible(
+        find.text(item['name']),
+        -200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      expect(find.text('Mashhur sanatoriyalar'), findsOneWidget);
+      expect(find.byKey(const ValueKey('home-advertisements')), findsNothing);
       expect(tester.takeException(), isNull);
       await tester.pumpWidget(const SizedBox.shrink());
       api.client.close();
@@ -199,7 +250,7 @@ void main() {
       );
       await tester.pumpAndSettle();
       expect(find.text('Faol reklama'), findsOneWidget);
-      expect(tester.getTopLeft(service).dy, greaterThan(position.dy));
+      expect(find.text('Mashhur sanatoriyalar'), findsNothing);
       await tester.pump(const Duration(seconds: 30));
       await tester.pumpAndSettle();
       expect(find.byKey(const ValueKey('home-advertisements')), findsNothing);
@@ -239,14 +290,43 @@ void main() {
       );
       await tester.pumpWidget(SihhatApp(api: api));
       await tester.pumpAndSettle();
+      void expectNavigationIcons() {
+        final destinations = tester
+            .widget<NavigationBar>(find.byType(NavigationBar))
+            .destinations
+            .cast<NavigationDestination>();
+        expect(destinations.map((d) => (d.icon as SihhatIcon).name), [
+          'home',
+          'building-2',
+          'calendar-days',
+          'message-square',
+          'user-round',
+        ]);
+      }
+
+      expectNavigationIcons();
+      final searchIcon = find.descendant(
+        of: find.byType(TextField),
+        matching: find.byWidgetPredicate(
+          (w) => w is SihhatIcon && w.name == 'search',
+        ),
+      );
+      expect(
+        tester.getSize(
+          find.descendant(of: searchIcon, matching: find.byType(CustomPaint)),
+        ),
+        const Size(24, 24),
+      );
       await tester.enterText(find.byType(TextField), 'Toshkent');
       await tester.testTextInput.receiveAction(TextInputAction.search);
       await tester.pumpAndSettle();
       expect(queries.last['q'], isNull);
       expect(find.text(item['name']), findsOneWidget);
       expect(find.byType(CatalogScreen), findsOneWidget);
+      expectNavigationIcons();
       await tester.tap(find.text('Bosh sahifa'));
       await tester.pumpAndSettle();
+      expectNavigationIcons();
       await tester.tap(find.text('Hudud va\nsharoitlar'));
       await tester.pumpAndSettle();
       expect(find.text('Natijalarni ko‘rish'), findsOneWidget);

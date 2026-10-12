@@ -1,0 +1,236 @@
+<!doctype html>
+<html lang="uz">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <meta name="description" content="Sihhat uz Android ilovasi uchun 10 ta UI konsept rasmi va 30 ekran holati.">
+  <title>Sihhat uz — Android UI konseptlari</title>
+  <style>
+    :root{font-family:"Segoe UI",Arial,sans-serif;color:#083f38;background:#f6faf9;--primary:#00866c;--forest:#043b33;--mint:#e6f5f0;--line:#dcece6}
+    *{box-sizing:border-box}body{margin:0}button,a{-webkit-tap-highlight-color:transparent}button{font:inherit;cursor:pointer}a{color:inherit;text-decoration:none}
+    button:focus-visible,a:focus-visible{outline:3px solid #00866c;outline-offset:4px}svg{flex-shrink:0}
+    .masthead{background:var(--forest);color:white}.topbar{max-width:1280px;margin:auto;padding:22px 32px;display:flex;align-items:center;justify-content:space-between;gap:20px}
+    .brand{display:flex;align-items:center;gap:12px;font-size:23px;font-weight:750;letter-spacing:-.5px}.brand img{width:44px;height:44px;object-fit:cover;border-radius:12px}.brand span{color:#94e4c6}
+    .version{font-size:13px;border:1px solid #386358;border-radius:999px;padding:9px 14px;color:#d4eee5}
+    main{max-width:1280px;margin:auto;padding:46px 32px 64px}.intro{display:flex;align-items:flex-end;justify-content:space-between;gap:28px;margin-bottom:30px}
+    .eyebrow{font-size:12px;letter-spacing:1.8px;color:#00866c;font-weight:700;margin:0 0 14px}h1{font-size:clamp(30px,4vw,44px);line-height:1.15;letter-spacing:-1.3px;margin:0 0 16px;max-width:750px}
+    .lede{color:#657b72;line-height:1.65;font-size:16px;margin:0;max-width:670px}.stats{display:flex;gap:24px;flex-shrink:0;padding:20px 24px;border:1px solid var(--line);background:white;border-radius:20px}
+    .stat strong{display:block;font-size:30px;letter-spacing:-1px}.stat span{display:block;font-size:12px;color:#657b72;margin-top:3px}
+    .tools{display:flex;justify-content:space-between;align-items:center;gap:16px;margin:30px 0 22px;flex-wrap:wrap}.filters{display:flex;gap:8px;flex-wrap:wrap}
+    .filter{border:1px solid var(--line);background:white;color:#35554a;padding:11px 16px;border-radius:999px;font-size:14px;min-height:44px}.filter[aria-pressed="true"]{background:var(--forest);color:white;border-color:var(--forest)}
+    .guide-link{display:flex;align-items:center;gap:8px;font-size:14px;color:#00866c;font-weight:650}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:24px}
+    .card{background:white;border:1px solid var(--line);border-radius:22px;overflow:hidden;box-shadow:0 6px 25px #043b3306;min-width:0}.card[hidden]{display:none}
+    .preview{border:0;display:block;width:100%;padding:0;background:var(--mint);position:relative;text-align:left}.preview img{display:block;width:100%;height:auto}
+    .expand{position:absolute;bottom:16px;right:16px;display:flex;align-items:center;gap:8px;font-size:12px;font-weight:600;background:#fffef9ed;color:var(--forest);padding:10px 12px;border:1px solid #dcece6;border-radius:12px;box-shadow:0 4px 18px #043b3310}
+    .card-body{padding:22px}.card-heading{display:flex;align-items:center;gap:12px}.number{font-variant-numeric:tabular-nums;background:var(--mint);color:#00866c;padding:9px 11px;border-radius:11px;font-size:14px;font-weight:750}
+    h2{font-size:19px;line-height:1.4;letter-spacing:-.3px;margin:0}.screens{list-style:none;padding:0;margin:18px 0;color:#657b72;font-size:14px;line-height:1.7}.screens li{display:flex;gap:10px}.screens b{font-size:12px;color:#00866c;min-width:30px;font-variant-numeric:tabular-nums}
+    .file-link{display:inline-flex;align-items:center;gap:10px;color:#00866c;font-size:14px;font-weight:650;min-height:44px}
+    .note{margin-top:30px;background:var(--mint);padding:22px 26px;border-radius:18px;font-size:14px;line-height:1.65;color:#35554a}.note strong{color:var(--forest)}
+    footer{margin-top:26px;display:flex;justify-content:space-between;gap:14px;flex-wrap:wrap;color:#657b72;font-size:12px}
+    dialog{padding:0;width:min(1440px,calc(100vw - 40px));max-width:none;max-height:calc(100dvh - 40px);border:1px solid var(--line);border-radius:20px;background:#f6faf9;color:#083f38}
+    dialog::backdrop{background:#021d19d9;backdrop-filter:blur(5px)}.dialog-head{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:16px 20px;background:white;border-bottom:1px solid var(--line)}
+    .dialog-title{font-size:18px;line-height:1.3;margin:0}.dialog-tools{display:flex;align-items:center;gap:8px}.icon-button{border:1px solid var(--line);background:white;border-radius:12px;display:inline-flex;align-items:center;justify-content:center;gap:6px;min-width:44px;min-height:44px;padding:9px;color:var(--forest)}
+    .zoom-label{font-size:13px;font-weight:650}.viewport{overflow:auto;background:#e6f5f0;max-height:calc(100dvh - 180px)}.viewport img{display:block;max-width:100%;max-height:calc(100dvh - 180px);width:auto;height:auto;margin:auto}
+    .viewport.zoomed img{max-width:none;max-height:none;width:1536px;height:auto;margin:0}.dialog-foot{display:flex;align-items:center;justify-content:space-between;gap:14px;background:white;padding:14px 20px;border-top:1px solid var(--line)}
+    .dialog-foot .caption{font-size:13px;line-height:1.5;color:#657b72;flex:1}.pager{display:flex;gap:8px;align-items:center}.pager span{font-size:13px;font-variant-numeric:tabular-nums;min-width:52px;text-align:center}.icon-button:disabled{opacity:.35;cursor:default}
+    @media(max-width:800px){.intro{align-items:flex-start;flex-direction:column}.stats{padding:14px 22px}.grid{grid-template-columns:1fr}.topbar{padding:18px 20px}main{padding:32px 20px 42px}.card-body{padding:20px}.version{font-size:11px;padding:8px 11px}.brand{font-size:21px}.expand{padding:8px;font-size:11px}.dialog-title{font-size:15px}dialog{width:calc(100vw - 16px);max-height:calc(100dvh - 16px)}.dialog-head{padding:12px;gap:8px}.dialog-foot{padding:12px;flex-wrap:wrap}.zoom-label{display:none}.viewport{max-height:calc(100dvh - 215px)}.viewport img{max-height:calc(100dvh - 215px)}}
+    @media(prefers-reduced-motion:no-preference){.filter,.preview .expand{transition:background .15s,transform .15s}.preview:hover .expand{transform:translateY(-2px)}}
+    @media print{.masthead,.tools,.expand,.file-link,dialog{display:none}.grid{display:block}.card{break-inside:avoid;margin-bottom:20px;box-shadow:none}.note{background:white}main{padding:0}.intro{margin-bottom:20px}}
+  </style>
+</head>
+<body>
+  <header class="masthead">
+    <div class="topbar"><div class="brand"><img src="../assets/branding/sihhat-logo.jpg" alt="Sihhat uz logosi" width="44" height="44">Sihhat <span>uz</span></div><div class="version">ANDROID · KONSEPT V1</div></div>
+  </header>
+  <main>
+    <section class="intro" aria-labelledby="page-title">
+      <div><p class="eyebrow">UI KO‘RIB CHIQISH · 10 OKTABR 2026</p><h1 id="page-title">Bir uslub. Qulay sahifalar.</h1><p class="lede">Katalogdan bron tasdig‘igacha, profil va yordamgacha — to‘q yashil, och yalpiz va toza kartalar. Har bir rasmda uchta ekran holati bor.</p></div>
+      <div class="stats"><div class="stat"><strong>10</strong><span>konsept rasmi</span></div><div class="stat"><strong>30</strong><span>ekran holati</span></div></div>
+    </section>
+    <div class="tools">
+      <nav class="filters" aria-label="Maket guruhlari">
+        <button class="filter" data-filter="all" aria-pressed="true">Barchasi</button>
+        <button class="filter" data-filter="discovery" aria-pressed="false">Katalog va tarif</button>
+        <button class="filter" data-filter="booking" aria-pressed="false">Bron va to‘lov</button>
+        <button class="filter" data-filter="personal" aria-pressed="false">Profil, AI va yordam</button>
+      </nav>
+      <a class="guide-link" href="DESIGN_GUIDE.md">Dizayn tavsiyalari <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14m-6-6 6 6-6 6"/></svg></a>
+    </div>
+    <section class="grid" aria-label="UI konsept rasmlari">
+      <article class="card" data-group="discovery" id="maket-01">
+        <button class="preview" data-index="0" aria-label="Katalog, filtrlar va sanatoriya maketini kattalashtirish">
+          <img src="01-katalog-va-filtrlar.png" alt="Sanatoriyalar katalogi · Filtrlar paneli · Sanatoriya tafsiloti" width="1536" height="1024" loading="eager" decoding="async">
+          <span class="expand"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3H3v5m13-5h5v5M3 16v5h5m13-5v5h-5"/></svg> Kattalashtirish</span>
+        </button>
+        <div class="card-body">
+          <div class="card-heading"><span class="number">01</span><h2>Katalog, filtrlar va sanatoriya</h2></div>
+          <ol class="screens"><li><b>01A</b> Sanatoriyalar katalogi</li><li><b>01B</b> Filtrlar paneli</li><li><b>01C</b> Sanatoriya tafsiloti</li></ol>
+          <a class="file-link" href="01-katalog-va-filtrlar.png" target="_blank" rel="noopener">Asl rasmni ochish <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14m-6-6 6 6-6 6"/></svg></a>
+        </div>
+      </article>
+
+      <article class="card" data-group="discovery" id="maket-02">
+        <button class="preview" data-index="1" aria-label="Xonalar, tariflar va galereya maketini kattalashtirish">
+          <img src="02-xonalar-tariflar-galereya.png" alt="Xona va tarif tanlash · Suratlar galereyasi · Kelish shartlari" width="1536" height="1024" loading="eager" decoding="async">
+          <span class="expand"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3H3v5m13-5h5v5M3 16v5h5m13-5v5h-5"/></svg> Kattalashtirish</span>
+        </button>
+        <div class="card-body">
+          <div class="card-heading"><span class="number">02</span><h2>Xonalar, tariflar va galereya</h2></div>
+          <ol class="screens"><li><b>02A</b> Xona va tarif tanlash</li><li><b>02B</b> Suratlar galereyasi</li><li><b>02C</b> Kelish shartlari</li></ol>
+          <a class="file-link" href="02-xonalar-tariflar-galereya.png" target="_blank" rel="noopener">Asl rasmni ochish <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14m-6-6 6 6-6 6"/></svg></a>
+        </div>
+      </article>
+
+      <article class="card" data-group="booking" id="maket-03">
+        <button class="preview" data-index="2" aria-label="Sana, xona va mehmon ma’lumotlari maketini kattalashtirish">
+          <img src="03-bron-yaratish.png" alt="Sana tanlash · Xona va mehmon soni · Mehmon va bronni tekshirish" width="1536" height="1024" loading="lazy" decoding="async">
+          <span class="expand"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3H3v5m13-5h5v5M3 16v5h5m13-5v5h-5"/></svg> Kattalashtirish</span>
+        </button>
+        <div class="card-body">
+          <div class="card-heading"><span class="number">03</span><h2>Sana, xona va mehmon ma’lumotlari</h2></div>
+          <ol class="screens"><li><b>03A</b> Sana tanlash</li><li><b>03B</b> Xona va mehmon soni</li><li><b>03C</b> Mehmon va bronni tekshirish</li></ol>
+          <a class="file-link" href="03-bron-yaratish.png" target="_blank" rel="noopener">Asl rasmni ochish <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14m-6-6 6 6-6 6"/></svg></a>
+        </div>
+      </article>
+
+      <article class="card" data-group="booking" id="maket-04">
+        <button class="preview" data-index="3" aria-label="To‘lov kutilishi, bron tasdig‘i va QR maketini kattalashtirish">
+          <img src="04-tolov-va-tasdiq.png" alt="To‘lov uchun bron · To‘lov holatini kutish · Tasdiqlangan bron va QR" width="1536" height="1024" loading="lazy" decoding="async">
+          <span class="expand"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3H3v5m13-5h5v5M3 16v5h5m13-5v5h-5"/></svg> Kattalashtirish</span>
+        </button>
+        <div class="card-body">
+          <div class="card-heading"><span class="number">04</span><h2>To‘lov kutilishi, bron tasdig‘i va QR</h2></div>
+          <ol class="screens"><li><b>04A</b> To‘lov uchun bron</li><li><b>04B</b> To‘lov holatini kutish</li><li><b>04C</b> Tasdiqlangan bron va QR</li></ol>
+          <a class="file-link" href="04-tolov-va-tasdiq.png" target="_blank" rel="noopener">Asl rasmni ochish <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14m-6-6 6 6-6 6"/></svg></a>
+        </div>
+      </article>
+
+      <article class="card" data-group="booking" id="maket-05">
+        <button class="preview" data-index="4" aria-label="Bronlar ro‘yxati, tafsilot va sharh maketini kattalashtirish">
+          <img src="05-bronlar-va-sharh.png" alt="Bronlar ro‘yxati va internetsiz holat · Bron tafsiloti · Yashashni baholash" width="1536" height="1024" loading="lazy" decoding="async">
+          <span class="expand"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3H3v5m13-5h5v5M3 16v5h5m13-5v5h-5"/></svg> Kattalashtirish</span>
+        </button>
+        <div class="card-body">
+          <div class="card-heading"><span class="number">05</span><h2>Bronlar ro‘yxati, tafsilot va sharh</h2></div>
+          <ol class="screens"><li><b>05A</b> Bronlar ro‘yxati va internetsiz holat</li><li><b>05B</b> Bron tafsiloti</li><li><b>05C</b> Yashashni baholash</li></ol>
+          <a class="file-link" href="05-bronlar-va-sharh.png" target="_blank" rel="noopener">Asl rasmni ochish <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14m-6-6 6 6-6 6"/></svg></a>
+        </div>
+      </article>
+
+      <article class="card" data-group="personal" id="maket-06">
+        <button class="preview" data-index="5" aria-label="AI yordamchi, rozilik va tavsiyalar maketini kattalashtirish">
+          <img src="06-ai-yordamchi.png" alt="AI boshlang‘ich holati · Bir martalik AI roziligi · AI suhbat va katalog tavsiyasi" width="1536" height="1024" loading="lazy" decoding="async">
+          <span class="expand"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3H3v5m13-5h5v5M3 16v5h5m13-5v5h-5"/></svg> Kattalashtirish</span>
+        </button>
+        <div class="card-body">
+          <div class="card-heading"><span class="number">06</span><h2>AI yordamchi, rozilik va tavsiyalar</h2></div>
+          <ol class="screens"><li><b>06A</b> AI boshlang‘ich holati</li><li><b>06B</b> Bir martalik AI roziligi</li><li><b>06C</b> AI suhbat va katalog tavsiyasi</li></ol>
+          <a class="file-link" href="06-ai-yordamchi.png" target="_blank" rel="noopener">Asl rasmni ochish <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14m-6-6 6 6-6 6"/></svg></a>
+        </div>
+      </article>
+
+      <article class="card" data-group="personal" id="maket-07">
+        <button class="preview" data-index="6" aria-label="Profil, ism va telefonni o‘zgartirish maketini kattalashtirish">
+          <img src="07-profil-va-sozlamalar.png" alt="Shaxsiy profil va ko‘rinish · Ism-familiyani tahrirlash · Telefonni ikki kod bilan tasdiqlash" width="1536" height="1024" loading="lazy" decoding="async">
+          <span class="expand"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3H3v5m13-5h5v5M3 16v5h5m13-5v5h-5"/></svg> Kattalashtirish</span>
+        </button>
+        <div class="card-body">
+          <div class="card-heading"><span class="number">07</span><h2>Profil, ism va telefonni o‘zgartirish</h2></div>
+          <ol class="screens"><li><b>07A</b> Shaxsiy profil va ko‘rinish</li><li><b>07B</b> Ism-familiyani tahrirlash</li><li><b>07C</b> Telefonni ikki kod bilan tasdiqlash</li></ol>
+          <a class="file-link" href="07-profil-va-sozlamalar.png" target="_blank" rel="noopener">Asl rasmni ochish <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14m-6-6 6 6-6 6"/></svg></a>
+        </div>
+      </article>
+
+      <article class="card" data-group="personal" id="maket-08">
+        <button class="preview" data-index="7" aria-label="Yordam, yangi murojaat va suhbat maketini kattalashtirish">
+          <img src="08-yordam-xizmati.png" alt="Murojaatlar ro‘yxati · Yangi murojaat shakli · Yordam xizmati bilan suhbat" width="1536" height="1024" loading="lazy" decoding="async">
+          <span class="expand"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3H3v5m13-5h5v5M3 16v5h5m13-5v5h-5"/></svg> Kattalashtirish</span>
+        </button>
+        <div class="card-body">
+          <div class="card-heading"><span class="number">08</span><h2>Yordam, yangi murojaat va suhbat</h2></div>
+          <ol class="screens"><li><b>08A</b> Murojaatlar ro‘yxati</li><li><b>08B</b> Yangi murojaat shakli</li><li><b>08C</b> Yordam xizmati bilan suhbat</li></ol>
+          <a class="file-link" href="08-yordam-xizmati.png" target="_blank" rel="noopener">Asl rasmni ochish <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14m-6-6 6 6-6 6"/></svg></a>
+        </div>
+      </article>
+
+      <article class="card" data-group="personal" id="maket-09">
+        <button class="preview" data-index="8" aria-label="Bildirishnomalar, yangilik va tungi rejim maketini kattalashtirish">
+          <img src="09-bildirishnoma-va-yangilik.png" alt="Bildirishnomalar · Yangilik maqolasi · Bildirishnomalar tungi rejimda" width="1536" height="1024" loading="lazy" decoding="async">
+          <span class="expand"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3H3v5m13-5h5v5M3 16v5h5m13-5v5h-5"/></svg> Kattalashtirish</span>
+        </button>
+        <div class="card-body">
+          <div class="card-heading"><span class="number">09</span><h2>Bildirishnomalar, yangilik va tungi rejim</h2></div>
+          <ol class="screens"><li><b>09A</b> Bildirishnomalar</li><li><b>09B</b> Yangilik maqolasi</li><li><b>09C</b> Bildirishnomalar tungi rejimda</li></ol>
+          <a class="file-link" href="09-bildirishnoma-va-yangilik.png" target="_blank" rel="noopener">Asl rasmni ochish <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14m-6-6 6 6-6 6"/></svg></a>
+        </div>
+      </article>
+
+      <article class="card" data-group="personal" id="maket-10">
+        <button class="preview" data-index="9" aria-label="Telefon orqali kirish va SMS tasdiq maketini kattalashtirish">
+          <img src="10-telefon-sms-kirish.png" alt="Telefon bilan kirish · SMS kodini tasdiqlash · Kirish tungi rejimda" width="1536" height="1024" loading="lazy" decoding="async">
+          <span class="expand"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3H3v5m13-5h5v5M3 16v5h5m13-5v5h-5"/></svg> Kattalashtirish</span>
+        </button>
+        <div class="card-body">
+          <div class="card-heading"><span class="number">10</span><h2>Telefon orqali kirish va SMS tasdiq</h2></div>
+          <ol class="screens"><li><b>10A</b> Telefon bilan kirish</li><li><b>10B</b> SMS kodini tasdiqlash</li><li><b>10C</b> Kirish tungi rejimda</li></ol>
+          <a class="file-link" href="10-telefon-sms-kirish.png" target="_blank" rel="noopener">Asl rasmni ochish <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14m-6-6 6 6-6 6"/></svg></a>
+        </div>
+      </article>
+    </section>
+    <aside class="note"><strong>Fikr bildirish oson:</strong> rasm raqami va ekran harfini yozing — masalan, <strong>03B</strong> yoki <strong>07C</strong>. Kattalashtirilgan rasmda 1:1 tugmasi bor. Bular tasdiqlash uchun tayyorlangan maketlar; suratlar, narxlar va QR namunaviy.</aside>
+    <footer><span>Sihhat uz · Android UI v1</span><span>Rasmlar: built-in ImageGen · <a href="prompts.json">Promptlar</a></span></footer>
+  </main>
+  <dialog id="viewer" aria-labelledby="viewer-title">
+    <div class="dialog-head"><h2 id="viewer-title" class="dialog-title"></h2><div class="dialog-tools"><button id="zoom" class="icon-button" aria-label="Rasmni asl o‘lchamda ko‘rish" aria-pressed="false"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 4 4M10.5 8v5M8 10.5h5"/></svg><span class="zoom-label">1:1</span></button><button id="close" class="icon-button" aria-label="Kattalashtirilgan rasmni yopish"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 6 12 12M6 18 18 6"/></svg></button></div></div>
+    <div class="viewport" id="viewport"><img id="viewer-image" alt=""></div>
+    <div class="dialog-foot"><div class="caption" id="viewer-caption"></div><a id="viewer-original" class="file-link" target="_blank" rel="noopener">Asl rasm <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14m-6-6 6 6-6 6"/></svg></a><div class="pager"><button id="previous" class="icon-button" aria-label="Oldingi maket"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 6-6 6 6 6"/></svg></button><span id="viewer-position"></span><button id="next" class="icon-button" aria-label="Keyingi maket"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg></button></div></div>
+  </dialog>
+  <script>
+    const boards=[{"id":"01","title":"Katalog, filtrlar va sanatoriya","filename":"01-katalog-va-filtrlar.png","screens":["Sanatoriyalar katalogi","Filtrlar paneli","Sanatoriya tafsiloti"]},{"id":"02","title":"Xonalar, tariflar va galereya","filename":"02-xonalar-tariflar-galereya.png","screens":["Xona va tarif tanlash","Suratlar galereyasi","Kelish shartlari"]},{"id":"03","title":"Sana, xona va mehmon ma’lumotlari","filename":"03-bron-yaratish.png","screens":["Sana tanlash","Xona va mehmon soni","Mehmon va bronni tekshirish"]},{"id":"04","title":"To‘lov kutilishi, bron tasdig‘i va QR","filename":"04-tolov-va-tasdiq.png","screens":["To‘lov uchun bron","To‘lov holatini kutish","Tasdiqlangan bron va QR"]},{"id":"05","title":"Bronlar ro‘yxati, tafsilot va sharh","filename":"05-bronlar-va-sharh.png","screens":["Bronlar ro‘yxati va internetsiz holat","Bron tafsiloti","Yashashni baholash"]},{"id":"06","title":"AI yordamchi, rozilik va tavsiyalar","filename":"06-ai-yordamchi.png","screens":["AI boshlang‘ich holati","Bir martalik AI roziligi","AI suhbat va katalog tavsiyasi"]},{"id":"07","title":"Profil, ism va telefonni o‘zgartirish","filename":"07-profil-va-sozlamalar.png","screens":["Shaxsiy profil va ko‘rinish","Ism-familiyani tahrirlash","Telefonni ikki kod bilan tasdiqlash"]},{"id":"08","title":"Yordam, yangi murojaat va suhbat","filename":"08-yordam-xizmati.png","screens":["Murojaatlar ro‘yxati","Yangi murojaat shakli","Yordam xizmati bilan suhbat"]},{"id":"09","title":"Bildirishnomalar, yangilik va tungi rejim","filename":"09-bildirishnoma-va-yangilik.png","screens":["Bildirishnomalar","Yangilik maqolasi","Bildirishnomalar tungi rejimda"]},{"id":"10","title":"Telefon orqali kirish va SMS tasdiq","filename":"10-telefon-sms-kirish.png","screens":["Telefon bilan kirish","SMS kodini tasdiqlash","Kirish tungi rejimda"]}];
+    const viewer=document.getElementById('viewer');
+    const viewport=document.getElementById('viewport');
+    const zoom=document.getElementById('zoom');
+    let current=0;
+    function renderBoard(index){
+      current=index;
+      const board=boards[index];
+      document.getElementById('viewer-title').textContent=board.id+' · '+board.title;
+      const img=document.getElementById('viewer-image');
+      img.src=board.filename;
+      img.alt=board.screens.join(' · ');
+      document.getElementById('viewer-caption').textContent=board.screens.map((title,i)=>board.id+String.fromCharCode(65+i)+' · '+title).join(' / ');
+      document.getElementById('viewer-original').href=board.filename;
+      document.getElementById('viewer-position').textContent=(index+1)+' / '+boards.length;
+      document.getElementById('previous').disabled=index===0;
+      document.getElementById('next').disabled=index===boards.length-1;
+      viewport.classList.remove('zoomed');
+      zoom.setAttribute('aria-pressed','false');
+      zoom.setAttribute('aria-label','Rasmni asl o‘lchamda ko‘rish');
+      viewport.scrollTop=0;
+      viewport.scrollLeft=0;
+    }
+    document.querySelectorAll('[data-index]').forEach(button=>button.addEventListener('click',()=>{
+      renderBoard(Number(button.dataset.index));
+      viewer.showModal();
+    }));
+    document.getElementById('close').addEventListener('click',()=>viewer.close());
+    viewer.addEventListener('click',event=>{if(event.target===viewer)viewer.close();});
+    document.getElementById('previous').addEventListener('click',()=>{if(current>0)renderBoard(current-1);});
+    document.getElementById('next').addEventListener('click',()=>{if(current<boards.length-1)renderBoard(current+1);});
+    zoom.addEventListener('click',()=>{
+      const enlarged=viewport.classList.toggle('zoomed');
+      zoom.setAttribute('aria-pressed',String(enlarged));
+      zoom.setAttribute('aria-label',enlarged?'Rasmni oynaga sig‘dirish':'Rasmni asl o‘lchamda ko‘rish');
+    });
+    viewer.addEventListener('keydown',event=>{
+      if(event.key==='ArrowRight'&&current<boards.length-1){event.preventDefault();renderBoard(current+1);}
+      if(event.key==='ArrowLeft'&&current>0){event.preventDefault();renderBoard(current-1);}
+    });
+    document.querySelectorAll('[data-filter]').forEach(button=>button.addEventListener('click',()=>{
+      document.querySelectorAll('[data-filter]').forEach(item=>item.setAttribute('aria-pressed',String(item===button)));
+      document.querySelectorAll('.card').forEach(card=>{card.hidden=button.dataset.filter!=='all'&&card.dataset.group!==button.dataset.filter;});
+    }));
+  </script>
+</body>
+</html>

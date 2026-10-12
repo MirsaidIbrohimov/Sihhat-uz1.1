@@ -305,7 +305,8 @@ export class TelegramService {
     if (topic === 'support.replied' || topic === 'support.opened') {
       if (!ctx.account.notifySupport) return null;
       const ticket = await this.engagement.ticketGet(ctx.actor, payload.ticket_id);
-      return this.views.page(`💬 ${topic === 'support.opened' ? 'Yangi murojaat' : 'Murojaatga javob'}: ${ticket.title}`, [[b('💬 Ochish', `ticket:${ticket.id}`)]]);
+      const latest = ticket.messages[ticket.messages.length - 1];
+      return this.views.page(`💬 ${topic === 'support.opened' ? 'Yangi murojaat' : 'Murojaatga javob'}: ${ticket.title}${latest ? '\n\n' + latest.text.slice(0, 1200) : ''}`, [[b('💬 Ochish', `ticket:${ticket.id}`)], ...(ticket.status === 'OPEN' ? [[b('✍️ Javob yozish', `ticketreply:${ticket.id}`)]] : [])]);
     }
     if (topic.startsWith('subscription.')) {
       if (!ctx.account.notifyBilling) return null;
@@ -339,7 +340,7 @@ export class TelegramService {
           await this.db.notificationDelivery.update({ where: { id: row.id }, data: { status: 'CANCELLED', leaseUntil: null } }); continue;
         }
         const actor = await this.links.actor(account.userId), payload = row.payload as any, topic = String(payload.topic || '');
-        const urgent = ['payment.exception', 'system.health.issue', 'provider.sms.failed'].includes(topic);
+        const urgent = ['payment.exception', 'system.health.issue', 'provider.sms.failed', 'support.opened', 'support.replied'].includes(topic);
         const hour = localHour();
         if (!urgent && account.quietHours && (hour >= 22 || hour < 7)) {
           const morning = `${plusDays(localDate(), hour >= 22 ? 1 : 0)}T07:00:00+05:00`;

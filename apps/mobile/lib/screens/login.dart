@@ -4,11 +4,37 @@ import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
+import '../concept_ui.dart';
+
 import '../data/api.dart';
 import '../widgets.dart';
 import '../design.dart';
-import '../branding.dart';
 import '../appearance.dart';
+import '../branding.dart';
+
+class _UzbekPhoneFormatter extends TextInputFormatter {
+  String digits(String value) => value
+      .replaceFirst(RegExp(r'^\s*\+998'), '')
+      .replaceAll(RegExp(r'\D'), '');
+
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    final number = digits(newValue.text);
+    final cursor = newValue.selection.extentOffset;
+    return TextEditingValue(
+      text: number,
+      selection: TextSelection.collapsed(
+        offset: cursor < 0
+            ? number.length
+            : digits(newValue.text.substring(0, cursor)).length
+                  .clamp(0, number.length),
+      ),
+    );
+  }
+}
 
 class LoginScreen extends StatefulWidget {
   final Api api;
@@ -25,9 +51,9 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  final phone = TextEditingController(text: '+998'),
-      code = TextEditingController();
-  String? challenge, error, demoCode;
+  final phone = TextEditingController(), code = TextEditingController();
+  String? challenge, error, demoCode, phoneError;
+  static const phoneLengthError = '+998 dan keyin aynan 9 ta raqam kiriting.';
   bool busy = false;
   int wait = 0;
   Timer? timer;
@@ -40,21 +66,22 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> request() async {
-    if (!RegExp(r'^\+998\d{9}$').hasMatch(phone.text.trim())) {
-      setState(() => error = 'Telefonni +998 bilan to‘liq kiriting.');
+    if (!RegExp(r'^\d{9}$').hasMatch(phone.text)) {
+      setState(() => phoneError = phoneLengthError);
       return;
     }
     FocusScope.of(context).unfocus();
     setState(() {
       busy = true;
       error = null;
+      phoneError = null;
     });
     try {
       final r = asJson(
         await widget.api.send(
           '/auth/customer/otp/request',
           method: 'POST',
-          body: {'phone': phone.text.trim()},
+          body: {'phone': '+998${phone.text}'},
         ),
       );
       if (!mounted) return;
@@ -116,148 +143,193 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(actions: const [AppearanceToggle()]),
-    body: SafeArea(
-      child: ListView(
-        padding: const EdgeInsets.all(28),
-        children: [
-          const Align(
-            alignment: Alignment.centerLeft,
-            child: SihhatLogo(size: 112),
+  Widget build(BuildContext context) => ConceptScope(
+    child: Builder(
+      builder: (c) => Scaffold(
+        appBar: AppBar(
+          centerTitle: challenge != null,
+          title: Text(
+            challenge == null ? 'Sihhat uz' : 'Tasdiqlash',
+            style: conceptHeading(c, size: challenge == null ? 26 : 20),
           ),
-          const SizedBox(height: 25),
-          Text(
-            challenge == null
-                ? 'Sihhat.uz ga xush kelibsiz'
-                : 'SMS kodini kiriting',
-            style: TextStyle(
-              fontSize: 26,
-              fontWeight: FontWeight.w800,
-              color: context.colors.ink,
-            ),
-          ),
-          const SizedBox(height: 14),
-          Text(
-            challenge == null
-                ? 'Ilovadan foydalanish uchun telefon raqamingizni tasdiqlang. Yangi hisob tasdiqlashdan so‘ng yaratiladi.'
-                : demoCode != null
-                ? 'Telefon raqamingizni quyidagi demo kod bilan tasdiqlang.'
-                : 'Tasdiqlash kodi ${phone.text} raqamiga yuborildi.',
-            style: TextStyle(color: context.colors.muted, height: 1.7),
-          ),
-          const SizedBox(height: 28),
-          TextField(
-            controller: phone,
-            enabled: challenge == null && !busy,
-            keyboardType: TextInputType.phone,
-            autofillHints: const [AutofillHints.telephoneNumber],
-            decoration: const InputDecoration(
-              labelText: 'Telefon raqami',
-              prefixIcon: Icon(Icons.phone_outlined),
-            ),
-            textInputAction: TextInputAction.done,
-            onSubmitted: (_) {
-              if (challenge == null && !busy) request();
-            },
-          ),
-          if (challenge != null) ...[
-            const SizedBox(height: 18),
-            TextField(
-              controller: code,
-              keyboardType: TextInputType.number,
-              autofillHints: const [AutofillHints.oneTimeCode],
-              inputFormatters: [
-                FilteringTextInputFormatter.digitsOnly,
-                LengthLimitingTextInputFormatter(6),
-              ],
-              decoration: const InputDecoration(
-                labelText: 'SMS kodi',
-                prefixIcon: Icon(Icons.lock_outline),
-              ),
-              textInputAction: TextInputAction.done,
-              onSubmitted: (_) {
-                if (!busy) verify();
-              },
-            ),
-          ],
-          if (demoCode != null) ...[
-            const SizedBox(height: 18),
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    SelectableText(
-                      'Demo SMS kodi: $demoCode',
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w700,
-                        fontSize: 20,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    const Text(
-                      'Sinov rejimi. Telefoningizga SMS yuborilmaydi. Ushbu kod bilan ilovaga kirishingiz mumkin.',
-                    ),
-                    TextButton(
-                      onPressed: busy ? null : () => code.text = demoCode!,
-                      child: const Text('Demo koddan foydalanish'),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
-          if (error != null) ErrorView(error!),
-          const SizedBox(height: 24),
-          FilledButton(
+          actions: const [ConceptAppearanceToggle(), SizedBox(width: 12)],
+        ),
+        bottomNavigationBar: Padding(
+          padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(c).bottom),
+          child: ConceptDock(
+            label: busy
+                ? 'Tekshirilmoqda…'
+                : challenge == null
+                ? 'Kod yuborish'
+                : 'Tasdiqlash',
             onPressed: busy
                 ? null
                 : challenge == null
                 ? request
                 : verify,
-            child: Text(
-              busy
-                  ? 'Tekshirilmoqda…'
-                  : challenge == null
-                  ? 'Kod yuborish'
-                  : 'Tasdiqlash',
-            ),
           ),
-          if (challenge != null)
-            TextButton(
-              onPressed: busy || wait > 0 ? null : request,
-              child: Text(
-                wait > 0
-                    ? 'Qayta yuborish: $wait soniya'
-                    : 'Kodni qayta yuborish',
+        ),
+        body: SafeArea(
+          top: false,
+          child: Align(
+            alignment: Alignment.topCenter,
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 520),
+              child: ListView(
+                padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
+                children: [
+                  if (error != null) ErrorView(error!),
+                  if (challenge == null) ...[
+                    const Center(child: SihhatLogo(size: 172)),
+                    const SizedBox(height: 20),
+                    Text(
+                      'Xush kelibsiz',
+                      textAlign: TextAlign.center,
+                      style: conceptHeading(c, size: 34),
+                    ),
+                    const SizedBox(height: 10),
+                    Text(
+                      'Dam olishni rejalashtirish shu yerdan boshlanadi.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: c.colors.muted,
+                        fontSize: 17,
+                        height: 1.5,
+                      ),
+                    ),
+                    const SizedBox(height: 32),
+                  ] else ...[
+                    const SizedBox(height: 22),
+                    const Center(child: IconTile('message-square', size: 110)),
+                    const SizedBox(height: 28),
+                    Text(
+                      'SMS kodini kiriting',
+                      textAlign: TextAlign.center,
+                      style: conceptHeading(c, size: 28),
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      demoCode == null
+                          ? 'Kod telefon raqamingizga yuborildi.'
+                          : 'Telefon raqamingizni demo kod bilan tasdiqlang.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: c.colors.muted, fontSize: 16),
+                    ),
+                    const SizedBox(height: 14),
+                    Text(
+                      '+998${phone.text}',
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 17,
+                      ),
+                    ),
+                    const SizedBox(height: 30),
+                  ],
+                  if (challenge == null)
+                    TextField(
+                      controller: phone,
+                      enabled: !busy,
+                      keyboardType: TextInputType.phone,
+                      autofillHints: const [AutofillHints.telephoneNumber],
+                      inputFormatters: [_UzbekPhoneFormatter()],
+                      textInputAction: TextInputAction.done,
+                      decoration: InputDecoration(
+                        labelText: 'Telefon raqami',
+                        prefixText: '+998 ',
+                        hintText: '90 123 45 67',
+                        helperText: '9 ta raqam kiriting',
+                        errorText: phoneError,
+                        errorMaxLines: 2,
+                        prefixIcon: const Padding(
+                          padding: EdgeInsets.all(14),
+                          child: SihhatIcon('phone'),
+                        ),
+                      ),
+                      onChanged: (value) => setState(() {
+                        phoneError = value.length == 9
+                            ? null
+                            : phoneLengthError;
+                      }),
+                      onSubmitted: (_) {
+                        if (!busy) request();
+                      },
+                    )
+                  else
+                    OtpField(
+                      controller: code,
+                      enabled: !busy,
+                      submitted: () {
+                        if (!busy) verify();
+                      },
+                    ),
+                  if (demoCode != null) ...[
+                    const SizedBox(height: 18),
+                    ConceptCard(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          SelectableText(
+                            'Demo SMS kodi: $demoCode',
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w700,
+                              fontSize: 20,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          const Text(
+                            'Sinov rejimi. Telefoningizga SMS yuborilmaydi.',
+                          ),
+                          TextButton(
+                            onPressed: busy
+                                ? null
+                                : () => code.text = demoCode!,
+                            child: const Text('Demo koddan foydalanish'),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                  if (challenge != null) ...[
+                    const SizedBox(height: 22),
+                    TextButton(
+                      onPressed: busy || wait > 0 ? null : request,
+                      child: Text(
+                        wait > 0
+                            ? 'Qayta yuborish: $wait soniya'
+                            : 'Kodni qayta yuborish',
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: busy
+                          ? null
+                          : () {
+                              timer?.cancel();
+                              setState(() {
+                                challenge = null;
+                                code.clear();
+                                error = null;
+                                phoneError = null;
+                                demoCode = null;
+                                wait = 0;
+                              });
+                            },
+                      child: const Text('Telefon raqamini tuzatish'),
+                    ),
+                  ],
+                  const SizedBox(height: 24),
+                  const SizedBox(height: 20),
+                  ConceptRow(
+                    challenge == null ? 'shield-check' : 'info',
+                    challenge == null
+                        ? 'Telefon raqamingiz hisobga kirish va bron bo‘yicha aloqa uchun ishlatiladi.'
+                        : 'Kod kelishi biroz vaqt olishi mumkin.',
+                  ),
+                ],
               ),
             ),
-          if (challenge != null)
-            TextButton.icon(
-              onPressed: busy
-                  ? null
-                  : () {
-                      timer?.cancel();
-                      setState(() {
-                        challenge = null;
-                        code.clear();
-                        error = null;
-                        demoCode = null;
-                        wait = 0;
-                      });
-                    },
-              icon: const Icon(Icons.edit_outlined, size: 18),
-              label: const Text('Telefon raqamini tuzatish'),
-            ),
-          const SizedBox(height: 20),
-          Text(
-            'Telefon raqamingiz hisobga kirish va bron bo‘yicha aloqa uchun ishlatiladi.',
-            style: TextStyle(fontSize: 12, color: context.colors.muted),
-            textAlign: TextAlign.center,
           ),
-        ],
+        ),
       ),
     ),
   );

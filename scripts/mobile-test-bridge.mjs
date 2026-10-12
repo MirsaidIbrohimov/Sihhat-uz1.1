@@ -47,7 +47,7 @@ const server = createServer(async (req, res) => {
       const event = {event: input.event, at: new Date().toISOString()};
       // Retain public evidence only, never credentials or OTP.
       for (const key of ['booking_id', 'reference', 'user_id', 'status', 'payment_status', 'room_count',
-        'session_restored', 'pending_restored', 'pending_cleared', 'return_did_not_confirm', 'booking_visible']) {
+        'session_restored', 'pending_restored', 'pending_cleared', 'return_did_not_confirm', 'booking_visible', 'offline_booking_and_qr', 'offline_catalog_and_four_photos']) {
         if (input[key] !== undefined) event[key] = input[key];
       }
       if (input.event === 'prepared') {

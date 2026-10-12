@@ -28,7 +28,7 @@ def collect_access(value):
         for item in value:
             collect_access(item)
 
-for source in (root / '.local/dev-access.json', root / '.local/superadmin-access.json'):
+for source in (root / '.local/dev-access.json', root / '.local/superadmin-access.json', root / '.local/azimshifo-access.json'):
     if source.exists():
         collect_access(json.loads(source.read_text(encoding='utf-8-sig')))
 patterns = {encoded for secret in secrets for encoded in (secret.encode(), secret.encode('utf-16-le'), base64.b64encode(secret.encode()))}

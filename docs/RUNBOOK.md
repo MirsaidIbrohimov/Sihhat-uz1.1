@@ -2,6 +2,92 @@
 
 Buyruqlar loyiha ildizidan bajariladi. Tekshiruvlarning haqiqiy natijasi [IMPLEMENTATION_STATUS.md](IMPLEMENTATION_STATUS.md)da, talablar [arxitektura](SIHHAT_UZ_ARXITEKTURA.md)da.
 
+## Web panellar yangi UI
+
+Amaldagi ikkala Next.js panel umumiy `packages/ui/src` dizaynini ishlatadi.
+Superadmin, direktor/resepsion va hisobchi uchun menyu ruxsatga qarab chiqadi.
+**Ish jarayoni / Moliya / Aloqa / Sozlamalar** guruhini bosing, keyin
+kerakli sahifani tanlang; joriy sahifa guruhi avtomatik ochiladi.
+Jadvalda asosiy amal yonidagi **…** qo‘shimcha amallarni ochadi; Esc yoki
+tashqariga bosish yopadi. Telefon menyusi ham Esc/tashqariga bosish bilan
+yopiladi, klaviatura fokusi menyuda qoladi. Yuqoridagi oy/quyosh tugmasi
+rang rejimini almashtiradi va brauzerda saqlaydi.
+
+Lokal shrift va illyustratsiya fayllari ikkala panelning `public` papkasida.
+Assetlar qayta kerak bo‘lsa `npm run web:assets`, keyin:
+
+```powershell
+npm run check
+npm run build:web
+npm run local:stop -- -Only superadmin,director
+npm run local:start -- -Only superadmin,director
+```
+
+Panel manzillari `http://localhost:3000` va `http://localhost:3001`.
+API kerak; odatdagi lokal xizmatlarni loyiha ishga tushirish tartibi bilan
+oching. UI API, MFA, CSRF, faolsizlik, RBAC va versiya tekshiruvlarini ishlatadi.
+
+32 ta haqiqiy React ekranini maskalangan namunaviy javoblar bilan
+suratga olish: `node UI/web/tools/implemented.cjs`.
+26 bo‘limni desktop tungi va telefon kunduzgi ko‘rinishda, qo‘shimcha amal,
+parol ko‘rsatish, rangni saqlash va drawer bilan tekshirish:
+`node UI/web/tools/implemented.cjs --audit`.
+Private hisobotlar `.local/web-ui-*-validation.json`ga yoziladi;
+rasmlar `UI/web/joriy`da. Bu sinovlar haqiqiy provider qabuli emas.
+API bilan oqimlar uchun mavjud ajratilgan `sihhat_test` fixture tartibini
+qo‘llang; oddiy lokal hisoblar bilan mutatsiya auditini bajarmang.
+
+## Web UI rasmlarini ko‘rish va chiqarish
+
+`UI/web/index.html`ni brauzerda oching. Galereya va `preview.html` server va
+internetsiz ishlaydi; lokal shriftlar/ikonka/rasm assetlari `assets/`da.
+**Yangi dizayn / Hozirgi UI / Taqqoslash**, panel roli, qidiruv va 1:1 zoom
+bor. Ekran raqami bilan tuzatish bildirish mumkin: **04 — Mashhur tanlovi**,
+**13 — reklama**, **24 — hisobchi**. Ro‘yxat va topilmalar
+[UI/web/README](../UI/web/README.md) hamda [REVIEW](../UI/web/REVIEW.md)da.
+
+Rasmlarni qayta chiqarish: `node UI/web/tools/render.cjs`. Amaldagi
+panel rasmlarini ham yangilash: 3000/3001 portlarda ikkala joriy build
+ishlayotganida `node UI/web/tools/render.cjs --all`. Shu headless brauzer
+barcha API so‘rovlarini namunaviy javobga almashtiradi; live hisobga kirmaydi
+va bazaga o‘zgartirish yubormaydi. API yoki telefonni uzish kerak emas.
+Hisobotlar private `.local/web-ui*-validation.json`da. PNGlar `fullPage`;
+viewport desktopda 1440×1000, telefonda 390×844.
+
+Bu yangi web dizaynlar ko‘rib chiqish namunalari. Ishlayotgan panellarning
+React komponentlari hali almashtirilmagan.
+
+## Android UI konseptlarini ko‘rish
+
+`UI/index.html`ni fayl menejeridan brauzerda oching. Server, internet,
+build yoki yangi dependency kerak emas. Rasm ustiga bosish
+kattalashtiradi; **1:1**, oldingi/keyingi tugmalar va klaviaturadagi
+chap/o‘ng o‘qlar ishlaydi. **Esc** oynani yopadi. PNGlarning o‘zini ham
+`UI` papkasidan ochish mumkin.
+
+Rasm raqami va ekran harfi bilan fikr bildiriladi: masalan, **03B** yoki
+**07C**. [UI/README](../UI/README.md)da ro‘yxat,
+[dizayn tavsiyalari](../UI/DESIGN_GUIDE.md)da rang/o‘lcham/ikonka tamoyillari,
+[prompts.json](../UI/prompts.json)da asl promptlar bor.
+2026-10-10 v1 maketlar uslubi ichki sahifalar va telefon/SMS kirishga
+Flutter widgetlari bilan joriy etildi. Katalog, filtr, sanatoriya/tarif,
+galereya, bron/to‘lov/QR, AI, profil, yordam va xabarlar yangilandi.
+Tailwind CSS Androidga bevosita ulanmaydi; rang, oraliq va komponent
+tamoyillari `apps/mobile/lib/concept_ui.dart`da berilgan. Shriftlar va
+Lucide ikonkalar ilovaga lokal qo‘shilgan. Mobil tekshiruv:
+`npm run mobile:check`; joriy APKni qayta yig‘ish/o‘rnatish va `apk`
+papkasidagi nusxani yangilash [README](../README.md#tayyor-apk)da.
+
+## Railway
+
+Railway konfiguratsiyasi `.railway/railway.ts`da. Lokal sozlama tekshiruvi:
+`npm run railway:check`; builddan keyingi production preflight:
+`npm run deploy:check`. Lokal adapterlar bilan preflight xato qaytarishi
+kutiladi. API + worker + Telegram + ikkala panel, database/Redis, S3,
+HTTPS domenlar, shared sirlar va birinchi admin yaratish tartibi
+[RAILWAY.md](RAILWAY.md)da. Lokal ishga tushirishni cloud deployment
+yoki provider qabuli deb hisoblamang.
+
 ## Logo va Android ko‘rinishi
 
 Asl logo `assets/branding/sihhat-logo.jpg`da. `npm run brand:assets` uning
@@ -57,6 +143,23 @@ qiling, tasdiqlangan SMS adapterini yoqing va APKni qayta tayyorlang.
 
 ## Sanatoriya anketasi va tekshiruv
 
+Yangi hamkor uchun superadmin **Sanatoriyalar → Yangi sanatoriya**da
+profil yaratadi, shu sanatoriyani tanlab **Jamoa va ruxsatlar → Direktor
+tayinlash**da direktor hisobini ochadi. Vaqtinchalik parol bir marta
+ko‘rsatiladi; direktor ilk kirishda uni almashtiradi. Direktorning
+**Xodim taklif qilish**idan yaratilgan resepshin superadmin **Jamoa va
+ruxsatlar → Tasdiqlash**da ma’qullaguncha faol bo‘lmaydi. Boshqa panelda
+yangi taklif yaratilgan bo‘lsa, superadmin jamoa sahifasini yangilab ochadi.
+Tasdiqlangan resepshin ham ilk kirishda parolni almashtiradi.
+
+2026-10-07 lokal **Azimshifo** sinovi shu oqim bilan bajarildi. Login va
+parollar `.local/AZIMSHIFO_KIRISH.txt`da; superadmin MFA bilan kirishi
+`.local/SUPERADMIN_KIRISH.html`da. Profil, manzil, STIR, rasmlar/hujjat
+va tariflar namuna; ularni haqiqiy sanatoriya ma’lumoti sifatida ishlatmang.
+Profil qoralama/tekshiruvda katalogga kirmaydi; superadmin tasdig‘idan
+keyin faol profil katalogda chiqadi. Online bronning abonent/to‘lov
+tayyorligi alohida tekshiriladi.
+
 Direktor **Sanatoriya profili → Tahrirlash**ni ochadi. Superadmin shu
 sanatoriyani **Sanatoriyalar → Profilni ko‘rish** orqali ochadi.
 
@@ -74,7 +177,13 @@ sanatoriyani **Sanatoriyalar → Profilni ko‘rish** orqali ochadi.
 3. Xizmat shartlarini qabul qilib, **Saqlash va rasmlarga o‘tish**ni bosing.
    Saqlash xatosida sahifa o‘zgarmaydi va kiritilgan qiymatlar saqlanadi.
    Muvaffaqiyatli saqlashdan keyin **Rasmlar va hujjatlar** ochiladi.
-4. Kamida bitta ommaviy rasm, bitta xususiy hujjat, faol xona va boshlang‘ich
+4. **Rasm yuklash**da bir vaqtning o‘zida 4 ta yoki undan ko‘p surat tanlash
+   mumkin: jami 30 tagacha, har biri 8 MBgacha, JPEG/PNG/WebP.
+   Suratlar bitta galereyada chap/o‘ng tugmalari bilan almashadi.
+   **Oldinroqqa / Keyinroqqa** tartibni saqlaydi; birinchi surat katalog
+   muqovasi. **Suratni olib tashlash** uni qoralamadan oladi. Tasdiqlangan
+   profil yangi tahrir tasdiqlanmaguncha avvalgi rasmlar bilan qoladi.
+   Kamida bitta ommaviy rasm, bitta xususiy hujjat, faol xona va boshlang‘ich
    tarif qo‘shing. **Tekshiruvga yuborish → Yuborish**da yetishmagan yoki
    noto‘g‘ri maydonlar o‘zbekcha nomlari bilan ro‘yxat qilinadi. Profilni
    superadmin tasdiqlagandan keyin katalogda nashr qilinadi.
@@ -144,8 +253,12 @@ tozalansa bugungi sanaga qaytadi.
 Bron: sanatoriya profilida xona turi va **Shu tarifni tanlash** →
 sana/xona/mehmon soni → **To‘lovga o‘tish** → ism/telefon/shartlar →
 **Bronni tasdiqlash**. Bola yoshi alohida tanlanadi; sanatoriya telefoni
-oldindan ko‘rsatilmaydi. Ikki soatdan eski to‘lovsiz bron mijoz tarixidan
-yashiriladi; bazadagi moliya, xodim tarixi va to‘langan bron o‘chirilmaydi.
+oldindan ko‘rsatilmaydi. To‘lovsiz bron yaratilganidan **5 daqiqa** o‘tgach
+mijoz tarixidan olinadi. **To‘lovni bekor qilish** serverda tasdiqlangach
+darhol ro‘yxat va telefondagi nusxadan olinadi. Standart `HOLD_MINUTES=5`,
+`TEZCHECK_HOLD_MINUTES=5`; dastlabki hold eski kattaroq sozlamada ham
+5 daqiqadan oshmaydi. Bazadagi moliya, xodim tarixi va to‘langan yoki
+refund qilingan bronlar saqlanadi.
 `HOLD` va `PAYMENT_PENDING`ni bekor qilishda providerning to‘lovsiz holati
 tasdiqlanadi. To‘langan bron refund oqimidan foydalanadi; noaniq provider
 holatida rezerv saqlanadi.
@@ -166,6 +279,23 @@ To‘liq ro‘yxat kelmaganda eski nusxa saqlanadi. Muvaffaqiyatli yangilanish
 yangi e’lonlarni qo‘shadi va e’londan olinganlarni ro‘yxatdan chiqaradi.
 Ilova butunlay yopiq bo‘lsa yuklash keyingi ochilishda davom etadi.
 
+**Bronlar** ham barcha sahifalari bilan hisob va API hostiga bog‘lab
+xavfsiz xotirada saqlanadi. Xona/mehmon tafsilotlari, narx, sana, serverdan
+oxirgi olingan holat va tasdiqlangan bronning QR kodi internet uzilganda
+ochiladi; saqlangan nusxa ekanligi ko‘rsatiladi. Ochilmagan bron tafsilotlari
+ham oldindan olinadi. Tugallanmagan sahifalash eski tarixni o‘chirmaydi.
+Logout/boshqa hisob shaxsiy nusxani tozalaydi; kech kelgan eski javob uni
+qayta yaratmaydi. To‘lovsiz bron 5 daqiqada offline nusxadan ham olinadi.
+Yangi bron, to‘lov, bekor qilish va yangi holatni tasdiqlash aloqa talab qiladi.
+
+Faol, nashr qilingan sanatoriyaning abonent muddati katalog ko‘rinishini
+yashirmaydi. Abonent/tarif/merchant talablari **onlayn bron** uchun alohida
+tekshiriladi. Shuning uchun lokal **Mirsaid** profili ko‘rinadi, lekin
+to‘lov sozlamasi tayyor bo‘lmasa onlayn bron ochilmaydi. Chimyon va Zomin
+4 tadan haqiqiy surat bilan nashr qilingan; manbalar/import tartibi
+[SANATORIUM_PHOTOS.md](SANATORIUM_PHOTOS.md)da. Galereyada chap/o‘ng yoki
+surish bilan surat almashtiriladi, rasmlar telefonga ham yuklanadi.
+
 Tarif profilida xona turi bo‘yicha tanlanadi. **Sana va xona** sahifasi
 internetsiz ishlaydi; **Bolalar bilan kelaman** va **Qo‘shimcha xona**
 kerak bo‘lganda ochiladi. **To‘lovga o‘tish** serverda joriy narx va bo‘sh
@@ -179,10 +309,33 @@ sanatoriya/tarif → sana/xona va **Profil**ni ko‘ring. **To‘lovga o‘tish*
 aloqa so‘ralishi kerak. Ulanishni tiklang va yangi/yangilangan e’lon hamda
 tarif avtomatik kelishini tekshiring. APK debug/local ekanini dalilda yozing.
 
+Bron uchun internet bilan tarix yuklanishini kuting, tasdiqlangan bronni
+oching; aloqa uzilgan holda ilovani yopib qayta oching → **Bronlar** →
+tafsilotlar va QRni tekshiring. To‘lovsiz bronni 5 daqiqa kutib hamda
+alohida bronning **To‘lovni bekor qilish** tugmasi bilan tekshiring.
+Haqiqiy Android process restart sinovi:
+
+```powershell
+npm run mobile:test:recovery -- <android-serial>
+```
+
+Sinov faqat lokal demo OTP va lokal to‘lov rejimida ishlaydi. Ikki marta
+Android force-stop, payment-return, lokal provider tasdig‘i va oxirgi
+ochilishda barcha API so‘rovlarini rad etadigan mijoz bilan bron/QR hamda
+4 ta saqlangan surat tekshiriladi. Dalil `.local/android-recovery.json`da;
+oxirida odatiy debug ilova qayta o‘rnatiladi. Bu rasmiy to‘lov qabuli emas.
+
 Yordam xabari yuborilayotganda tugma va matn maydoni bloklanadi. Bir xil
 so‘rovlar bir tarmoq so‘rovi va idempotency kalitidan foydalanadi; server ham
 takroriy ticket/javob yaratmaydi. Tarmoq xatosida matn saqlanadi va qayta
 urinish mumkin. Sun’iy kutish qo‘shilmagan; umumiy tarmoq muddati 25 soniya.
+
+Mijozning yangi yordam xabari bog‘langan superadmin Telegramiga oxirgi
+matn va **✍️ Javob yozish** tugmasi bilan yuboriladi. Superadmin botda matn
+yozib, **Yuborish**ni tasdiqlaydi. Shu javob mijoz suhbatida saqlanadi va
+ochiq Android suhbatida 5 soniyalik yangilanishda ko‘rinadi. Superadmin
+barcha murojaatlarni, jumladan sanatoriyaga biriktirilmaganlarini ham
+**Aloqa → Murojaatlar**da ko‘radi. Worker/bot ishga tushgan bo‘lishi kerak.
 
 ## AI suhbat va bron tilagi
 
@@ -218,6 +371,17 @@ Sozlash tartibi [MERCHANT_CONNECTIONS.md](MERCHANT_CONNECTIONS.md)da.
 
 Dependencylar, migratsiyalar va API/web buildlari tayyor bo‘lgach:
 
+Kod yangilanganda avval bazani tayyorlab, yangi migratsiya va buildlarni qo‘llang:
+
+```powershell
+npm run db:local
+npm run db:migrate
+npm run build:api
+npm run build:web
+```
+
+So‘ng xizmatlarni oching:
+
 ```powershell
 npm run superadmin:local
 npm run local:start
@@ -237,6 +401,28 @@ Qayta yaratish buyrug‘i mavjud parolni almashtirmaydi va MFA hisoblagichini
 tozalamaydi. Foydalanuvchi saytdan parolni o‘zgartirgan bo‘lsa, eski lokal
 fayl avtomatik tiklash vositasi emas; skript mos kelmagan ma’lumotni rad etadi.
 Ushbu tartib production bootstrap o‘rniga ishlatilmaydi.
+
+### Lokal panelda «Sahifani yangilab qayta urinib ko‘ring» xabari
+
+`localhost` va `127.0.0.1` brauzer uchun turli originlar. Hisobchini yoki
+boshqa taklifni tasdiqlashda `CSRF_INVALID`/403 chiqsa, `apps/api/.env`dagi
+`CORS_ORIGINS` ikkala panelning har ikkala lokal manzilini qamrashi kerak:
+
+```dotenv
+CORS_ORIGINS=http://localhost:3000,http://localhost:3001,http://127.0.0.1:3000,http://127.0.0.1:3001
+```
+
+`.env.example` shu qiymat bilan yangilangan; mavjud `.env` avtomatik
+qayta yozilmaydi. Qiymatni o‘zgartirgach APIni qayta oching:
+
+```powershell
+npm run local:stop -- -Only api
+npm run local:start -- -Only api
+```
+
+CSRF tokeni, sessiya, superadmin roli va taklif versiyasi tekshirilishi
+saqlanadi. Noto‘g‘ri/yo‘q token yoki boshqa port rad etiladi. Productionda
+`CORS_ORIGINS` uchun haqiqiy HTTPS panel manzillari belgilanadi.
 
 ### Panel faolsizligi va telefondagi autentifikator
 
@@ -270,6 +456,19 @@ Telefonga ulangach faylni himoyalangan offline zaxiraga saqlang; Git, build
 artefakti, brauzer bundle yoki umumiy server logiga qo‘shmang. Bu fayl va
 lokal kod sahifasi deploy qilinadigan saytning bir qismi emas.
 
+### Hisobchi paneli
+
+Hamkorlar saytida direktor **Jamoa va ruxsatlar → Xodim taklif qilish →
+Lavozim: Hisobchi**ni tanlaydi. Superadmin tasdiqlagach xodim birinchi
+kirishda parolini almashtiradi. Hisobchi faqat o‘z sanatoriyasining
+hisobotini ko‘rishi/yuklashi mumkin. Bron, anketa, profil, to‘lov va xodim
+boshqaruvi API orqali ham rad etiladi. Panel faolsizligi 4 soat.
+
+Davrlar, CSV/PDF, hisoblash mezonlari va cheklovlar:
+[HISOBCHI_PANEL.md](HISOBCHI_PANEL.md). 11-migratsiya yangi rolni qo‘shadi;
+API qayta ishga tushishidan oldin `npm run db:migrate` kerak.
+`npm run test:report-periods` kabisa va chegara sanalarini tekshiradi.
+
 ### Alohida brauzer auditi
 
 `npm test` test bazasiga migratsiyalarni qo‘llaydi. Port 4000 bo‘sh bo‘lganida
@@ -279,7 +478,7 @@ bazasi o‘zgarmaydi; haqiqiy providerlar disabled yoki local adapterga o‘tadi
 Jarayonni tayyorlik yozuvigacha ochiq qoldiring. Boshqa terminalda:
 
 Fixture ko‘p marta yangi login qiladigan UI to‘plami uchun faqat o‘zining
-uchta synthetic login va loopback IP urinish hisoblagichlarini davriy
+to‘rtta synthetic login va loopback IP urinish hisoblagichlarini davriy
 tozalaydi. Production login limitlari o‘zgarmaydi; TOTP replay himoyasi
 fixtureda ham saqlanadi. Bu brauzer to‘plami rate-limit stress sinovi emas.
 
@@ -321,7 +520,18 @@ API uchun USB reverse ulanishini tiklaydi. Preview APK `http://127.0.0.1:4000`
 manziliga shu reverse orqali ulanadi; kompyuter ishlashi va USB ulanishi kerak.
 Ushbu rejim LAN yoki ommaviy internet deploymenti emas.
 
-Node.js 24.15+, npm, PostgreSQL 18; Android uchun Flutter va Android SDK kerak. `npm ci` lockfiledagi dependencylarni o‘rnatadi.
+Kerakli dasturlar, API/web/Flutter kutubxonalari va to‘liq birinchi startup
+buyruqlari [README](../README.md#kerakli-dasturlar-va-kutubxonalar)da.
+Node.js 24.15+, npm, PostgreSQL 18; Android uchun Flutter, Android SDK va
+JDK kerak. `npm ci` lockfiledagi barcha npm workspaces paketlarini o‘rnatadi.
+Flutter paketlari `apps/mobile`da `flutter pub get` bilan olinadi.
+
+Joriy lokal Android ARM64 debug nusxa
+[`apk/sihhat-uz-preview.apk`](../apk/sihhat-uz-preview.apk)da.
+Asl build `.local/releases`da saqlanadi; nusxani yangilash va tekshirish
+[READMEning APK bo‘limi](../README.md#tayyor-apk)da. `apk/` Git va
+Railway uploadidan chiqarilgan. Ushbu APKga lokal API va USB reverse kerak;
+release uchun haqiqiy HTTPS manzili va signing bilan qayta build qilinadi.
 
 ```powershell
 npm ci
@@ -332,6 +542,12 @@ npm run db:seed
 ```
 
 `db:local` `.local/postgres` klasterini `127.0.0.1:55432`da ishga tushiradi va `sihhat`, `sihhat_test` bazalarini yaratadi. Bu loopback demo klasteri; production konfiguratsiyasi alohida boshqariladi. `apps/api/.env` mavjud bo‘lsa, qayta yozilmaydi. `AUTH_SECRET` va `MFA_ENCRYPTION_KEY` tasodifiy yaratiladi. Ular logga chiqarilmaydi.
+
+Uzilgan ishidan tiklanayotgan PostgreSQL jarayoni mavjud bo‘lsa, `db:local`
+uning ulanishga tayyorligini `pg_isready` orqali 10 daqiqagacha kutadi.
+Bazalar faqat shu tekshiruv o‘tgach o‘qiladi/yaratiladi. Kutish muddati
+tugasa xato qaytaradi; tiklanayotgan server ishlashda qoladi. Tiklanish
+va tayyorlik yozuvlari `.local/postgres.log`da.
 
 PostgreSQL boshqa joyda bo‘lsa:
 
@@ -505,6 +721,38 @@ Production lokal SMS adapterini va tasdiqlanmagan Eskiz sozlamasini rad etadi.
 2026-10-02: Gemini va Eskiz autentifikatsiyasi ishlaydi, standart Eskiz SMSi
 yetib keldi. Eskiz OTP shabloni tasdiqlanmagan; development adapteri lokal.
 
+### Bosh sahifadagi reklama va mashhur sanatoriyalar
+
+Superadmin **Sanatoriyalar** sahifasining **Mashhur** ustunidagi tickni
+yoqing yoki o‘chiring. Tanlov alohida saqlash tugmasisiz serverda
+saqlanadi va sahifa qayta ochilganda tiklanadi. Yangi va mavjud profillar
+migratsiyadan keyin avtomatik tanlanmaydi. Faqat `ACTIVE` va tasdiqlangan
+public revisionga ega tanlangan sanatoriyalar ilovaga chiqadi.
+
+`PATCH /superadmin/sanatoriums/:id/featured` `{version, featured}` oladi;
+faqat `sanatoriums.manage` ruxsatli superadmin o‘zgartiradi. Eski version
+xatosida sahifani yangilang. Har tanlov auditga yoziladi. `/catalog/home`
+tanlangan profillarni katalogning birinchi 100 ta natijasidan mustaqil oladi.
+
+Androidda faol `HOME` reklama mashhur sanatoriyalar joyini egallaydi;
+ikkalasi bir paytda ko‘rsatilmaydi. Reklama tugasa, bo‘lmasa yoki reklama
+so‘rovi xato qaytarsa shu joyga tanlangan sanatoriyalar qaytadi. Reklamalar
+har 30 soniyada, resume va pull-to-refreshda yangilanadi. Eski avtomatik
+home kesh o‘rniga `public_home_v2` ishlatiladi; offline katalogda ham
+faqat `featured_on_home=true` bo‘lgan profillar fallback sifatida olinadi.
+
+Schema yangilanishi: `npm run db:migrate` (12-migratsiya),
+`npm run build:api`, `npm run build:web`. Lokal API/panellar ishlayotgan
+bo‘lsa mos xizmatlarni `npm run local:stop -- -Only api,superadmin,director`
+va `npm run local:start -- -Only api,superadmin,director` bilan qayta oching.
+Mobil nusxani `npm run mobile:preview -- <serial>` orqali qayta yig‘ib
+o‘rnating va READMEdagi tartib bilan `apk` nusxasini yangilang.
+
+Login telefon maydonida `+998` doimiy prefiks; undan keyin 9 raqam
+bo‘lishi shart. 8 yoki 10 raqam SMS so‘rovini yubormaydi va xato maydon
+tagida chiqadi. `+998` bilan formatlangan to‘liq raqamni paste qilish ham
+ishlaydi. Login oynasida `SihhatLogo` orqali asl logo ko‘rsatiladi.
+
 ### Bosh sahifa maqolalari
 
 Superadminning `Yangilik va tavsiyalar` sahifasi `NEWS`/`TIP` maqolalarini
@@ -525,9 +773,12 @@ Real pilot uchun sanatoriya xona inventari, SMS/merchant rekvizitlari, refund/pa
 Tezcheck tartibi va haqiqiy tekshiruv cheklovlari [TEZCHECK.md](TEZCHECK.md)da.
 Serverda `PAYMENT_MODE=tezcheck`, maxfiy `TEZCHECK_API_KEY` va kassa kodi
 sozlanadi; `npm run tezcheck:check` faqat xavfsiz o‘qish so‘rovlarini yuboradi.
-Hozir kassa `draft`, `accepts_payments=false`: shu holatni yashirib to‘lovni
-tasdiqlash mumkin emas. API kaliti APK yoki web environmentga kiritilmaydi.
-Cashdesk faollashgach checkout va haqiqiy payment return sinovi alohida bajariladi.
+2026-10-08 signed o‘qish tekshiruvida kassa `active`,
+`accepts_payments=true`, balans endpointi ishladi; tranzaksiya namunasi **0**.
+API kaliti APK yoki web environmentga kiritilmaydi. Bu holat haqiqiy checkout,
+payment return yoki har sanatoriyaning direct merchant qabuli emas;
+ular alohida tekshiriladi. Provider holati qayta o‘qilib amaldagi javobga
+ko‘ra ishlanadi; to‘lov tasdig‘i qo‘lda taxmin qilinmaydi.
 
 Webhook uchun haqiqiy HTTPS `/payments/tezcheck` manzili kabinetda ro‘yxatdan
 o‘tkaziladi va kabinet bergan siri `TEZCHECK_WEBHOOK_SECRET`ga saqlanadi.

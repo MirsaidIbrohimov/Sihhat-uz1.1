@@ -18,15 +18,16 @@ const publicArticle = (a: any) => ({ id: a.id, title: a.title, summary: a.summar
 export class HomeService {
   constructor(@Inject(Db) readonly db: Db, @Inject(CatalogService) readonly catalog: CatalogService) {}
   async home() {
-    const [list, news, tips] = await Promise.all([
+    const [list, featured, news, tips] = await Promise.all([
       this.catalog.list({ limit: 100, sort: 'PRICE' }),
+      this.catalog.featured(),
       this.db.publicArticle.findMany({ where: { kind: 'NEWS', status: 'PUBLISHED', publishedAt: { lte: new Date() } }, orderBy: { publishedAt: 'desc' }, take: 4 }),
       this.db.publicArticle.findMany({ where: { kind: 'TIP', status: 'PUBLISHED', publishedAt: { lte: new Date() } }, orderBy: { publishedAt: 'desc' }, take: 2 }),
     ]);
     const regions = [...new Set(list.data.map((s: any) => s.region as string))].sort();
     return {
       generated_at: new Date().toISOString(), sanatorium_count: list.total,
-      featured: list.data.slice(0, 6), regions,
+      featured, regions,
       news: news.map(publicArticle),
       tips: [...tips.map(publicArticle), ...publicGuidance().map(f => ({ id: f.id, title: f.title, summary: f.text, body: f.text, kind: 'TIP', published_at: null }))],
     };

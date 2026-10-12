@@ -52,8 +52,9 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.text('Profil').last);
       await tester.pumpAndSettle();
+      await tester.scrollUntilVisible(find.text('Ilova ko‘rinishi'), 180);
       expect(find.text('Ilova ko‘rinishi'), findsOneWidget);
-      final toggle = find.widgetWithText(FilledButton, 'Tungi rejimga o‘tish');
+      final toggle = find.byType(Switch);
       await tester.ensureVisible(toggle);
       await tester.tap(toggle);
       await tester.pumpAndSettle();

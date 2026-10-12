@@ -5,7 +5,7 @@ import 'api.dart';
 class HomeFeed {
   final Api api;
   HomeFeed(this.api);
-  String get cacheKey => 'public_home_${Uri.encodeComponent(api.baseUrl)}';
+  String get cacheKey => 'public_home_v2_${Uri.encodeComponent(api.baseUrl)}';
   Future<Json?> cached() async {
     try {
       final raw = await api.store.read(cacheKey);

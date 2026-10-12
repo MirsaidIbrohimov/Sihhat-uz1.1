@@ -21,7 +21,7 @@ function collectAccess(value) {
     else if (item && typeof item === 'object') collectAccess(item);
   }
 }
-for (const source of ['.local/dev-access.json', '.local/superadmin-access.json']) {
+for (const source of ['.local/dev-access.json', '.local/superadmin-access.json', '.local/azimshifo-access.json']) {
   const path = resolve(root, source);
   if (existsSync(path)) collectAccess(JSON.parse(readFileSync(path, 'utf8')));
 }

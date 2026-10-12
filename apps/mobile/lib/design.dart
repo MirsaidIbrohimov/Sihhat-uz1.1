@@ -1,6 +1,9 @@
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
+
+import 'concept_ui.dart' show SihhatIcon;
+
 import 'package:flutter/services.dart';
 
 const forest = Color(0xff00866c);
@@ -327,7 +330,7 @@ class WellnessHero extends StatelessWidget {
                   child: const Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Icons.spa_rounded, color: Colors.white, size: 15),
+                      SihhatIcon('leaf', color: Colors.white, size: 15),
                       SizedBox(width: 6),
                       Flexible(
                         child: Text(
@@ -387,7 +390,7 @@ class WellnessHero extends StatelessWidget {
                       children: [
                         Flexible(child: Text('Qidirishni boshlash')),
                         SizedBox(width: 8),
-                        Icon(Icons.arrow_forward_rounded, size: 18),
+                        SihhatIcon('arrow-right', size: 18),
                       ],
                     ),
                   ),

@@ -48,6 +48,7 @@ model Session {
   refreshHash String @unique
   csrfHash String
   channel String
+  deviceLabel String @default("Noma’lum qurilma")
   expiresAt DateTime
   refreshExpiresAt DateTime
   lastActivityAt DateTime @default(now())
@@ -84,6 +85,7 @@ model Sanatorium {
   version Int @default(1)
   bankRevisionId String? @db.Uuid
   paymentReady Boolean @default(false)
+  featuredOnHome Boolean @default(false)
   subscriptionRequired Boolean @default(false)
   createdAt DateTime @default(now())
   @@unique([id, publicRevisionId])

@@ -2,25 +2,41 @@
   "name": "sihhat-uz",
   "version": "0.1.0",
   "private": true,
-  "workspaces": ["apps/api", "apps/*-web", "packages/*"],
-  "engines": {"node": ">=24.15.0"},
+  "workspaces": [
+    "apps/api",
+    "apps/*-web",
+    "packages/*"
+  ],
+  "engines": {
+    "node": ">=24.15.0"
+  },
   "scripts": {
     "local:start": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/local-services.ps1 start",
     "local:status": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/local-services.ps1 status",
     "local:stop": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/local-services.ps1 stop",
     "superadmin:local": "npm run superadmin:local -w @sihhat/api",
     "brand:assets": "node scripts/brand-assets.mjs",
+    "web:assets": "node scripts/web-assets.mjs",
     "dev:api": "npm run dev -w @sihhat/api",
     "dev:worker": "npm run worker -w @sihhat/api",
     "dev:telegram": "npm run telegram -w @sihhat/api",
     "telegram:check": "npm run telegram:configure -w @sihhat/api -- --check",
     "telegram:configure": "npm run telegram:configure -w @sihhat/api",
+    "photos:import": "npm run photos:import -w @sihhat/api",
     "tezcheck:check": "npm run tezcheck:check -w @sihhat/api",
     "build:api": "npm run build -w @sihhat/api",
+    "start:api": "npm run start -w @sihhat/api",
+    "start:worker": "npm run start:worker -w @sihhat/api",
+    "start:telegram": "npm run start:telegram -w @sihhat/api",
+    "start:admin": "npm run start -w @sihhat/superadmin-web",
+    "start:partner": "npm run start -w @sihhat/partner-web",
+    "deploy:check": "npm run deploy:check -w @sihhat/api",
+    "railway:check": "tsc -p .railway/tsconfig.json --noEmit && node scripts/check-railway.mjs",
     "dev:admin": "npm run dev -w @sihhat/superadmin-web",
     "dev:partner": "npm run dev -w @sihhat/partner-web",
     "build:web": "npm run build -w @sihhat/superadmin-web && npm run build -w @sihhat/partner-web",
     "test:web": "playwright test",
+    "test:report-periods": "tsx --test test/report-periods.test.ts",
     "test:web:fixture": "node node_modules/tsx/dist/cli.mjs --tsconfig apps/api/tsconfig.json apps/api/scripts/web-fixture.ts",
     "backup:verify": "node scripts/backup-restore.mjs",
     "mobile:signing:init": "node scripts/mobile-signing.mjs",
@@ -38,6 +54,15 @@
     "check": "npm run typecheck --workspaces --if-present",
     "check:secrets": "node scripts/check-source-secrets.mjs"
   },
-  "devDependencies": {"codex": "^0.2.3", "@playwright/test":"^1.56.0", "prettier":"^3.6.0", "sharp":"0.35.5"},
-  "overrides": {"js-yaml":"5.4.2", "deepmerge-ts":"8.0.2", "mysql2":"3.24.5"}
+  "devDependencies": {
+    "@playwright/test": "^1.56.0",
+    "prettier": "^3.6.0",
+    "railway": "3.13.1",
+    "sharp": "0.35.5"
+  },
+  "overrides": {
+    "js-yaml": "5.4.2",
+    "deepmerge-ts": "8.0.2",
+    "mysql2": "3.24.5"
+  }
 }

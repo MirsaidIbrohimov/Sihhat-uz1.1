@@ -206,6 +206,12 @@ test("booking: unpaid cancellation is retryable and terminal; paid bookings requ
     where: { orderId: order.order_id },
   });
   assert.equal(transaction.state, -1);
+  assert.equal(
+    (await user.call("/customer/bookings")).body.data.some(
+      (row: any) => row.id === b.id,
+    ),
+    false,
+  );
   await assert.rejects(
     ctx.db.atomic((tx) => payments.perform(tx, transaction.providerId)),
   );
@@ -230,7 +236,7 @@ test("booking: unpaid cancellation is retryable and terminal; paid bookings requ
   );
 });
 
-test("history: unpaid bookings disappear after two hours; paid and staff records remain", async () => {
+test("history: unpaid bookings disappear after five minutes; paid and staff records remain", async () => {
   const site = await sanatorium(ctx.admin, 2),
     user = await customer(ctx.base, ctx.auth);
   const unpaid = (
@@ -240,7 +246,17 @@ test("history: unpaid bookings disappear after two hours; paid and staff records
     await hold(user, await quote(user, site, "2027-05-05", "2027-05-07"))
   ).body;
   await pay(user, paid.id);
-  const old = new Date(Date.now() - 121 * 60000);
+  await ctx.db.booking.update({
+    where: { id: unpaid.id },
+    data: { createdAt: new Date(Date.now() - 4 * 60000) },
+  });
+  assert.equal(
+    (await user.call("/customer/bookings")).body.data.some(
+      (row: any) => row.id === unpaid.id,
+    ),
+    true,
+  );
+  const old = new Date(Date.now() - 5 * 60000 - 1000);
   await ctx.db.booking.updateMany({
     where: { id: { in: [unpaid.id, paid.id] } },
     data: { createdAt: old },
@@ -265,6 +281,95 @@ test("history: unpaid bookings disappear after two hours; paid and staff records
     (await user.call(`/customer/bookings/${unpaid.id}`)).status,
     200,
   );
+});
+
+test("catalog: active approved profiles remain visible without a subscription; online quotes stay gated", async () => {
+  const site = await sanatorium(ctx.admin);
+  await ctx.db.sanatorium.update({
+    where: { id: site.id },
+    data: { subscriptionRequired: true },
+  });
+  const visible = await ctx.admin.call(`/catalog/sanatoriums/${site.id}`);
+  assert.equal(visible.status, 200);
+  assert.equal(visible.body.online_booking_available, false);
+  assert.equal(
+    (await ctx.admin.call("/catalog/sanatoriums?limit=100")).body.data.some(
+      (s: any) => s.id === site.id,
+    ),
+    true,
+  );
+  const user = await customer(ctx.base, ctx.auth);
+  const result = await user.call("/customer/quotes", "POST", {
+    sanatorium_id: site.id,
+    check_in: "2027-09-01",
+    check_out: "2027-09-03",
+    items: [
+      {
+        room_type_id: site.type.id,
+        rate_plan_id: site.rate.id,
+        adults: 1,
+        children_ages: [],
+      },
+    ],
+  });
+  assert.equal(result.body.code, "ONLINE_BOOKING_UNAVAILABLE");
+  await ctx.db.sanatorium.update({
+    where: { id: site.id },
+    data: { status: "PAUSED" },
+  });
+  assert.equal(
+    (await ctx.admin.call(`/catalog/sanatoriums/${site.id}`)).status,
+    404,
+  );
+});
+
+test("profile photos: four distinct images retain their order across publishing and editing", async () => {
+  const site = await sanatorium(ctx.admin);
+  let draft = (
+    await ctx.admin.call(`/partner/sanatoriums/${site.id}/drafts`, "POST", {})
+  ).body;
+  const photos = [site.photo.id];
+  for (let n = 0; n < 3; n++) {
+    const uploaded = await ctx.admin.call("/partner/media", "POST", {
+      sanatorium_id: site.id,
+      revision_id: draft.id,
+      visibility: "PUBLIC",
+      mime: "image/png",
+      base64:
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+j8XcAAAAASUVORK5CYII=",
+    });
+    assert.equal(uploaded.status, 201);
+    photos.push(uploaded.body.id);
+  }
+  const ordered = [photos[3], photos[0], photos[2], photos[1]];
+  draft = (
+    await ctx.admin.call(`/partner/sanatorium-revisions/${draft.id}`, "PATCH", {
+      version: draft.version,
+      data: { photo_ids: ordered },
+    })
+  ).body;
+  const submitted = await ctx.admin.call(
+    `/partner/sanatorium-revisions/${draft.id}/submit`,
+    "POST",
+    { version: draft.version },
+  );
+  assert.equal(submitted.status, 201);
+  assert.equal(
+    (
+      await ctx.admin.call(
+        `/superadmin/moderation/${draft.id}/approve`,
+        "POST",
+        { version: submitted.body.version },
+      )
+    ).status,
+    201,
+  );
+  assert.deepEqual(
+    (await ctx.admin.call(`/catalog/sanatoriums/${site.id}`)).body.photo_ids,
+    ordered,
+  );
+  for (const id of ordered)
+    assert.equal((await ctx.admin.call(`/media/${id}`)).status, 200);
 });
 
 test("maps: shared Google/Yandex links work without coordinate fields; unsafe domains are rejected", async () => {

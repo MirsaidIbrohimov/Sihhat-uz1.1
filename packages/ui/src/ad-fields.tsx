@@ -28,20 +28,32 @@ export function AdvertisementFields({
   tenant,
   tenants,
   photos,
+  initial,
 }: {
   tenant: string;
   tenants: Row[];
   photos: string[];
+  initial?: Row;
 }) {
-  const [target, setTarget] = useState("SANATORIUM"),
-    [discount, setDiscount] = useState(false);
-  const [starts, setStarts] = useState(() => tashkentDateTime()),
+  const [target, setTarget] = useState(
+      initial?.data?.target_kind ??
+        (initial || tenants.length ? "SANATORIUM" : "URL"),
+    ),
+    [discount, setDiscount] = useState(initial?.data?.has_discount ?? false);
+  const [starts, setStarts] = useState(() =>
+      tashkentDateTime(initial?.startsAt ?? Date.now()),
+    ),
     [ends, setEnds] = useState(() =>
-      tashkentDateTime(Date.now() + 7 * 86400000),
+      tashkentDateTime(initial?.endsAt ?? Date.now() + 7 * 86400000),
     );
   const [photo, setPhoto] = useState<File | null>(null),
-    [image, setImage] = useState(""),
+    [image, setImage] = useState(initial?.data?.image_asset_id ?? ""),
     [preview, setPreview] = useState("");
+  const selectedTarget =
+    initial?.data?.target_sanatorium_id ??
+    (initial
+      ? tenant
+      : (tenants.find((s) => s.id === tenant)?.id ?? tenants[0]?.id ?? ""));
   const fileRef = useRef<HTMLInputElement>(null);
   useEffect(() => {
     if (!photo) {
@@ -67,6 +79,7 @@ export function AdvertisementFields({
           required
           minLength={2}
           maxLength={120}
+          defaultValue={initial?.title ?? ""}
           placeholder="Masalan, kuzgi dam olish taklifi"
         />
       </label>
@@ -74,7 +87,10 @@ export function AdvertisementFields({
         <span>
           Reklama turi <b className="required">*</b>
         </span>
-        <select name="placement" defaultValue="HOME">
+        <select
+          name="placement"
+          defaultValue={initial?.placement === "POPUP" ? "POPUP" : "HOME"}
+        >
           <option value="HOME">Bosh sahifada</option>
           <option value="POPUP">Ilovaga kirganda qalqib chiqadi</option>
         </select>
@@ -101,6 +117,7 @@ export function AdvertisementFields({
             required
             placeholder="https://..."
             maxLength={2048}
+            defaultValue={initial?.data?.target_url ?? ""}
           />
           <small>Sayt yoki Telegram kabi HTTPS havola</small>
         </label>
@@ -109,13 +126,26 @@ export function AdvertisementFields({
           <span>
             Ochadigan sanatoriya <b className="required">*</b>
           </span>
-          <select name="target_sanatorium_id" defaultValue={tenant} required>
+          <select
+            name="target_sanatorium_id"
+            defaultValue={selectedTarget}
+            required
+          >
+            {!tenants.some((s) => s.id === selectedTarget) && (
+              <option value={selectedTarget} disabled>
+                Faol sanatoriyani tanlang
+              </option>
+            )}
             {tenants.map((s) => (
               <option key={s.id} value={s.id}>
                 {s.name}
               </option>
             ))}
           </select>
+          <small>
+            Faqat ilovada ochiq, tasdiqlangan sanatoriyalar tanlanadi. Tashqi
+            havola uchun sanatoriya tasdig‘i talab qilinmaydi.
+          </small>
         </label>
       )}
       <div className="field wide">
@@ -171,6 +201,7 @@ export function AdvertisementFields({
           rows={3}
           maxLength={500}
           placeholder="Taklif haqida qisqa ma’lumot"
+          defaultValue={initial?.data?.text ?? ""}
         />
       </label>
       <label className="field wide">
@@ -196,6 +227,7 @@ export function AdvertisementFields({
               step={1}
               placeholder="Masalan, 15"
               inputMode="numeric"
+              defaultValue={initial?.data?.discount_percent ?? ""}
             />
           </label>
           <label className="field">
@@ -205,6 +237,7 @@ export function AdvertisementFields({
               minLength={3}
               maxLength={120}
               placeholder="Masalan, ish kunlarida 15%"
+              defaultValue={initial?.data?.discount_text ?? ""}
             />
             <small>
               Foiz yoki shartdan kamida bittasini kiriting. Bron narxi tarifdan

@@ -1,6 +1,9 @@
 "use client";
 import {
   createContext,
+  Children,
+  Fragment,
+  isValidElement,
   useContext,
   useEffect,
   useId,
@@ -14,6 +17,7 @@ import {
   ArrowRight,
   Check,
   LoaderCircle,
+  MoreHorizontal,
   Plus,
   RefreshCw,
   X,
@@ -66,6 +70,7 @@ export type Field = {
   maxLength?: number;
   pattern?: string;
   accept?: string;
+  multiple?: boolean;
   step?: number | string;
 };
 export type FormSpec = {
@@ -86,7 +91,8 @@ export type PortalContextValue = {
   notice: (text: string) => void;
   refresh: () => void;
   epoch: number;
-  go: (section: string) => void;
+  go: (section: string, params?: Record<string, string>) => void;
+  reloadActor?: () => void;
   allowed: (permission: string) => boolean;
 };
 export const PortalContext = createContext<PortalContextValue>(null!);
@@ -202,6 +208,7 @@ export const label: Record<string, string> = {
   CLOSED: "Yopilgan",
   DIRECTOR: "Direktor",
   RECEPTION: "Resepshn",
+  ACCOUNTANT: "Hisobchi",
   APP: "Ilova",
   PHONE: "Telefon",
   WALK_IN: "Shaxsan",
@@ -295,7 +302,6 @@ export function PageHeading({
   return (
     <div className="page-heading">
       <div>
-        <p className="eyebrow">SIHHAT.UZ</p>
         <h1>{title}</h1>
         {subtitle && <p className="muted">{subtitle}</p>}
       </div>
@@ -323,13 +329,15 @@ export function Card({
   title,
   children,
   aside,
+  className,
 }: {
   title?: string;
   children: ReactNode;
   aside?: ReactNode;
+  className?: string;
 }) {
   return (
-    <section className="card">
+    <section className={`card ${className ?? ""}`}>
       {title && (
         <div className="card-heading">
           <h2>{title}</h2>
@@ -340,44 +348,176 @@ export function Card({
     </section>
   );
 }
+export function FeedItem({
+  icon,
+  title,
+  status,
+  children,
+  meta,
+  actions,
+}: {
+  icon: ReactNode;
+  title: ReactNode;
+  status?: ReactNode;
+  children?: ReactNode;
+  meta?: ReactNode;
+  actions?: ReactNode;
+}) {
+  const titleId = useId();
+  return (
+    <article className="feed-item" aria-labelledby={titleId}>
+      <div className="feed-icon" aria-hidden="true">
+        {icon}
+      </div>
+      <div className="feed-content">
+        <div className="feed-heading">
+          <h2 id={titleId}>{title}</h2>
+          {status}
+        </div>
+        {children && <div className="feed-body">{children}</div>}
+        {(meta || actions) && (
+          <div className="feed-footer">
+            <div className="feed-meta">{meta}</div>
+            {actions && (
+              <div className="feed-actions">
+                <RowActions label={typeof title === "string" ? title : "Sharh"}>
+                  {actions}
+                </RowActions>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </article>
+  );
+}
 export type Column = {
   label: string;
   key?: string;
   render?: (r: Row) => ReactNode;
 };
+function actionItems(children: ReactNode): ReactNode[] {
+  return Children.toArray(children).flatMap((child) =>
+    isValidElement<{ children: ReactNode }>(child) && child.type === Fragment
+      ? actionItems(child.props.children)
+      : [child],
+  );
+}
+function RowActions({
+  children,
+  label: rowLabel,
+}: {
+  children: ReactNode;
+  label: string;
+}) {
+  const items = actionItems(children),
+    id = useId(),
+    menu = useRef<HTMLDivElement>(null);
+  const [open, setOpen] = useState(false);
+  const [position, setPosition] = useState({ left: 0, top: 0 });
+  const compact =
+    items.length > 2 ||
+    (items.length > 1 &&
+      items.some(
+        (item) =>
+          isValidElement<{ danger?: boolean }>(item) && item.props.danger,
+      ));
+  if (!compact) return <div className="row-actions">{items}</div>;
+  return (
+    <div className="row-actions">
+      {items[0]}
+      <button
+        type="button"
+        className="icon-button"
+        aria-label={`Boshqa amallar: ${rowLabel}`}
+        aria-expanded={open}
+        aria-controls={id}
+        onClick={(event) => {
+          const rect = event.currentTarget.getBoundingClientRect();
+          setPosition({
+            left: Math.max(
+              8,
+              Math.min(window.innerWidth - 248, rect.right - 232),
+            ),
+            top: Math.max(
+              8,
+              Math.min(window.innerHeight - 300, rect.bottom + 8),
+            ),
+          });
+          menu.current?.togglePopover();
+        }}
+      >
+        <MoreHorizontal size={19} />
+      </button>
+      <div
+        id={id}
+        ref={menu}
+        popover="auto"
+        className="action-popover"
+        aria-label={`Qo‘shimcha amallar: ${rowLabel}`}
+        style={{
+          left: position.left,
+          top: position.top,
+          maxHeight: `calc(100dvh - ${position.top + 8}px)`,
+        }}
+        onToggle={(event) =>
+          setOpen((event.nativeEvent as ToggleEvent).newState === "open")
+        }
+        onClick={(event) => {
+          if ((event.target as HTMLElement).closest("button"))
+            menu.current?.hidePopover();
+        }}
+      >
+        {items.slice(1)}
+      </div>
+    </div>
+  );
+}
 export function Table({
   rows,
   columns,
   actions,
+  layout = "table",
 }: {
   rows: Row[];
   columns: Column[];
   actions?: (r: Row) => ReactNode;
+  layout?: "table" | "cards";
 }) {
   return !rows.length ? (
     <Empty />
   ) : (
-    <div className="table-scroll">
+    <div
+      className={`table-scroll responsive-table ${layout === "cards" ? "card-table" : ""}`}
+    >
       <table>
         <thead>
           <tr>
             {columns.map((c) => (
-              <th key={c.label}>{c.label}</th>
+              <th scope="col" key={c.label}>
+                {c.label}
+              </th>
             ))}
-            {actions && <th>Amallar</th>}
+            {actions && <th scope="col">Amallar</th>}
           </tr>
         </thead>
         <tbody>
           {rows.map((r, index) => (
             <tr key={r.id ?? index}>
               {columns.map((c) => (
-                <td key={c.label}>
+                <td key={c.label} data-label={c.label}>
                   {c.render ? c.render(r) : (r[c.key!] ?? "—")}
                 </td>
               ))}
               {actions && (
-                <td>
-                  <div className="row-actions">{actions(r)}</div>
+                <td className="actions-cell" data-label="Amallar">
+                  <RowActions
+                    label={String(
+                      r.name ?? r.title ?? r.reference ?? r.code ?? index + 1,
+                    )}
+                  >
+                    {actions(r)}
+                  </RowActions>
                 </td>
               )}
             </tr>
@@ -426,20 +566,26 @@ export function Pager({
 }
 export function DataPanel({
   path,
-  columns,
+  columns = [],
   actions,
   title,
   paged = true,
   params = {},
   filter,
+  layout = "table",
+  preview,
+  renderRow,
 }: {
   path: string | null;
-  columns: Column[];
+  columns?: Column[];
   actions?: (r: Row, reload: () => void) => ReactNode;
   title?: string;
   paged?: boolean;
   params?: Row;
   filter?: (r: Row) => boolean;
+  layout?: "table" | "cards";
+  preview?: (rows: Row[]) => ReactNode;
+  renderRow?: (row: Row, reload: () => void) => ReactNode;
 }) {
   const { epoch } = usePortal();
   const [page, setPage] = useState(1);
@@ -452,9 +598,25 @@ export function DataPanel({
     epoch,
   );
   const rows = list(remote.data).filter(filter ?? (() => true));
+  const titles: Record<string, string> = {
+    payments: "Onlayn to‘lovlar",
+    refunds: "Pulni qaytarish",
+    payouts: "Sanatoriyaga o‘tkazmalar",
+    invoices: "Hisoblar",
+    staff: "Jamoa",
+    "staff-approvals": "Xodim takliflari",
+    audit: "Amallar tarixi",
+    reconciliation: "Solishtirish natijalari",
+    "subscription-plans": "Abonent tariflari",
+    subscriptions: "Abonentlar",
+    "refund-policies": "Refund shartlari",
+  };
   return (
     <Card
-      title={title}
+      className={
+        renderRow || layout === "cards" ? "collection-panel" : undefined
+      }
+      title={title ?? titles[path?.split("/").at(-1) ?? ""] ?? "Yozuvlar"}
       aside={
         <button
           className="icon-button"
@@ -471,11 +633,31 @@ export function DataPanel({
         <ErrorBox message={remote.error} retry={remote.reload} />
       ) : (
         <>
-          <Table
-            rows={rows}
-            columns={columns}
-            actions={actions ? (r) => actions(r, remote.reload) : undefined}
-          />
+          <div className={preview ? "data-panel-split" : undefined}>
+            {renderRow ? (
+              <div className="feed-list">
+                {rows.length ? (
+                  rows.map((row, index) => (
+                    <Fragment key={row.id ?? index}>
+                      {renderRow(row, remote.reload)}
+                    </Fragment>
+                  ))
+                ) : (
+                  <Empty />
+                )}
+              </div>
+            ) : (
+              <Table
+                layout={layout}
+                rows={rows}
+                columns={columns}
+                actions={actions ? (r) => actions(r, remote.reload) : undefined}
+              />
+            )}
+            {preview && (
+              <aside className="data-panel-preview">{preview(rows)}</aside>
+            )}
+          </div>
           {paged && remote.data && (
             <Pager
               page={page}
@@ -497,6 +679,31 @@ export const moneyColumn: Column = {
   label: "Summa",
   render: (r) => <strong className="money">{formatMoney(r.amount)}</strong>,
 };
+export function StatValue({ value }: { value: ReactNode }) {
+  const amount =
+    typeof value === "string" && value.endsWith(" so‘m")
+      ? value.slice(0, -5)
+      : null;
+  return (
+    <div className="stat-number">
+      {amount === null ? (
+        value
+      ) : (
+        <>
+          <span
+            className="money-amount"
+            style={{
+              fontSize: `clamp(12px, ${170 / Math.max(1, amount.length)}cqi, 28px)`,
+            }}
+          >
+            {amount}
+          </span>
+          <span className="money-unit"> so‘m</span>
+        </>
+      )}
+    </div>
+  );
+}
 export function Act({
   children,
   onClick,
@@ -659,7 +866,12 @@ export function FormDialog({
           if (f.required && !values[f.key].length)
             throw new Error(`${f.label}: kamida bittasini belgilang.`);
         } else if (f.type === "file") {
-          if (v instanceof File && v.size) values[f.key] = v;
+          const files = data
+            .getAll(f.key)
+            .filter(
+              (item): item is File => item instanceof File && item.size > 0,
+            );
+          if (files.length) values[f.key] = f.multiple ? files : files[0];
         } else if (v !== null && String(v) !== "") {
           values[f.key] =
             f.type === "number"
@@ -805,6 +1017,7 @@ export function FormDialog({
                     ) : (
                       <input
                         name={f.key}
+                        aria-label={f.type === "password" ? f.label : undefined}
                         type={
                           ["money", "csv"].includes(f.type ?? "")
                             ? "text"
@@ -821,9 +1034,10 @@ export function FormDialog({
                         maxLength={f.maxLength}
                         pattern={f.pattern}
                         accept={f.accept}
+                        multiple={f.multiple}
                         inputMode={f.type === "money" ? "decimal" : undefined}
                         autoComplete={
-                          f.type === "password" ? "new-password" : undefined
+                          f.type === "password" ? f.key === "current_password" ? "current-password" : "new-password" : undefined
                         }
                       />
                     )}{" "}

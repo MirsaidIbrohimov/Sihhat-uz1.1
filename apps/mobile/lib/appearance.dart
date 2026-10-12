@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'data/api.dart';
+import 'concept_ui.dart';
 
 String appearanceLabel(ThemeMode mode) =>
     mode == ThemeMode.dark ? 'Tungi rejim' : 'Kunduzgi rejim';
@@ -11,6 +12,66 @@ String appearanceAction(ThemeMode next) =>
 IconData appearanceIcon(ThemeMode mode) => mode == ThemeMode.dark
     ? Icons.dark_mode_outlined
     : Icons.light_mode_outlined;
+
+class ConceptAppearanceToggle extends StatelessWidget {
+  final bool onMasthead;
+  const ConceptAppearanceToggle({this.onMasthead = false, super.key});
+  @override
+  Widget build(BuildContext context) {
+    final controller = AppearanceScope.maybeOf(context);
+    if (controller == null) return const SizedBox.shrink();
+    return IconButton(
+      tooltip: appearanceAction(controller.nextMode),
+      onPressed: controller.loaded && !controller.saving
+          ? () => toggleAppearance(context)
+          : null,
+      style: IconButton.styleFrom(
+        backgroundColor: onMasthead
+            ? const Color(0xff124b42)
+            : Theme.of(context).colorScheme.surface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      ),
+      icon: SihhatIcon(
+        controller.nextMode == ThemeMode.dark ? 'moon' : 'sun',
+        color: onMasthead ? Colors.white : null,
+      ),
+    );
+  }
+}
+
+class ConceptAppearanceSettings extends StatelessWidget {
+  const ConceptAppearanceSettings({super.key});
+  @override
+  Widget build(BuildContext context) {
+    final controller = AppearanceScope.maybeOf(context);
+    if (controller == null) return const SizedBox.shrink();
+    return ConceptCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Ilova ko‘rinishi', style: conceptHeading(context, size: 18)),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              SihhatIcon(controller.mode == ThemeMode.dark ? 'moon' : 'sun'),
+              const SizedBox(width: 12),
+              Expanded(child: Text(appearanceLabel(controller.mode))),
+              Tooltip(
+                message: appearanceAction(controller.nextMode),
+                child: Switch(
+                  value: controller.mode == ThemeMode.dark,
+                  onChanged: controller.loaded && !controller.saving
+                      ? (_) => toggleAppearance(context)
+                      : null,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
 
 class AppearanceController extends ChangeNotifier {
   final TokenStore store;

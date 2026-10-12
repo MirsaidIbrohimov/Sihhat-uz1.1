@@ -47,9 +47,11 @@ class Api {
   final http.Client client;
   final ValueNotifier<bool> session = ValueNotifier(false);
   final ValueNotifier<int> profileRevision = ValueNotifier(0);
+  final ValueNotifier<int> privateRevision = ValueNotifier(0);
   String? accessToken, refreshToken;
   Future<void>? _refreshing;
   Future<Json>? _profileRequest;
+  Future<void> _bookingWriting = Future.value();
   int _sessionVersion = 0;
   final Map<String, String> _pendingKeys = {};
   final Map<String, Future<dynamic>> _inFlight = {};
@@ -87,6 +89,18 @@ class Api {
         'Kirish javobini o‘qib bo‘lmadi. Qayta urinib ko‘ring.',
       );
     }
+    final previous = await cachedProfile();
+    if (result['user']?['id'] != null &&
+        previous?['id'] != null &&
+        result['user']['id'] != previous!['id']) {
+      _sessionVersion++;
+      accessToken = null;
+      refreshToken = null;
+      privateRevision.value++;
+      await saveBookingCache(null);
+      await store.write('pending_booking', null);
+      await store.write('ai_consent', null);
+    }
     await store.write('access', access);
     await store.write('refresh', refresh);
     if (result['user'] != null) {
@@ -94,6 +108,10 @@ class Api {
     }
     accessToken = access;
     refreshToken = refresh;
+    if (result['user']?['id'] != null &&
+        previous?['id'] != result['user']['id']) {
+      privateRevision.value++;
+    }
     session.value = signedIn;
   }
 
@@ -101,9 +119,11 @@ class Api {
     _sessionVersion++;
     accessToken = null;
     refreshToken = null;
+    privateRevision.value++;
     await store.write('access', null);
     await store.write('refresh', null);
     await store.write('pending_booking', null);
+    await saveBookingCache(null);
     await store.write('profile', null);
     await store.write('profile_server', null);
     await store.write('ai_consent', null);
@@ -275,6 +295,15 @@ class Api {
   }
 
   String image(String id) => '$baseUrl/media/$id';
+  Future<void> saveBookingCache(String? value) {
+    final version = _sessionVersion;
+    return _bookingWriting = _bookingWriting.catchError((_) {}).then((_) async {
+      if (version == _sessionVersion && (value == null || signedIn)) {
+        await store.write('booking_cache', value);
+      }
+    });
+  }
+
   Future<void> pendingBooking(String? id) => store.write('pending_booking', id);
   Future<String?> getPendingBooking() => store.read('pending_booking');
 }

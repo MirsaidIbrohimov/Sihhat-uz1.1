@@ -6,10 +6,12 @@ import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 
 import 'data/api.dart';
+import 'data/booking_cache.dart';
 import 'data/catalog_cache.dart';
 import 'appearance.dart';
 import 'branding.dart';
 import 'design.dart';
+import 'concept_ui.dart';
 import 'screens/account.dart';
 import 'screens/booking.dart';
 import 'screens/catalog.dart';
@@ -181,6 +183,14 @@ class _EntryState extends State<_Entry> {
   }
 }
 
+const _mainNavigationDestinations = [
+  NavigationDestination(icon: SihhatIcon('home'), label: 'Bosh sahifa'),
+  NavigationDestination(icon: SihhatIcon('building-2'), label: 'Sanatoriyalar'),
+  NavigationDestination(icon: SihhatIcon('calendar-days'), label: 'Bronlar'),
+  NavigationDestination(icon: SihhatIcon('message-square'), label: 'AI yordam'),
+  NavigationDestination(icon: SihhatIcon('user-round'), label: 'Profil'),
+];
+
 class Home extends StatefulWidget {
   final Api api;
   final String? sessionError;
@@ -203,9 +213,9 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    CatalogCache(widget.api).sync();
+    refreshDownloads();
     catalogTimer = Timer.periodic(const Duration(minutes: 1), (_) {
-      if (active) CatalogCache(widget.api).sync();
+      if (active) refreshDownloads();
     });
     if (Platform.isAndroid) {
       connection = const EventChannel('uz.sihhat/connectivity')
@@ -235,27 +245,14 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
       final pending = await widget.api.getPendingBooking();
       if (pending != null && widget.api.signedIn && mounted) {
         try {
-          final booking = asJson(
-            await widget.api.send('/customer/bookings/$pending'),
-          );
-          final created = DateTime.tryParse(
-            booking['createdAt']?.toString() ?? '',
-          );
-          if (created != null &&
-              DateTime.now().difference(created) >= const Duration(hours: 2) &&
-              [
-                'HOLD',
-                'PAYMENT_PENDING',
-                'EXPIRED',
-                'CANCELLED',
-              ].contains(booking['status']) &&
-              booking['payment']?['status'] != 'SUCCEEDED') {
+          final booking = await BookingCache(widget.api).refresh(pending);
+          if (!bookingVisible(booking)) {
             await widget.api.pendingBooking(null);
             return;
           }
         } catch (_) {
-          /* Keep payment recovery available when the server is unreachable. */
-          return;
+          final saved = await BookingCache(widget.api).cached(pending);
+          if (saved == null) return;
         }
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (mounted) {
@@ -300,6 +297,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
   void refreshDownloads() {
     CatalogCache(widget.api).sync();
     if (widget.api.signedIn) {
+      BookingCache(widget.api).sync();
       widget.api.refreshProfile().catchError((_) => <String, dynamic>{});
     }
   }
@@ -337,225 +335,323 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
       AiScreen(widget.api, key: ValueKey('ai-$epoch')),
       ProfileScreen(widget.api, changed, key: ValueKey('profile-$epoch')),
     ];
-    return Scaffold(
-      appBar: AppBar(
-        toolbarHeight: tab == 0 ? 82 : 64,
-        backgroundColor: tab == 0 ? masthead : null,
-        foregroundColor: tab == 0 ? Colors.white : null,
-        systemOverlayStyle: tab == 0
-            ? SystemUiOverlayStyle.light.copyWith(
+    if (tab != 0) {
+      return ConceptScope(
+        child: Builder(
+          builder: (c) => Scaffold(
+            backgroundColor: masthead,
+            appBar: AppBar(
+              toolbarHeight: 80,
+              backgroundColor: masthead,
+              foregroundColor: Colors.white,
+              systemOverlayStyle: SystemUiOverlayStyle.light.copyWith(
                 statusBarColor: Colors.transparent,
-              )
-            : null,
-        shape: tab == 0
-            ? const RoundedRectangleBorder(
-                borderRadius: BorderRadius.vertical(
-                  bottom: Radius.circular(22),
-                ),
-              )
-            : null,
-        bottom: tab == 0
-            ? PreferredSize(
-                preferredSize: const Size.fromHeight(66),
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
-                  child: TextField(
-                    controller: homeSearch,
-                    textInputAction: TextInputAction.search,
-                    maxLength: 100,
-                    style: const TextStyle(color: Colors.white, fontSize: 13),
-                    onSubmitted: openCatalog,
-                    decoration: InputDecoration(
-                      counterText: '',
-                      hintText: 'Sanatoriya yoki hudud qidiring…',
-                      hintStyle: const TextStyle(
-                        color: Color(0xffbbd6d0),
-                        fontSize: 13,
-                      ),
-                      prefixIcon: const Icon(
-                        Icons.search_rounded,
-                        color: Color(0xffbbd6d0),
-                      ),
-                      suffixIcon: IconButton(
-                        tooltip: 'Qidirish',
-                        onPressed: () => openCatalog(homeSearch.text),
-                        icon: const Icon(
-                          Icons.arrow_forward_rounded,
-                          color: Color(0xff66e1b9),
-                        ),
-                      ),
-                      fillColor: const Color(0xff124b42),
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 13,
-                      ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(28),
-                        borderSide: const BorderSide(color: Color(0xff3f7f70)),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(28),
-                        borderSide: const BorderSide(color: Color(0xff66e1b9)),
-                      ),
+                systemNavigationBarColor: masthead,
+              ),
+              centerTitle: false,
+              title: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Sihhat uz',
+                    style: TextStyle(
+                      fontFamily: 'DMSans',
+                      fontSize: 14,
+                      color: Colors.white,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
-                ),
-              )
-            : null,
-        title: tab == 0
-            ? Row(
-                children: [
-                  const SihhatLogo(),
-                  const SizedBox(width: 11),
-                  const Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text.rich(
-                          TextSpan(
-                            children: [
-                              TextSpan(text: 'Sihhat '),
-                              TextSpan(
-                                text: 'uz',
-                                style: TextStyle(color: Color(0xff4dd5aa)),
+                  const SizedBox(height: 4),
+                  FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      [
+                        '',
+                        'Sanatoriyalar',
+                        'Bronlarim',
+                        'AI yordamchi',
+                        'Profil',
+                      ][tab],
+                      style: conceptHeading(c, size: 28, color: Colors.white),
+                    ),
+                  ),
+                ],
+              ),
+              actions: [
+                const ConceptAppearanceToggle(onMasthead: true),
+                IconButton(
+                  tooltip: 'Bildirishnomalar',
+                  onPressed: !ready
+                      ? null
+                      : () async {
+                          if (await ensureLogin(c, widget.api) && c.mounted) {
+                            Navigator.push(
+                              c,
+                              MaterialPageRoute(
+                                builder: (_) => NotificationsScreen(widget.api),
                               ),
-                            ],
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 23,
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: -.7,
-                          ),
-                        ),
-                        SizedBox(height: 3),
-                        Text(
-                          'Sog‘lom dam olish hamrohingiz',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            color: Color(0xffbbd6d0),
-                            fontSize: 9,
-                          ),
+                            );
+                          }
+                        },
+                  icon: const SihhatIcon('bell', color: Colors.white),
+                ),
+                const SizedBox(width: 8),
+              ],
+            ),
+            body: SafeArea(
+              top: false,
+              bottom: false,
+              child: Column(
+                children: [
+                  if (error != null)
+                    MaterialBanner(
+                      content: Text(error!),
+                      actions: [
+                        TextButton(
+                          onPressed:
+                              widget.retrySession ??
+                              () {
+                                setState(() {
+                                  error = null;
+                                  ready = false;
+                                });
+                                restore();
+                              },
+                          child: const Text('Qayta urinish'),
                         ),
                       ],
                     ),
-                  ),
-                ],
-              )
-            : Text(
-                [
-                  'Sihhat uz',
-                  'Sanatoriyalar',
-                  'Mening bronlarim',
-                  'Sihhat yordamchisi',
-                  'Profil',
-                ][tab],
-                style: const TextStyle(fontWeight: FontWeight.w800),
-              ),
-        actions: [
-          AppearanceToggle(onMasthead: tab == 0),
-          IconButton(
-            tooltip: 'Bildirishnomalar',
-            onPressed: !ready
-                ? null
-                : () async {
-                    if (await ensureLogin(context, widget.api) &&
-                        context.mounted) {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => NotificationsScreen(widget.api),
+                  Expanded(
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.vertical(
+                        top: Radius.circular(tab == 1 ? 0 : 20),
+                      ),
+                      child: ColoredBox(
+                        color: c.colors.canvas,
+                        child: Align(
+                          alignment: Alignment.topCenter,
+                          child: ConstrainedBox(
+                            constraints: const BoxConstraints(maxWidth: 720),
+                            child: bodies[tab],
+                          ),
                         ),
-                      );
-                    }
-                  },
-            style: IconButton.styleFrom(
-              backgroundColor: tab == 0
-                  ? const Color(0xff124b42)
-                  : context.colors.surface,
-              foregroundColor: tab == 0 ? Colors.white : context.colors.primary,
-            ),
-            icon: const Icon(Icons.notifications_none_rounded),
-          ),
-          const SizedBox(width: 12),
-        ],
-      ),
-      body: SafeArea(
-        child: Column(
-          children: [
-            if (error != null)
-              MaterialBanner(
-                content: Text(error!),
-                actions: [
-                  TextButton(
-                    onPressed:
-                        widget.retrySession ??
-                        () {
-                          setState(() {
-                            error = null;
-                            ready = false;
-                          });
-                          restore();
-                        },
-                    child: const Text('Qayta urinish'),
+                      ),
+                    ),
                   ),
                 ],
               ),
-            Expanded(
-              child: Align(
-                alignment: Alignment.topCenter,
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 720),
-                  child: tab == 0
-                      ? bodies[tab]
-                      : GlassBackdrop(child: bodies[tab]),
-                ),
-              ),
             ),
+            bottomNavigationBar: NavigationBar(
+              selectedIndex: tab,
+              onDestinationSelected: navigate,
+              destinations: _mainNavigationDestinations,
+            ),
+          ),
+        ),
+      );
+    }
+    return ConceptScope(
+      child: Scaffold(
+        appBar: AppBar(
+          toolbarHeight: tab == 0 ? 82 : 64,
+          backgroundColor: tab == 0 ? masthead : null,
+          foregroundColor: tab == 0 ? Colors.white : null,
+          systemOverlayStyle: tab == 0
+              ? SystemUiOverlayStyle.light.copyWith(
+                  statusBarColor: Colors.transparent,
+                )
+              : null,
+          shape: tab == 0
+              ? const RoundedRectangleBorder(
+                  borderRadius: BorderRadius.vertical(
+                    bottom: Radius.circular(22),
+                  ),
+                )
+              : null,
+          bottom: tab == 0
+              ? PreferredSize(
+                  preferredSize: const Size.fromHeight(66),
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
+                    child: TextField(
+                      controller: homeSearch,
+                      textInputAction: TextInputAction.search,
+                      maxLength: 100,
+                      style: const TextStyle(color: Colors.white, fontSize: 13),
+                      onSubmitted: openCatalog,
+                      decoration: InputDecoration(
+                        counterText: '',
+                        hintText: 'Sanatoriya yoki hudud qidiring…',
+                        hintStyle: const TextStyle(
+                          color: Color(0xffbbd6d0),
+                          fontSize: 13,
+                        ),
+                        prefixIcon: const Padding(
+                          padding: EdgeInsets.all(12),
+                          child: SihhatIcon('search', color: Color(0xffbbd6d0)),
+                        ),
+                        suffixIcon: IconButton(
+                          tooltip: 'Qidirish',
+                          onPressed: () => openCatalog(homeSearch.text),
+                          icon: const SihhatIcon(
+                            'arrow-right',
+                            color: Color(0xff66e1b9),
+                          ),
+                        ),
+                        fillColor: const Color(0xff124b42),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 13,
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(28),
+                          borderSide: const BorderSide(
+                            color: Color(0xff3f7f70),
+                          ),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(28),
+                          borderSide: const BorderSide(
+                            color: Color(0xff66e1b9),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                )
+              : null,
+          title: tab == 0
+              ? Row(
+                  children: [
+                    const SihhatLogo(),
+                    const SizedBox(width: 11),
+                    const Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text.rich(
+                            TextSpan(
+                              children: [
+                                TextSpan(text: 'Sihhat '),
+                                TextSpan(
+                                  text: 'uz',
+                                  style: TextStyle(color: Color(0xff4dd5aa)),
+                                ),
+                              ],
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 23,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: -.7,
+                            ),
+                          ),
+                          SizedBox(height: 3),
+                          Text(
+                            'Sog‘lom dam olish hamrohingiz',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              color: Color(0xffbbd6d0),
+                              fontSize: 9,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                )
+              : Text(
+                  [
+                    'Sihhat uz',
+                    'Sanatoriyalar',
+                    'Mening bronlarim',
+                    'Sihhat yordamchisi',
+                    'Profil',
+                  ][tab],
+                  style: const TextStyle(fontWeight: FontWeight.w800),
+                ),
+          actions: [
+            ConceptAppearanceToggle(onMasthead: tab == 0),
+            IconButton(
+              tooltip: 'Bildirishnomalar',
+              onPressed: !ready
+                  ? null
+                  : () async {
+                      if (await ensureLogin(context, widget.api) &&
+                          context.mounted) {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => NotificationsScreen(widget.api),
+                          ),
+                        );
+                      }
+                    },
+              style: IconButton.styleFrom(
+                backgroundColor: tab == 0
+                    ? const Color(0xff124b42)
+                    : context.colors.surface,
+                foregroundColor: tab == 0
+                    ? Colors.white
+                    : context.colors.primary,
+              ),
+              icon: const SihhatIcon('bell', color: Colors.white),
+            ),
+            const SizedBox(width: 12),
           ],
         ),
-      ),
-      bottomNavigationBar: DecoratedBox(
-        decoration: BoxDecoration(
-          color: masthead,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-        ),
-        child: ClipRRect(
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-          child: NavigationBar(
-            selectedIndex: tab,
-            onDestinationSelected: navigate,
-            destinations: const [
-              NavigationDestination(
-                icon: Icon(Icons.home_outlined),
-                selectedIcon: Icon(Icons.home_rounded),
-                label: 'Bosh sahifa',
-              ),
-              NavigationDestination(
-                icon: Icon(Icons.apartment_outlined),
-                selectedIcon: Icon(Icons.apartment),
-                label: 'Sanatoriyalar',
-              ),
-              NavigationDestination(
-                icon: Icon(Icons.bookmark_border),
-                selectedIcon: Icon(Icons.bookmark),
-                label: 'Bronlar',
-              ),
-              NavigationDestination(
-                icon: Icon(Icons.chat_bubble_outline),
-                selectedIcon: Icon(Icons.chat_bubble),
-                label: 'AI yordam',
-              ),
-              NavigationDestination(
-                icon: Icon(Icons.person_outline),
-                selectedIcon: Icon(Icons.person),
-                label: 'Profil',
+        body: SafeArea(
+          child: Column(
+            children: [
+              if (error != null)
+                MaterialBanner(
+                  content: Text(error!),
+                  actions: [
+                    TextButton(
+                      onPressed:
+                          widget.retrySession ??
+                          () {
+                            setState(() {
+                              error = null;
+                              ready = false;
+                            });
+                            restore();
+                          },
+                      child: const Text('Qayta urinish'),
+                    ),
+                  ],
+                ),
+              Expanded(
+                child: Align(
+                  alignment: Alignment.topCenter,
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 720),
+                    child: tab == 0
+                        ? bodies[tab]
+                        : GlassBackdrop(child: bodies[tab]),
+                  ),
+                ),
               ),
             ],
+          ),
+        ),
+        bottomNavigationBar: DecoratedBox(
+          decoration: BoxDecoration(
+            color: masthead,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          child: ClipRRect(
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+            child: NavigationBar(
+              selectedIndex: tab,
+              onDestinationSelected: navigate,
+              destinations: _mainNavigationDestinations,
+            ),
           ),
         ),
       ),

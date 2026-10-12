@@ -263,10 +263,14 @@ void main() {
       await tester.tap(find.text('Test site'));
       await tester.pumpAndSettle();
       expect(find.text('Xonalar va tariflar'), findsOneWidget);
+      await tester.tap(find.text('Tarifni tanlash'));
+      await tester.pumpAndSettle();
       final choose = find.byKey(const ValueKey('select-rate-rate'));
       await tester.ensureVisible(choose);
       await tester.pumpAndSettle();
       await tester.tap(choose);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Shu tarifni tanlash'));
       await tester.pumpAndSettle();
       expect(find.byType(BookingComposer), findsOneWidget);
       expect(find.text('Standart xona'), findsOneWidget);

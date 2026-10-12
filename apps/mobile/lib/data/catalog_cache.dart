@@ -181,9 +181,14 @@ class CatalogCache extends ChangeNotifier {
     String query = '',
     String region = '',
     String amenity = '',
+    Set<String> selectedAmenities = const {},
+    String minPrice = '',
     String maxPrice = '',
   }) {
     final term = query.trim().toLowerCase();
+    final floor = minPrice.isEmpty
+        ? null
+        : BigInt.parse(minPrice) * BigInt.from(100);
     final ceiling = maxPrice.isEmpty
         ? null
         : BigInt.parse(maxPrice) * BigInt.from(100);
@@ -195,6 +200,16 @@ class CatalogCache extends ChangeNotifier {
           if (region.isNotEmpty && s['region'] != region) return false;
           if (amenity.isNotEmpty &&
               !(s['amenities'] as List? ?? []).contains(amenity)) {
+            return false;
+          }
+          if (!selectedAmenities.every(
+            (a) => (s['amenities'] as List? ?? []).contains(a),
+          )) {
+            return false;
+          }
+          if (floor != null &&
+              (s['from_amount'] == null ||
+                  BigInt.parse(s['from_amount'].toString()) < floor)) {
             return false;
           }
           if (ceiling != null &&

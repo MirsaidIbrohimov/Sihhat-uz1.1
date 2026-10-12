@@ -170,6 +170,36 @@ test('Telegram: signed webhook, durable encrypted inbox and duplicate updates ar
   assert.equal((await ctx.db.telegramBotState.findUniqueOrThrow({ where: { botId: api.botId } })).offset, BigInt(event.update_id + 1));
   config.TELEGRAM_MODE = previous;
 });
+
+test('Telegram: customer help reaches superadmin with a reply button, and bot replies return to the same customer thread', async () => {
+  const user=await customer(ctx.base,ctx.auth);
+  const created=await user.call('/support/tickets','POST',{title:'Ilovadan yordam',text:'Bronim haqida savolim bor'},user.key());
+  assert.equal(created.status,201);
+  const id=created.body.id;
+  const outbox=ctx.app.get(OutboxService);
+  await ctx.db.notificationDelivery.updateMany({where:{channel:'TELEGRAM'},data:{status:'CANCELLED'}});
+  const event=await ctx.db.outboxEvent.findFirstOrThrow({where:{topic:'support.opened',payload:{path:['ticket_id'],equals:id}}});
+  await outbox.process(event.id);
+  await bot.flushNotifications();
+  const sent=api.sent.filter(s=>s.method==='sendMessage'&&s.body.chat_id==='41003').at(-1)!.body;
+  assert.match(sent.text,/Bronim haqida savolim bor/);
+  assert.ok(sent.reply_markup.inline_keyboard.flat().some((button:any)=>button.callback_data===`ticketreply:${id}`));
+  // The admin's selected sanatorium must not hide customer tickets without a tenant.
+  await ctx.db.telegramAccount.update({where:{telegramUserId:'41003'},data:{sanatoriumId:tenant.id}});
+  await bot.handle(press(41003,'tickets:0'));
+  assert.ok(last().reply_markup.inline_keyboard.flat().some((button:any)=>button.callback_data===`ticket:${id}`));
+  await bot.handle(press(41003,`ticketreply:${id}`));
+  await bot.handle(update(41003,'Yordam xizmati: bron tafsilotlarini tekshirdik.'));
+  await bot.handle(press(41003,'replyconfirm'));
+  const thread=(await user.call(`/support/tickets/${id}`)).body;
+  assert.equal(thread.messages.length,2);
+  assert.equal(thread.messages[1].text,'Yordam xizmati: bron tafsilotlarini tekshirdik.');
+  const reply=await ctx.db.outboxEvent.findFirstOrThrow({where:{topic:'support.replied',payload:{path:['ticket_id'],equals:id}}});
+  await outbox.process(reply.id);
+  assert.ok(await ctx.db.notificationDelivery.findFirst({where:{eventId:reply.id,userId:created.body.userId,channel:'IN_APP'}}));
+  const stranger=await customer(ctx.base,ctx.auth);
+  assert.equal((await stranger.call(`/support/tickets/${id}`)).status,404);
+});
 test('Telegram: outbox notifications retry and respect current permissions and user settings', async () => {
   const outbox = ctx.app.get(OutboxService);
   for (const id of await outbox.claim()) await outbox.process(id);

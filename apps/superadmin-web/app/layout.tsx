@@ -8,7 +8,15 @@ export const metadata: Metadata = {
 };
 export default function Layout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="uz">
+    <html lang="uz" suppressHydrationWarning>
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html:
+              'try{document.documentElement.dataset.theme=localStorage.getItem("sihhat-web-theme")==="dark"?"dark":"light"}catch{}',
+          }}
+        />
+      </head>
       <body>{children}</body>
     </html>
   );

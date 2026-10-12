@@ -1,7 +1,7 @@
 import { after, before, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
-import { setup, Client } from './helpers';
+import { setup, Client, staff } from './helpers';
 import { customer, sanatorium } from './fixtures';
 import { loadConfig } from '../src/common/config';
 import { EskizClient } from '../src/auth/eskiz';
@@ -24,7 +24,27 @@ test('home: public feed shows published articles and eligible catalog; publicati
   assert.equal((await reader.call(`/catalog/news/${created.body.id}`)).status, 404);
   const emptyNews = await reader.call('/catalog/home');
   assert.equal(emptyNews.body.news.length, 0);
-  assert.ok(emptyNews.body.featured.some((r: any) => r.id === s.id));
+  assert.deepEqual(emptyNews.body.featured, []);
+  const before = (await ctx.admin.call(`/partner/sanatoriums/${s.id}`)).body;
+  assert.equal(before.featuredOnHome, false);
+  const featuredPath = `/superadmin/sanatoriums/${s.id}/featured`;
+  const choice = { version: before.version, featured: true };
+  assert.equal((await reader.call(featuredPath, 'PATCH', choice)).status, 401);
+  assert.equal((await user.call(featuredPath, 'PATCH', choice)).status, 403);
+  const director = await staff(ctx.admin, 'home.director', '+998927654321', s.id);
+  assert.equal((await director.client.call(featuredPath, 'PATCH', choice)).status, 403);
+  const selected = await ctx.admin.call(featuredPath, 'PATCH', choice);
+  assert.equal(selected.status, 200);
+  assert.equal(selected.body.featuredOnHome, true);
+  assert.equal(selected.body.version, before.version + 1);
+  assert.equal((await ctx.admin.call(featuredPath, 'PATCH', choice)).body.code, 'VERSION_CONFLICT');
+  assert.equal((await ctx.admin.call('/superadmin/sanatoriums')).body.data.find((r: any) => r.id === s.id).featuredOnHome, true);
+  assert.deepEqual((await reader.call('/catalog/home')).body.featured.map((r: any) => r.id), [s.id]);
+  assert.equal((await ctx.admin.call(featuredPath, 'PATCH', { version: selected.body.version, featured: false })).status, 200);
+  assert.deepEqual((await reader.call('/catalog/home')).body.featured, []);
+  assert.equal((await ctx.admin.call(featuredPath, 'PATCH', { version: selected.body.version + 1, featured: true })).status, 200);
+  const history = await ctx.db.auditLog.findMany({ where: { entityId: s.id, action: 'sanatorium.featured_updated' } });
+  assert.equal(history.length, 3);
   assert.deepEqual(emptyNews.body.regions, ['Toshkent']);
   const published = await ctx.admin.call(`/superadmin/articles/${created.body.id}`, 'PATCH', { ...input, status: 'PUBLISHED', version: 1 });
   assert.equal(published.status, 200);
@@ -37,6 +57,35 @@ test('home: public feed shows published articles and eligible catalog; publicati
   const current = (await ctx.admin.call(`/partner/sanatoriums/${s.id}`)).body;
   assert.equal((await ctx.admin.call(`/superadmin/sanatoriums/${s.id}/pause`, 'POST', { version: current.version, reason: 'Bosh sahifa filtrini tekshirish' })).status, 201);
   assert.ok(!(await reader.call('/catalog/home')).body.featured.some((r: any) => r.id === s.id));
+});
+
+test('home: every selected published sanatorium is included beyond the first catalog page', async () => {
+  const source = await sanatorium(ctx.admin);
+  const approved = await ctx.db.sanatoriumRevision.findUniqueOrThrow({ where: { id: source.revision.id } });
+  const ids: string[] = [];
+  await ctx.db.$transaction(async tx => {
+    for (let n = 0; n < 108; n++) {
+      const s = await tx.sanatorium.create({ data: { name: `Maskan ${n.toString().padStart(3, '0')}`, featuredOnHome: n >= 100 } });
+      ids.push(s.id);
+      const revision = await tx.sanatoriumRevision.create({ data: { sanatoriumId: s.id, status: 'APPROVED', data: { ...(approved.data as object), name: s.name }, createdBy: approved.createdBy } });
+      await tx.sanatorium.update({ where: { id: s.id }, data: { publicRevisionId: revision.id } });
+    }
+    const unpublished = await tx.sanatorium.create({ data: { name: 'E’lon qilinmagan tanlov', featuredOnHome: true } });
+    ids.push(unpublished.id);
+  }, { timeout: 30000 });
+  const reader = new Client(ctx.base);
+  try {
+    const result = await reader.call('/catalog/home');
+    assert.equal(result.status, 200);
+    assert.deepEqual(new Set(result.body.featured.map((r: any) => r.id)), new Set(ids.slice(100, 108)));
+    assert.ok(result.body.featured.every((r: any) => r.featured_on_home === true));
+  } finally {
+    await ctx.db.$transaction(async tx => {
+      await tx.sanatorium.updateMany({ where: { id: { in: ids } }, data: { publicRevisionId: null } });
+      await tx.sanatoriumRevision.deleteMany({ where: { sanatoriumId: { in: ids } } });
+      await tx.sanatorium.deleteMany({ where: { id: { in: ids } } });
+    });
+  }
 });
 
 test('Gemini: key stays in header; personal numbers and emails are redacted; only structured selection is accepted', async () => {

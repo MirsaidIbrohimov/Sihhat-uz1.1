@@ -24,7 +24,7 @@ void main() {
     );
     await tester.pumpWidget(MaterialApp(home: Scaffold(body: AiScreen(api))));
     await tester.enterText(find.byType(TextField), 'Toshkentda dam olish');
-    await tester.tap(find.byIcon(Icons.send_outlined));
+    await tester.tap(find.byTooltip('Yuborish'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Keyinroq'));
     await tester.pumpAndSettle();
@@ -72,7 +72,7 @@ void main() {
     await tester.pumpWidget(MaterialApp(home: Scaffold(body: AiScreen(api))));
     Future<void> send(String message) async {
       await tester.enterText(find.byType(TextField), message);
-      await tester.tap(find.byIcon(Icons.send_outlined));
+      await tester.tap(find.byTooltip('Yuborish'));
       await tester.pumpAndSettle();
       if (find.text('Davom etish').evaluate().isNotEmpty) {
         await tester.tap(find.text('Davom etish'));

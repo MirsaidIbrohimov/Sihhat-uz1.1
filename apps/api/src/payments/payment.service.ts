@@ -6,6 +6,7 @@ import { fail,parse,uuid,json,pageQuery,paged } from '../common/errors';
 import { CONFIG,type Config } from '../common/config';
 import { Actor,scope,tenantIds } from '../auth/permissions';
 import { post,bookingBalance } from '../ledger/ledger';
+import { searchInput, dateFilter, matchingBookings } from '../bookings/search';
 
 class RpcError extends Error{constructor(readonly code:number,message:string,readonly data?:string){super(message);}}
 function rpcFail(code:number,message:string,data?:string):never{throw new RpcError(code,message,data);}
@@ -41,7 +42,9 @@ export class PaymentService {
     const params=`m=${this.config.PAYME_MERCHANT_ID};ac.order_id=${order.id};a=${order.amount};l=uz`;
     return {order_id:order.id,amount:order.amount.toString(),mode:'payme',checkout_url:`${this.config.PAYME_CHECKOUT_URL}/${Buffer.from(params).toString('base64')}`,expires_at:null,capabilities:{full_refund:true,partial_refund:false,automatic_refund:false}};
   }
-  async list(actor:Actor,query:unknown){const i=parse(pageQuery.extend({sanatorium_id:uuid.optional()}).strict(),query);if(i.sanatorium_id)scope(actor,i.sanatorium_id,'payments.read');const ids=tenantIds(actor,'payments.read');const where=ids?{sanatoriumId:{in:i.sanatorium_id?[i.sanatorium_id]:ids}}:i.sanatorium_id?{sanatoriumId:i.sanatorium_id}:{};const[data,total]=await Promise.all([this.db.paymentOrder.findMany({where,take:i.limit,skip:(i.page-1)*i.limit,orderBy:{createdAt:'desc'}}),this.db.paymentOrder.count({where})]);return paged(data,total,i.page,i.limit);}
+  async list(actor:Actor,query:unknown){const i=parse(pageQuery.extend({sanatorium_id:uuid.optional(),...searchInput,status:z.enum(['CREATED','PENDING','SUCCEEDED','CANCELLED','REFUNDED','FAILED']).optional()}).strict(),query);if(i.sanatorium_id)scope(actor,i.sanatorium_id,'payments.read');const ids=tenantIds(actor,'payments.read');const where:any=ids?{sanatoriumId:{in:i.sanatorium_id?[i.sanatorium_id]:ids}}:i.sanatorium_id?{sanatoriumId:i.sanatorium_id}:{};
+    if(i.q)where.bookingId={in:await matchingBookings(this.db,i.q)};if(i.status)where.status=i.status;if(i.from||i.to)where.createdAt=dateFilter(i.from,i.to,true);
+    const[data,total]=await Promise.all([this.db.paymentOrder.findMany({where,take:i.limit,skip:(i.page-1)*i.limit,orderBy:{createdAt:'desc'}}),this.db.paymentOrder.count({where})]);const bookings=await this.db.booking.findMany({where:{id:{in:data.map(p=>p.bookingId).filter((id):id is string=>!!id)}},select:{id:true,reference:true}});return paged(data.map(p=>({...p,booking_reference:bookings.find(b=>b.id===p.bookingId)?.reference??null})),total,i.page,i.limit);}
   async localConfirm(actor:Actor,id:string,key:string|undefined){parse(uuid,id);if(this.config.NODE_ENV==='production'||this.config.PAYMENT_MODE!=='local')fail('NOT_FOUND','Amal topilmadi',404);
     return this.db.idempotent(actor.id,'payment.local_confirm',key,{order_id:id},async tx=>{
       const order=await tx.paymentOrder.findUnique({where:{id}});if(!order||order.userId!==actor.id)fail('NOT_FOUND','To‘lov topilmadi',404);

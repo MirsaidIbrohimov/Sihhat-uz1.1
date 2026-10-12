@@ -45,6 +45,21 @@ tugmalari bor; `/cancel` matn kiritishni bekor qiladi. Vazifa va murojaat
 qoralamalari 15 daqiqa amal qiladi. Resepsion menyusi individual ruxsatga
 bog‘liq; moliyaviy hisobot, payout va xodim boshqaruvi ruxsat bilan ochiladi.
 
+## Android yordam xizmatiga javob berish
+
+Mijoz **Yordam xizmati**dan murojaat yoki yangi xabar yuborganda bog‘langan,
+faol superadmin hisobiga oxirgi matn va **✍️ Javob yozish** tugmasi bor
+bildirishnoma keladi. Tugmani bosing → javob matnini yuboring →
+**Yuborish** bilan tasdiqlang. Javob ayni murojaatga yoziladi va mijozning
+Android suhbatida ko‘rinadi; ochiq suhbat har 5 soniyada yangilanadi.
+
+**Aloqa → Murojaatlar** superadmin uchun barcha ochiq murojaatlarni,
+sanatoriyaga biriktirilmagan mijoz murojaatlarini ham ko‘rsatadi.
+Sanatoriya tanlovi bu ro‘yxatni cheklamaydi. Boshqa mijozning suhbatiga
+mijoz kira olmaydi; direktor/resepsionning mavjud ruxsatlari saqlanadi.
+Hisobda murojaat bildirishnomalari yoqilgan va domen/Telegram workerlari
+ishlayotgan bo‘lishi kerak. Lokal egasi superadmini Telegramga bog‘langan.
+
 ## Bildirishnomalar
 
 Bron, kelish/ketish, to‘lov natijasi/muammosi, refund, vazifa, xabar va
@@ -52,8 +67,9 @@ murojaat javoblari DB outboxidan yuboriladi. Kunlik ma’lumot standart
 08:00da, tanlanadigan vaqtlar 07:00–10:00; zona `Asia/Tashkent`.
 Abonent tugashidan 3 va 1 kun oldin hamda tugash kuni direktor eslatma oladi.
 
-Sokin vaqt 22:00–07:00. Payment exception va adminning API/worker/SMS
-texnik ogohlantirishlari uni chetlab o‘tishi mumkin. Texnik xabarlar
+Sokin vaqt 22:00–07:00. Yordam murojaati/yangi javob, payment exception
+va adminning API/worker/SMS texnik ogohlantirishlari uni chetlab o‘tadi.
+Texnik xabarlar
 to‘lov xabarlari sozlamasiga bog‘liq. Barcha bildirishnomalarni o‘chirish
 bu xabarlarni ham to‘xtatadi.
 

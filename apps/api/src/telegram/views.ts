@@ -253,7 +253,7 @@ export class TelegramViews {
   }
   communication(ctx: BotContext) { return this.page('💬 Aloqa', [[b('💬 Murojaatlar', 'tickets:0'), b('📨 Xabarlar', 'messages:0')]]); }
   async tickets(ctx: BotContext, page = 0) {
-    const all = (await this.engagement.tickets(ctx.actor)).filter(t => !ctx.account.sanatoriumId || t.sanatoriumId === ctx.account.sanatoriumId || t.userId === ctx.actor.id);
+    const all = (await this.engagement.tickets(ctx.actor)).filter(t => ctx.actor.kind === 'SUPERADMIN' || !ctx.account.sanatoriumId || t.sanatoriumId === ctx.account.sanatoriumId || t.userId === ctx.actor.id);
     const rows = all.slice(page * pageSize, (page + 1) * pageSize).map(t => [b(short(`${status(t.status)} · ${t.title}`), `ticket:${t.id}`)]);
     if (this.has(ctx, 'support.read')) rows.unshift([b('✍️ Yangi murojaat', 'ticketnew')]);
     this.pager(rows, page, all.length, 'tickets');

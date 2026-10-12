@@ -110,6 +110,9 @@ try {
   secondStop.restarted_pid = launch();
   if (secondStop.previous_pid === secondStop.restarted_pid) throw new Error('Android yangi jarayon yaratmadi.');
   const completed = await waitFor('completed');
+  if (!completed.events.some(e => e.event === 'completed' && e.offline_booking_and_qr && e.offline_catalog_and_four_photos)) {
+    throw new Error('Internetsiz bron, QR va to‘rtta profil rasmi tekshiruvi tasdiqlanmadi.');
+  }
   evidence = {
     created_at: new Date().toISOString(), success: true, serial,
     model: adbRun(['shell', 'getprop', 'ro.product.model']).trim(),
@@ -118,7 +121,7 @@ try {
     provider: 'local simulator; not official Payme sandbox',
     events: completed.events, normal_debug_apk_installed: false,
   };
-  console.log('Ikkinchi force-stopdan keyin tasdiqlangan bron ro‘yxatdan ochildi; pending marker tozalangan.');
+  console.log('Ikkinchi force-stopdan keyin internetsiz bron, QR, katalog va to‘rtta surat ochildi; pending marker tozalangan.');
 } finally {
   // Restore the ordinary app after the test target; keep the same secure store.
   try {

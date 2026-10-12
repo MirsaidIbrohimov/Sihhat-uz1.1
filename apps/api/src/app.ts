@@ -81,6 +81,7 @@ export async function createApp(options: { quiet?: boolean; swagger?: boolean } 
   app.use(cookieParser());
   app.use(expressJson({limit:'12mb',verify:(req, _res, buffer)=>{if(req.url?.split('?')[0]==='/payments/tezcheck')(req as Request & {rawBody?:Buffer}).rawBody=Buffer.from(buffer);}}));
   const express = app.getHttpAdapter().getInstance();
+  express.set('trust proxy', config.TRUST_PROXY === 'private' ? ['loopback', 'uniquelocal'] : false);
   express.set('json replacer', (_key: string, value: unknown) => typeof value === 'bigint' ? value.toString() : value);
   app.use((req: Request & { requestId?: string }, res: Response, next: NextFunction) => {
     req.requestId = randomUUID(); res.setHeader('X-Request-ID', req.requestId);

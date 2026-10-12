@@ -4,6 +4,33 @@ Flutter mijoz ilovasi: SMS orqali kirish, sanatoriya qidirish va filtrlar,
 tafsilotlar, bir nechta xonali bron, to‘lov holati, QR, qaytarish so‘rovi,
 profil, bildirishnomalar, yordam xizmati va serverdan ishlaydigan AI.
 
+2026-10-10: [UI maketlari](../../UI/index.html) uslubi ichki sahifalar va
+telefon/SMS kirishga joriy etildi. `concept_ui.dart` umumiy mavzu, sahifa,
+karta, pastki amal tugmasi va bitta tahrirlanadigan maydonga asoslangan
+olti xonali OTP ko‘rinishini beradi. Manrope/DM Sans shriftlari va Lucide
+vektor ikonkalar ilovaga lokal qo‘shilgan; litsenziyalari `assets/licenses`da.
+Katalog/filtr, sanatoriya/tarif/surat/shartlar, sana/bron/to‘lov/QR/sharh,
+AI, profil/telefon, yordam va bildirishnoma/yangiliklar yangilandi.
+Katalogning narx oralig‘i va barcha tanlangan sharoitlar bo‘yicha filtri
+saqlangan to‘liq ro‘yxatda sahifalashdan oldin ishlaydi. Kunduzgi va tungi
+rejim mavjud. Bosh sahifa va boshqa menyular bir xil Lucide navigatsiya
+ikonkalaridan foydalanadi. Login bezagi o‘rnida asl Sihhat uz logosi bor;
+doimiy `+998` ortidan aynan 9 raqam talab qilinadi, xato maydon tagida.
+HOME reklama mashhur sanatoriyalar joyida turadi. Reklama bo‘lmasa
+superadmin tick bilan tanlagan faol/e’lon qilingan profillar ko‘rinadi;
+tasodifiy katalog yoki eski avtomatik home keshidan ro‘yxat to‘ldirilmaydi.
+APKni yig‘ish/o‘rnatish va lokal API talablari
+[README](../../README.md#tayyor-apk)da, yakuniy tekshiruvlar
+[holat hujjati](../../docs/IMPLEMENTATION_STATUS.md)da.
+
+Joriy tekshiruv: Flutter analyzer xatosiz, **61/61** unit/widget test
+o‘tdi. Telefon uzunligi, +998 bilan paste, reklama/tanlov almashishi,
+offline tanlov va bosh sahifaga qaytganda yangi ikonkalar sinalgan.
+2026-10-10 oddiy `lib/main.dart` ARM64 debug APK Samsung SM-A165Fga
+ilova ma’lumotlarini saqlagan holda o‘rnatildi; `apk/sihhat-uz-preview.apk`
+shu build bilan yangilandi. APKda 57 maxfiy qiymat bayt namunasi, moslik 0.
+Bu `http://127.0.0.1:4000` lokal API va USB reverse orqali ishlaydigan preview.
+
 2026-10-05 interfeys `Apk xatolari/Сиҳҳат уз_ Здоровье под контролем.png`
 namunasiga moslashtirildi: to‘q yashil sarlavha va qidiruv, manzarali banner,
 to‘rtta tezkor karta, gorizontal sanatoriyalar, tezkor xizmatlar va beshta
@@ -37,6 +64,31 @@ Serverdan barcha sahifalar kelmaguncha avvalgi ro‘yxat almashtirilmaydi.
 Yangi sanatoriyalar yuklanadi, e’londan olinganlari muvaffaqiyatli
 sinxronlashdan keyin ro‘yxatdan yo‘qoladi. Dastlabki yuklash internet talab qiladi.
 
+**Bronlar**ning barcha sahifalari, oldin ochilmagan bron tafsilotlari va
+tasdiqlangan bronning QR kodi ham telefonda xavfsiz saqlanadi. Hisob va
+API hosti alohida tekshiriladi; logout yoki boshqa hisobga o‘tish shaxsiy
+nusxani tozalaydi. Aloqa yo‘q bo‘lsa tarix va tafsilotlar saqlangan holatda
+ochiladi. To‘lovsiz bronlar 5 daqiqadan keyin, **To‘lovni bekor qilish**
+serverda tasdiqlangach darhol tarix va nusxadan olinadi. To‘langan/refund
+qilingan bronlar saqlanadi. Offline holat yangi to‘lov tasdig‘ini yaratmaydi.
+
+2026-10-07 Samsung SM-A165Fda ikkita OS force-stop bilan tekshirildi:
+sessiya va ikki xonali bron tiklandi; yakuniy bosqich barcha API so‘rovlarini
+rad etgan offline mijoz bilan bron, QR, katalog va to‘rtta suratni ochdi.
+To‘lov lokal simulator; telefonning Wi-Fi/mobil interneti o‘chirilmagan.
+Avvalgi telefon hisobi va sozlamalar private nusxadan qayta tiklandi.
+Rasmlar yangilanganda `setState` callbacki `Future` qaytarmaydigan qilindi;
+shu holat alohida widget testida tekshirildi. Analyzer xatosiz, **56/56** test.
+
+Sanatoriya rasmlari bitta galereyada chap/o‘ng tugmalari yoki surish bilan
+almashadi. Hamkorlar paneli bir tanlashda 4+ surat, jami 30 tagacha qabul
+qiladi. Lokal Chimyon va Zomin profillaridagi 4 tadan rasm manbalari
+[suratlar hujjati](../../docs/SANATORIUM_PHOTOS.md)da.
+
+Yordam xabari superadmin botiga boradi; botda tasdiqlangan javob shu
+mijoz suhbatida ko‘rinadi. Ochiq suhbat 5 soniyada va resume paytida
+yangilanadi, vaqtinchalik aloqa xatosida ekrandagi suhbat saqlanadi.
+
 Tariflar sanatoriya profilida xona turi bo‘yicha chiqadi. **Shu tarifni
 tanlash** bron shakliga shu tarifni beradi. Sana, xona, tarif va mehmonlar
 internetsiz tanlanadi. Bolalar va qo‘shimcha xonalar yig‘ilgan bo‘limlarda;
@@ -60,7 +112,10 @@ To‘lov holati backend tasdig‘idan olinadi; qaytish havolasi to‘lovni tasdi
 Kunduzgi/tungi ko‘rinish oy/quyosh tugmasi yoki Profil orqali almashtiriladi;
 tanlov ilova qayta ochilganda va logoutdan keyin saqlanadi.
 
-USB telefon uchun lokal debug APK: `.local/releases/sihhat-uz-preview.apk`.
+USB telefon uchun lokal debug APKning nusxasi loyiha ildizidagi
+[`apk/sihhat-uz-preview.apk`](../../apk/sihhat-uz-preview.apk)da.
+Build skripti asl faylni `.local/releases/sihhat-uz-preview.apk`ga yozadi;
+keyingi builddan so‘ng nusxani yangilash tartibi [asosiy README](../../README.md#tayyor-apk)da.
 Loyiha ildizida `npm run local:start` API, saytlar va USB reverse ulanishini,
 `npm run local:status` ularning holatini boshqaradi.
 `npm run mobile:preview -- <android-serial>` yangi APKni yig‘adi, o‘rnatadi
@@ -180,8 +235,10 @@ quyidagilarni tekshiradi:
    `PENDING` bo‘lsa, havola uni tasdiqlangan deb ko‘rsatmaydi. Lokal provayder
    to‘lovni tasdiqlagach, ilova `CONFIRMED` holatini ko‘rsatib, pending markerini
    tozalaydi.
-3. Ikkinchi force-stop va yangi jarayonda sessiya tiklanadi. Tasdiqlangan bron
-   ro‘yxatdan ochiladi, tugallanmagan to‘lov avtomatik qayta ochilmaydi.
+3. Ikkinchi force-stop va yangi jarayonda APIga barcha so‘rovlar rad etiladi.
+   Saqlangan sessiya bilan tasdiqlangan bron ro‘yxat/QR va oldindan yuklangan
+   sanatoriya profilining 4 ta surat fayli ochiladi. Galereya keyingi suratga
+   almashadi; tugallanmagan to‘lov avtomatik qayta ochilmaydi.
 
 Dalil: `.local/android-recovery.json`; unda jarayon PIDlari va natijalar bor,
 token/OTP yozilmaydi. Testdan keyin `lib/main.dart` bilan oddiy debug APK

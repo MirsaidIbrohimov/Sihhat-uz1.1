@@ -35,7 +35,7 @@ export function TelegramSettings() {
   return <>
     <div className="page-heading"><div><p className="eyebrow">XODIMLAR YORDAMCHISI</p><h1>Telegram bot</h1><p className="muted">Bronlar, vazifalar va muhim xabarlarni Telegramda kuzating.</p></div></div>
     {error && <ErrorBox message={error} retry={reload} />}
-    {!data ? <Loading /> : <div className="card telegram-connection" style={{ maxWidth: 760, padding: 24 }}>
+    {!data ? error ? null : <Loading /> : <div className="card telegram-connection" style={{ maxWidth: 760, padding: 24 }}>
       {!data.enabled ? <p>Bot hali yoqilmagan. Administrator bilan bog‘laning.</p> : <>
         {data.bot_username && <p><strong>@{data.bot_username}</strong></p>}
         {data.account && <div role="status">

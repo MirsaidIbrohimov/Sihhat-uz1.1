@@ -24,6 +24,7 @@ import {
   type Row,
 } from "./components";
 import { AdvertisementFields, advertisementFields } from "./ad-fields";
+import { AdPlacementPreview } from "./ad-preview";
 export function Finance({ kind }: { kind: "refunds" | "payouts" }) {
   const ctx = usePortal(),
     action = useAction();
@@ -283,15 +284,13 @@ export function Billing({ kind }: { kind: "billing" | "ads" }) {
   const ctx = usePortal(),
     action = useAction(),
     [tab, setTab] = useState("invoices"),
+    [adScope, setAdScope] = useState("all"),
+    [previewId, setPreviewId] = useState(""),
     [checkout, setCheckout] = useState<Row | null>(null);
   const plans = useRemote(
-      kind === "billing" && ctx.admin ? "/superadmin/subscription-plans" : null,
-      ctx.epoch,
-    ),
-    profile = useRemote(
-      kind === "ads" ? `/partner/sanatoriums/${ctx.tenant}` : null,
-      ctx.epoch,
-    );
+    kind === "billing" && ctx.admin ? "/superadmin/subscription-plans" : null,
+    ctx.epoch,
+  );
   function payInvoice(r: Row) {
     let result: any;
     ctx.form({
@@ -305,25 +304,49 @@ export function Billing({ kind }: { kind: "billing" | "ads" }) {
       done: () => setCheckout(result),
     });
   }
-  function requestAd() {
-    const revision = profile.data?.revisions?.find(
-      (r: Row) => r.id === profile.data.publicRevisionId,
+  async function adForm(existing?: Row) {
+    const owner = existing?.sanatoriumId ?? ctx.tenant;
+    if (!owner) {
+      ctx.notice("Reklama uchun sanatoriyani tanlang.");
+      return;
+    }
+    let profile: Row;
+    try {
+      profile = await api(`/partner/sanatoriums/${owner}`);
+    } catch (error) {
+      ctx.notice((error as Error).message);
+      return;
+    }
+    const revision = profile.revisions?.find(
+      (r: Row) => r.id === profile.publicRevisionId,
     );
-    const photos = revision?.data?.photo_ids ?? [];
+    const photos = [
+      ...new Set<string>([
+        ...(revision?.data?.photo_ids ?? []),
+        ...(existing?.data?.image_asset_id
+          ? [existing.data.image_asset_id]
+          : []),
+      ]),
+    ];
+    const targets = ctx.tenants.filter(
+      (s) => s.status === "ACTIVE" && s.publicRevisionId,
+    );
     const uploaded = new Map<File, string>();
     ctx.form({
-      title: "Reklama joylash",
-      description:
-        "Rasm va taklifni kiriting. Admin tasdiqlagach ilovada bepul chiqadi.",
+      title: existing ? "Reklamani tahrirlash" : "Reklama joylash",
+      description: existing
+        ? "Saqlangach reklama qayta ma’qullash kutiladi. Rasm, matn, havola, joylashuv va muddatni o‘zgartirish mumkin."
+        : "Rasm va taklifni kiriting. Admin tasdiqlagach ilovada bepul chiqadi.",
       fields: advertisementFields,
       content: (
         <AdvertisementFields
-          tenant={ctx.tenant}
-          tenants={ctx.tenants}
+          tenant={owner}
+          tenants={targets}
           photos={photos}
+          initial={existing}
         />
       ),
-      button: "Tasdiqlashga yuborish",
+      button: existing ? "O‘zgarishlarni saqlash" : "Tasdiqlashga yuborish",
       submit: async (values) => {
         const { photo_file, ...input } = values;
         let image = input.image_asset_id;
@@ -332,7 +355,7 @@ export function Billing({ kind }: { kind: "billing" | "ads" }) {
           if (!image) {
             const result = await uploadAsset(
               photo_file,
-              ctx.tenant,
+              owner,
               undefined,
               "PUBLIC",
             );
@@ -344,11 +367,18 @@ export function Billing({ kind }: { kind: "billing" | "ads" }) {
           throw new Error(
             "Reklama rasmini yuklang yoki profil rasmini tanlang.",
           );
-        return api("/partner/ad-campaigns", "POST", {
-          sanatorium_id: ctx.tenant,
-          ...input,
-          image_asset_id: image,
-        });
+        return api(
+          existing
+            ? `/superadmin/ad-campaigns/${existing.id}`
+            : "/partner/ad-campaigns",
+          existing ? "PATCH" : "POST",
+          {
+            sanatorium_id: owner,
+            ...input,
+            image_asset_id: image,
+            ...(existing ? { version: existing.version } : {}),
+          },
+        );
       },
       done: ctx.refresh,
     });
@@ -364,7 +394,9 @@ export function Billing({ kind }: { kind: "billing" | "ads" }) {
         }
       >
         {kind === "ads" && ctx.allowed("ads.request") && (
-          <AddButton onClick={requestAd}>Reklama so‘rash</AddButton>
+          <AddButton onClick={() => void adForm()}>
+            {ctx.admin ? "Reklama yaratish" : "Reklama so‘rash"}
+          </AddButton>
         )}
         {kind === "billing" && ctx.admin && tab === "plans" && (
           <AddButton
@@ -514,139 +546,190 @@ export function Billing({ kind }: { kind: "billing" | "ads" }) {
         </div>
       )}
       {kind === "ads" ? (
-        <DataPanel
-          path={
-            ctx.admin ? "/superadmin/ad-campaigns" : "/partner/ad-campaigns"
-          }
-          paged={false}
-          filter={(r) => r.sanatoriumId === ctx.tenant}
-          columns={[
-            { label: "Kampaniya", key: "title" },
-            {
-              label: "Ilovadagi holati",
-              render: (r) =>
-                (
-                  ({
-                    WAITING_APPROVAL: "Admin tasdig‘i kutilmoqda",
-                    REJECTED: "Rad etilgan",
-                    ARCHIVED: "To‘xtatilgan",
-                    WAITING_FREE_PUBLICATION: "Bepul joylashni bosing",
-                    SCHEDULED: "Boshlanish sanasi kutilmoqda",
-                    EXPIRED: "Muddati tugagan",
-                    SANATORIUM_HIDDEN: "Sanatoriya ochiq emas",
-                    LIVE: "Ilovada chiqmoqda",
-                  }) as Record<string, string>
-                )[r.publication_status] ?? r.publication_status,
-            },
-            {
-              label: "Joylashuv",
-              render: (r) =>
-                r.placement === "POPUP"
-                  ? "Kirishda qalqib chiqadi"
-                  : "Bosh sahifa",
-            },
-            {
-              label: "Davr",
-              render: (r) => `${dateTime(r.startsAt)} — ${dateTime(r.endsAt)}`,
-            },
-            {
-              label: "Ochadigan joy",
-              render: (r) =>
-                r.data?.target_kind === "URL" ? (
-                  <a href={r.data.target_url} target="_blank" rel="noreferrer">
-                    Havola
-                  </a>
-                ) : (
-                  "Sanatoriya"
+        <>
+          {ctx.admin && (
+            <label className="field">
+              <span>Reklamalarni ko‘rsatish</span>
+              <select
+                value={adScope}
+                onChange={(e) => setAdScope(e.target.value)}
+              >
+                <option value="all">Barcha sanatoriyalar</option>
+                <option value="selected">Tanlangan sanatoriya</option>
+              </select>
+            </label>
+          )}
+          <DataPanel
+            title="Reklama kampaniyalari"
+            layout="cards"
+            preview={(rows) => (
+              <AdPlacementPreview
+                campaign={rows.find((row) => row.id === previewId) ?? rows[0]}
+              />
+            )}
+            path={
+              ctx.admin ? "/superadmin/ad-campaigns" : "/partner/ad-campaigns"
+            }
+            paged={false}
+            filter={(r) =>
+              (ctx.admin && adScope === "all") || r.sanatoriumId === ctx.tenant
+            }
+            columns={[
+              {
+                label: "Kampaniya",
+                render: (r) => (
+                  <>
+                    <strong>{r.title}</strong>
+                    {r.data?.text && (
+                      <p className="section-text">{r.data.text}</p>
+                    )}
+                    {r.reason && (
+                      <span className="subcell">Sabab: {r.reason}</span>
+                    )}
+                  </>
                 ),
-            },
-            {
-              label: "Chegirma",
-              render: (r) =>
-                r.data?.has_discount ? (
-                  <span className="ad-discount">
-                    {r.data.discount_percent
-                      ? `${r.data.discount_percent}%`
-                      : r.data.discount_text}
-                  </span>
-                ) : (
-                  "Yo‘q"
-                ),
-            },
-          ]}
-          actions={
-            ctx.admin
-              ? (r) =>
-                  ((r.status === "PENDING" ||
-                    r.publication_status === "WAITING_FREE_PUBLICATION") && (
-                    <>
-                      <Act
-                        onClick={() =>
-                          action(
-                            "Reklamani bepul joylash",
-                            `/superadmin/ad-campaigns/${r.id}/approve`,
-                            {},
-                            [],
-                          )
-                        }
-                      >
-                        Ma’qullash
-                      </Act>
-                      {r.status === "PENDING" && (
-                        <Act
-                          danger
-                          onClick={() =>
-                            action(
-                              "Reklamani rad etish",
-                              `/superadmin/ad-campaigns/${r.id}/reject`,
-                              {},
-                              [
-                                {
-                                  key: "reason",
-                                  label: "Sabab",
-                                  required: true,
-                                  minLength: 3,
-                                },
-                              ],
-                            )
-                          }
-                        >
-                          Rad etish
-                        </Act>
-                      )}
-                    </>
-                  )) ||
-                  (r.status === "APPROVED" &&
-                    r.publication_status !== "EXPIRED" && (
-                      <Act
-                        danger
-                        onClick={() =>
-                          action(
-                            "Reklamani to‘xtatish",
-                            `/partner/ad-campaigns/${r.id}/archive`,
-                          )
-                        }
-                      >
-                        To‘xtatish
-                      </Act>
-                    ))
-              : (r) =>
-                  r.status === "APPROVED" &&
+              },
+              ...(ctx.admin
+                ? [
+                    {
+                      label: "Biriktirilgan sanatoriya",
+                      render: (r: Row) =>
+                        ctx.tenants.find((s) => s.id === r.sanatoriumId)
+                          ?.name ?? "Sanatoriya",
+                    },
+                  ]
+                : []),
+              statusColumn,
+              {
+                label: "Ilovadagi holati",
+                render: (r) =>
+                  (
+                    ({
+                      WAITING_APPROVAL: "Admin tasdig‘i kutilmoqda",
+                      REJECTED: "Rad etilgan",
+                      ARCHIVED: "To‘xtatilgan",
+                      WAITING_FREE_PUBLICATION: "Bepul joylashni bosing",
+                      SCHEDULED: "Boshlanish sanasi kutilmoqda",
+                      EXPIRED: "Muddati tugagan",
+                      SANATORIUM_HIDDEN: "Sanatoriya ochiq emas",
+                      TARGET_INVALID: "Havolani tekshiring",
+                      IMAGE_MISSING: "Reklama rasmi topilmadi",
+                      LIVE: "Ilovada chiqmoqda",
+                    }) as Record<string, string>
+                  )[r.publication_status] ?? r.publication_status,
+              },
+              {
+                label: "Joylashuv",
+                render: (r) =>
+                  r.placement === "POPUP"
+                    ? "Kirishda qalqib chiqadi"
+                    : "Bosh sahifa",
+              },
+              {
+                label: "Davr",
+                render: (r) =>
+                  `${dateTime(r.startsAt)} — ${dateTime(r.endsAt)}`,
+              },
+              {
+                label: "Ochadigan joy",
+                render: (r) =>
+                  r.data?.target_kind === "URL" ? (
+                    <a
+                      href={r.data.target_url}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      Havola
+                    </a>
+                  ) : (
+                    (ctx.tenants.find(
+                      (s) =>
+                        s.id ===
+                        (r.data?.target_sanatorium_id ?? r.sanatoriumId),
+                    )?.name ?? "Sanatoriya")
+                  ),
+              },
+              {
+                label: "Chegirma",
+                render: (r) =>
+                  r.data?.has_discount ? (
+                    <span className="ad-discount">
+                      {r.data.discount_percent
+                        ? `${r.data.discount_percent}%`
+                        : r.data.discount_text}
+                    </span>
+                  ) : (
+                    "Yo‘q"
+                  ),
+              },
+            ]}
+            actions={(r) => (
+              <>
+                <Act onClick={() => setPreviewId(r.id)}>
+                  Ko‘rinishni ko‘rish
+                </Act>
+                {ctx.admin && !r.invoiceId && (
+                  <Act onClick={() => void adForm(r)}>Tahrirlash</Act>
+                )}
+                {ctx.admin &&
+                  (r.status === "PENDING" ||
+                    r.status === "ARCHIVED" ||
+                    r.publication_status === "WAITING_FREE_PUBLICATION") &&
                   r.publication_status !== "EXPIRED" && (
+                    <Act
+                      onClick={() =>
+                        action(
+                          "Reklamani bepul joylash",
+                          `/superadmin/ad-campaigns/${r.id}/approve`,
+                          { version: r.version },
+                          [],
+                        )
+                      }
+                    >
+                      {r.status === "ARCHIVED" ? "Qayta yoqish" : "Ma’qullash"}
+                    </Act>
+                  )}
+                {ctx.admin && r.status === "PENDING" && (
+                  <Act
+                    danger
+                    onClick={() =>
+                      action(
+                        "Reklamani rad etish",
+                        `/superadmin/ad-campaigns/${r.id}/reject`,
+                        { version: r.version },
+                        [
+                          {
+                            key: "reason",
+                            label: "Sabab",
+                            required: true,
+                            minLength: 3,
+                          },
+                        ],
+                      )
+                    }
+                  >
+                    Rad etish
+                  </Act>
+                )}
+                {(ctx.admin || ctx.allowed("ads.request")) &&
+                  ["APPROVED", "PENDING"].includes(r.status) && (
                     <Act
                       danger
                       onClick={() =>
                         action(
                           "Reklamani to‘xtatish",
                           `/partner/ad-campaigns/${r.id}/archive`,
+                          { version: r.version },
                         )
                       }
                     >
                       To‘xtatish
                     </Act>
-                  )
-          }
-        />
+                  )}
+              </>
+            )}
+          />
+        </>
       ) : tab === "invoices" ? (
         <DataPanel
           path={ctx.admin ? "/superadmin/invoices" : "/partner/invoices"}

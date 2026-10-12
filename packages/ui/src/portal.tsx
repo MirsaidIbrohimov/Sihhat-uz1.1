@@ -6,6 +6,7 @@ import {
   BookOpen,
   Building2,
   CalendarDays,
+  ChevronDown,
   ChartNoAxesCombined,
   Check,
   CircleHelp,
@@ -13,6 +14,8 @@ import {
   CreditCard,
   FileCheck,
   FileText,
+  Eye,
+  EyeOff,
   HeartPulse,
   LayoutDashboard,
   LogOut,
@@ -23,6 +26,7 @@ import {
   ShieldCheck,
   Users,
   Wallet,
+  X,
 } from "lucide-react";
 import {
   api,
@@ -32,8 +36,14 @@ import {
   type Actor,
 } from "@sihhat/api-client";
 import { useIdleSession } from "./session-idle";
+import { ThemeToggle } from "./appearance";
 import { PublicArticles } from "./articles";
 import { TelegramSettings } from "./telegram";
+import { AccountantReports } from "./accounting";
+import { MyAccount, RoleGuide } from "./account";
+import { TodayWork } from "./today";
+import { newPasswordFields } from "./password-fields";
+import "./portal-enhancements.css";
 import {
   ErrorBox,
   FormDialog,
@@ -144,8 +154,118 @@ const links = [
   { id: "support", label: "Yordam xizmati", icon: CircleHelp },
   { id: "notifications", label: "Bildirishnomalar", icon: Bell },
   { id: "telegram", label: "Telegram bot", icon: Mail },
-  { id: "audit", label: "Amallar tarixi", icon: ShieldCheck, admin: true },
+  {
+    id: "audit",
+    label: "Amallar tarixi",
+    icon: ShieldCheck,
+    permission: "audit.read",
+  },
+  {
+    id: "today",
+    label: "Bugungi ishlar",
+    icon: CalendarDays,
+    permission: "bookings.read",
+  },
+  { id: "account", label: "Mening hisobim", icon: Settings },
+  { id: "guide", label: "Foydalanish yo‘riqnomasi", icon: CircleHelp },
 ];
+const navigationGroups = [
+  {
+    label: "Ish jarayoni",
+    ids: [
+      "dashboard",
+      "today",
+      "sanatoriums",
+      "profile",
+      "bookings",
+      "inventory",
+      "staff",
+    ],
+  },
+  {
+    label: "Moliya",
+    ids: ["payments", "refunds", "payouts", "billing", "ads", "reconciliation"],
+  },
+  {
+    label: "Aloqa",
+    ids: [
+      "messages",
+      "articles",
+      "tasks",
+      "surveys",
+      "reviews",
+      "support",
+      "notifications",
+    ],
+  },
+  { label: "Sozlamalar", ids: ["account", "telegram", "audit", "guide"] },
+];
+function SidebarNavigation({
+  items,
+  section,
+  accountant,
+  go,
+}: {
+  items: typeof links;
+  section: string;
+  accountant: boolean;
+  go: (id: string) => void;
+}) {
+  const [expanded, setExpanded] = useState<string[]>([]);
+  useEffect(() => {
+    const group = navigationGroups.find((group) => group.ids.includes(section));
+    if (group)
+      setExpanded((previous) =>
+        previous.includes(group.label) ? previous : [...previous, group.label],
+      );
+  }, [section]);
+  return (
+    <nav className="nav-list" aria-label="Asosiy menyu">
+      {navigationGroups.map((group) => {
+        const members = items.filter((item) => group.ids.includes(item.id));
+        if (!members.length) return null;
+        const open = expanded.includes(group.label);
+        const id = `navigation-${group.ids[0]}`;
+        return (
+          <div className="nav-group" key={group.label}>
+            <button
+              type="button"
+              className="nav-group-toggle"
+              aria-expanded={open}
+              aria-controls={id}
+              onClick={() =>
+                setExpanded((previous) =>
+                  open
+                    ? previous.filter((name) => name !== group.label)
+                    : [...previous, group.label],
+                )
+              }
+            >
+              {group.label}
+              <ChevronDown size={15} className={open ? "rotated" : ""} />
+            </button>
+            <div id={id} hidden={!open}>
+              {members.map((item) => (
+                <button
+                  type="button"
+                  key={item.id}
+                  className={`nav-link ${section === item.id ? "active" : ""}`}
+                  aria-current={section === item.id ? "page" : undefined}
+                  onClick={() => go(item.id)}
+                >
+                  <item.icon size={19} />
+                  {accountant && item.id === "dashboard"
+                    ? "Hisobotlar"
+                    : item.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        );
+      })}
+    </nav>
+  );
+}
 function Login({
   mode,
   onLogin,
@@ -156,7 +276,8 @@ function Login({
   notice?: string;
 }) {
   const [busy, setBusy] = useState(false),
-    [error, setError] = useState("");
+    [error, setError] = useState(""),
+    [showPassword, setShowPassword] = useState(false);
   async function login(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setBusy(true);
@@ -182,6 +303,9 @@ function Login({
   }
   return (
     <div className="login-screen">
+      <div className="login-theme">
+        <ThemeToggle />
+      </div>
       <div className="login-art">
         <div className="brand">
           <img
@@ -198,16 +322,21 @@ function Login({
         <div className="login-story">
           <p className="eyebrow">SOG‘LOM DAM OLISH, OSON BOSHQARUV</p>
           <h1>
-            Har bir mehmon.
+            Sog‘lom dam olish.
             <br />
-            Har bir xona.
-            <br />
-            Bir joyda.
+            Oson boshqaruv.
           </h1>
           <p>
             Sanatoriya ish jarayoni, bronlar va jamoangiz bilan aloqani
             Sihhat.uz orqali boshqaring.
           </p>
+          <img
+            className="login-illustration"
+            src="/branding/welcome-retreat.png"
+            alt=""
+            width={560}
+            height={360}
+          />
         </div>
         <div className="login-foot">
           © {new Date().getFullYear()} Sihhat.uz · Sanatoriyalar platformasi
@@ -240,12 +369,24 @@ function Login({
           </label>
           <label className="field">
             <span>Parol</span>
-            <input
-              name="password"
-              type="password"
-              required
-              autoComplete="current-password"
-            />
+            <span className="password-input">
+              <input
+                name="password"
+                type={showPassword ? "text" : "password"}
+                required
+                autoComplete="current-password"
+              />
+              <button
+                type="button"
+                className="password-toggle"
+                aria-label={
+                  showPassword ? "Parolni yashirish" : "Parolni ko‘rsatish"
+                }
+                onClick={() => setShowPassword((value) => !value)}
+              >
+                {showPassword ? <EyeOff size={19} /> : <Eye size={19} />}
+              </button>
+            </span>
           </label>
           {mode === "admin" && (
             <label className="field">
@@ -305,7 +446,7 @@ function PasswordChange({ refresh }: { refresh: () => void }) {
               label: "Yangi parol",
               type: "password",
               required: true,
-              minLength: 10,
+              minLength: 12,
             },
           ],
           submit: (v) => api("/auth/change-password", "POST", v),
@@ -324,12 +465,23 @@ export function Portal({ mode }: { mode: "admin" | "partner" }) {
     [tenant, setTenant] = useState(""),
     [section, setSection] = useState("dashboard"),
     [menu, setMenu] = useState(false),
+    [smallScreen, setSmallScreen] = useState(false),
     [form, setForm] = useState<FormSpec | null>(null),
     [toast, setToast] = useState(""),
     [epoch, setEpoch] = useState(0),
     [idleNotice, setIdleNotice] = useState(""),
     [tenantError, setTenantError] = useState("");
   const sessionGeneration = useRef(0);
+  useEffect(() => {
+    const media = window.matchMedia("(max-width: 760px)");
+    const sync = () => {
+      setSmallScreen(media.matches);
+      if (!media.matches) setMenu(false);
+    };
+    sync();
+    media.addEventListener("change", sync);
+    return () => media.removeEventListener("change", sync);
+  }, []);
   const clearSession = useCallback((reason = "") => {
     sessionGeneration.current++;
     setActor(null);
@@ -376,8 +528,10 @@ export function Portal({ mode }: { mode: "admin" | "partner" }) {
     return () => clearInterval(timer);
   }, [session]);
   useEffect(() => {
-    const sync = () =>
+    const sync = () => {
       setSection(location.pathname.split("/")[1] || "dashboard");
+      setEpoch((value) => value + 1);
+    };
     sync();
     window.addEventListener("popstate", sync);
     return () => window.removeEventListener("popstate", sync);
@@ -399,11 +553,55 @@ export function Portal({ mode }: { mode: "admin" | "partner" }) {
     const timer = setTimeout(() => setToast(""), 6000);
     return () => clearTimeout(timer);
   }, [toast]);
-  const go = useCallback((id: string) => {
-    window.history.pushState({}, "", id === "dashboard" ? "/" : "/" + id);
+  const go = useCallback((id: string, params?: Record<string, string>) => {
+    const suffix =
+      params && Object.keys(params).length
+        ? "?" + new URLSearchParams(params).toString()
+        : "";
+    window.history.pushState(
+      {},
+      "",
+      (id === "dashboard" ? "/" : "/" + id) + suffix,
+    );
     setSection(id);
     setMenu(false);
+    setForm(null);
+    setEpoch((value) => value + 1);
   }, []);
+  useEffect(() => {
+    if (!menu) return;
+    const previous = document.activeElement as HTMLElement | null;
+    const sidebar = document.getElementById("portal-sidebar");
+    const buttons = () =>
+      Array.from(
+        sidebar?.querySelectorAll<HTMLElement>(
+          "a[href],button:not([disabled])",
+        ) ?? [],
+      ).filter((node) => node.getClientRects().length > 0);
+    buttons()[0]?.focus();
+    const keyboard = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setMenu(false);
+      if (event.key !== "Tab") return;
+      const nodes = buttons(),
+        first = nodes[0],
+        last = nodes.at(-1);
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last?.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first?.focus();
+      }
+    };
+    const overflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    document.addEventListener("keydown", keyboard);
+    return () => {
+      document.body.style.overflow = overflow;
+      document.removeEventListener("keydown", keyboard);
+      previous?.focus();
+    };
+  }, [menu]);
   if (!ready)
     return (
       <div className="content">
@@ -432,11 +630,20 @@ export function Portal({ mode }: { mode: "admin" | "partner" }) {
       />
     );
   const allowed = (p: string) => can(actor, tenant, p);
+  const accountant =
+    !admin &&
+    actor.memberships.find(
+      (m) => m.sanatoriumId === tenant && m.status === "ACTIVE",
+    )?.role === "ACCOUNTANT";
   const menuLinks = links.filter(
     (l) =>
       (!l.admin || admin) &&
       (!l.partner || !admin) &&
-      (!l.permission || allowed(l.permission)),
+      (!accountant || ["dashboard", "account", "guide"].includes(l.id)) &&
+      (accountant && l.id === "dashboard"
+        ? allowed("reports.operational.read") ||
+          allowed("reports.financial.read")
+        : !l.permission || allowed(l.permission)),
   );
   const authorized = menuLinks.some((l) => l.id === section);
   const changePassword = () =>
@@ -449,15 +656,16 @@ export function Portal({ mode }: { mode: "admin" | "partner" }) {
           type: "password",
           required: true,
         },
-        {
-          key: "new_password",
-          label: "Yangi parol",
-          type: "password",
-          required: true,
-          minLength: 10,
-        },
+        ...newPasswordFields,
       ],
-      submit: (v) => api("/auth/change-password", "POST", v),
+      submit: (v) => {
+        if (v.new_password !== v.confirm_password)
+          throw new Error("Yangi parollar bir xil bo‘lsin.");
+        return api("/auth/change-password", "POST", {
+          current_password: v.current_password,
+          new_password: v.new_password,
+        });
+      },
       done: () => {
         void session();
       },
@@ -468,10 +676,16 @@ export function Portal({ mode }: { mode: "admin" | "partner" }) {
         <ErrorBox message="Bu sahifaga kirish uchun ruxsat yo‘q. Menyudan mavjud bo‘limni tanlang." />
       );
     switch (section) {
+      case "account":
+        return <MyAccount changePassword={changePassword} />;
+      case "guide":
+        return <RoleGuide />;
+      case "today":
+        return <TodayWork />;
       case "telegram":
         return <TelegramSettings />;
       case "dashboard":
-        return <Dashboard />;
+        return accountant ? <AccountantReports /> : <Dashboard />;
       case "sanatoriums":
         return <Sanatoriums />;
       case "profile":
@@ -523,6 +737,9 @@ export function Portal({ mode }: { mode: "admin" | "partner" }) {
         epoch,
         go,
         allowed,
+        reloadActor: () => {
+          void session();
+        },
       }}
     >
       <div className="app-shell">
@@ -530,7 +747,22 @@ export function Portal({ mode }: { mode: "admin" | "partner" }) {
           className={`mobile-scrim ${menu ? "open" : ""}`}
           onClick={() => setMenu(false)}
         />
-        <aside className={`sidebar ${menu ? "open" : ""}`}>
+        <aside
+          id="portal-sidebar"
+          className={`sidebar ${menu ? "open" : ""}`}
+          aria-label="Panel menyusi"
+          inert={smallScreen && !menu}
+          role={smallScreen && menu ? "dialog" : undefined}
+          aria-modal={smallScreen && menu ? true : undefined}
+        >
+          <button
+            type="button"
+            className="icon-button sidebar-close"
+            aria-label="Menyuni yopish"
+            onClick={() => setMenu(false)}
+          >
+            <X size={19} />
+          </button>
           <a
             href="/"
             className="brand"
@@ -551,27 +783,26 @@ export function Portal({ mode }: { mode: "admin" | "partner" }) {
             </span>
           </a>
           <div className="brand-sub">
-            {admin ? "Platforma boshqaruvi" : "Sanatoriya boshqaruvi"}
+            <ShieldCheck size={17} aria-hidden="true" />
+            {admin
+              ? "Platforma boshqaruvi"
+              : accountant
+                ? "Hisobchi paneli"
+                : "Sanatoriya boshqaruvi"}
           </div>
-          <nav className="nav-list" aria-label="Asosiy menyu">
-            {menuLinks.map((l) => (
-              <div key={l.id}>
-                {l.group && <div className="nav-group-title">{l.group}</div>}
-                <button
-                  className={`nav-link ${section === l.id ? "active" : ""}`}
-                  aria-current={section === l.id ? "page" : undefined}
-                  onClick={() => go(l.id)}
-                >
-                  <l.icon size={17} />
-                  {l.label}
-                </button>
-              </div>
-            ))}
-          </nav>
+          <SidebarNavigation
+            items={menuLinks}
+            section={section}
+            accountant={accountant}
+            go={go}
+          />
           <div className="sidebar-foot">
-            Bron uchun komissiya — 0%
-            <br />
-            Sanatoriyalar bilan ochiq hamkorlik
+            <HeartPulse size={19} aria-hidden="true" />
+            <div>
+              <strong>Bron uchun komissiya — 0%</strong>
+              <br />
+              Sanatoriyalar bilan ochiq hamkorlik
+            </div>
           </div>
         </aside>
         <div className="main-shell">
@@ -580,35 +811,50 @@ export function Portal({ mode }: { mode: "admin" | "partner" }) {
               <button
                 className="icon-button menu-toggle"
                 aria-label="Menyuni ochish"
+                aria-controls="portal-sidebar"
+                aria-expanded={menu}
                 onClick={() => setMenu(!menu)}
               >
                 <Menu size={18} />
               </button>
-              <select
-                className="tenant-select"
-                aria-label="Sanatoriyani tanlash"
-                value={tenant}
-                onChange={(e) => {
-                  setTenant(e.target.value);
-                  refresh();
-                }}
-              >
-                {!tenants.length && <option value="">Sanatoriya yo‘q</option>}
-                {tenants.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.name}
-                  </option>
-                ))}
-              </select>
+              <div className="tenant-context">
+                <Building2 size={19} />
+                <div>
+                  <span className="context-label">
+                    {admin ? "Platforma boshqaruvi" : "Sanatoriya"}
+                  </span>
+                  <select
+                    className="tenant-select"
+                    aria-label="Sanatoriyani tanlash"
+                    value={tenant}
+                    onChange={(e) => {
+                      setTenant(e.target.value);
+                      refresh();
+                    }}
+                  >
+                    {!tenants.length && (
+                      <option value="">Sanatoriya yo‘q</option>
+                    )}
+                    {tenants.map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
             </div>
             <div className="topbar-right">
-              <button
-                className="icon-button"
-                aria-label="Bildirishnomalar"
-                onClick={() => go("notifications")}
-              >
-                <Bell size={17} />
-              </button>
+              <ThemeToggle />
+              {!accountant && (
+                <button
+                  className="icon-button"
+                  aria-label="Bildirishnomalar"
+                  onClick={() => go("notifications")}
+                >
+                  <Bell size={17} />
+                </button>
+              )}
               <div className="user-block">
                 <div className="avatar">
                   {actor.name.slice(0, 1).toUpperCase()}
@@ -618,10 +864,13 @@ export function Portal({ mode }: { mode: "admin" | "partner" }) {
                   <span className="user-role">
                     {admin
                       ? "SUPERADMIN"
-                      : actor.memberships.find((m) => m.sanatoriumId === tenant)
-                            ?.role === "DIRECTOR"
-                        ? "DIREKTOR"
-                        : "RESEPSHN"}
+                      : accountant
+                        ? "HISOBCHI"
+                        : actor.memberships.find(
+                              (m) => m.sanatoriumId === tenant,
+                            )?.role === "DIRECTOR"
+                          ? "DIREKTOR"
+                          : "RESEPSHN"}
                   </span>
                 </div>
               </div>
@@ -647,7 +896,22 @@ export function Portal({ mode }: { mode: "admin" | "partner" }) {
               </button>
             </div>
           </header>
-          <main className="content">
+          <main
+            className="content"
+            data-section={section}
+            inert={smallScreen && menu}
+          >
+            <div className="breadcrumb">
+              {admin
+                ? "Superadmin"
+                : accountant
+                  ? "Hisobchi"
+                  : "Sanatoriya paneli"}
+              <span>/</span>
+              {accountant && section === "dashboard"
+                ? "Hisobotlar"
+                : menuLinks.find((item) => item.id === section)?.label}
+            </div>
             {tenantError && <ErrorBox message={tenantError} retry={refresh} />}{" "}
             {!admin && !tenant ? (
               <ErrorBox message="Faol sanatoriyaga kirish ruxsati yo‘q. Direktoringiz bilan bog‘laning." />

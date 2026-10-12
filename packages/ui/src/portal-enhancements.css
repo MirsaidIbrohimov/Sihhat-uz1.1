@@ -1,0 +1,55 @@
+:where(button, a, input, select, textarea):focus-visible {
+  outline: 3px solid #259c76;
+  outline-offset: 3px;
+}
+.list-filters {
+  align-items: end;
+}
+.list-filters .search-field {
+  flex: 1 1 240px;
+  min-width: 0;
+}
+.list-filters .field {
+  min-width: 0;
+}
+.list-filters input,
+.list-filters select {
+  max-width: 100%;
+}
+.list-filters .button {
+  min-height: 44px;
+}
+.account-details {
+  display: grid;
+  grid-template-columns: minmax(80px, 130px) minmax(0, 1fr);
+  gap: 12px 20px;
+}
+.account-details dt {
+  font-weight: 600;
+}
+.account-details dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+@media (max-width: 760px) {
+  .list-filters {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .list-filters .button {
+    width: 100%;
+  }
+  .button,
+  .icon-button,
+  .text-button {
+    min-height: 44px;
+  }
+  .icon-button {
+    min-width: 44px;
+  }
+}

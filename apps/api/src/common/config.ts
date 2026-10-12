@@ -7,15 +7,16 @@ import { z } from 'zod';
 const schema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   PORT: z.coerce.number().int().min(1).max(65535).default(4000),
+  TRUST_PROXY: z.enum(['none', 'private']).default('none'),
   DATABASE_URL: z.string().startsWith('postgresql://'),
   TEST_DATABASE_URL: z.string().optional(),
-  CORS_ORIGINS: z.string().min(1),
+  CORS_ORIGINS: z.string().min(1).transform(value => value.split(',').map(origin => origin.trim()).join(',')),
   AUTH_SECRET: z.string().min(32).refine(s => !s.startsWith('replace-'), 'Tasodifiy AUTH_SECRET belgilang'),
   MFA_ENCRYPTION_KEY: z.string().regex(/^[a-f0-9]{64}$/i, '64 hex belgili MFA_ENCRYPTION_KEY kerak'),
   OTP_TTL_SECONDS: z.coerce.number().int().min(30).max(600).default(120),
   OTP_RESEND_SECONDS: z.coerce.number().int().min(30).default(60),
   OTP_MAX_ATTEMPTS: z.coerce.number().int().min(1).max(10).default(5),
-  HOLD_MINUTES: z.coerce.number().int().min(1).max(30).default(15),
+  HOLD_MINUTES: z.coerce.number().int().min(1).max(30).default(5),
   SMS_ADAPTER: z.enum(['local', 'http', 'eskiz']).default('local'),
   DEMO_OTP_ENABLED: z.enum(['true', 'false']).default('false').transform(v => v === 'true'),
   SMS_HTTP_URL: z.string().default(''), SMS_HTTP_TOKEN: z.string().default(''),
@@ -34,7 +35,7 @@ const schema = z.object({
   TEZCHECK_API_KEY: z.string().default(''),
   TEZCHECK_CASH_DESK_CODE: z.string().max(128).default(''),
   TEZCHECK_WEBHOOK_SECRET: z.string().default(''),
-  TEZCHECK_HOLD_MINUTES: z.coerce.number().int().min(5).max(30).default(15),
+  TEZCHECK_HOLD_MINUTES: z.coerce.number().int().min(5).max(30).default(5),
   PAYME_MERCHANT_ID: z.string().default(''), PAYME_KEY: z.string().default(''),
   PAYME_CHECKOUT_URL: z.string().url().default('https://checkout.paycom.uz'),
   AI_ADAPTER: z.enum(['catalog', 'http', 'gemini']).default('catalog'),
@@ -57,6 +58,41 @@ const schema = z.object({
 });
 
 export type Config = z.infer<typeof schema>;
+function remoteUrl(value: string, protocols: string[], originOnly = false) {
+  try {
+    const url = new URL(value);
+    const hostname = url.hostname.toLowerCase();
+    return protocols.includes(url.protocol)
+      && !['localhost', '0.0.0.0', '[::]', '[::1]'].includes(hostname)
+      && !hostname.endsWith('.localhost') && !/^127\./.test(hostname)
+      && (!originOnly || (url.origin === value && !url.username && !url.password));
+  } catch { return false; }
+}
+
+// Return only requirement names/messages; connection strings and credentials
+// must never enter deployment diagnostics.
+export function productionIssues(c: Config): string[] {
+  const issues: string[] = [];
+  if (!remoteUrl(c.DATABASE_URL, ['postgresql:'])) issues.push('Production: tashqi PostgreSQL DATABASE_URL kerak');
+  if (c.BOOKING_SETTLEMENT_MODE !== 'direct') issues.push('Production: yangi bronlar sanatoriyaning o‘z merchant hisobiga yo‘naltirilishi kerak');
+  if (c.SMS_ADAPTER === 'eskiz' && !c.ESKIZ_OTP_APPROVED) issues.push('Production: Eskiz OTP hisobini va shablonini tasdiqlash kerak');
+  if (c.SMS_ADAPTER === 'local' || (c.SMS_ADAPTER === 'http' && (!c.SMS_HTTP_URL || !c.SMS_HTTP_TOKEN))) issues.push('Production: haqiqiy SMS adapteri kerak');
+  if (c.PAYMENT_MODE === 'local' || (c.PAYMENT_MODE === 'payme' && (!c.PAYME_KEY || !c.PAYME_MERCHANT_ID))) issues.push('Production: merchant rekvizitlari kerak');
+  if (c.PAYMENT_MODE === 'tezcheck' && !c.TEZCHECK_CASH_DESK_CODE) issues.push('Production: TEZCHECK_CASH_DESK_CODE kerak');
+  if (c.STORAGE_ADAPTER !== 's3' || !c.S3_BUCKET || !c.S3_ACCESS_KEY || !c.S3_SECRET_KEY) issues.push('Production: private S3 storage kerak');
+  if (c.S3_ENDPOINT && !remoteUrl(c.S3_ENDPOINT, ['https:'])) issues.push('Production: S3_ENDPOINT tashqi HTTPS manzil bo‘lishi kerak');
+  if (c.WORKER_MODE !== 'redis') issues.push('Production: Redis worker kerak');
+  if (!remoteUrl(c.REDIS_URL, ['redis:', 'rediss:'])) issues.push('Production: tashqi Redis REDIS_URL kerak');
+  if (c.CORS_ORIGINS.split(',').some(origin => !remoteUrl(origin, ['https:'], true))) issues.push('Production: CORS_ORIGINS uchun to‘liq HTTPS originlar kerak');
+  if (c.TELEGRAM_MODE !== 'disabled' && [c.TELEGRAM_ADMIN_URL, c.TELEGRAM_PARTNER_URL].some(url => !remoteUrl(url, ['https:']))) issues.push('Production: Telegram panel manzillari tashqi HTTPS bo‘lishi kerak');
+  if (c.PUSH_ADAPTER === 'http' && (!c.PUSH_HTTP_URL || !c.PUSH_HTTP_TOKEN)) issues.push('Production: push HTTP adapteri uchun URL/token kerak');
+  if (c.AI_ADAPTER === 'http' && (!c.AI_HTTP_URL || !c.AI_HTTP_TOKEN)) issues.push('Production: AI HTTP adapteri uchun URL/token kerak');
+  for (const [name, url] of [['SMS_HTTP_URL', c.SMS_HTTP_URL], ['AI_HTTP_URL', c.AI_HTTP_URL], ['PUSH_HTTP_URL', c.PUSH_HTTP_URL]]) {
+    if (url && !remoteUrl(url, ['https:'])) issues.push(`Production: ${name} tashqi HTTPS manzil bo‘lishi kerak`);
+  }
+  return issues;
+}
+
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
   // Optional local secrets stay outside app sources, public assets and APK builds.
   // Tests never load these credentials. Deployment can use environment variables.
@@ -65,6 +101,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
   const result = schema.safeParse({ ...secrets, ...env });
   if (!result.success) throw new Error(`Konfiguratsiya xatosi: ${result.error.issues.map(i => `${i.path.join('.')}: ${i.message}`).join('; ')}`);
   const c = result.data;
+  if (env.RAILWAY_ENVIRONMENT_ID && c.NODE_ENV !== 'production') throw new Error('Production: Railwayda NODE_ENV=production kerak');
   if (c.DEMO_OTP_ENABLED && (c.NODE_ENV === 'production' || c.SMS_ADAPTER !== 'local')) throw new Error('Demo OTP faqat lokal development/test SMS adapteri bilan ishlaydi');
   if (c.PAYMENT_MODE === 'tezcheck' && !c.TEZCHECK_API_KEY) throw new Error('Tezcheck: server API kaliti kerak');
   if (c.TELEGRAM_MODE !== 'disabled' && !c.TELEGRAM_BOT_TOKEN) throw new Error('Telegram: server bot tokeni kerak');
@@ -73,17 +110,8 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
   if (c.SMS_ADAPTER === 'eskiz' && !c.ESKIZ_TOKEN && !(c.ESKIZ_EMAIL && c.ESKIZ_PASSWORD)) throw new Error('Eskiz: API token yoki login rekvizitlari kerak');
   if (!c.ESKIZ_OTP_TEMPLATE.includes('{code}')) throw new Error('Eskiz: OTP shablonida {code} bo‘lishi kerak');
   if (c.NODE_ENV === 'production') {
-    if (c.BOOKING_SETTLEMENT_MODE !== 'direct') throw new Error('Production: yangi bronlar sanatoriyaning o‘z merchant hisobiga yo‘naltirilishi kerak');
-    if (c.SMS_ADAPTER === 'eskiz' && !c.ESKIZ_OTP_APPROVED) throw new Error('Production: Eskiz OTP hisobini va shablonini tasdiqlash kerak');
-    if (c.SMS_ADAPTER === 'local' || (c.SMS_ADAPTER === 'http' && (!c.SMS_HTTP_URL || !c.SMS_HTTP_TOKEN))) throw new Error('Production: haqiqiy SMS adapteri kerak');
-    if (c.PAYMENT_MODE === 'local' || (c.PAYMENT_MODE === 'payme' && (!c.PAYME_KEY || !c.PAYME_MERCHANT_ID))) throw new Error('Production: merchant rekvizitlari kerak');
-    if (c.STORAGE_ADAPTER !== 's3' || !c.S3_ACCESS_KEY || !c.S3_SECRET_KEY) throw new Error('Production: private S3 storage kerak');
-    if (c.WORKER_MODE !== 'redis') throw new Error('Production: Redis worker kerak');
-    if (c.CORS_ORIGINS.split(',').some(o => !o.startsWith('https://'))) throw new Error('Production: HTTPS originlar kerak');
-    if (c.TELEGRAM_MODE !== 'disabled' && [c.TELEGRAM_ADMIN_URL, c.TELEGRAM_PARTNER_URL].some(u => !u.startsWith('https://'))) throw new Error('Production: Telegram panel manzillari HTTPS bo‘lishi kerak');
-  }
-  for (const url of [c.SMS_HTTP_URL, c.AI_HTTP_URL, c.PUSH_HTTP_URL].filter(Boolean)) {
-    if (!url.startsWith('https://') && c.NODE_ENV === 'production') throw new Error('Production: adapter URL HTTPS bo‘lishi kerak');
+    const issues = productionIssues(c);
+    if (issues.length) throw new Error(issues.join('; '));
   }
   return c;
 }

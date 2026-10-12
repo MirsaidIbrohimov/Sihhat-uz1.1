@@ -93,7 +93,7 @@ void main() {
       await tester.enterText(find.byType(TextField).last, sms['code']);
       await tapText('Tasdiqlash');
       expect(api.signedIn, true);
-      await waitFor(find.text('Mashhur sanatoriyalar'));
+      await waitFor(find.text('Bronlar'));
       await tapText('Bronlar');
       debugPrint('Android test: OTP login passed');
       await tapText('Sanatoriyalar');

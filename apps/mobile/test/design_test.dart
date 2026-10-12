@@ -145,7 +145,11 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
-      expect(find.text('Shu tarifni tanlash').hitTestable(), findsOneWidget);
+      expect(find.text('Tarifni tanlash').hitTestable(), findsOneWidget);
+      await tester.tap(find.text('Tarifni tanlash'));
+      await tester.pumpAndSettle();
+      expect(find.byType(TariffScreen), findsOneWidget);
+      expect(find.text('Kelishgacha qaytarish'), findsOneWidget);
       await tester.tap(find.text('Shu tarifni tanlash'));
       await tester.pumpAndSettle();
       expect(find.text('Standart xona'), findsOneWidget);

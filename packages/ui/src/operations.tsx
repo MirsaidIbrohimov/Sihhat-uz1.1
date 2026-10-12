@@ -1,5 +1,6 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { ListFilters, useSavedFilters } from "./list-filters";
 import { api, formatMoney, query, toMinor } from "@sihhat/api-client";
 import {
   Act,
@@ -628,7 +629,8 @@ export function Inventory() {
 export function Bookings() {
   const ctx = usePortal(),
     action = useAction(),
-    [status, setStatus] = useState(""),
+    [search, setSearch] = useState(""),
+    [q, setQ] = useState(""),
     [selected, setSelected] = useState<string | null>(null),
     inventory = useRemote(
       ctx.tenant ? `/partner/sanatoriums/${ctx.tenant}/inventory` : null,
@@ -641,6 +643,19 @@ export function Bookings() {
   const b = detail.data,
     data = inventory.data;
   const activeRates = (data?.rates ?? []).filter((r: Row) => r.active);
+  const filters = useSavedFilters("bookings", {
+    status: "",
+    from: "",
+    to: "",
+    date_kind: "ARRIVAL",
+  });
+  const previousQuery = useRef<string | null>(null);
+  useEffect(() => {
+    const id = new URLSearchParams(location.search).get("booking") ?? "";
+    if (id === previousQuery.current) return;
+    previousQuery.current = id;
+    setSelected(/^[0-9a-f]{8}-[0-9a-f-]{27}$/i.test(id) ? id : null);
+  }, [ctx.epoch]);
   function manual() {
     if (inventory.loading || inventory.error || !activeRates.length) return;
     let count = 1;
@@ -1092,31 +1107,42 @@ export function Bookings() {
             tarif qo‘shing.
           </p>
         ) : null)}
-      <div className="filters">
-        <label className="field">
-          <span>Holat</span>
-          <select value={status} onChange={(e) => setStatus(e.target.value)}>
-            <option value="">Barchasi</option>
-            {[
-              "HOLD",
-              "PAYMENT_PENDING",
-              "CONFIRMED",
-              "CHECKED_IN",
-              "CHECKED_OUT",
-              "CANCELLED",
-              "NO_SHOW",
-              "EXPIRED",
-            ].map((s) => (
-              <option key={s} value={s}>
-                {label[s]}
-              </option>
-            ))}
-          </select>
-        </label>
-      </div>
+      <ListFilters
+        search={search}
+        setSearch={setSearch}
+        apply={() => setQ(search.trim())}
+        reset={() => {
+          setSearch("");
+          setQ("");
+          filters.reset();
+        }}
+        filters={filters.values}
+        setFilter={filters.set}
+        dates
+        dateKinds
+        statuses={[
+          "HOLD",
+          "PAYMENT_PENDING",
+          "CONFIRMED",
+          "CHECKED_IN",
+          "CHECKED_OUT",
+          "CANCELLED",
+          "NO_SHOW",
+          "EXPIRED",
+          "PAYMENT_EXCEPTION",
+        ]}
+      />
       <DataPanel
         path={ctx.admin ? "/superadmin/bookings" : "/partner/bookings"}
-        params={{ sanatorium_id: ctx.tenant, status: status || undefined }}
+        title="Bronlar ro‘yxati"
+        params={{
+          sanatorium_id: ctx.tenant,
+          q: q || undefined,
+          status: filters.values.status || undefined,
+          from: filters.values.from || undefined,
+          to: filters.values.to || undefined,
+          date_kind: filters.values.date_kind,
+        }}
         columns={[
           {
             label: "Bron",
@@ -1150,6 +1176,9 @@ export function Bookings() {
 }
 export function Payments() {
   const ctx = usePortal();
+  const filters = useSavedFilters("payments", { status: "", from: "", to: "" });
+  const [search, setSearch] = useState(""),
+    [q, setQ] = useState("");
   const tez = useRemote(ctx.admin ? "/superadmin/integrations/tezcheck" : null);
   return (
     <>
@@ -1191,10 +1220,41 @@ export function Payments() {
           )}
         </Card>
       )}
+      <ListFilters
+        search={search}
+        setSearch={setSearch}
+        apply={() => setQ(search.trim())}
+        reset={() => {
+          setSearch("");
+          setQ("");
+          filters.reset();
+        }}
+        filters={filters.values}
+        setFilter={filters.set}
+        dates
+        statuses={[
+          "CREATED",
+          "PENDING",
+          "SUCCEEDED",
+          "CANCELLED",
+          "REFUNDED",
+          "FAILED",
+        ]}
+      />
       <DataPanel
         path={ctx.admin ? "/superadmin/payments" : "/partner/payments"}
-        params={{ sanatorium_id: ctx.tenant }}
+        params={{
+          sanatorium_id: ctx.tenant,
+          q: q || undefined,
+          status: filters.values.status || undefined,
+          from: filters.values.from || undefined,
+          to: filters.values.to || undefined,
+        }}
         columns={[
+          {
+            label: "Bron raqami",
+            render: (row) => row.booking_reference ?? "—",
+          },
           {
             label: "Maqsad",
             render: (r) => label[r.purpose] ?? "Bron to‘lovi",

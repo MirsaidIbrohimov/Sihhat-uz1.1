@@ -1,20 +1,358 @@
 # Sihhat uz — amalga oshirish holati
 
-Yangilangan: 2026-10-06. Asos: ISHLAB_CHIQISH_REJASI.md va SIHHAT_UZ_ARXITEKTURA.md.
+Yangilangan: 2026-10-10. Asos: ISHLAB_CHIQISH_REJASI.md va SIHHAT_UZ_ARXITEKTURA.md.
 
 | Bosqich | Holat | Dalil |
 | --- | --- | --- |
-| B0 — poydevor | Lokal tekshiruv o‘tdi | NestJS, PostgreSQL 18.6, 10 migratsiya va health API; toza scratch bazada barcha 10 migratsiya tekshirildi |
+| B0 — poydevor | Lokal tekshiruv o‘tdi | NestJS, PostgreSQL 18.6, lokal bazaga 12 migratsiya; 2026-10-10 toza scratch bazada ham barcha 12 migratsiya, exclusion va 4 ledger guard tekshirildi |
 | B1 — hisoblar va ruxsatlar | Lokal tekshiruv o‘tdi | MFA, OTP, tenant, bloklash, CSRF va telefon almashtirish; superadmin 2 soat, direktor/resepsion 4 soat faolsiz bo‘lsa server sessiyani rad etadi |
 | B2–B8 — backend domenlari | Asosiy lokal oqimlar amalga oshirildi va tekshirildi | Anketa, moderatsiya, xona/narx/bron, Payme va Tezcheck adapterlari, ledger, refund/payout, billing va aloqa APIlari |
 | B9 — katalog, hisobot va AI | Katalog/hisobot, FAQ, Gemini va AI sarfi hisoboti mavjud | Haqiqiy Gemini javobi tekshirildi; rozilik, shaxsiy ma’lumot niqobi, kunlik limit, token/model/davr bo‘yicha sarf, sozlangan narxlar bilan USD taxmini va fallback bor |
-| B10 — backend qabul | Lokal qabul to‘plami o‘tdi; tashqi tekshiruv cheklovlari quyida | PostgreSQLda 79/79 test; OpenAPI va runbook yangilandi; 10 migratsiya toza scratch bazada tekshirildi; avvalgi backup dalillari quyida |
-| F1/F2 — saytlar | APIga ulangan sahifalar, AI sarfi/Tezcheck holati, Telegram ulash va brauzer sinovlari o‘tdi | Ikkala Next.js buildi, TypeScript; oxirgi umumiy brauzer runida 11/11 ssenariy o‘tdi |
-| Telegram — xodimlar boti | Kod, lokal worker va rasmiy API ulanishi tayyor | Admin/direktor/resepsion menyusi, xavfsiz ulash, ruxsat tekshiruvi, vazifa/murojaat wizardlari va outbox bildirishnomalari; haqiqiy xodim ulashi hali bajarilmagan |
-| F3 — Android | Namuna asosidagi UI, o‘z logo, internetsiz katalog/profil/rasmlar, xona turi bo‘yicha tarif tanlash, ixcham bron/to‘lov va debug preview | Flutter analyze xatosiz; 47/47 test. Telefon/SMS, bron/tiklanish va oldingi release imzo dalillari saqlangan; haqiqiy HTTPS API hali belgilanmagan |
-| R1 — real pilot | Gemini, Eskiz va Tezcheck rekvizitlari olindi; pilot to‘liq emas | Gemini ulandi, Eskiz standart SMSi yetib keldi, Tezcheck o‘qish endpointlari HTTP 200. Kassa draft; haqiqiy OTP, HTTPS, merchant to‘lovi/webhook, push va real sanatoriya piloti qolgan |
+| B10 — backend qabul | Lokal qabul to‘plami o‘tdi; tashqi tekshiruv cheklovlari quyida | 2026-10-10 PostgreSQLda 100/100 test, skipped/xato 0; 12 migratsiyaning toza scratch tekshiruvi; oldingi OpenAPI va backup dalillari quyida |
+| F1/F2 — saytlar | APIga ulangan sahifalar va 4+ surat galereyasi | Ikkala Next.js buildi, TypeScript; yangi surat yuklash/tartiblash brauzer testi 1/1, avvalgi umumiy to‘plam 11/11 |
+| Telegram — xodimlar boti | Kod, lokal worker va rasmiy API ulanishi tayyor | Egasi superadminining hisobi bog‘langan; mijoz yordam xabari va bot javobi bir suhbatga tushishi lokal backend testida tekshirildi |
+| F3 — Android | Yangi UI/SMS kirish, 9 raqamli maydon/inline xato, yagona ikonkalar, reklama/admin tanlovi, offline katalog/profil/rasm va bron/QR, debug preview | 2026-10-10 Flutter analyze xatosiz; 61/61 unit/widget test. Oldingi Samsung tekshiruvida ikki force-stop va API so‘rovlari bloklangan offline bron/QR tekshirildi; haqiqiy HTTPS API hali belgilanmagan |
+| R1 — real pilot | Gemini, Eskiz va Tezcheck rekvizitlari olindi; pilot to‘liq emas | Gemini ulandi, Eskiz standart SMSi yetib keldi; 2026-10-08 Tezcheck signed o‘qishida kassa active/accepts_payments=true. Haqiqiy OTP, HTTPS, direct merchant to‘lovi/webhook, push va real sanatoriya piloti qolgan |
 
-## 2026-10-06 Android: internetsiz katalog, profil va tariflar
+## 2026-10-10 Web UI — ko‘rib chiqish namunalari
+
+- `UI/web` papkasi: **26 ta amaldagi ekran** va **32 ta yangi dizayn PNGsi**.
+  Superadmin, direktor va hisobchi; barcha asosiy bo‘limlar, login/MFA,
+  Mashhur tick, reklama previewi, moliya, xabar/vazifa/yordam va hisobotlar.
+  Qo‘shimcha bron tafsiloti, profil tahriri, tungi dashboard va 390 px
+  login/dashboard/bron holatlari bor.
+- [Galereya](../UI/web/index.html)da rol/qidiruv filtrlari, yonma-yon
+  taqqoslash, 1:1 zoom, oldingi/keyingi, Esc va PNG yuklash. Interaktiv
+  HTML/CSS namuna, lokal shrift/ikonka/logo/illyustratsiya va
+  [UI tekshiruvi](../UI/web/REVIEW.md) shu papkada.
+- Amaldagi React UI faqat shu headless brauzerda namunaviy API javoblari
+  bilan suratga olindi. Live login/MFA, mijoz ma’lumoti, bank rekviziti va
+  demo hisoblar ishlatilmadi; APIga o‘zgartirish yuborilmadi. Oddiy API,
+  ikkala panel va telefon sozlamalari almashtirilmadi.
+- Yangi maketlar **amaldagi React panellariga hali ko‘chirilmagan**.
+  Artefakt/galereya tekshiruvi production yoki haqiqiy provider qabuli emas.
+  `UI/web/tools/render.cjs --all`: **58/58 PNG** to‘liq dekodlandi;
+  amaldagi 26 ekran va yangi 32 ekran suratga olishda JS xato,
+  yo‘qolgan rasm va sahifa gorizontal overflowi **0**.
+- Galereya 1440×1000 va 390×844da tekshirildi: 32/26 ekran soni, qidiruv,
+  rol filtri, juft rasm, 1:1, oldingi/keyingi va Esc ishladi. Namunadagi
+  Mashhur tick, profil/tahrir navigatsiyasi, bron holati filtri, forma oynasi,
+  inventar tablari, ko‘rinish tugmasi va telefon menyusi ishladi.
+  Private dalillar `.local/web-ui*-validation.json`da.
+- `offline-check.cjs`: galereya/namuna **file:** protokolida, internet
+  o‘chiq holatda ochildi; lokal shrift/rasmlar va juft taqqoslash ishladi.
+  `npm run check:secrets`: **385** fayl, **21** private qiymat, moslik **0**;
+  `git diff --check` o‘tdi.
+
+## 2026-10-10 Telefon maydoni, logo, reklama va admin tanlovi
+
+- Login maydonida `+998` doimiy prefiks, milliy raqam aynan 9 xonali;
+  kam/ortiqcha raqamda SMS so‘rovi yuborilmaydi va maydon tagida xato chiqadi.
+  Formatlangan `+998` raqamni paste qilish ishlaydi. Login rasmiga asl
+  `SihhatLogo` qo‘yildi.
+- Bosh sahifaning navigatsiyasi boshqa menyular bilan bitta Lucide ikonka
+  ro‘yxatini ishlatadi. Home qidiruv, banner, shortcut, karta, yangilik va
+  reklama ikonkalarida ham yangi vektor uslubi qo‘llanadi.
+- HOME reklama mashhur sanatoriyalar joyini egallaydi. Reklama yo‘q,
+  kutilmoqda yoki xato bo‘lsa shu joyda tanlangan sanatoriyalar turadi.
+  Ikki blok bir paytda ko‘rsatilmaydi; eski avtomatik home kesh invalidatsiya
+  qilindi, offline katalogda faqat admin belgilagan profillar fallback bo‘ladi.
+- Superadmin **Sanatoriyalar → Mashhur** ustunidagi tick orqali tanlovni
+  saqlaydi. `featuredOnHome` dastlab false; faqat faol/public revisionli
+  tanlangan profillar chiqadi. Tanlov version bilan himoyalangan, auditga
+  yoziladi, customer va direktor o‘zgartira olmaydi. Bosh sahifa ro‘yxati
+  katalogning birinchi 100 natijasi va oldingi 6 ta karta bilan cheklanmaydi.
+- `npm run mobile:check -- --format`: analyzer xatosiz, **61/61** unit/widget
+  test. `npm test`: **100/100**, skipped/xato **0**. Yangi API testi tanlov,
+  untick, version conflict, ruxsat, pausadagi profil va 100-natijadan keyingi
+  tanlangan profillarni tekshiradi; uning vaqtinchalik profillari tozalanadi.
+- `npm run check`, API va ikkala Next.js buildi o‘tdi. OpenAPI yangilandi.
+  `npm run db:migrate` lokal va test bazasiga 12-migratsiyani qo‘lladi;
+  `db:migrations:verify` toza scratch bazada **12/12** migratsiya, inventar
+  exclusion va **4** ledger guardni tekshirdi.
+- Izolyatsiyalangan `sihhat_test` bazasida yangi Playwright tekshiruvi
+  **1/1** o‘tdi: saqlash xatosida tick rollback va inline xato, tickni yoqish,
+  browser reload, home feedga kirish va untickdan keyin yo‘qolish. Oldingi
+  barcha browser testlari bu o‘zgarishda qayta bajarilmadi. Fixture yopildi,
+  odatdagi lokal API va yangi ikkala panel qayta ishga tushirildi.
+- Bosh sahifaning bo‘sh holat matni va telefonda katta chiqqan search ikonka
+  o‘lchami yakunlangach analyzer yana xatosiz, mavjud home widget testlari
+  qayta **8/8** o‘tdi. Search glyph **24×24 dp** ekanligi va menyuga o‘tib
+  bosh sahifaga qaytganda yagona ikonka ro‘yxati saqlanishi tekshirildi;
+  umumiy **61/61** tekshiruvi yuqorida.
+- Manba siri tekshiruvi: **304** fayl, **21** private qiymat, moslik **0**.
+  APK: **57** bayt namunasi, moslik **0**. Bu lokal debug/simulator dalili;
+  production yoki rasmiy provider qabuli emas. GitHubga push qilinmadi.
+- Yakuniy oddiy `lib/main.dart` ARM64 debug APK: build
+  `2026-10-10T05:21:25.581Z`, API `http://127.0.0.1:4000`, demo OTP UI.
+  `apk/sihhat-uz-preview.apk` va `.local/releases` nusxalari bir xil,
+  SHA256 `0004a6a90a33ced7eeb049db8465cd04c05a9e7c237eacd1fb48cfda95c1817c`.
+  Samsung **SM-A165F**ga `adb install -r` bilan o‘rnatildi:
+  `lastUpdateTime=2026-10-10 10:22:39`, MainActivity ochildi, jarayon faol,
+  USB `tcp:4000` reverse tiklandi. Hisobot `.local/ui-install-20261010`da.
+- Yakuniy APK telefonda tungi rejimda ham tekshirildi: Bronlar → Bosh
+  sahifa va Sanatoriyalar → Bosh sahifa qaytishlarida yangi navigatsiya
+  ikonkalarining bir xil uslubi saqlandi. Home qidiruv ikonkasining o‘lchami
+  mos, reklama mashhur sanatoriyalar joyida ko‘rindi; ekran dalillari
+  `.local/ui-install-20261010/home-night-updated.png` va
+  `catalog-night-updated.png`da.
+
+## 2026-10-10 Dastlabki Android UI — Flutterda joriy etildi
+
+- Qamrov: Android ichki sahifalari va telefon/SMS kirish.
+  [UI galereyasi](../UI/index.html) va 10 ta PNGda jami 30 ekran holati
+  tayyorlandi. Uslub amaldagi yashil palitraga asoslangan.
+- Katalog/filtr, tarif/galereya/kelish ma’lumoti, ikki bosqichli bron,
+  to‘lov kutilishi va tasdiq/QR, bronlar/sharh, AI roziligi/suhbat,
+  profil/telefon, yordam, bildirishnoma/yangilik va SMS kirish maketlari bor.
+  Kunduzgi va tungi ko‘rinish namunalari kiritilgan.
+- Built-in ImageGen ishlatildi; to‘liq prompt va reference ma’lumotlari
+  [prompts.json](../UI/prompts.json)da. [Dizayn tavsiyalari](../UI/DESIGN_GUIDE.md)
+  Flutter/Tailwind farqi va yagona outline ikonka uslubini tushuntiradi.
+- Tekshiruv: 10/10 PNG to‘liq dekodlandi, har biri 1536×1024; 30 holat
+  manifestga mos. Galereya linklari va JS sintaksisi, 1440×1000 desktop
+  hamda 390×844 telefon brauzer ko‘rinishi, filtrlar, preview, navigatsiya,
+  1:1 zoom va Esc o‘tdi; gorizontal overflow/pageerror 0.
+  `npm run check:secrets`: 292 manba fayli, 21 private qiymat, moslik 0.
+  `git diff --check` o‘tdi. Artefakt sinovi Android runtime sinovi emas.
+- Uslub katalog/filtr, sanatoriya/tarif/surat/shartlar, sana/bron/to‘lov/QR,
+  bronlar/sharh, AI, profil/telefon, yordam, bildirishnoma/yangilik va
+  telefon/SMS sahifalariga Flutter widgetlari bilan joriy etildi.
+  `concept_ui.dart` umumiy mavzu/sahifa/karta/pastki amal/OTP komponentlarini
+  beradi. Manrope/DM Sans shriftlari va Lucide vektor ikonkalar lokal
+  assetlardan olinadi; litsenziyalari `apps/mobile/assets/licenses`da.
+  Bosh sahifaning avvalgi ko‘rinishi saqlangan.
+- Mobil tekshiruv: `npm run mobile:check -- --format` — 39 Dart fayli
+  formatlangan, Flutter analyzer xatosiz va **59/59** unit/widget test
+  o‘tdi. Yangi sinovlar narx oralig‘i va barcha sharoitlarni to‘liq offline
+  katalogda sahifalashdan oldin qo‘llash, OTP paste/raqam filtri va keyingi
+  chiqish sanasini talab qiladigan kalendarni tekshiradi. Kichik ekran/
+  katta matn, kunduzgi/tungi rejim, sessiya va offline bron/QR regressiyalari
+  ham o‘tdi.
+- Joriy `npm run check:secrets`: **303** manba fayli, **21** private qiymat,
+  moslik **0**. Bu lokal UI dalillari; provider/production qabuli emas.
+  Fayllar lokal saqlanadi, GitHubga push bajarilmadi.
+- `npm run mobile:preview` oddiy `lib/main.dart`dan Android **ARM64 debug**
+  APK yig‘di: API `http://127.0.0.1:4000`, demo OTP UI yoqilgan. APKda
+  **57** maxfiy qiymat bayt namunasi tekshirildi, moslik **0**.
+  `apk/sihhat-uz-preview.apk` va `.local/releases/sihhat-uz-preview.apk`
+  SHA256: `a466dbdff9eeb8abbb622cbe11c8ea4fe8931ebbccd90ec66f21912768c2cd20`.
+  Nusxalar bir xil; APK va private dalillar Gitdan chiqarilgan.
+- Lokal PostgreSQL tiklanishi yakunlandi, API `/health/ready` **200**.
+  Samsung **SM-A165F**ga `adb install -r` orqali ma’lumotlarini saqlab
+  o‘rnatildi. Qurilmada `lastUpdateTime=2026-10-10 09:41:14`,
+  `uz.sihhat.sihhat_mobile/.MainActivity` ochilishi **Status: ok**,
+  jarayon faol va USB `tcp:4000` reverse sozlangan.
+  Build/o‘rnatish hisoboti va ekran dalillari `.local/ui-install-20261010`da.
+- Qurilmada sessiya saqlanib, qayta SMSsiz bosh sahifa va yangi katalog
+  ochildi. Kunduzgi va tungi katalog, rasmlar, shrift/ikonkalar va
+  navigatsiya ekran orqali tekshirildi. Kunduzgi root sahifalarida yashil
+  fon ustidagi status/navigation belgilari qorayib ketishi tuzatildi;
+  yakuniy APKda oq belgilar tasdiqlandi. Tuzatishdan keyin analyzer
+  xatosiz, mavjud `appearance_test.dart` + `design_test.dart` **7/7**.
+  Telefonning avvalgi tungi rejimi qaytarildi. Yakuniy ekran dalillari
+  `home-day-final.png`, `catalog-day-final.png`, `catalog-night-final.png`.
+
+## 2026-10-08 Kutubxonalar va lokal APK papkasi
+
+- [README](../README.md#kerakli-dasturlar-va-kutubxonalar)ga Node/npm,
+  PostgreSQL, PowerShell, Flutter/Dart, Android SDK/JDK, tekshiruv vositalari,
+  API/web/Flutter kutubxonalari va ularni o‘rnatish buyruqlari yozildi.
+  Birinchi startup tartibi ikkala web buildi va `local:start`ni ham qamraydi.
+- Joriy oddiy `lib/main.dart` buildning nusxasi
+  `apk/sihhat-uz-preview.apk`ga joylandi: **116 600 681 bayt**, Android ARM64
+  debug, API `http://127.0.0.1:4000`, lokal demo OTP oynasi. Telefon uchun
+  ishlayotgan lokal API va USB reverse talab qilinadi; bu production release emas.
+- Nusxa SHA256si build hisobotidagi asl faylga mos:
+  `4bd86139a3b9dd4d4c718d9ff843d334de711b7d3e75d0c3db3ccf7e2f9ffef3`.
+  Aynan shu nusxa uchun **57** credential bayt namunasi tekshirildi,
+  maxfiy ma’lumot mosligi **0**. `npm run check:secrets`: **278** manba
+  fayli, **21** private qiymat, moslik **0**.
+- `/apk/` `.gitignore` va `.railwayignore`ga kiritildi; `git check-ignore`
+  APK chiqarilganini tasdiqladi, `git ls-files -- apk` bo‘sh.
+  `git diff --check` va `npm run railway:check` o‘tdi.
+  GitHubga push va yangi Railway deployment bajarilmadi.
+
+## 2026-10-08 Railwayga tayyorlash va lokal ishga tushirish
+
+- `.railway/railway.ts`: API, domen worker, Telegram, superadmin va
+  hamkorlar paneli; PostgreSQL, Redis, private S3 bucket va MFA volume.
+  Root npm workspaces va Node 24.15.0; panellar Railway `PORT`ini oladi,
+  IPv4/IPv6 interfeysi, API pre-deployda konfiguratsiya + migratsiya.
+  Bitta Telegram replika, overlap 0 va draining 30 soniya. Source upload
+  alohida; GitHubga avtomatik push yo‘q. [.railwayignore](../.railwayignore)
+  sirlar, keshlar, signing va buildlarni chiqaradi.
+- Production konfiguratsiyasi noto‘g‘ri HTTPS originlar, localhost
+  PostgreSQL/Redis/S3, tasdiqlanmagan OTP, bo‘sh kassa va tanlangan HTTP
+  adapterining yetishmagan URL/tokenini rad etadi. `TRUST_PROXY=private`
+  bilan login/OTP limitlari private proksi ortidagi mijoz IPsiga tegishli;
+  soxta oldingi public hop olinmaydi. Oddiy lokal standart `none`.
+- `npm test`: alohida `sihhat_test`da **99/99**, xato/skipped **0**.
+  Shu jumladan production sozlamalari va proksi orqali ikki mijoz IPsi.
+  API/ikkala Next.js buildi, barcha workspace TypeScript tekshiruvlari va
+  `npm run railway:check` o‘tdi. Oldingi, ishlatilmagan `codex` npm paketi
+  olib tashlandi; `npm audit` va runtime auditida **0** zaiflik.
+- Toza `sihhat_migration_check_1791473019003_aeef8fd5` lokal bazada
+  **11 migratsiya**, xona exclusion va **4 ledger guard** o‘tdi. Oddiy
+  `sihhat` ma’lumotlari saqlangan; uning migratsiyalari pending **0**.
+- `local:start` beshta xizmatni fon rejimida ochdi. API live/ready,
+  katalog, ikkala panel va ularning `/api/health/ready`si **200**.
+  Superadmin MFA, Azimshifo direktor va resepshin loginlari **201**,
+  uch cookie forward, hisob/katalog **200**, activity **201**;
+  yo‘q CSRF va begona origin **403**, logout **201**, revoked sessiya **401**.
+  Private dalil `.local/runtime/railway-startup-check.json`da.
+- Alohida **3100/3101** `PORT` va `::` sinovida ikki panelning IPv4,
+  IPv6, `/api` proksisi va katalogi **200**; noto‘g‘ri port rad etildi.
+  Vaqtinchalik jarayonlar yopildi. Bu Railway tarmog‘i bo‘yicha **lokal
+  taqlid**, jonli Railway emas. Dalil `.local/runtime/railway-web-smoke.json`da.
+- Flutter format o‘zgarishi **0**, analyzer xatosi **0**, **56/56** test.
+  Joriy `lib/main.dart` debug APK Samsung SM-A165Fga o‘rnatilib ochildi,
+  API `http://127.0.0.1:4000`, USB reverse. APKda **57** maxfiy qiymat
+  bayt namunasi, moslik **0**; fayl `.local/releases`da, Gitga kirmaydi.
+- Rasmiy Telegram getMe/getWebhookInfo o‘tdi: polling, webhook yo‘q,
+  pending **0**. Rasmiy Tezcheck signed o‘qishida kassa **active**,
+  **accepts_payments=true**, usullar va balans endpointi ishlaydi,
+  tranzaksiya namunasi **0**. Haqiqiy SMS yoki pul to‘lovi yuborilmadi.
+- Lokal preflight production uchun tayyor emasligini ko‘rsatadi:
+  development/SMS local, DB worker, fayl storage, lokal URLlar;
+  Eskiz OTP approved flagi **false**. Haqiqiy Railway environment,
+  HTTPS domenlar, shared sirlar, Redis/S3, rasmiy OTP va har sanatoriyaning
+  direct merchant checkout/webhook/push/bank qabuli qolgan.
+  O‘rnatish tartibi [RAILWAY.md](RAILWAY.md)da. To‘liq Playwright va real
+  merchant/payment return qabul sinovi bu ishda qayta bajarilmadi.
+
+## 2026-10-08 Hisobchini tasdiqlashdagi 403
+
+- Lokal API `CORS_ORIGINS` faqat `localhost:3000/3001`ni qamragani uchun
+  `127.0.0.1:3000` orqali yuborilgan tasdiqlash `CSRF_INVALID`/403 va
+  «Sahifani yangilab qayta urinib ko‘ring» xabari bilan rad etildi.
+  Aynan foydalanuvchining kutilayotgan hisobchisida xato qayta tasdiqlandi.
+- `.env.example` va private lokal `.env`ga ikkala panelning
+  `127.0.0.1` variantlari qo‘shildi; API qayta ochildi. Superadminning
+  sayt `/api` proksisi orqali tasdig‘i **201** qaytardi: hisobchi
+  `PENDING_APPROVAL`, versiya **1**dan `ACTIVE`, versiya **2**ga o‘tdi.
+  Hisob/parol va rol vakolatlari mavjud tartib bo‘yicha saqlanadi.
+- Shu oqimda noto‘g‘ri token, yo‘q token va sozlanmagan `3002` porti
+  **403** bilan rad etildi. `localhost:3000`dagi haqiqiy token bilan
+  faoliyat so‘rovi **201**. CSRF tekshiruvi o‘chirilmagan.
+- `npm test`: alohida `sihhat_test` bazasida **88/88**, xato/skipped **0**.
+  Hisobchi tasdig‘i, birinchi parol, qat’iy hisobot vakolatlari, tenant
+  chegarasi, eksport va bloklash bo‘yicha **6** ssenariy ham o‘tdi.
+  Providerlar test adapterlari; bu production yoki merchant qabuli emas.
+- Private dalillar `.local/accountant-origin-before.json` va
+  `.local/accountant-origin-after.json`da. Lokal `.env` va hisobga oid
+  fayllar Gitga kiritilmaydi. Foydalanish tartibi [RUNBOOK.md](RUNBOOK.md)da.
+
+## 2026-10-07 To‘liq lokal qayta ishga tushirish
+
+- PostgreSQL oldingi uzilgan ishidan tiklanib, ulanishlarni qabul qildi.
+  `db:local` endi `pg_isready` bilan tayyorlikni 10 daqiqagacha kutadi;
+  bazalarni tekshirish shu bosqichdan keyin boshlanadi. Kutish muddati
+  tugasa tiklanayotgan server ishlashda qoladi. 11-migratsiya
+  `202610070011_accountant_role` lokal `sihhat` bazasiga qo‘llandi.
+- API buildi va ikkala Next.js panel buildi o‘tdi. `local:start` API,
+  domen worker, Telegram worker, superadmin va hamkorlar panelini fon
+  rejimida ochdi; beshta xizmatning barchasi `running`.
+- API `/health/live`, `/health/ready`, public katalog va ikkala panel
+  **HTTP 200** qaytardi. Saytlarning `/api` proksisi orqali superadmin
+  MFA, Azimshifo direktor va resepshin loginlari **201**, joriy hisob/rol
+  va sanatoriyalarni o‘qish **200**, logout **201**; bekor qilingan
+  sessiyani qayta ishlatish **401**. Maxfiy qiymatlar chiqarilmadi.
+- Rasmiy Telegram `getMe`/`getWebhookInfo` tekshiruvi o‘tdi:
+  `@sihhat_admins_bot`, polling, webhook yo‘q, pending update **0**.
+  Yakuniy tekshiruvda so‘nggi polling **9 soniya**, domen worker heartbeat
+  **0 soniya** oldingi edi. Egasi superadmini botga bog‘langan va bloklanmagan.
+  Bu ulanish/faollik dalili; xodimning chatdagi barcha amallari qabul sinovi
+  alohida tekshiriladi.
+- Joriy oddiy `lib/main.dart` **debug** APK Samsung SM-A165Fga o‘rnatilib
+  ochildi. API `http://127.0.0.1:4000`, USB reverse va demo OTP UI tayyor.
+  APKda **57** maxfiy qiymat bayt namunasi, moslik **0**.
+  APK/private kirish fayllari Gitdan chiqarilgan; xizmatlar kompyuter
+  va USB ulanishiga bog‘liq. O‘zgarishlar lokal saqlandi.
+- Dalillar: `.local/runtime/startup-check-20261007.json` va
+  `.local/releases/android-preview.json`. Bu lokal ishga tushirish
+  tekshiruvi; real merchant to‘lovi yoki production deployment dalili emas.
+
+## 2026-10-07 Offline bron va Azimshifo panel oqimi
+
+- Bron ro‘yxati, barcha sahifalar, ochilmagan tafsilotlar va tasdiqlangan
+  QR xavfsiz telefonda saqlanadi. Hisob/host chegarasi, logoutdan keyingi
+  kechikkan javob, uzilgan sync va to‘lovsiz bronning 5 daqiqalik muddati
+  qayta tekshirildi. Flutter analyzer xatosiz, **56/56** test; backend
+  alohida `sihhat_test` bazasida **82/82**, xato/skipped **0**.
+- Samsung SM-A165Fda ikki Android force-stopdan so‘ng yangi jarayonlarda
+  sessiya va ikki xonali bron tiklandi. Yakuniy bosqichda barcha API
+  so‘rovlari rad etilib, saqlangan bron/QR, katalog va to‘rtta profil rasmi
+  ochildi. Wi-Fi/mobil internet o‘chirilmagan; bu haqiqiy qurilmadagi
+  boshqariladigan offline transport sinovi. To‘lov lokal simulator,
+  rasmiy provider yoki production qabuli emas. Telefonning avvalgi hisobi
+  va sozlamalari private nusxadan qayta tiklandi. Dalil:
+  `.local/android-recovery.json`.
+- Qurilmada katalog rasmlari yangilanganda `setState` callbacki `Future`
+  qaytarishi topildi va tuzatildi. Shu holatga widget regressiya testi
+  qo‘shildi. Qurilma testi bosh sahifaning eski matni o‘rniga joriy
+  `HomeScreen`ni kutadi.
+- Lokal `sihhat` bazasida yetishmagan o‘ninchi sessiya migratsiyasi
+  qo‘llandi; superadmin loginidagi `P2022`/HTTP 500 bartaraf etildi.
+  API buildi va ikkala Next.js panel buildi o‘tdi.
+- **Azimshifo** faqat lokal sinov ma’lumotlari bilan panel orqali yaratildi.
+  Superadmin direktor tayinladi; direktor profil, 4 surat, private sinov
+  hujjati, faol xona va tarif qo‘shib yubordi, resepshin taklif qildi.
+  Superadmin resepshin va profilni tasdiqladi. Uchala rolning loginlari,
+  xodimlarning birinchi kirishda parol almashtirishi va logoutlari o‘tdi.
+  Qoralama/yuborilgan profil katalogda yo‘q, tasdiqlangan profil public
+  katalog hamda direktor/resepshin panellarida bor; xususiy rekvizit va
+  hujjatlar public javobga chiqmaydi. Bu lokal brauzer oqimi; oldingi
+  to‘liq Playwright to‘plami ushbu sanada qayta bajarilmadi.
+  Dalil: `.local/azimshifo-panel-check.json`,
+  `.local/screenshots/azimshifo/`. Kirish ma’lumotlari faqat `.local`da,
+  manba kodiga yoki Gitga kiritilmaydi.
+- Oddiy `lib/main.dart` debug preview Samsungga qayta o‘rnatildi;
+  API `http://127.0.0.1:4000`, USB reverse, lokal demo OTP flagi.
+  SHA-256 `4bd86139a3b9dd4d4c718d9ff843d334de711b7d3e75d0c3db3ccf7e2f9ffef3`.
+  APKda yangi hisoblarni ham qamrab olgan **57 maxfiy qiymat bayt namunasi**,
+  moslik **0**; `npm run check:secrets`da **21 maxfiy qiymat**, moslik **0**.
+  APK va private kirish/nusxa fayllari Gitdan chiqarilgan. Lokal sinov
+  to‘lov rejimi tugagach asl `PAYMENT_MODE=tezcheck` qayta tiklandi va API
+  shu sozlama bilan ochildi. O‘zgarishlar lokal saqlandi, GitHubga yuborilmadi.
+
+## 2026-10-06 Internetsiz bronlar, 5 daqiqa, bot yordami va galereya
+
+- Mijoz bronlari barcha sahifalari va ochilmagan tafsilotlari bilan xavfsiz
+  xotirada saqlanadi. Hisob/API hosti tekshiriladi; offline restartda
+  ro‘yxat, xona/mehmon, narx/sana va tasdiqlangan QR ochiladi. Logout va
+  hisob almashtirish nusxani tozalaydi; kechikkan javob uni qayta yaratmaydi.
+- To‘lovsiz HOLD/PAYMENT_PENDING bronlar yaratilganidan 5 daqiqada,
+  CANCELLED/EXPIRED esa darhol mijoz tarixidan olinadi. Shu qoida offline
+  nusxaga ham tegishli. Server holdi 5 daqiqagacha; to‘langan/refund qilingan,
+  providerda pul olingan yozuvlar va xodim/moliya tarixi saqlanadi.
+- Nashr qilingan faol profil abonent bo‘lmasa ham katalogda ko‘rinadi.
+  Onlayn quote/bron abonent va to‘lov tayyorligini alohida talab qiladi.
+  Lokal **Mirsaid** profili katalogda qayta ko‘rindi; uning ma’lumotlari
+  almashtirilmadi. Qoralama/arxivlar ommaviy katalogga kirmaydi.
+- Mijoz yordam xabari superadmin botiga matn va bevosita javob tugmasi
+  bilan boradi. Botdagi tasdiqlangan javob ayni mijoz suhbatiga saqlanadi.
+  Superadmin tanlagan sanatoriya umumiy murojaatlarni yashirmaydi. Android
+  suhbatni 5 soniyada va resume paytida yangilaydi; vaqtinchalik xatoda
+  ekrandagi suhbat qoladi. Backend testidagi Telegram tashqi transporti fake.
+- Panel 4+ suratni bir tanlashda yuklaydi, jami 30 tagacha; bitta galereyada
+  chap/o‘ng, sanog‘i, tartiblash va olib tashlash bor. Androidda surish ham
+  ishlaydi. Chimyon va Zomin rasmiy saytlaridan 4 tadan surat standart media
+  va moderatsiya oqimi bilan lokal profilga nashr qilindi; takroriy import
+  qayta yuklamadi. [Surat manbalari](SANATORIUM_PHOTOS.md).
+- `npm test`: **82/82**, xato/skipped **0**, alohida `sihhat_test` bazasida.
+  `npm run mobile:check -- --format`: format o‘zgarishi **0**, analyzer
+  xatosi **0**, **55/55**. TypeScript, API build va yangilangan OpenAPI o‘tdi.
+  Sinovlar 101 bron/all-pages, offline tafsilot/QR, hisob/host/logout,
+  5 daqiqa chegarasi, to‘rt surat, abonentsiz profil va bot javobini qamradi.
+- Ikkala Next.js buildi o‘tdi. Alohida `sihhat_test` browser fixtureda
+  anketa/rasmlar ssenariysi **1/1**: bir tanlashda 4 rasm, chap/o‘ng,
+  tartibni serverga saqlash va olib tashlash. Dalillar
+  `.local/screenshots/anketa-files.png` va `.local/web-test-redacted.log`da.
+  Fixture haqiqiy providerlarni o‘chiradi; odatiy lokal bazani o‘zgartirmaydi.
+  Bu safar butun brauzer to‘plami qayta bajarilmadi.
+
+## 2026-10-06 Android: internetsiz katalog, profil va tariflar (oldingi tekshiruv)
 
 - Katalog APKga qattiq yozilmagan: barcha server sahifalari yuklanadi va
   API hosti bo‘yicha saqlanadi. Oldin ochilmagan profillar, xona turlari,
@@ -63,7 +401,8 @@ Yangilangan: 2026-10-06. Asos: ISHLAB_CHIQISH_REJASI.md va SIHHAT_UZ_ARXITEKTURA
 - Android bosh sahifasi berilgan namunaga moslashtirildi; katalog, bron,
   AI va yordamga ulangan tezkor kartalar, kichik ekran/katta shrift mosligi,
   ikki bosqichli bron va takroriy yordam xabarini cheklash qo‘shildi.
-  Ikki soatdan eski to‘lovsiz bron mijoz tarixidan yashiriladi; moliyaviy
+  Bu oldingi tekshiruvda ikki soatdan eski to‘lovsiz bron yashirilgan edi;
+  joriy qoida yuqoridagi **5 daqiqa**. Moliyaviy
   va xodim yozuvlari saqlanadi.
 - HOME/POPUP reklama joylari, rasm, havola, chegirma va muddat tekshiriladi.
   Reklama admin tasdiqlagach bepul chiqadi. Bo‘sh yoki xato ro‘yxatda
@@ -575,15 +914,16 @@ qo‘lda solishtirish tartibi [Tezcheck yo‘riqnomasi](TEZCHECK.md)da.
 - PostgreSQL 18, Android SDK va JDK mavjud; `sihhat`, `sihhat_test` va alohida restore/evidence bazalari ishlatildi.
 - Docker PATHda yo‘q; lokal muhit PostgreSQL + fayl storage + DB worker orqali ishlaydi. Docker Compose Redis/S3 varianti hali ishga tushirilmagan.
 - Flutter 3.47.5 / Dart 3.13.4 `.local/tools/flutter`da. Windowsdagi native hook uchun mavjud bo‘shliqsiz SDK yo‘li mobile yo‘riqnomasida ko‘rsatilgan.
-- Mavjud uchta reja hujjati va rootdagi `codex` dependency saqlangan.
+- Mavjud uchta reja hujjati saqlangan; ishlatilmagan root `codex` npm paketi
+  2026-10-08 olib tashlandi, Railway SDK lockfilega qo‘shildi.
 
 ## Ochiq tashqi shartlar
 
-Gemini, Eskiz va Tezcheck hisoblari berildi, yuqoridagi ulanishlar tekshirildi. Tezcheck kassasi draft; faollashtirish, HTTPS va webhook siri kerak. Eskiz hisobini haqiqiy yuborishga tayyorlash va OTP matnini tasdiqlatish qolgan. Real sanatoriya, bank rekvizitlari, push va staging infratuzilmasi hali kerak; Payme bevosita adapteri tanlansa rasmiy merchant rekvizitlari ham talab qilinadi. Production deploy va haqiqiy pul amallari bajarilmagan. Tariflar va refund/payout qoidalari pilot uchun tasdiqlanishi kerak.
+Gemini, Eskiz va Tezcheck hisoblari berildi, yuqoridagi ulanishlar tekshirildi. 2026-10-08 Tezcheck kassasi active/accepts_payments=true; haqiqiy direct merchant checkout, HTTPS va webhook siri/qabuli kerak. Eskiz OTP matnini tasdiqlatish va haqiqiy kod yuborish sinovi qolgan. Real sanatoriya, bank rekvizitlari, push va staging Redis/S3 infratuzilmasi hali kerak; Payme bevosita adapteri tanlansa rasmiy merchant rekvizitlari ham talab qilinadi. Production deploy va haqiqiy pul amallari bajarilmagan. Tariflar va refund/payout qoidalari pilot uchun tasdiqlanishi kerak.
 
 ## Qolgan ishlar
 
-1. Tezcheck kassasini faollashtirish va haqiqiy merchant to‘lovi/HTTPS webhookni tekshirish; Android release APKni haqiqiy HTTPS API bilan qayta yig‘ish, provider payment return va telefonni to‘liq qayta yuklashdan tiklanishni tekshirish.
+1. Har sanatoriyaning direct merchant ulanishi va haqiqiy to‘lov/HTTPS webhookni tekshirish; Railwaydagi Redis/S3/HTTPS muhitini ishga tushirish. Android release APKni haqiqiy HTTPS API bilan qayta yig‘ish, provider payment return va telefonni to‘liq qayta yuklashdan tiklanishni tekshirish.
 2. Eskiz hisobini test rejimidan chiqarish va OTP matnini tasdiqlatish; shundan keyin haqiqiy kirish kodi sinovi. OTPdan tashqari SMS bildirishnoma adapteri ham qolgan.
 3. Ayrim ikkinchi darajali OpenAPI javoblarini aniqlashtirish; Redis/S3, tanlangan to‘lov provayderi va push muhitlarini stagingda tekshirish. AI token/model/davr va sozlangan narxli USD hisoboti amalga oshirildi; haqiqiy provider invoiceini solishtirish pilotda qolgan.
 4. Real sanatoriya bilan inventar, bank payout/refund va backup/media tiklash pilotini bajarish.

@@ -4,17 +4,20 @@ import { Db, audit, emit, lock, type Tx } from '../common/db';
 import { fail, parse, uuid, version, reason, pageQuery, paged } from '../common/errors';
 import { passwordHash, opaque } from '../common/crypto';
 import { loginSchema, passwordSchema, phoneSchema } from './auth.service';
-import { Actor, DELEGATABLE, DIRECTOR, effective, requirePlatform, scope, tenantIds } from './permissions';
+import { Actor, ACCOUNTANT, DELEGATABLE, DIRECTOR, effective, requirePlatform, scope, tenantIds } from './permissions';
 
 export const staffInput = z.object({ sanatorium_id: uuid, name: z.string().trim().min(2).max(120), login: loginSchema, phone: phoneSchema, temporary_password: passwordSchema.optional(), grants: z.array(z.enum(DELEGATABLE)).max(30).default([]) }).strict();
+export const staffInvitationInput = staffInput.extend({role: z.enum(['RECEPTION', 'ACCOUNTANT']).default('RECEPTION')});
+export const resetPasswordInput = z.object({ new_password: passwordSchema, confirm_password: z.string().max(128) }).strict().refine(v => v.new_password === v.confirm_password, { message: 'Yangi parollar bir xil bo‘lsin', path: ['confirm_password'] });
 @Injectable()
 export class StaffService {
   constructor(@Inject(Db) readonly db: Db) {}
   async list(actor: Actor, query: unknown) {
-    const { page, limit, sanatorium_id } = parse(pageQuery.extend({ sanatorium_id: uuid.optional() }), query);
+    const { page, limit, sanatorium_id, q, status, role } = parse(pageQuery.extend({ sanatorium_id: uuid.optional(), q: z.string().trim().max(120).optional(), status: z.enum(['ACTIVE', 'PENDING_APPROVAL', 'REJECTED', 'REVOKED', 'BLOCKED']).optional(), role: z.enum(['DIRECTOR', 'RECEPTION', 'ACCOUNTANT']).optional() }).strict(), query);
     if (sanatorium_id) scope(actor, sanatorium_id, 'staff.invite');
     const ids = sanatorium_id ? [sanatorium_id] : tenantIds(actor, 'staff.invite');
-    const where = ids ? { sanatoriumId: { in: ids } } : {};
+    const matchingUsers = q ? await this.db.user.findMany({ where: { OR: [{ name: { contains: q, mode: 'insensitive' } }, { login: { contains: q, mode: 'insensitive' } }, { phone: { contains: q.replace(/[\s()-]/g, '') } }] }, select: { id: true } }) : null;
+    const where = { ...(ids ? { sanatoriumId: { in: ids } } : {}), ...(matchingUsers ? { userId: { in: matchingUsers.map(u => u.id) } } : {}), ...(status ? { status } : {}), ...(role ? { role } : {}) };
     const [memberships, total] = await Promise.all([this.db.membership.findMany({ where, skip: (page - 1) * limit, take: limit, orderBy: { createdAt: 'desc' } }), this.db.membership.count({ where })]);
     const users = await this.db.user.findMany({ where: { id: { in: memberships.map(m => m.userId) } }, select: { id: true, name: true, login: true, phone: true, status: true, mustChangePassword: true } });
     return paged(memberships.map(m => ({ ...m, user: users.find(u => u.id === m.userId), permissions: effective(m) })), total, page, limit);
@@ -38,16 +41,18 @@ export class StaffService {
     });
   }
   async invite(actor: Actor, body: unknown) {
-    const input = parse(staffInput, body); scope(actor, input.sanatorium_id, 'staff.invite');
+    const input = parse(staffInvitationInput, body); scope(actor, input.sanatorium_id, 'staff.invite');
     const password = input.temporary_password ?? `A3a-${opaque()}`;
     return this.db.atomic(async tx => {
       const current = actor.kind === 'SUPERADMIN' ? null : await tx.membership.findUnique({ where: { userId_sanatoriumId: { userId: actor.id, sanatoriumId: input.sanatorium_id } } });
-      const ceiling = current ? effective(current).filter(p => (DELEGATABLE as readonly string[]).includes(p)) : [...DELEGATABLE];
+      const delegatable = current ? effective(current).filter(p => (DELEGATABLE as readonly string[]).includes(p)) : [...DELEGATABLE];
+      const ceiling = input.role === 'ACCOUNTANT' ? delegatable.filter(p => ACCOUNTANT.includes(p)) : delegatable;
       if (current && (current.status !== 'ACTIVE' || !effective(current).includes('staff.invite'))) fail('PERMISSION_DENIED', 'Taklif yuborish vakolati bekor qilingan', 403);
       if (input.grants.some(p => !ceiling.includes(p))) fail('DELEGATION_DENIED', 'O‘zingizda yo‘q ruxsatni bera olmaysiz', 403);
+      if (input.role === 'ACCOUNTANT' && !ACCOUNTANT.every(p => ceiling.includes(p))) fail('DELEGATION_DENIED', 'Hisobchini taklif qilish uchun hisobot va eksport vakolatlari kerak', 403);
       const user = await this.createUser(tx, input, password);
-      const membership = await tx.membership.create({ data: { userId: user.id, sanatoriumId: input.sanatorium_id, role: 'RECEPTION', status: actor.kind === 'SUPERADMIN' ? 'ACTIVE' : 'PENDING_APPROVAL', grants: input.grants, ceiling, invitedBy: actor.id } });
-      await audit(tx, actor.id, 'staff.invited', membership.id, input.sanatorium_id, undefined, { userId: user.id, status: membership.status, grants: input.grants });
+      const membership = await tx.membership.create({ data: { userId: user.id, sanatoriumId: input.sanatorium_id, role: input.role, status: actor.kind === 'SUPERADMIN' ? 'ACTIVE' : 'PENDING_APPROVAL', grants: input.grants, ceiling, invitedBy: actor.id } });
+      await audit(tx, actor.id, 'staff.invited', membership.id, input.sanatorium_id, undefined, { userId: user.id, role: membership.role, status: membership.status, grants: input.grants });
       const admins = await tx.user.findMany({ where: { kind: 'SUPERADMIN', status: 'ACTIVE' }, select: { id: true } });
       await emit(tx, 'staff.invited', { recipient_ids: admins.map(a => a.id), membership_id: membership.id });
       return { membership, temporary_password: password };
@@ -75,8 +80,9 @@ export class StaffService {
       if (!target) fail('NOT_FOUND', 'Xodim topilmadi', 404);
       scope(actor, target.sanatoriumId, 'staff.permissions.manage');
       if (target.version !== input.version) fail('VERSION_CONFLICT', 'Ruxsatlar o‘zgargan');
+      if (target.role === 'ACCOUNTANT' && [...input.grants, ...input.denies, ...(input.ceiling ?? [])].some(p => !ACCOUNTANT.includes(p))) fail('DELEGATION_DENIED', 'Hisobchiga faqat hisobot va eksport vakolatlari beriladi', 403);
       if (actor.kind !== 'SUPERADMIN') {
-        if (target.userId === actor.id || target.role !== 'RECEPTION' || input.ceiling || input.grants.some(p => target.adminDenies.includes(p))) fail('DELEGATION_DENIED', 'Vakolat chegarasi yoki admin taqiqini o‘zgartira olmaysiz', 403);
+        if (target.userId === actor.id || !['RECEPTION', 'ACCOUNTANT'].includes(target.role) || input.ceiling || input.grants.some(p => target.adminDenies.includes(p))) fail('DELEGATION_DENIED', 'Vakolat chegarasi yoki admin taqiqini o‘zgartira olmaysiz', 403);
         const director = await tx.membership.findUnique({ where: { userId_sanatoriumId: { userId: actor.id, sanatoriumId: target.sanatoriumId } } });
         const allowed = director ? effective(director) : [];
         if (!director || director.status !== 'ACTIVE' || !allowed.includes('staff.permissions.manage') || input.grants.some(p => !allowed.includes(p) || (target.ceiling.length > 0 && !target.ceiling.includes(p)))) fail('DELEGATION_DENIED', 'Bu ruxsatni berishga vakolat yo‘q', 403);
@@ -97,14 +103,30 @@ export class StaffService {
       await audit(tx, actor.id, 'staff.blocked', id, m.sanatoriumId, undefined, { reason: input.reason }); return { success: true };
     });
   }
-  async reset(actor: Actor, userId: string) {
-    requirePlatform(actor, 'staff.reset'); parse(uuid, userId); const password = `A3a-${opaque()}`;
-    const encoded = await passwordHash(password);
+  async reset(actor: Actor, id: string, body: unknown, partner = false) {
+    parse(uuid, id);
+    const input = parse(resetPasswordInput, body);
+    if (!partner) requirePlatform(actor, 'staff.reset');
+    const encoded = await passwordHash(input.new_password);
     return this.db.atomic(async tx => {
+      let userId = id, sanatoriumId: string | undefined;
+      if (partner) {
+        const target = await tx.membership.findUnique({ where: { id } });
+        if (!target) fail('NOT_FOUND', 'Xodim topilmadi', 404);
+        sanatoriumId = target.sanatoriumId;
+        scope(actor, sanatoriumId, 'staff.reset');
+        const director = await tx.membership.findUnique({ where: { userId_sanatoriumId: { userId: actor.id, sanatoriumId } } });
+        if (actor.kind !== 'SUPERADMIN' && (!director || director.role !== 'DIRECTOR' || director.status !== 'ACTIVE' || !effective(director).includes('staff.reset'))) fail('PERMISSION_DENIED', 'Bu amal uchun direktor vakolati kerak', 403);
+        if (!['RECEPTION', 'ACCOUNTANT'].includes(target.role) || target.userId === actor.id) fail('PERMISSION_DENIED', 'Direktor faqat resepshin va hisobchi parolini tiklaydi', 403);
+        userId = target.userId;
+        if (actor.kind !== 'SUPERADMIN' && await tx.membership.count({ where: { userId, status: 'ACTIVE', OR: [{ sanatoriumId: { not: sanatoriumId } }, { role: 'DIRECTOR' }] } })) fail('PERMISSION_DENIED', 'Bir nechta sanatoriyaga ulangan hisob parolini superadmin tiklaydi', 403);
+      }
+      await lock(tx, `user:${userId}`);
       const user = await tx.user.findUnique({ where: { id: userId } }); if (!user || user.kind !== 'STAFF') fail('NOT_FOUND', 'Xodim topilmadi', 404);
-      await tx.user.update({ where: { id: userId }, data: { passwordHash: encoded, mustChangePassword: true } });
+      if (!sanatoriumId) sanatoriumId = (await tx.membership.findFirst({ where: { userId }, orderBy: { createdAt: 'desc' } }))?.sanatoriumId;
+      await tx.user.update({ where: { id: userId }, data: { passwordHash: encoded, mustChangePassword: false } });
       await tx.session.updateMany({ where: { userId, revokedAt: null }, data: { revokedAt: new Date() } });
-      await audit(tx, actor.id, 'staff.password_reset', userId); return { temporary_password: password };
+      await audit(tx, actor.id, 'staff.password_reset', userId, sanatoriumId); return { success: true };
     });
   }
 }

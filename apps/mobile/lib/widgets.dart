@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'data/api.dart';
 import 'data/catalog_cache.dart';
 import 'design.dart';
+import 'concept_ui.dart' show SihhatIcon;
 
 class Busy extends StatelessWidget {
   const Busy({super.key});
@@ -27,7 +28,7 @@ class ErrorView extends StatelessWidget {
     child: Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(Icons.wifi_off_rounded, color: context.colors.primary, size: 30),
+        SihhatIcon('wifi-off', color: context.colors.primary, size: 30),
         const SizedBox(height: 16),
         Text(error.toString(), textAlign: TextAlign.center),
         if (retry != null)
@@ -47,7 +48,7 @@ class EmptyView extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.spa_outlined, color: context.colors.primary, size: 36),
+          SihhatIcon('leaf', color: context.colors.primary, size: 36),
           const SizedBox(height: 14),
           Text(text, textAlign: TextAlign.center),
         ],
@@ -179,7 +180,10 @@ class _SanatoriumPhotoState extends State<SanatoriumPhoto> {
     load();
   }
 
-  void load() => future = CatalogCache(widget.api).photos.file(widget.id);
+  void load() {
+    future = CatalogCache(widget.api).photos.file(widget.id);
+  }
+
   @override
   void didUpdateWidget(covariant SanatoriumPhoto oldWidget) {
     super.didUpdateWidget(oldWidget);
@@ -207,6 +211,7 @@ class _SanatoriumPhotoState extends State<SanatoriumPhoto> {
         ? widget.fallback
         : Image.file(
             result.data!,
+            cacheWidth: 1200,
             fit: widget.fit,
             errorBuilder: (_, _, _) => widget.fallback,
           ),

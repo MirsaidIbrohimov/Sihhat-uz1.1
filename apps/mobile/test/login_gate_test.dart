@@ -57,7 +57,9 @@ Api loginApi(MemoryStore store, List<String> requests) => Api(
 );
 
 Future<void> tapVisible(WidgetTester tester, String label) async {
-  final finder = find.text(label);
+  final finder = label == 'Tasdiqlash'
+      ? find.widgetWithText(FilledButton, label)
+      : find.text(label);
   final scrollable = find.byType(Scrollable).first;
   final scroll = tester.state<ScrollableState>(scrollable).position;
   scroll.jumpTo(scroll.minScrollExtent);

@@ -7,6 +7,7 @@ import { fail } from '../common/errors';
 
 export const Public = () => SetMetadata('public', true);
 export const Roles = (...roles: string[]) => SetMetadata('roles', roles);
+export const AccountantAccess = () => SetMetadata('accountantAccess', true);
 export const CurrentActor = createParamDecorator((_data: unknown, context: ExecutionContext): Actor => context.switchToHttp().getRequest().actor);
 export type ApiRequest = Request & { actor: Actor; requestId: string };
 @Injectable()
@@ -24,6 +25,8 @@ export class AuthGuard implements CanActivate {
     if (actor.mustChangePassword && !['/auth/me', '/auth/activity', '/auth/change-password', '/auth/logout'].includes(req.path)) fail('PASSWORD_CHANGE_REQUIRED', 'Birinchi kirishda parolni almashtiring', 403);
     const roles = this.reflector.getAllAndOverride<string[]>('roles', [context.getHandler(), context.getClass()]);
     if (roles && !roles.includes(actor.kind)) fail('PERMISSION_DENIED', 'Bu sahifa uchun ruxsat yo‘q', 403);
+    const accountantOnly = actor.kind === 'STAFF' && actor.memberships.some(m => m.role === 'ACCOUNTANT') && !actor.memberships.some(m => m.status === 'ACTIVE' && m.role !== 'ACCOUNTANT');
+    if (accountantOnly && !this.reflector.getAllAndOverride<boolean>('accountantAccess', [context.getHandler(), context.getClass()])) fail('PERMISSION_DENIED', 'Hisobchi faqat hisobotlarni ko‘rishi va yuklashi mumkin', 403);
     return true;
   }
 }

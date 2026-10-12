@@ -5,6 +5,21 @@ Backend `https://api.tezcheck.uz/api/merchant/v1`ga Bearer kalit va
 HMAC-SHA256 imzosi bilan murojaat qiladi. Kalit brauzer, Flutter yoki
 Telegram tugmasiga berilmaydi.
 
+## Joriy diagnostika — 2026-10-08
+
+20:40 (Asia/Tashkent)dagi `npm run tezcheck:check` rasmiy signed o‘qish
+so‘rovlarini muvaffaqiyatli bajardi. Tanlangan bitta UZS kassada
+`state=active`, `accepts_payments=true`; Click, Payme va Uzcard/Humo
+usullari mavjud, balans endpointi ishlaydi, tranzaksiya namunasi **0**.
+Oldingi draft cheklovi o‘zgargan. Hisob yoki to‘lov yaratilmagan va
+kassa holati ushbu diagnostika orqali o‘zgartirilmagan.
+
+Haqiqiy checkout/payment return/webhook va bank qabuli hali sinalmagan.
+Yangi bronlar `BOOKING_SETTLEMENT_MODE=direct` bilan har sanatoriyaning
+o‘z tasdiqlangan merchant ulanishini talab qiladi; platforma kassasining
+faolligi bu talabni almashtirmaydi. HTTPS va webhook secret deploymentda
+sozlanadi. Railway tartibi [RAILWAY.md](RAILWAY.md)da.
+
 ## Qayta diagnostika — 2026-10-04
 
 19:26 (Asia/Tashkent)dagi `npm run tezcheck:check` `/me`, `/cash-desks`,
@@ -14,10 +29,10 @@ API autentifikatsiyasi va imzo ishladi. Bitta tanlangan UZS kassada
 usullari ro‘yxatda, tranzaksiya namunasi 0 edi.
 
 Joriy backend `PAYMENT_MODE=tezcheck`; API kaliti va kassa kodi sozlangan.
-Checkoutning hozirgi to‘sig‘i — kassada to‘lov qabul qilish o‘chiq.
+O‘sha tekshiruvdagi checkout to‘sig‘i — kassada to‘lov qabul qilish o‘chiq edi.
 [Rasmiy API](https://tezcheck.uz/api-docs)da `accepts_payments` hisob
-yaratishga tayyorlikni belgilaydi. Kassani Tezcheck kabinetida faollashtirib,
-shu buyruq bilan `accepts_payments=true` qaytishini tekshiring.
+yaratishga tayyorlikni belgilaydi. 2026-10-08 tekshiruvida bu qiymat
+`true`ga o‘zgargani tasdiqlandi.
 
 Webhook siri hali sozlanmagan; ommaviy HTTPS endpointini kabinetga ulash
 quyidagi tartibda bajariladi. Polling mustaqil ishlaydi. Diagnostika hisob

@@ -3,6 +3,9 @@ export type Actor = {
   id: string;
   kind: "SUPERADMIN" | "STAFF" | "CUSTOMER";
   name: string;
+  login?: string | null;
+  phone?: string | null;
+  sessionId?: string;
   mustChangePassword: boolean;
   idleTimeoutSeconds?: number | null;
   lastActivityAt?: string;

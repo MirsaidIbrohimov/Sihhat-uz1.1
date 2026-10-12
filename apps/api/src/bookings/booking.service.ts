@@ -1,5 +1,6 @@
 import { Inject,Injectable } from '@nestjs/common';
 import { z } from 'zod';
+import { searchInput, dateFilter, matchingBookings } from './search';
 import { randomBytes } from 'node:crypto';
 import { Db,audit,emit,lock,type Tx } from '../common/db';
 import { fail,parse,uuid,version,reason,pageQuery,paged,json,money } from '../common/errors';
@@ -25,7 +26,7 @@ export class BookingService {
     if(!manual&&await tx.booking.count({where:{userId:actor.id,status:{in:['HOLD','PAYMENT_PENDING']}}})>=3)fail('HOLD_LIMIT','Avval mavjud to‘lovsiz bronlarni yakunlang',429);
     const req=parse(quoteInput,snapshot.request);const picked:any[]=[];const used=new Set<string>();
     for(const item of req.items){const rooms=await availableRooms(tx,s.id,item.room_type_id,new Date(req.check_in),new Date(req.check_out));const room=rooms.find(r=>!used.has(r.id));if(!room)fail('AVAILABILITY_CHANGED','Tanlangan xonalardan biri butun davr uchun band');used.add(room.id);picked.push(room);}
-    const booking=await tx.booking.create({data:{reference:`SH-${randomBytes(6).toString('hex').toUpperCase()}`,sanatoriumId:s.id,userId:manual?null:actor.id,quoteId:q.id,status:manual?'CONFIRMED':'HOLD',source,checkIn:new Date(req.check_in),checkOut:new Date(req.check_out),amount:q.amount,snapshot:json(q.data),guest:i.guest,holdExpiresAt:manual?null:new Date(Date.now()+this.config.HOLD_MINUTES*60000)}});
+    const booking=await tx.booking.create({data:{reference:`SH-${randomBytes(6).toString('hex').toUpperCase()}`,sanatoriumId:s.id,userId:manual?null:actor.id,quoteId:q.id,status:manual?'CONFIRMED':'HOLD',source,checkIn:new Date(req.check_in),checkOut:new Date(req.check_out),amount:q.amount,snapshot:json(q.data),guest:i.guest,holdExpiresAt:manual?null:new Date(Date.now()+Math.min(5,this.config.HOLD_MINUTES)*60000)}});
     // Allocate the discount to items, with the final item retaining the exact remainder.
     let remaining=q.amount;const subtotal=BigInt(snapshot.subtotal_amount);
     for(let index=0;index<req.items.length;index++){const item=req.items[index];const amount=index===req.items.length-1?remaining:BigInt(snapshot.items[index].amount)*q.amount/subtotal;remaining-=amount;
@@ -42,20 +43,51 @@ export class BookingService {
   }
   async get(actor:Actor,id:string){parse(uuid,id);const b=await this.db.booking.findUnique({where:{id}});if(!b)fail('NOT_FOUND','Bron topilmadi',404);if(actor.kind==='CUSTOMER'){if(b.userId!==actor.id)fail('NOT_FOUND','Bron topilmadi',404);}else scope(actor,b.sanatoriumId,'bookings.read');
     const [items,events,payment,refund,offline]=await Promise.all([this.db.bookingItem.findMany({where:{bookingId:id}}),this.db.bookingEvent.findMany({where:{bookingId:id},orderBy:{createdAt:'asc'}}),this.db.paymentOrder.findUnique({where:{bookingId:id}}),this.db.refundRequest.findUnique({where:{bookingId:id}}),this.db.offlinePayment.findMany({where:{bookingId:id}})]);
-    return {...b,items,events,payment,refund,offline_payments:offline};
+    const historyPreserved=!!payment&&( ['SUCCEEDED','REFUNDED'].includes(payment.status)||!!await this.db.providerTransaction.findFirst({where:{orderId:payment.id,OR:[{state:{in:[2,-2]}},{performTime:{gt:0n}}]},select:{id:true}}));
+    const sanatorium=await this.db.sanatorium.findUnique({where:{id:b.sanatoriumId},select:{name:true}});
+    return {...b,items,events,payment,refund,offline_payments:offline,history_preserved:historyPreserved,sanatorium_name:sanatorium?.name??null};
   }
-  async list(actor:Actor,query:unknown){const i=parse(pageQuery.extend({sanatorium_id:uuid.optional(),status:z.string().max(30).optional()}).strict(),query);if(i.sanatorium_id&&actor.kind!=='CUSTOMER')scope(actor,i.sanatorium_id,'bookings.read');const ids=tenantIds(actor,'bookings.read');const where:any=actor.kind==='CUSTOMER'?{userId:actor.id}:{...(ids?{sanatoriumId:{in:ids}}:{})};if(i.sanatorium_id)where.sanatoriumId=i.sanatorium_id;if(i.status)where.status=i.status;
+  async list(actor:Actor,query:unknown){const i=parse(pageQuery.extend({sanatorium_id:uuid.optional(),status:z.string().max(30).optional(),...searchInput,date_kind:z.enum(['ARRIVAL','DEPARTURE','CREATED']).default('ARRIVAL')}).strict(),query);if(i.sanatorium_id&&actor.kind!=='CUSTOMER')scope(actor,i.sanatorium_id,'bookings.read');const ids=tenantIds(actor,'bookings.read');const where:any=actor.kind==='CUSTOMER'?{userId:actor.id}:{...(ids?{sanatoriumId:{in:ids}}:{})};if(i.sanatorium_id)where.sanatoriumId=i.sanatorium_id;if(i.status)where.status=i.status;
+    if(i.q)where.id={in:await matchingBookings(this.db,i.q)};
+    if(i.from||i.to)where[i.date_kind==='CREATED'?'createdAt':i.date_kind==='DEPARTURE'?'checkOut':'checkIn']=dateFilter(i.from,i.to,i.date_kind==='CREATED');
     if (actor.kind === 'CUSTOMER') {
       const hidden = await this.db.$queryRaw<{ id: string }[]>`
         SELECT b.id FROM "Booking" b LEFT JOIN "PaymentOrder" p ON p."bookingId" = b.id
-        WHERE b."userId" = ${actor.id}::uuid AND b."createdAt" <= ${new Date(Date.now() - 2 * 3600000)}
+        WHERE b."userId" = ${actor.id}::uuid
           AND b.status IN ('HOLD', 'PAYMENT_PENDING', 'EXPIRED', 'CANCELLED')
+          AND (b.status IN ('EXPIRED', 'CANCELLED') OR b."createdAt" <= ${new Date(Date.now() - 5 * 60000)})
           AND COALESCE(p.status, 'CREATED') NOT IN ('SUCCEEDED', 'REFUNDED')
-          AND NOT EXISTS (SELECT 1 FROM "ProviderTransaction" t WHERE t."orderId" = p.id AND t.state = 2)`;
+          AND NOT EXISTS (SELECT 1 FROM "ProviderTransaction" t WHERE t."orderId" = p.id AND (t.state IN (2, -2) OR t."performTime" > 0))`;
       // Hide unpaid history only. Provider polling, inventory, ledger and staff history retain the records.
       where.NOT = { id: { in: hidden.map(b => b.id) }, status: { in: ['HOLD', 'PAYMENT_PENDING', 'EXPIRED', 'CANCELLED'] } };
     }
-    const[data,total]=await Promise.all([this.db.booking.findMany({where,take:i.limit,skip:(i.page-1)*i.limit,orderBy:{createdAt:'desc'}}),this.db.booking.count({where})]);return paged(data,total,i.page,i.limit);}
+    const[data,total]=await Promise.all([this.db.booking.findMany({where,take:i.limit,skip:(i.page-1)*i.limit,orderBy:{createdAt:'desc'}}),this.db.booking.count({where})]);
+    const orders=await this.db.paymentOrder.findMany({where:{bookingId:{in:data.map(b=>b.id)}},select:{id:true,bookingId:true,status:true}});
+    const performed=await this.db.providerTransaction.findMany({where:{orderId:{in:orders.map(p=>p.id)},OR:[{state:{in:[2,-2]}},{performTime:{gt:0n}}]},select:{orderId:true}});
+    const sanatoriums=await this.db.sanatorium.findMany({where:{id:{in:[...new Set(data.map(b=>b.sanatoriumId))]}},select:{id:true,name:true}});
+    return paged(data.map(b=>{const order=orders.find(p=>p.bookingId===b.id);return {...b,payment_status:order?.status??null,history_preserved:!!order&&(['SUCCEEDED','REFUNDED'].includes(order.status)||performed.some(p=>p.orderId===order.id)),sanatorium_name:sanatoriums.find(s=>s.id===b.sanatoriumId)?.name??null};}),total,i.page,i.limit);}
+  async daily(actor: Actor, query: unknown) {
+    const i = parse(z.object({ sanatorium_id: uuid, date: z.iso.date() }).strict(), query);
+    scope(actor, i.sanatorium_id, 'bookings.read');
+    const range = dateFilter(i.date, i.date);
+    const arrivalsWhere = { sanatoriumId: i.sanatorium_id, checkIn: range, status: { in: ['CONFIRMED', 'CHECKED_IN'] } };
+    const departuresWhere = { sanatoriumId: i.sanatorium_id, checkOut: range, status: { in: ['CHECKED_IN', 'CHECKED_OUT'] } };
+    const unpaidIds = await this.db.$queryRaw<{ id: string; remaining: bigint }[]>`
+      SELECT b.id, b.amount - COALESCE(CASE WHEN p.status = 'SUCCEEDED' THEN p.amount END, 0)
+        - COALESCE((SELECT sum(o.amount) FROM "OfflinePayment" o WHERE o."bookingId" = b.id AND o.status = 'VERIFIED'), 0) AS remaining
+      FROM "Booking" b LEFT JOIN "PaymentOrder" p ON p."bookingId" = b.id
+      WHERE b."sanatoriumId" = ${i.sanatorium_id}::uuid
+        AND b.status IN ('CONFIRMED', 'CHECKED_IN', 'PAYMENT_PENDING', 'PAYMENT_EXCEPTION')
+        AND b.amount > COALESCE(CASE WHEN p.status = 'SUCCEEDED' THEN p.amount END, 0)
+          + COALESCE((SELECT sum(o.amount) FROM "OfflinePayment" o WHERE o."bookingId" = b.id AND o.status = 'VERIFIED'), 0)`;
+    const [arrivals, departures, unpaid, arrivalCount, departureCount] = await Promise.all([
+      this.db.booking.findMany({ where: arrivalsWhere, orderBy: { createdAt: 'desc' }, take: 100 }),
+      this.db.booking.findMany({ where: departuresWhere, orderBy: { createdAt: 'desc' }, take: 100 }),
+      this.db.booking.findMany({ where: { id: { in: unpaidIds.map(b => b.id) }, sanatoriumId: i.sanatorium_id }, orderBy: { createdAt: 'desc' }, take: 100 }),
+      this.db.booking.count({ where: arrivalsWhere }), this.db.booking.count({ where: departuresWhere }),
+    ]);
+    return { date: i.date, arrivals, departures, unpaid: unpaid.map(b => ({ ...b, remaining_amount: String(unpaidIds.find(p => p.id === b.id)!.remaining) })), counts: { arrivals: arrivalCount, departures: departureCount, unpaid: unpaidIds.length }, limit: 100 };
+  }
   async transition(actor:Actor,id:string,target:'CHECKED_IN'|'CHECKED_OUT'|'NO_SHOW',body:unknown){parse(uuid,id);const i=parse(z.object({version,reason:reason.optional()}).strict(),body);
     return this.db.atomic(async tx=>{const b=await tx.booking.findUnique({where:{id}});if(!b)fail('NOT_FOUND','Bron topilmadi',404);scope(actor,b.sanatoriumId,target==='CHECKED_IN'?'bookings.check_in':'bookings.check_out');await lock(tx,`inventory:${b.sanatoriumId}`);
       const current=await tx.booking.findUniqueOrThrow({where:{id}});const from=target==='CHECKED_OUT'?'CHECKED_IN':'CONFIRMED';if(current.version!==i.version||current.status!==from)fail('STATE_CONFLICT','Bron holati o‘zgargan');

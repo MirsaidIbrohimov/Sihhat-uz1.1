@@ -1,9 +1,9 @@
-import { Body, Controller, Get, Inject, Patch, Post, Req, Res } from '@nestjs/common';
+import { Body, Controller, Get, Inject, Param, Patch, Post, Req, Res } from '@nestjs/common';
 import { ApiBody, ApiTags, ApiOperation } from '@nestjs/swagger';
 import type { Request, Response } from 'express';
 import { z } from 'zod';
 import { AuthService, staffLoginInput, otpRequestInput, otpVerifyInput, changePasswordInput } from './auth.service';
-import { Public, CurrentActor, Roles, type ApiRequest } from './guard';
+import { Public, CurrentActor, Roles, AccountantAccess, type ApiRequest } from './guard';
 import type { Actor } from './permissions';
 import { parse } from '../common/errors';
 
@@ -21,7 +21,7 @@ export class AuthController {
     return { user: result.user, expires_at: result.expires_at, csrf_token: result.csrf_token };
   }
   @Public() @Post('staff/login') @ApiOperation({ summary: 'Xodim login; superadmin uchun MFA' }) @ApiBody({ schema: apiSchema(staffLoginInput) })
-  async login(@Body() body: unknown, @Req() req: Request, @Res({ passthrough: true }) res: Response) { return this.web(res, await this.auth.login(body, req.ip ?? 'unknown')); }
+  async login(@Body() body: unknown, @Req() req: Request, @Res({ passthrough: true }) res: Response) { return this.web(res, await this.auth.login(body, req.ip ?? 'unknown', req.header('User-Agent'))); }
   @Public() @Post('customer/otp/request') @ApiBody({ schema: apiSchema(otpRequestInput) })
   requestOtp(@Body() body: unknown, @Req() req: Request) { return this.auth.requestOtp(body, req.ip ?? 'unknown'); }
   @Public() @Post('customer/otp/verify') @ApiBody({ schema: apiSchema(otpVerifyInput) })
@@ -32,18 +32,24 @@ export class AuthController {
     const input = parse(z.object({ refresh_token: z.string().min(32).max(128) }).strict(), body);
     return this.auth.refresh(input.refresh_token, 'MOBILE');
   }
-  @Get('me')
+  @Get('me') @AccountantAccess()
   me(@CurrentActor() actor: Actor, @Req() req: ApiRequest) { return { ...actor, csrf_token: req.cookies?.sihhat_csrf ?? null }; }
-  @Post('logout')
+  @Post('logout') @AccountantAccess()
   async logout(@CurrentActor() actor: Actor, @Res({ passthrough: true }) res: Response) {
     for (const name of ['sihhat_access', 'sihhat_refresh', 'sihhat_csrf']) res.clearCookie(name, { path: '/' });
     return this.auth.logout(actor);
   }
-  @Post('activity') @Roles('STAFF', 'SUPERADMIN')
+  @Post('activity') @Roles('STAFF', 'SUPERADMIN') @AccountantAccess()
   activity(@CurrentActor() actor: Actor) { return this.auth.activity(actor); }
-  @Post('change-password') @ApiBody({ schema: apiSchema(changePasswordInput) })
+  @Post('change-password') @AccountantAccess() @ApiBody({ schema: apiSchema(changePasswordInput) })
   changePassword(@CurrentActor() actor: Actor, @Body() body: unknown) { return this.auth.changePassword(actor, body); }
-  @Patch('profile')
+  @Get('sessions') @Roles('STAFF', 'SUPERADMIN') @AccountantAccess()
+  sessions(@CurrentActor() a: Actor) { return this.auth.sessions(a); }
+  @Post('sessions/revoke-others') @Roles('STAFF', 'SUPERADMIN') @AccountantAccess()
+  revokeOthers(@CurrentActor() a: Actor) { return this.auth.revokeOtherSessions(a); }
+  @Post('sessions/:id/revoke') @Roles('STAFF', 'SUPERADMIN') @AccountantAccess()
+  revokeSession(@CurrentActor() a: Actor, @Param('id') id: string) { return this.auth.revokeSession(a, id); }
+  @Patch('profile') @AccountantAccess()
   profile(@CurrentActor() actor: Actor, @Body() body: unknown) { return this.auth.profile(actor, body); }
   @Post('customer/phone-change/request') @Roles('CUSTOMER') phoneRequest(@CurrentActor() a:Actor,@Body() b:unknown){return this.auth.phoneChangeRequest(a,b);}
   @Post('customer/phone-change/confirm') @Roles('CUSTOMER') phoneConfirm(@CurrentActor() a:Actor,@Body() b:unknown){return this.auth.phoneChangeConfirm(a,b);}

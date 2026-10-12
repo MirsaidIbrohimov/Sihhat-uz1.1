@@ -4,6 +4,7 @@ import '../data/api.dart';
 import '../data/home_feed.dart';
 import '../widgets.dart';
 import '../design.dart';
+import '../concept_ui.dart';
 
 String _updated(dynamic value) {
   final date = DateTime.tryParse(value?.toString() ?? '')?.toLocal();
@@ -35,8 +36,8 @@ class HomeUpdates extends StatelessWidget {
               (article) => Card(
                 child: ListTile(
                   contentPadding: const EdgeInsets.all(16),
-                  leading: Icon(
-                    Icons.newspaper_rounded,
+                  leading: SihhatIcon(
+                    'file-text',
                     color: context.colors.primary,
                   ),
                   title: Text(
@@ -47,7 +48,7 @@ class HomeUpdates extends StatelessWidget {
                     padding: const EdgeInsets.only(top: 8),
                     child: Text(article['summary'] ?? ''),
                   ),
-                  trailing: const Icon(Icons.chevron_right),
+                  trailing: const SihhatIcon('chevron-right'),
                   onTap: () => Navigator.push(
                     context,
                     MaterialPageRoute(
@@ -66,7 +67,7 @@ class HomeUpdates extends StatelessWidget {
                   .map(
                     (article) => ListTile(
                       title: Text(article['title']),
-                      trailing: const Icon(Icons.chevron_right),
+                      trailing: const SihhatIcon('chevron-right'),
                       onTap: () => Navigator.push(
                         context,
                         MaterialPageRoute(
@@ -81,10 +82,7 @@ class HomeUpdates extends StatelessWidget {
         const SizedBox(height: 16),
         Card(
           child: ExpansionTile(
-            leading: Icon(
-              Icons.lightbulb_outline_rounded,
-              color: context.colors.primary,
-            ),
+            leading: SihhatIcon('sparkles', color: context.colors.primary),
             title: const Text('Foydali tavsiyalar'),
             children: tips
                 .map(
@@ -116,28 +114,18 @@ class ArticleScreen extends StatelessWidget {
   final String id;
   const ArticleScreen(this.api, this.id, {super.key});
   @override
-  Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('Yangilik')),
+  Widget build(BuildContext context) => ConceptPage(
+    title: 'Yangilik',
     body: AsyncContent(
       load: () => api.send('/catalog/news/$id'),
       builder: (v) {
         final a = asJson(v);
         return ListView(
-          padding: const EdgeInsets.all(24),
+          padding: const EdgeInsets.all(20),
           children: [
-            Text(
-              a['title'],
-              style: TextStyle(
-                fontSize: 27,
-                fontWeight: FontWeight.w700,
-                color: context.colors.ink,
-              ),
-            ),
+            Text(a['title'], style: conceptHeading(context, size: 28)),
             const SizedBox(height: 12),
-            Text(
-              _updated(a['published_at']),
-              style: TextStyle(color: context.colors.muted, fontSize: 12),
-            ),
+            ConceptRow('calendar-days', _updated(a['published_at'])),
             const SizedBox(height: 24),
             SelectableText(
               a['body'],

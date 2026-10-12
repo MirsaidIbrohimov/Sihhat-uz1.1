@@ -1,7 +1,17 @@
 "use client";
 import { useEffect, useState } from "react";
+import {
+  Bell,
+  Check,
+  CheckCheck,
+  ClipboardList,
+  FileText,
+  Mail,
+  Star,
+} from "lucide-react";
 import { api, toMinor } from "@sihhat/api-client";
 import {
+  label,
   Act,
   AddButton,
   Badge,
@@ -9,6 +19,7 @@ import {
   DataPanel,
   Empty,
   ErrorBox,
+  FeedItem,
   Loading,
   PageHeading,
   Table,
@@ -43,7 +54,7 @@ export function Communications({
     ),
     recipients = people.map((r) => ({
       value: r.userId,
-      label: `${r.user?.name} · ${r.role === "DIRECTOR" ? "Direktor" : "Resepshn"}`,
+      label: `${r.user?.name} · ${label[r.role] ?? r.role}`,
     }));
   useEffect(() => setSelectedSurvey(null), [kind, ctx.tenant, ctx.epoch]);
   function create() {
@@ -234,7 +245,7 @@ export function Communications({
               : false)) && (
           <AddButton onClick={create}>
             {kind === "messages"
-              ? "Yuborish"
+              ? "Xabar yuborish"
               : kind === "tasks"
                 ? "Vazifa berish"
                 : "Anketa yaratish"}
@@ -244,118 +255,149 @@ export function Communications({
       {kind === "messages" ? (
         <DataPanel
           path="/messages"
-          columns={[
-            {
-              label: "Xabar",
-              render: (r) => (
+          title="Sizga yuborilgan xabarlar"
+          renderRow={(r) => (
+            <FeedItem
+              icon={<Mail size={21} />}
+              title={r.message?.title}
+              status={
+                <span
+                  className={`badge ${r.acceptedAt ? "green" : r.message?.kind === "WARNING" ? "amber" : "blue"}`}
+                >
+                  {r.acceptedAt
+                    ? "Qabul qilingan"
+                    : r.message?.kind === "WARNING"
+                      ? "Ogohlantirish"
+                      : r.readAt
+                        ? "O‘qilgan"
+                        : "Yangi"}
+                </span>
+              }
+              meta={
                 <>
-                  <strong>{r.message?.title}</strong>
-                  <p className="section-text">{r.message?.body}</p>
-                  {r.message?.assetIds?.map((id: string, n: number) => (
+                  {r.readAt
+                    ? `Ko‘rilgan: ${date(r.readAt)}`
+                    : "Hali o‘qilmagan"}{" "}
+                  ·{" "}
+                  {r.acceptedAt
+                    ? `Qabul qilingan: ${date(r.acceptedAt)}`
+                    : "Qabul qilinmagan"}
+                </>
+              }
+              actions={
+                !r.acceptedAt && (
+                  <button
+                    className="button soft"
+                    onClick={() =>
+                      action(
+                        "Xabarni qabul qilish",
+                        `/messages/${r.messageId}/receipt`,
+                        { accepted: true },
+                      )
+                    }
+                  >
+                    <Check size={17} />
+                    Qabul qildim
+                  </button>
+                )
+              }
+            >
+              <p>{r.message?.body}</p>
+              {!!r.message?.assetIds?.length && (
+                <div className="feed-attachments">
+                  {r.message.assetIds.map((id: string, n: number) => (
                     <a
                       key={id}
                       href={`/api/media/${id}`}
-                      className="text-button"
                       target="_blank"
                       rel="noreferrer"
                     >
+                      <FileText size={15} />
                       Fayl {n + 1}
                     </a>
                   ))}
-                </>
-              ),
-            },
-            {
-              label: "Turi",
-              render: (r) =>
-                r.message?.kind === "WARNING" ? "Ogohlantirish" : "Xabar",
-            },
-            {
-              label: "Ko‘rilgan",
-              render: (r) => (r.readAt ? date(r.readAt) : "Yangi"),
-            },
-            {
-              label: "Qabul qilingan",
-              render: (r) => (r.acceptedAt ? date(r.acceptedAt) : "Kutilmoqda"),
-            },
-          ]}
-          actions={(r) =>
-            !r.acceptedAt && (
-              <Act
-                onClick={() =>
-                  action(
-                    "Xabarni qabul qilish",
-                    `/messages/${r.messageId}/receipt`,
-                    { accepted: true },
-                  )
-                }
-              >
-                Qabul qildim
-              </Act>
-            )
-          }
+                </div>
+              )}
+            </FeedItem>
+          )}
         />
       ) : kind === "tasks" ? (
         <DataPanel
           path="/tasks"
+          title="Jamoa vazifalari"
           paged={false}
           filter={(r) => r.sanatoriumId === ctx.tenant}
-          columns={[
-            {
-              label: "Vazifa",
-              render: (r) => (
+          renderRow={(r) => (
+            <FeedItem
+              icon={<ClipboardList size={21} />}
+              title={r.title}
+              status={<Badge value={r.status} />}
+              meta={
                 <>
-                  <strong>{r.title}</strong>
-                  <p className="section-text">{r.body}</p>
-                  {r.reply && <span className="subcell">Javob: {r.reply}</span>}
+                  <span>
+                    Xodim:{" "}
+                    {people.find((p) => p.userId === r.assignedTo)?.user
+                      ?.name ??
+                      (r.assignedTo === ctx.actor.id ? "Siz" : "Xodim")}
+                  </span>
+                  <span>Muddat: {dateTime(r.dueAt)}</span>
                 </>
-              ),
-            },
-            {
-              label: "Xodim",
-              render: (r) =>
-                people.find((p) => p.userId === r.assignedTo)?.user?.name ??
-                (r.assignedTo === ctx.actor.id ? "Siz" : "Xodim"),
-            },
-            { label: "Muddat", render: (r) => dateTime(r.dueAt) },
-            statusColumn,
-          ]}
-          actions={(r) =>
-            (r.assignedTo === ctx.actor.id || ctx.admin) && (
-              <>
-                {r.status === "ASSIGNED" && (
-                  <Act
-                    onClick={() =>
-                      action(
-                        "Vazifani qabul qilish",
-                        `/tasks/${r.id}`,
-                        { version: r.version, status: "ACCEPTED" },
-                        [],
-                        "PATCH",
-                      )
-                    }
-                  >
-                    Qabul qilish
-                  </Act>
-                )}
-                {r.status === "ACCEPTED" && (
-                  <Act
-                    onClick={() =>
-                      action(
-                        "Vazifani yakunlash",
-                        `/tasks/${r.id}`,
-                        { version: r.version, status: "COMPLETED" },
-                        [{ key: "reply", label: "Natija", type: "textarea" }],
-                        "PATCH",
-                      )
-                    }
-                  >
-                    Bajarildi
-                  </Act>
-                )}
-              </>
-            )
-          }
+              }
+              actions={
+                (r.assignedTo === ctx.actor.id || ctx.admin) && (
+                  <>
+                    {r.status === "ASSIGNED" && (
+                      <button
+                        className="button soft"
+                        onClick={() =>
+                          action(
+                            "Vazifani qabul qilish",
+                            `/tasks/${r.id}`,
+                            { version: r.version, status: "ACCEPTED" },
+                            [],
+                            "PATCH",
+                          )
+                        }
+                      >
+                        Qabul qilish
+                      </button>
+                    )}
+                    {r.status === "ACCEPTED" && (
+                      <button
+                        className="button soft"
+                        onClick={() =>
+                          action(
+                            "Vazifani yakunlash",
+                            `/tasks/${r.id}`,
+                            { version: r.version, status: "COMPLETED" },
+                            [
+                              {
+                                key: "reply",
+                                label: "Natija",
+                                type: "textarea",
+                              },
+                            ],
+                            "PATCH",
+                          )
+                        }
+                      >
+                        Bajarildi
+                        <CheckCheck size={17} />
+                      </button>
+                    )}
+                  </>
+                )
+              }
+            >
+              <p>{r.body}</p>
+              {r.reply && (
+                <div className="feed-reply">
+                  <strong>Natija</strong>
+                  <p>{r.reply}</p>
+                </div>
+              )}
+            </FeedItem>
+          )}
         />
       ) : (
         <>
@@ -409,35 +451,50 @@ export function Communications({
           )}
           <DataPanel
             path="/surveys"
+            title="Anketalar"
             paged={false}
-            columns={[
-              { label: "Anketa", key: "title" },
-              { label: "Versiya", key: "version" },
-              { label: "Savollar", render: (r) => r.questions.length },
-              ...(ctx.admin
-                ? [
-                    {
-                      label: "Javoblar",
-                      render: (r: Row) =>
-                        `${r.response_count ?? 0} / ${r.recipientIds.length}`,
-                    },
-                  ]
-                : []),
-              { label: "Yaratilgan", render: (r) => date(r.createdAt) },
-            ]}
-            actions={(r) => (
-              <>
-                <Act onClick={() => setSelectedSurvey(r)}>
-                  {r.answered ? "Javobimni ko‘rish" : "Savollarni ko‘rish"}
-                </Act>
-                {r.answered ? (
-                  <span className="muted">Javob berilgan</span>
-                ) : r.recipientIds.includes(ctx.actor.id) ? (
-                  <Act onClick={() => answer(r)}>Javob berish</Act>
-                ) : (
-                  <span className="muted">Yuborilgan</span>
-                )}
-              </>
+            renderRow={(r) => (
+              <FeedItem
+                icon={<FileText size={21} />}
+                title={r.title}
+                status={
+                  <span className={`badge ${r.answered ? "green" : "blue"}`}>
+                    {r.answered ? "Javob berilgan" : "Javob kutilmoqda"}
+                  </span>
+                }
+                meta={
+                  <>
+                    <span>
+                      {date(r.createdAt)} · {r.version}-versiya
+                    </span>
+                    {ctx.admin && (
+                      <span>
+                        Javoblar: {r.response_count ?? 0} /{" "}
+                        {r.recipientIds.length}
+                      </span>
+                    )}
+                  </>
+                }
+                actions={
+                  <>
+                    <Act onClick={() => setSelectedSurvey(r)}>
+                      {r.answered ? "Javobimni ko‘rish" : "Savollarni ko‘rish"}
+                    </Act>
+                    {r.answered ? (
+                      <span className="muted">Javob berilgan</span>
+                    ) : r.recipientIds.includes(ctx.actor.id) ? (
+                      <Act onClick={() => answer(r)}>Javob berish</Act>
+                    ) : (
+                      <span className="muted">Yuborilgan</span>
+                    )}
+                  </>
+                }
+              >
+                <p>
+                  {r.questions.length} ta savol · Har bir versiya uchun alohida
+                  javob saqlanadi.
+                </p>
+              </FeedItem>
             )}
           />
         </>
@@ -456,66 +513,90 @@ export function Reviews() {
       />
       <DataPanel
         path="/partner/reviews"
+        title="Mehmonlar fikrlari"
         params={{ sanatorium_id: ctx.tenant }}
-        columns={[
-          { label: "Baho", render: (r) => `${r.rating} / 5` },
-          {
-            label: "Sharh",
-            render: (r) => (
-              <>
-                {r.text}
-                {r.reply && <p className="subcell">Javob: {r.reply}</p>}
-              </>
-            ),
-          },
-          statusColumn,
-          { label: "Yozilgan", render: (r) => date(r.createdAt) },
-        ]}
-        actions={(r) => (
-          <>
-            <Act
-              onClick={() =>
-                action("Sharhga javob", `/partner/reviews/${r.id}/reply`, {}, [
-                  {
-                    key: "reply",
-                    label: "Javob",
-                    type: "textarea",
-                    required: true,
-                    minLength: 3,
-                    value: r.reply,
-                  },
-                ])
-              }
-            >
-              Javob yozish
-            </Act>
-            {ctx.admin && (
-              <Act
-                danger={r.status === "PUBLISHED"}
-                onClick={() =>
-                  action(
-                    r.status === "PUBLISHED"
-                      ? "Sharhni yashirish"
-                      : "Sharhni qayta ko‘rsatish",
-                    `/superadmin/reviews/${r.id}/moderate`,
-                    {
-                      status: r.status === "PUBLISHED" ? "HIDDEN" : "PUBLISHED",
-                    },
-                    [
-                      {
-                        key: "reason",
-                        label: "Moderatsiya sababi",
-                        required: true,
-                        minLength: 3,
-                      },
-                    ],
-                  )
-                }
+        renderRow={(r) => (
+          <FeedItem
+            icon={<Star size={21} />}
+            title={
+              <span
+                className="review-rating"
+                aria-label={`Baho: ${r.rating} / 5`}
               >
-                {r.status === "PUBLISHED" ? "Yashirish" : "Ko‘rsatish"}
-              </Act>
+                {Array.from({ length: 5 }, (_, n) => (
+                  <Star
+                    key={n}
+                    size={17}
+                    className={n < r.rating ? "filled" : ""}
+                    aria-hidden="true"
+                  />
+                ))}
+                <span>{r.rating} / 5</span>
+              </span>
+            }
+            status={<Badge value={r.status} />}
+            meta={date(r.createdAt)}
+            actions={
+              <>
+                <Act
+                  onClick={() =>
+                    action(
+                      "Sharhga javob",
+                      `/partner/reviews/${r.id}/reply`,
+                      {},
+                      [
+                        {
+                          key: "reply",
+                          label: "Javob",
+                          type: "textarea",
+                          required: true,
+                          minLength: 3,
+                          value: r.reply,
+                        },
+                      ],
+                    )
+                  }
+                >
+                  Javob yozish
+                </Act>
+                {ctx.admin && (
+                  <Act
+                    danger={r.status === "PUBLISHED"}
+                    onClick={() =>
+                      action(
+                        r.status === "PUBLISHED"
+                          ? "Sharhni yashirish"
+                          : "Sharhni qayta ko‘rsatish",
+                        `/superadmin/reviews/${r.id}/moderate`,
+                        {
+                          status:
+                            r.status === "PUBLISHED" ? "HIDDEN" : "PUBLISHED",
+                        },
+                        [
+                          {
+                            key: "reason",
+                            label: "Moderatsiya sababi",
+                            required: true,
+                            minLength: 3,
+                          },
+                        ],
+                      )
+                    }
+                  >
+                    {r.status === "PUBLISHED" ? "Yashirish" : "Ko‘rsatish"}
+                  </Act>
+                )}
+              </>
+            }
+          >
+            <p>{r.text}</p>
+            {r.reply && (
+              <div className="feed-reply">
+                <strong>Sanatoriya javobi</strong>
+                <p>{r.reply}</p>
+              </div>
             )}
-          </>
+          </FeedItem>
         )}
       />
     </>
@@ -525,12 +606,17 @@ export function Support() {
   const ctx = usePortal(),
     action = useAction(),
     [id, setId] = useState<string | null>(null),
+    tickets = useRemote("/support/tickets", ctx.epoch),
     detail = useRemote(id ? `/support/tickets/${id}` : null, ctx.epoch),
     t = detail.data;
+  useEffect(() => {
+    if (window.matchMedia("(min-width: 900px)").matches)
+      setId((selected) => selected ?? list(tickets.data)[0]?.id ?? null);
+  }, [tickets.data]);
   return (
     <>
       <PageHeading
-        title={t?.title ?? "Yordam xizmati"}
+        title="Yordam xizmati"
         subtitle="Bron va platforma bo‘yicha murojaatlar."
       >
         <AddButton
@@ -555,73 +641,105 @@ export function Support() {
           Murojaat yaratish
         </AddButton>
       </PageHeading>
-      {id ? (
-        <>
-          <button className="button secondary" onClick={() => setId(null)}>
-            ← Murojaatlarga qaytish
-          </button>
-          {detail.loading ? (
-            <Loading />
-          ) : detail.error ? (
-            <ErrorBox message={detail.error} />
-          ) : (
-            t && (
-              <Card title="Suhbat" aside={<Badge value={t.status} />}>
-                <div className="message-list">
-                  {t.messages.map((m: Row) => (
-                    <div className="message" key={m.id}>
-                      <strong>
-                        {m.userId === ctx.actor.id ? "Siz" : "Suhbatdosh"}
-                      </strong>
-                      <p className="message-body">{m.text}</p>
-                      <div className="message-meta">{date(m.createdAt)}</div>
-                    </div>
-                  ))}
-                  <Act
-                    onClick={() =>
-                      action(
-                        "Murojaatga javob",
-                        `/support/tickets/${id}/messages`,
-                        {},
-                        [
-                          {
-                            key: "text",
-                            label: "Javob",
-                            type: "textarea",
-                            required: true,
-                          },
-                          ...(ctx.admin
-                            ? [
-                                {
-                                  key: "close",
-                                  label: "Murojaatni yopish",
-                                  type: "checkbox" as const,
-                                },
-                              ]
-                            : []),
-                        ],
-                      )
-                    }
-                  >
-                    Javob yozish
+      <div className={`support-layout ${id ? "has-selection" : ""}`}>
+        <div className="support-ticket-list">
+          <Card title="Murojaatlar">
+            {tickets.loading ? (
+              <Loading />
+            ) : tickets.error ? (
+              <ErrorBox message={tickets.error} retry={tickets.reload} />
+            ) : (
+              <Table
+                layout="cards"
+                rows={list(tickets.data)}
+                columns={[
+                  { label: "Mavzu", key: "title" },
+                  statusColumn,
+                  { label: "Yaratilgan", render: (row) => date(row.createdAt) },
+                ]}
+                actions={(row) => (
+                  <Act onClick={() => setId(row.id)}>
+                    {row.id === id ? "Tanlangan suhbat" : "Ochish"}
                   </Act>
-                </div>
-              </Card>
-            )
+                )}
+              />
+            )}
+          </Card>
+        </div>
+        <div className="support-conversation">
+          {id ? (
+            <>
+              <button
+                className="button secondary support-back"
+                onClick={() => setId(null)}
+              >
+                ← Murojaatlarga qaytish
+              </button>
+              {detail.loading ? (
+                <Loading />
+              ) : detail.error ? (
+                <ErrorBox message={detail.error} retry={detail.reload} />
+              ) : (
+                t && (
+                  <Card
+                    title={t.title ?? "Suhbat"}
+                    aside={<Badge value={t.status} />}
+                  >
+                    <div className="message-list">
+                      {t.messages.map((m: Row) => (
+                        <div
+                          className={`message ${m.userId === ctx.actor.id ? "own" : ""}`}
+                          key={m.id}
+                        >
+                          <strong>
+                            {m.userId === ctx.actor.id ? "Siz" : "Suhbatdosh"}
+                          </strong>
+                          <p className="message-body">{m.text}</p>
+                          <div className="message-meta">
+                            {date(m.createdAt)}
+                          </div>
+                        </div>
+                      ))}
+                      <Act
+                        onClick={() =>
+                          action(
+                            "Murojaatga javob",
+                            `/support/tickets/${id}/messages`,
+                            {},
+                            [
+                              {
+                                key: "text",
+                                label: "Javob",
+                                type: "textarea",
+                                required: true,
+                              },
+                              ...(ctx.admin
+                                ? [
+                                    {
+                                      key: "close",
+                                      label: "Murojaatni yopish",
+                                      type: "checkbox" as const,
+                                    },
+                                  ]
+                                : []),
+                            ],
+                          )
+                        }
+                      >
+                        Javob yozish
+                      </Act>
+                    </div>
+                  </Card>
+                )
+              )}
+            </>
+          ) : (
+            <Card>
+              <Empty text="Suhbatni tanlang" />
+            </Card>
           )}
-        </>
-      ) : (
-        <DataPanel
-          path="/support/tickets"
-          paged={false}
-          columns={[
-            { label: "Mavzu", key: "title" },
-            statusColumn,
-            { label: "Yaratilgan", render: (r) => date(r.createdAt) },
-          ]}
-          actions={(r) => <Act onClick={() => setId(r.id)}>Ochish</Act>}
-        />
-      )}
+        </div>
+      </div>
     </>
   );
 }
@@ -632,6 +750,7 @@ const auditLabels: Record<string, string> = {
   "staff.approved": "Xodim tasdiqlandi",
   "staff.permissions_updated": "Xodim ruxsatlari yangilandi",
   "sanatorium.created": "Sanatoriya yaratildi",
+  "sanatorium.featured_updated": "Mashhur sanatoriyalar tanlovi yangilandi",
   "sanatorium.approved": "Profil tasdiqlandi",
   "sanatorium.draft_saved": "Profil saqlandi",
   "booking.hold_created": "Xona vaqtincha band qilindi",
@@ -651,13 +770,16 @@ export function Audit() {
         subtitle="Muhim o‘zgarishlar o‘chirilmaydigan audit yozuvlarida saqlanadi."
       />
       <DataPanel
-        path="/superadmin/audit"
+        path={ctx.admin ? "/superadmin/audit" : "/partner/audit"}
+        params={{ sanatorium_id: ctx.tenant || undefined }}
         columns={[
           { label: "Vaqt", render: (r) => dateTime(r.createdAt) },
           {
             label: "Amal",
             render: (r) =>
-              auditLabels[r.action] ?? r.action.replace(/[._]/g, " "),
+              (r.action === "staff.password_reset"
+                ? "Xodim paroli tiklandi"
+                : auditLabels[r.action]) ?? r.action.replace(/[._]/g, " "),
           },
           {
             label: "Sanatoriya",
@@ -667,7 +789,8 @@ export function Audit() {
           },
           {
             label: "Manba",
-            render: (r) => (r.actorId ? "Xodim" : "Provayder / tizim"),
+            render: (r) =>
+              r.actor_name ?? (r.actorId ? "Xodim" : "Provayder / tizim"),
           },
         ]}
       />
@@ -788,25 +911,36 @@ export function Notifications() {
       />
       <DataPanel
         path="/notifications"
+        title="Bildirishnomalar lentasi"
         paged={false}
-        columns={[
-          {
-            label: "Hodisa",
-            render: (r) => topics[r.payload?.topic] ?? "Platforma yangilanishi",
-          },
-          { label: "Holat", render: (r) => (r.readAt ? "O‘qilgan" : "Yangi") },
-        ]}
-        actions={(r) =>
-          !r.readAt && (
-            <Act
-              onClick={() =>
-                action("Bildirishnomani o‘qish", `/notifications/${r.id}/read`)
-              }
-            >
-              O‘qilgan
-            </Act>
-          )
-        }
+        renderRow={(r) => (
+          <FeedItem
+            icon={<Bell size={21} />}
+            title={topics[r.payload?.topic] ?? "Platforma yangilanishi"}
+            status={
+              <span className={`badge ${r.readAt ? "gray" : "blue"}`}>
+                {r.readAt ? "O‘qilgan" : "Yangi"}
+              </span>
+            }
+            meta={dateTime(r.createdAt)}
+            actions={
+              !r.readAt && (
+                <button
+                  className="button soft"
+                  onClick={() =>
+                    action(
+                      "Bildirishnomani o‘qish",
+                      `/notifications/${r.id}/read`,
+                    )
+                  }
+                >
+                  <Check size={17} />
+                  O‘qilgan
+                </button>
+              )
+            }
+          />
+        )}
       />
     </>
   );
