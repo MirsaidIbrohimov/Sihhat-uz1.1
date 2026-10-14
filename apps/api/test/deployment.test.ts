@@ -2,6 +2,11 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { randomBytes } from 'node:crypto';
 import { loadConfig, productionIssues } from '../src/common/config';
+import { AuthService } from '../src/auth/auth.service';
+import { Sms } from '../src/auth/sms';
+import { AppError } from '../src/common/errors';
+import type { Db } from '../src/common/db';
+import type { Actor } from '../src/auth/permissions';
 
 const env = (): NodeJS.ProcessEnv => ({
   NODE_ENV: 'production', PORT: '8080',
@@ -53,4 +58,55 @@ test('deployment: diagnostics identify missing services without echoing credenti
   assert.match(issues, /PostgreSQL/); assert.match(issues, /Redis/); assert.match(issues, /S3/);
   assert.equal(issues.includes('private:private'), false);
   assert.equal(issues.includes(supplied.AUTH_SECRET!), false);
+});
+
+test('deployment: Hostra private sockets require the explicit platform and an authenticated account database', () => {
+  const supplied = { ...env(), DEPLOYMENT_PLATFORM: 'hostra',
+    DATABASE_URL: 'postgresql://mirsaid2028:example-provider-password@localhost/mirsaid2028_sihhat?host=/run/postgresql',
+    REDIS_URL: 'redis://127.0.0.1:6379', REDIS_SOCKET_PATH: '/run/redis/redis.sock' };
+  assert.deepEqual(productionIssues(loadConfig(supplied)), []);
+  assert.throws(() => loadConfig({ ...supplied, DEPLOYMENT_PLATFORM: 'generic' }), /Production:/);
+  for (const DATABASE_URL of [
+    'postgresql://mirsaid2028:example-provider-password@localhost/mirsaid2028_sihhat',
+    'postgresql://mirsaid2028@localhost/mirsaid2028_sihhat?host=/run/postgresql',
+    'postgresql://mirsaid2028:example-provider-password@localhost/another_account?host=/run/postgresql',
+    'postgresql://mirsaid2028:example-provider-password@localhost/mirsaid2028_sihhat?host=/tmp/postgresql',
+    'postgresql://mirsaid2028:example-provider-password@localhost/mirsaid2028_sihhat?host=/run/postgresql&host=/tmp/postgresql',
+    'postgresql://example:example@postgres.example.com/db?host=/tmp/postgresql',
+  ]) assert.throws(() => loadConfig({ ...supplied, DATABASE_URL }), /Production:/);
+  assert.throws(() => loadConfig({ ...supplied, REDIS_SOCKET_PATH: '' }), /Redis/);
+  assert.throws(() => loadConfig({ ...supplied, REDIS_SOCKET_PATH: '/tmp/redis.sock' }), /REDIS_SOCKET_PATH/);
+});
+
+test('deployment: Hostra local media requires the explicit private persistent directory', () => {
+  const supplied = { ...env(), DEPLOYMENT_PLATFORM: 'hostra', STORAGE_ADAPTER: 'local',
+    STORAGE_PATH: '/home/terminal/.sihhat/media', S3_ENDPOINT: '', S3_ACCESS_KEY: '', S3_SECRET_KEY: '' };
+  assert.deepEqual(productionIssues(loadConfig(supplied)), []);
+  assert.throws(() => loadConfig({ ...supplied, DEPLOYMENT_PLATFORM: 'generic' }), /S3/);
+  for (const STORAGE_PATH of ['../../.local/uploads', '/tmp/media', '/home/terminal/public_html/media',
+    '/home/terminal/sihhat-mirsaid2028.wwwz.uz/media', '/home/terminal/.sihhat/media/../public',
+    '/home/terminal/.sihhat/media-other']) {
+    assert.throws(() => loadConfig({ ...supplied, STORAGE_PATH }), /persistent media/);
+  }
+});
+
+test('deployment: disabled customer SMS cannot issue or verify OTPs or change phones', async () => {
+  const config = loadConfig({ ...env(), SMS_ADAPTER: 'disabled' });
+  assert.deepEqual(productionIssues(config), []);
+  let databaseCalls = 0;
+  const db = new Proxy({}, { get() { databaseCalls++; throw new Error('Database must not be used while SMS is disabled'); } }) as Db;
+  const sms = new Sms(config);
+  const auth = new AuthService(db, config, sms);
+  const id = '7c387e01-0842-40a3-850d-86a55b4f0a3d';
+  const customer = { kind: 'CUSTOMER', id } as Actor;
+  const unavailable = (error: unknown) => error instanceof AppError && error.code === 'SMS_DISABLED' && error.getStatus() === 503;
+  await assert.rejects(() => auth.requestOtp({ phone: '+998951231233' }, '198.51.100.20'), unavailable);
+  await assert.rejects(() => auth.verifyOtp({ challenge_id: id, code: '123456' }, '198.51.100.20'), unavailable);
+  await assert.rejects(() => auth.phoneChangeRequest(customer, { new_phone: '+998951231234' }), unavailable);
+  await assert.rejects(() => auth.phoneChangeConfirm(customer, { old_challenge_id: id, new_challenge_id: id, old_code: '123456', new_code: '123456' }), unavailable);
+  await assert.rejects(() => sms.send(id, '+998951231233', '123456', new Date(Date.now() + 60000)), unavailable);
+  assert.equal(databaseCalls, 0);
+  assert.equal(sms.sent.size, 0);
+  await assert.rejects(() => auth.phoneChangeRequest({ kind: 'STAFF' } as Actor, {}), (error: unknown) => error instanceof AppError && error.code === 'PERMISSION_DENIED');
+  assert.throws(() => loadConfig({ ...env(), SMS_ADAPTER: 'disabled', DEMO_OTP_ENABLED: 'true' }), /Demo OTP/);
 });

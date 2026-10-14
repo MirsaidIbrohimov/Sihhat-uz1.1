@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="uz">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'none'; base-uri 'none'; form-action 'none'">
+  <title>Sihhat uz — Hostra kirish</title>
+  <style>
+    *{box-sizing:border-box}body{font:16px/1.6 system-ui,sans-serif;background:#eef6f3;color:#163b30;margin:0;padding:28px 18px}main{max-width:660px;margin:auto;background:#fff;border:1px solid #dce9e2;border-radius:20px;padding:28px}h1{font-size:26px;margin-top:0}a{color:#13654e}label{display:block;font-weight:600;margin-top:20px}input{width:100%;margin:6px 0;padding:12px;border:1px solid #c5d9ce;border-radius:9px;font:15px ui-monospace,monospace}button{border:0;border-radius:9px;padding:11px 15px;background:#e5f1eb;color:#164c36;cursor:pointer;font:inherit}button:disabled{opacity:.55;cursor:default}.mfa{margin:24px 0;padding:20px;background:#edf8f2;border:1px solid #c5d9ce;border-radius:14px}.mfa label{margin:0}#code{display:block;font:bold 42px/1.4 ui-monospace,monospace;letter-spacing:6px;margin:8px 0}#remaining{display:block;margin-bottom:12px}small{color:#526e60}summary{cursor:pointer;font-weight:600}details{border-top:1px solid #dce9e2;padding-top:18px}li{margin:8px 0}#notice{min-height:26px}@media(max-width:420px){main{padding:20px}#code{font-size:36px;letter-spacing:4px}}
+  </style>
+</head>
+<body>
+<main>
+  <h1>Sihhat uz — Hostra superadmin</h1>
+  <p><a href="{{ADMIN_URL}}" target="_blank" rel="noopener noreferrer">Superadmin panelini ochish</a> · <a href="{{PARTNER_URL}}" target="_blank" rel="noopener noreferrer">Hamkorlar paneli</a></p>
+  <label for="login">Login</label>
+  <input id="login" readonly value="{{LOGIN}}">
+  <button type="button" onclick="copyField('login')">Loginni nusxalash</button>
+  <label for="password">Parol</label>
+  <input id="password" type="password" readonly value="{{PASSWORD}}">
+  <button type="button" onclick="copyField('password')">Parolni nusxalash</button>
+  <button type="button" onclick="toggle('password')">Ko‘rsatish / yashirish</button>
+  <section class="mfa" aria-label="Joriy autentifikator kodi">
+    <label for="code">Kirish uchun 6 raqamli MFA kodi</label>
+    <output id="code">······</output>
+    <small id="remaining">Kod tayyorlanmoqda…</small>
+    <button id="copy-code" type="button" disabled onclick="copyCode()">MFA kodini nusxalash</button>
+  </section>
+  <p>Superadmin paneliga login, parol va yuqoridagi <b>6 raqamli kod</b> bilan kiring. Kod har 30 soniyada yangilanadi va bir marta ishlatiladi. Qayta kirishda yangi kodni kuting.</p>
+  <p id="notice" role="status" aria-live="polite"></p>
+  <details>
+    <summary>MFA’ni telefondagi Authenticatorga ulash</summary>
+    <ol>
+      <li>Google Authenticator yoki Microsoft Authenticatorda yangi hisob qo‘shing: <b>sozlash kalitini qo‘lda kiritish</b>.</li>
+      <li>Hisob nomi: <b>Sihhat uz — Hostra</b>. Pastdagi kalitni kiriting; turini <b>vaqtga asoslangan (TOTP)</b> tanlang. Kod: 6 raqam, davr: 30 soniya.</li>
+      <li>Shu Hostra hisobining joriy 6 raqamli kodidan foydalaning. Qurilmadagi sana va vaqt avtomatik bo‘lsin.</li>
+    </ol>
+    <label for="secret">Authenticatorga ulash kaliti</label>
+    <input id="secret" type="password" readonly value="{{MFA_SECRET}}">
+    <button type="button" onclick="copyField('secret')">Ulash kalitini nusxalash</button>
+    <button type="button" onclick="toggle('secret')">Ko‘rsatish / yashirish</button>
+    <p><small>Harfli kalit Authenticatorni sozlash uchun. Panelning MFA maydoniga 6 raqamli kod kiritiladi.</small></p>
+    <p><a href="{{MFA_URI}}">Authenticator ilovasi bilan ulash</a></p>
+  </details>
+  <p><small>Bu lokal fayl parol va MFA ulash kalitini saqlaydi. Uni public saytga yoki GitHubga yuklamang. Joriy kod kompyuterning o‘zida hisoblanadi.</small></p>
+</main>
+<script>
+  const element = id => document.getElementById(id);
+  function toggle(id) { element(id).type = element(id).type === 'password' ? 'text' : 'password'; }
+  async function copyValue(value, field) {
+    try {
+      await navigator.clipboard.writeText(value);
+      element('notice').textContent = 'Nusxa olindi.';
+    } catch {
+      if (field) { field.focus(); field.select(); }
+      else {
+        const selection = window.getSelection(), range = document.createRange();
+        range.selectNodeContents(element('code')); selection.removeAllRanges(); selection.addRange(range);
+      }
+      element('notice').textContent = 'Qiymat belgilandi. Ctrl+C bilan nusxa oling.';
+    }
+  }
+  function copyField(id) { return copyValue(element(id).value, element(id)); }
+  async function copyCode() {
+    await refresh();
+    const code = element('code').textContent;
+    if (/^\d{6}$/.test(code)) await copyValue(code);
+  }
+  function decode32(secret) {
+    const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+    let bits = 0, value = 0; const bytes = [];
+    for (const char of secret) {
+      const digit = alphabet.indexOf(char);
+      if (digit < 0) throw new Error('Invalid setup key');
+      value = (value << 5) | digit; bits += 5;
+      if (bits >= 8) { bytes.push((value >>> (bits - 8)) & 255); bits -= 8; }
+    }
+    return new Uint8Array(bytes);
+  }
+  let keyPromise, lastStep = -1;
+  async function refresh() {
+    try {
+      const now = Math.floor(Date.now() / 1000), step = Math.floor(now / 30);
+      if (step !== lastStep) {
+        keyPromise ??= crypto.subtle.importKey('raw', decode32(element('secret').value), {name:'HMAC', hash:'SHA-1'}, false, ['sign']);
+        const counter = new Uint8Array(8);
+        new DataView(counter.buffer).setBigUint64(0, BigInt(step));
+        const digest = new Uint8Array(await crypto.subtle.sign('HMAC', await keyPromise, counter));
+        const offset = digest[digest.length - 1] & 15;
+        const number = new DataView(digest.buffer).getUint32(offset) & 0x7fffffff;
+        if (Math.floor(Date.now() / 30000) !== step) return refresh();
+        element('code').textContent = String(number % 1000000).padStart(6, '0');
+        element('copy-code').disabled = false;
+        lastStep = step;
+      }
+      element('remaining').textContent = 'Yangi kodga ' + (30 - Math.floor(Date.now() / 1000) % 30) + ' soniya.';
+    } catch {
+      element('code').textContent = '······';
+      element('copy-code').disabled = true;
+      element('remaining').textContent = 'Jonli kod uchun faylni Chrome yoki Edge brauzerda oching, yoxud pastdagi kalitni Authenticatorga ulang.';
+    }
+  }
+  refresh(); setInterval(refresh, 1000);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) refresh(); });
+</script>
+</body>
+</html>

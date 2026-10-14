@@ -68,6 +68,7 @@ export class AuthService {
   }
   async requestOtp(body: unknown, ip: string) {
     const { phone } = parse(otpRequestInput, body);
+    this.sms.assertReady();
     await this.limit(`otp-ip:${ip}`, 20, 3600);
     await this.limit(`otp-phone:${phone}`, 10, 3600);
     const code = randomInt(0, 1_000_000).toString().padStart(6, '0');
@@ -87,6 +88,7 @@ export class AuthService {
   }
   async verifyOtp(body: unknown, ip: string) {
     const input = parse(otpVerifyInput, body);
+    this.sms.assertReady();
     await this.limit(`verify-ip:${ip}`, 40, 900);
     const result = await this.db.atomic(async tx => {
       await lock(tx, `challenge:${input.challenge_id}`);
@@ -212,6 +214,7 @@ export class AuthService {
   }
   async phoneChangeRequest(actor:Actor,body:unknown){
     if(actor.kind!=='CUSTOMER')fail('PERMISSION_DENIED','Faqat mijoz telefonini o‘zgartiradi',403);
+    this.sms.assertReady();
     const i=parse(z.object({new_phone:phoneSchema}).strict(),body);await this.limit(`phone-change:${actor.id}`,5,3600);
     const codes=[randomInt(0,1000000).toString().padStart(6,'0'),randomInt(0,1000000).toString().padStart(6,'0')];
     const result=await this.db.atomic(async tx=>{await lock(tx,`user:${actor.id}`);const user=await tx.user.findUniqueOrThrow({where:{id:actor.id}});if(!user.phone||user.phone===i.new_phone)fail('PHONE_UNCHANGED','Yangi raqam boshqacha bo‘lsin',422);if(await tx.user.findUnique({where:{phone:i.new_phone}}))fail('PHONE_IN_USE','Yangi raqam boshqa hisobga tegishli',409);
@@ -221,6 +224,7 @@ export class AuthService {
   }
   async phoneChangeConfirm(actor:Actor,body:unknown){
     if(actor.kind!=='CUSTOMER')fail('PERMISSION_DENIED','Faqat mijoz telefonini o‘zgartiradi',403);
+    this.sms.assertReady();
     const i=parse(z.object({old_challenge_id:uuid,new_challenge_id:uuid,old_code:z.string().regex(/^\d{6}$/),new_code:z.string().regex(/^\d{6}$/)}).strict(),body);
     const result=await this.db.atomic(async tx=>{await lock(tx,`user:${actor.id}`);const user=await tx.user.findUniqueOrThrow({where:{id:actor.id}});const old=await tx.otpChallenge.findUnique({where:{id:i.old_challenge_id}}),next=await tx.otpChallenge.findUnique({where:{id:i.new_challenge_id}});
       if(!old||!next||old.purpose!=='OLD_PHONE'||next.purpose!=='NEW_PHONE'||old.phone!==user.phone||[old,next].some(c=>c.actorId!==actor.id||c.consumedAt||c.expiresAt<=new Date()||c.attempts>=this.config.OTP_MAX_ATTEMPTS))return null;

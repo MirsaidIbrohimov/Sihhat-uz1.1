@@ -4,6 +4,7 @@ import { randomInt, randomUUID } from 'node:crypto';
 import { setup, Client, staff, testPassword } from './helpers';
 import { totp, base32 } from '../src/common/crypto';
 import { loadConfig } from '../src/common/config';
+import { customer } from './fixtures';
 
 let ctx: Awaited<ReturnType<typeof setup>>;
 before(async () => { ctx = await setup(); });
@@ -87,6 +88,44 @@ test('B1: web mutations require CSRF; mobile cannot impersonate staff', async ()
   const mobile = new Client(ctx.base); mobile.token=ctx.admin.cookies.get('sihhat_access')!;
   assert.equal((await mobile.call('/superadmin/sanatoriums')).status,401);
   assert.equal((await ctx.admin.call('/partner/sanatoriums/'+randomUUID())).status,404);
+});
+test('B1: every superadmin operation rejects anonymous, staff and customer access even with forged role headers', async () => {
+  const sanatorium = await ctx.admin.call('/superadmin/sanatoriums', 'POST', { name: 'Panel access boundary' });
+  assert.equal(sanatorium.status, 201);
+  const director = await staff(ctx.admin, 'panel.director', '+998909876543', sanatorium.body.id);
+  const client = await customer(ctx.base, ctx.auth);
+  const anonymous = new Client(ctx.base);
+  assert.equal((await director.client.call('/auth/me')).body.kind, 'STAFF');
+  assert.equal((await client.call('/auth/me')).body.kind, 'CUSTOMER');
+  assert.equal((await ctx.admin.call('/superadmin/sanatoriums')).status, 200);
+  const cases = [[anonymous, 401], [director.client, 403], [client, 403]] as const;
+  let operations = 0;
+  for (const [path, methods] of Object.entries(ctx.document.paths)) {
+    if (!path.startsWith('/superadmin/')) continue;
+    for (const method of Object.keys(methods)) {
+      if (!['get', 'post', 'patch', 'put', 'delete'].includes(method)) continue;
+      operations++;
+      const url = path.replace(/\{[^}]+\}/g, randomUUID());
+      for (const [actor, status] of cases) {
+        const response = await actor.call(url, method.toUpperCase(), method === 'get' ? undefined : {}, {
+          'X-Role': 'SUPERADMIN', 'X-User-Role': 'SUPERADMIN',
+          'X-Forwarded-User': ctx.webSession.user.id,
+        });
+        assert.equal(response.status, status, `${method.toUpperCase()} ${path} must deny this session`);
+        assert.equal(response.body.code, status === 401 ? 'UNAUTHENTICATED' : 'PERMISSION_DENIED');
+      }
+    }
+  }
+  assert.ok(operations > 30, 'The access test must cover all registered superadmin operations');
+  const staffBearer = new Client(ctx.base);
+  staffBearer.token = director.client.cookies.get('sihhat_access')!;
+  assert.equal((await staffBearer.call('/superadmin/sanatoriums')).status, 401);
+  const customerCookie = new Client(ctx.base);
+  customerCookie.cookies.set('sihhat_access', client.token);
+  assert.equal((await customerCookie.call('/superadmin/sanatoriums')).status, 401);
+  const forgedCookie = new Client(ctx.base);
+  forgedCookie.cookies.set('sihhat_access', Buffer.from(JSON.stringify({ kind: 'SUPERADMIN', id: ctx.webSession.user.id })).toString('base64url'));
+  assert.equal((await forgedCookie.call('/superadmin/sanatoriums')).status, 401);
 });
 test('B1: staff filter applies before pagination and enforces tenant scope', async () => {
   const a = (await ctx.admin.call('/superadmin/sanatoriums', 'POST', { name: 'Filter A' })).body;

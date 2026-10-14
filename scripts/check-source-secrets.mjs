@@ -7,7 +7,7 @@ const root = resolve(import.meta.dirname, '..');
 // git ls-files includes tracked deletions; scan the files that exist in the worktree.
 const files = [...new Set(execFileSync('git', ['ls-files', '--cached', '--others', '--exclude-standard', '-z'], { cwd: root, encoding: 'utf8' }).split('\0').filter(Boolean))].filter(path => existsSync(resolve(root, path)));
 const values = new Set();
-for (const source of ['.local/secrets/providers.env', 'apps/api/.env', 'apps/mobile/android/key.properties', '.local/android-signing/key.properties']) {
+for (const source of ['.local/secrets/providers.env', '.local/secrets/hostra.env', 'apps/api/.env', 'apps/mobile/android/key.properties', '.local/android-signing/key.properties']) {
   const path = resolve(root, source);
   if (!existsSync(path)) continue;
   for (const [name, value] of Object.entries(parse(readFileSync(path, 'utf8')))) {
@@ -21,7 +21,7 @@ function collectAccess(value) {
     else if (item && typeof item === 'object') collectAccess(item);
   }
 }
-for (const source of ['.local/dev-access.json', '.local/superadmin-access.json', '.local/azimshifo-access.json']) {
+for (const source of ['.local/dev-access.json', '.local/superadmin-access.json', '.local/azimshifo-access.json', '.local/hostra/owner-access.json']) {
   const path = resolve(root, source);
   if (existsSync(path)) collectAccess(JSON.parse(readFileSync(path, 'utf8')));
 }

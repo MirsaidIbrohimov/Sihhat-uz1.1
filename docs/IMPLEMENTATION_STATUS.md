@@ -1,6 +1,6 @@
 # Sihhat uz — amalga oshirish holati
 
-Yangilangan: 2026-10-10. Asos: ISHLAB_CHIQISH_REJASI.md va SIHHAT_UZ_ARXITEKTURA.md.
+Yangilangan: 2026-10-14. Asos: ISHLAB_CHIQISH_REJASI.md va SIHHAT_UZ_ARXITEKTURA.md.
 
 | Bosqich | Holat | Dalil |
 | --- | --- | --- |
@@ -8,11 +8,101 @@ Yangilangan: 2026-10-10. Asos: ISHLAB_CHIQISH_REJASI.md va SIHHAT_UZ_ARXITEKTURA
 | B1 — hisoblar va ruxsatlar | Lokal tekshiruv o‘tdi | MFA, OTP, tenant, bloklash, CSRF va telefon almashtirish; superadmin 2 soat, direktor/resepsion 4 soat faolsiz bo‘lsa server sessiyani rad etadi |
 | B2–B8 — backend domenlari | Asosiy lokal oqimlar amalga oshirildi va tekshirildi | Anketa, moderatsiya, xona/narx/bron, Payme va Tezcheck adapterlari, ledger, refund/payout, billing va aloqa APIlari |
 | B9 — katalog, hisobot va AI | Katalog/hisobot, FAQ, Gemini va AI sarfi hisoboti mavjud | Haqiqiy Gemini javobi tekshirildi; rozilik, shaxsiy ma’lumot niqobi, kunlik limit, token/model/davr bo‘yicha sarf, sozlangan narxlar bilan USD taxmini va fallback bor |
-| B10 — backend qabul | Lokal qabul to‘plami o‘tdi; tashqi tekshiruv cheklovlari quyida | 2026-10-10 PostgreSQLda 100/100 test, skipped/xato 0; 12 migratsiyaning toza scratch tekshiruvi; oldingi OpenAPI va backup dalillari quyida |
+| B10 — backend qabul | Lokal qabul to‘plami o‘tdi; tashqi tekshiruv cheklovlari quyida | 2026-10-14 PostgreSQLda 111/111 test, skipped/xato 0; sihhat_testda 14 migratsiya qo'llangan; oldingi scratch, OpenAPI va backup dalillari quyida |
 | F1/F2 — saytlar | APIga ulangan sahifalar va 4+ surat galereyasi | Ikkala Next.js buildi, TypeScript; yangi surat yuklash/tartiblash brauzer testi 1/1, avvalgi umumiy to‘plam 11/11 |
 | Telegram — xodimlar boti | Kod, lokal worker va rasmiy API ulanishi tayyor | Egasi superadminining hisobi bog‘langan; mijoz yordam xabari va bot javobi bir suhbatga tushishi lokal backend testida tekshirildi |
-| F3 — Android | Yangi UI/SMS kirish, 9 raqamli maydon/inline xato, yagona ikonkalar, reklama/admin tanlovi, offline katalog/profil/rasm va bron/QR, debug preview | 2026-10-10 Flutter analyze xatosiz; 61/61 unit/widget test. Oldingi Samsung tekshiruvida ikki force-stop va API so‘rovlari bloklangan offline bron/QR tekshirildi; haqiqiy HTTPS API hali belgilanmagan |
-| R1 — real pilot | Gemini, Eskiz va Tezcheck rekvizitlari olindi; pilot to‘liq emas | Gemini ulandi, Eskiz standart SMSi yetib keldi; 2026-10-08 Tezcheck signed o‘qishida kassa active/accepts_payments=true. Haqiqiy OTP, HTTPS, direct merchant to‘lovi/webhook, push va real sanatoriya piloti qolgan |
+| F3 — Android | Yangi UI/SMS kirish, 9 raqamli maydon/inline xato, yagona ikonkalar, reklama/admin tanlovi, offline katalog/profil/rasm va bron/QR, debug preview | 2026-10-10 Flutter analyze xatosiz; 61/61 unit/widget test. Oldingi Samsung tekshiruvida ikki force-stop va API so‘rovlari bloklangan offline bron/QR tekshirildi; Hostra HTTPS API tayyor, mavjud debug APK lokal APIga bog‘langan |
+| R1 — real pilot | Gemini, Eskiz va Tezcheck rekvizitlari olindi; pilot to‘liq emas | Gemini ulandi, Eskiz standart SMSi yetib keldi; 2026-10-08 Tezcheck signed o‘qishida kassa active/accepts_payments=true. Hostra HTTPS va panel MFA kirishi tekshirildi; haqiqiy OTP, direct merchant to‘lovi/webhook, push va real sanatoriya piloti qolgan |
+
+## 2026-10-14 alohida panel yo'llari va kirish himoyasi
+
+- Jonli [superadmin](https://sihhat.uz/superadmin) va
+  [hamkorlar](https://sihhat.uz/hamkorlar) alohida login shakllarini ochadi.
+  Adminning MFA maydoni majburiy, hamkorlar shaklida u yo'q. Ikkala panel
+  va `/bookings` ichki havolalari ommaviy HTTPS orqali **200**; API base
+  `https://sihhat.uz/api`, readiness **200**.
+- `Portal` navigatsiyasi tanlangan panel prefiksini menyu, brand havolasi,
+  query, reload va orqaga yurishda saqlaydi. Lokal brauzer **8/8**, yo'l
+  testlari **2/2**, workspace TypeScript tekshiruvi o'tdi. Mock sessiyali
+  UI testida boshqa rol bilan sidebar ochilmaydi va panel APIlari so'ralmaydi.
+- Lokal PostgreSQLda backend **111/111**, skipped/xato **0**; **14**
+  migratsiya qo'llangan. Ro'yxatdan o'tgan barcha superadmin API amallari
+  anonim sessiya uchun **401**, faol direktor va mijoz uchun **403** bilan
+  rad etildi. Soxta rol headerlari, soxta cookie va WEB/MOBILE tokenini
+  boshqa kanalga o'tkazish vakolat bermadi. Serverdagi auth va controller
+  source fayllari lokal tekshirilgan **16** fayl bilan SHA-256 bo'yicha mos.
+- Jonli Chromiumda haqiqiy superadmin parol/MFA bilan kirdi: `me` va
+  superadmin ro'yxati **200**. MFA'siz kirish **401 / MFA_REQUIRED**, avval
+  ishlatilgan kod **401 / MFA_INVALID**. Cookie hosti `sihhat.uz`, access va
+  refresh Secure/HttpOnly/SameSite=Lax. CSRF yo'q/noto'g'ri yoki begona
+  Origin bilan activity **403**, haqiqiy CSRF va asosiy Origin bilan **201**.
+  Logout **201**, undan keyin superadmin API **401**. Bu jonli admin/anonim
+  tekshiruv; direktor/mijoz haqiqiy production hisoblari yaratilmadi.
+- Runtime CORSga faqat aniq `https://sihhat.uz` origini qo'shildi. Release
+  `20261014T101310Z-panel-paths-d11af516e1a8` alohida papkada build qilindi,
+  ichki `127.0.0.1:3101`da panel/proksi va ruxsatsiz kirish tekshirildi.
+  Birinchi cluster reload readinessga yetmadi; eski release va runtimega
+  avtomatik qaytish muvaffaqiyatli o'tdi. Next'ni alohida child processda
+  boshlaydigan ikkala web wrapper aniq PM2 **fork** rejimiga o'tkazildi;
+  port bo'shagandan keyin yangi jarayon ro'yxatdan o'tkazilib, release
+  faollashtirildi va PM2 state saqlandi. Beshta xizmat online; domen va
+  Telegram worker jarayonlari o'zgarishsiz qoldi.
+- Private dalillar `.local/hostra/panel-runtime-before.json`,
+  `panel-paths-first-activation.json`, `panel-paths-activation.json` va
+  `panel-paths-live.json`da. Lokal kirish fayli yangi panel havolalarini
+  ishlatadi; credentiallar public/Gitga kiritilmadi. Database/media,
+  merchant, SMS va Android release bu panel o'zgarishida almashtirilmadi.
+  [Ishga tushirish tartibi](HOSTRA.md).
+
+## 2026-10-13 Hostra MFA kirish fayli
+
+- Harfli MFA ulash kaliti bilan joriy raqamli kod chalkashmasligi uchun
+  private `HOSTRA_KIRISH.html`da **6 raqamli kod** darhol ko'rsatiladi.
+  Telefon sozlash kaliti alohida yopiq bo'limda; kod uchun alohida nusxalash
+  tugmasi bor. `npm run hostra:access` sir saqlamaydigan templatedan shu
+  private HTMLni qayta yaratadi.
+- SSH orqali lokal/server kirish fayllari, bazadagi parol va shifrlangan
+  MFA mosligi tasdiqlandi. Login, parol va MFA kaliti o'zgartirilmadi.
+- Chrome'da kod ko'rinishi, yopiq setup, ikkala copy usuli va oltita vaqt
+  qadamida backend bilan moslik **6/6**; tashqi HTTP so'rov **0**.
+  Shu fayl yaratgan kod bilan haqiqiy Hostra HTTPS login **201**, `me` **200**,
+  takror kod **401 / MFA_INVALID**, logout **201**. Dalillar private
+  `.local/hostra/mfa-diagnostics.json` va `mfa-verification.json`da.
+
+## 2026-10-13 Hostra deployini davom ettirish
+
+- Amaldagi hosting **Hostra** ekani private deploy arxivi va SSH ulanish
+  helperidan aniqlandi. Railway yozuvlari oldingi platforma tayyorlovidir.
+- Hostra PostgreSQL account socketi va Redis socketi aniq platforma bilan
+  qabul qilinadi; umumiy production loopback cheklovlari saqlanadi.
+  Tasdiqlanmagan SMS uchun `SMS_ADAPTER=disabled` OTP/telefon o'zgartirishni
+  database yoki providerga murojaatsiz 503 bilan yopadi. **9/9** konfiguratsiya
+  tekshiruvi o'tdi; bu hosting/provider qabuli emas.
+- `hostra:package` source uchun sir tekshiruvi, fayllar allowlisti,
+  arxiv ro'yxati tekshiruvi va SHA-256 manifestini qo'shadi. APK,
+  database/media, `.env`, `.local`, kesh va lokal buildlar yuborilmaydi.
+- SSH host key bilan ulanish tasdiqlandi. Release
+  `20261013T143417Z-9763a12e208f` private server papkasiga yuklandi,
+  arxiv SHA-256 tekshirildi; **182 fayl**, **2 994 397 bayt**.
+  Node **24.15.0**, serverdagi `npm ci`, API/ikkala web buildi, production
+  preflight, **14 migratsiya**, private backup va production bootstrap o'tdi.
+- Media public rootdan tashqaridagi **0700** persistent XFS papkada,
+  fayllar **0600**; bu variant faqat aniq Hostra path bilan qabul qilinadi.
+  Socket/media/SMS konfiguratsiya testlari **9/9** o'tdi.
+- [Admin](https://sihhat-admin-mirsaid2028.wwwz.uz) va
+  [hamkorlar](https://sihhat-mirsaid2028.wwwz.uz) HTTPS **200**;
+  ikkala `/api/health/ready` va katalog **200**. API base: hamkorlar `/api`.
+  Login/MFA **201**, Secure/HttpOnly cookie, `me` **200**, CSRF tokensiz
+  logout **403**, haqiqiy CSRF bilan **201**, logoutdan keyin **401**.
+- Beshta PM2 xizmat ishlaydi. Telegramning past memory limiti qayta
+  registration bilan **384M / 40000 ms**ga tuzatildi; keyingi **97 soniya**da
+  restart **0**, yangi error log **0**. Bot autentifikatsiyasi **200**, webhook
+  yo'q. Lokal boshqariladigan Telegram worker to'xtagan.
+- SMS OTP **503 / SMS_DISABLED**; SMS yoki haqiqiy pul operatsiyasi
+  bajarilmadi. Android debug APK alohida lokal sozlamasini saqlaydi.
+  Secret scan **445 fayl**, moslik **0**. Rekvizit/MFA va barcha dalillar
+  `.local/hostra`da; public papka/Gitga kiritilmadi. GitHubga push yo'q.
+  [Hostra runbook](HOSTRA.md).
 
 ## 2026-10-10 Web UI — ko‘rib chiqish namunalari
 
@@ -919,11 +1009,11 @@ qo‘lda solishtirish tartibi [Tezcheck yo‘riqnomasi](TEZCHECK.md)da.
 
 ## Ochiq tashqi shartlar
 
-Gemini, Eskiz va Tezcheck hisoblari berildi, yuqoridagi ulanishlar tekshirildi. 2026-10-08 Tezcheck kassasi active/accepts_payments=true; haqiqiy direct merchant checkout, HTTPS va webhook siri/qabuli kerak. Eskiz OTP matnini tasdiqlatish va haqiqiy kod yuborish sinovi qolgan. Real sanatoriya, bank rekvizitlari, push va staging Redis/S3 infratuzilmasi hali kerak; Payme bevosita adapteri tanlansa rasmiy merchant rekvizitlari ham talab qilinadi. Production deploy va haqiqiy pul amallari bajarilmagan. Tariflar va refund/payout qoidalari pilot uchun tasdiqlanishi kerak.
+Gemini, Eskiz va Tezcheck hisoblari berildi, yuqoridagi ulanishlar tekshirildi. 2026-10-13 Hostra HTTPS deployi, PostgreSQL/Redis va private persistent media ishga tushirildi; login/MFA va ommaviy API tekshirildi. 2026-10-08 Tezcheck kassasi active/accepts_payments=true; haqiqiy direct merchant checkout va webhook siri/qabuli kerak. Eskiz OTP matnini tasdiqlatish va haqiqiy kod yuborish sinovi qolgan; SMS OTP yopiq. Real sanatoriya, bank rekvizitlari, push, mustaqil zaxira/tiklash mashqi va Androidning HTTPS signed release sinovi kerak; Payme bevosita adapteri tanlansa rasmiy merchant rekvizitlari ham talab qilinadi. Haqiqiy pul amallari bajarilmagan. Tariflar va refund/payout qoidalari pilot uchun tasdiqlanishi kerak.
 
 ## Qolgan ishlar
 
-1. Har sanatoriyaning direct merchant ulanishi va haqiqiy to‘lov/HTTPS webhookni tekshirish; Railwaydagi Redis/S3/HTTPS muhitini ishga tushirish. Android release APKni haqiqiy HTTPS API bilan qayta yig‘ish, provider payment return va telefonni to‘liq qayta yuklashdan tiklanishni tekshirish.
+1. Har sanatoriyaning direct merchant ulanishi va haqiqiy to‘lov/HTTPS webhookni tekshirish; Eskiz OTPni tasdiqlatish va Hostra zaxira/tiklash tartibini tekshirish. Android release APKni `https://sihhat-mirsaid2028.wwwz.uz/api` bilan qayta yig‘ish, provider payment return va telefonni to‘liq qayta yuklashdan tiklanishni tekshirish.
 2. Eskiz hisobini test rejimidan chiqarish va OTP matnini tasdiqlatish; shundan keyin haqiqiy kirish kodi sinovi. OTPdan tashqari SMS bildirishnoma adapteri ham qolgan.
 3. Ayrim ikkinchi darajali OpenAPI javoblarini aniqlashtirish; Redis/S3, tanlangan to‘lov provayderi va push muhitlarini stagingda tekshirish. AI token/model/davr va sozlangan narxli USD hisoboti amalga oshirildi; haqiqiy provider invoiceini solishtirish pilotda qolgan.
 4. Real sanatoriya bilan inventar, bank payout/refund va backup/media tiklash pilotini bajarish.

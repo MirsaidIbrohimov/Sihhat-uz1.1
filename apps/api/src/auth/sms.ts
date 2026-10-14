@@ -11,7 +11,16 @@ export class Sms {
   readonly sent = new Map<string, string>();
   private readonly eskiz: EskizClient;
   constructor(@Inject(CONFIG) private readonly config: Config, @Optional() @Inject(Db) private readonly db?: Db) { this.eskiz = new EskizClient(config); }
+  assertReady() {
+    if (this.config.SMS_ADAPTER === 'disabled') {
+      fail('SMS_DISABLED', 'Mijozlarning SMS orqali kirishi vaqtincha yopiq. SMS xizmati tasdiqlangach qayta ochiladi.', 503);
+    }
+    if (this.config.SMS_ADAPTER === 'eskiz' && !this.config.ESKIZ_OTP_APPROVED) {
+      fail('SMS_NOT_READY', 'Kirish SMS xizmati hali faollashtirilmagan. Eskiz hisobi va kirish kodi shabloni tasdiqlanishi kerak.', 503);
+    }
+  }
   async send(id: string, phone: string, code: string, expiresAt: Date) {
+    this.assertReady();
     if (this.config.SMS_ADAPTER === 'local') {
       if (this.config.NODE_ENV === 'production') fail('SMS_UNAVAILABLE', 'SMS xizmati sozlanmagan', 503);
       this.sent.set(id, code);
@@ -21,9 +30,6 @@ export class Sms {
         await writeFile(resolve(folder, `${id}.json`), JSON.stringify({ phone, code, expiresAt }), { mode: 0o600 });
       }
       return;
-    }
-    if (this.config.SMS_ADAPTER === 'eskiz' && !this.config.ESKIZ_OTP_APPROVED) {
-      fail('SMS_NOT_READY', 'Kirish SMS xizmati hali faollashtirilmagan. Eskiz hisobi va kirish kodi shabloni tasdiqlanishi kerak.', 503);
     }
     try {
       if (this.config.SMS_ADAPTER === 'eskiz') {

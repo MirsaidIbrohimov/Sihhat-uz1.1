@@ -2,7 +2,7 @@
 
 Sanatoriyalar uchun bron platformasi: NestJS/PostgreSQL backend, superadmin sayti, direktor/resepsion/hisobchi sayti, xodimlar Telegram boti va Flutter Android ilovasi.
 
-Kanonik repozitoriya: [MirsaidIbrohimov/Sihhat-uz1.1](https://github.com/MirsaidIbrohimov/Sihhat-uz1.1). Yangilangan: **2026-10-10**. O‘zgarishlar lokal saqlanadi; GitHubga foydalanuvchining aniq topshirig‘i bilan yuklanadi.
+Kanonik repozitoriya: [MirsaidIbrohimov/Sihhat-uz1.1](https://github.com/MirsaidIbrohimov/Sihhat-uz1.1). Yangilangan: **2026-10-14**. O‘zgarishlar lokal saqlanadi; GitHubga foydalanuvchining aniq topshirig‘i bilan yuklanadi.
 
 [Kerakli dasturlar va kutubxonalar](#kerakli-dasturlar-va-kutubxonalar),
 [ishga tushirish tartibi](#lokal-ishga-tushirish) va [tayyor APK](#tayyor-apk)
@@ -61,7 +61,7 @@ sanatoriyalar ko‘rinadi. Joriy APK va USB orqali ishlatish tartibi
 
 | Qism | Bajarilgan |
 | --- | --- |
-| Backend | MFA/OTP, rollar va sanatoriya ruxsatlari, 2/4 soatlik panel faolsizligi, katalog, inventar, narx hisobi, ko‘p xonali bron, Payme/Tezcheck, ledger, refund/payout, bepul tasdiqlangan reklama, xabarlar va hisobotlar; 12 migratsiya |
+| Backend | MFA/OTP, rollar va sanatoriya ruxsatlari, 2/4 soatlik panel faolsizligi, katalog, inventar, narx hisobi, ko‘p xonali bron, Payme/Tezcheck, ledger, refund/payout, bepul tasdiqlangan reklama, xabarlar va hisobotlar; 14 migratsiya |
 | Superadmin | Sanatoriyalar jadvalidagi Mashhur tick tanlovi, jamoa/ruxsatlar, moliya va operatsion sahifalar; yangilik va tavsiya yaratish, tahrirlash, e’lon qilish va arxivga olish |
 | Hamkorlar sayti | Direktor/resepsion ruxsatlari, xona va tariflar, kalendar, qo‘lda bron, check-in/out; hisobchiga faqat o‘z sanatoriyasining kunlik/7/30/90 kun/oy hisobotlari, CSV va chop etish |
 | Telegram bot | Admin/direktor/resepsion menyulari, sayt orqali tasdiqlangan hisob, bron/qidiruv/check-in-out, xonalar, hisobot, vazifa va murojaatlar; bildirishnoma, kunlik ma’lumot va abonent eslatmalari |
@@ -70,7 +70,43 @@ sanatoriyalar ko‘rinadi. Joriy APK va USB orqali ishlatish tartibi
 | Tezcheck | 2026-10-08 rasmiy signed o‘qish tekshiruvida kassa `active`, `accepts_payments=true`; usullar va balans API ishlaydi. Haqiqiy checkout/webhook hamda har sanatoriyaning direct merchant qabuli hali bajarilmagan |
 | Eskiz | SMS API autentifikatsiyasi va standart test SMSi tekshirildi; foydalanuvchi yetib kelganini tasdiqladi. Haqiqiy OTP uchun hisob va matn hali tayyor emas |
 
-Backendni production uchun 100% tayyor deb hisoblashga hali asos yo‘q. Haqiqiy HTTPS API, haqiqiy merchant to‘lovi/webhook va sanatoriyaning direct ulanishi, Eskiz OTP matnini tasdiqlatish, push, staging Redis/S3 hamda real sanatoriya/bank piloti qolgan. Tezcheck kassasi 2026-10-08 o‘qish tekshiruvida faol; bu haqiqiy pul to‘lovi qabuli emas. Payme bevosita ulanishi tanlansa uning rasmiy rekvizitlari va qabul sinovi kerak. Batafsil dalillar va cheklovlar [amalga oshirish holati](docs/IMPLEMENTATION_STATUS.md)da.
+2026-10-13 Hostra'da haqiqiy HTTPS API, ikkala panel, PostgreSQL/Redis va private persistent media ishga tushirildi. Login/MFA, Secure/HttpOnly cookie, CSRF, katalog va logout jonli tekshirildi. Haqiqiy merchant to‘lovi/webhook va sanatoriyaning direct ulanishi, Eskiz OTP matnini tasdiqlatish, push hamda real sanatoriya/bank piloti qolgan. SMS OTP tasdiqlanguncha yopiq. Tezcheck kassasi 2026-10-08 o‘qish tekshiruvida faol; bu haqiqiy pul to‘lovi qabuli emas. Payme bevosita ulanishi tanlansa uning rasmiy rekvizitlari va qabul sinovi kerak. Batafsil dalillar va cheklovlar [amalga oshirish holati](docs/IMPLEMENTATION_STATUS.md)da.
+
+## Hostra
+
+Amaldagi hosting tanlovi **Hostra**. `npm run hostra:package` maxfiy
+fayllarsiz joriy source arxivini va SHA-256 manifestini `.local/hostra`ga
+tayyorlaydi. PostgreSQL/Redis private socketlari va public papkadan
+tashqaridagi persistent media uchun aniq Hostra production sozlamalari
+qo'llanadi. SMS tasdiqlanmagan paytda mobil OTPni
+xavfsiz yopadigan `SMS_ADAPTER=disabled` mavjud; production demo kodlari
+ochilmaydi. Konfiguratsiya tekshiruvlari **9/9** o'tdi. Node 24.15.0 bilan
+serverning o'zida buildlar, production preflight, **14 migratsiya** va
+production superadmin bootstrap bajarildi. Beshta PM2 xizmati ishlaydi;
+Telegram polling uchun 384 MB restart limiti va 40 soniya graceful stop
+qo'llanadi. HTTPS/login/MFA/cookie/CSRF/katalog/logout tekshiruvlari o'tdi.
+
+- [Superadmin](https://sihhat.uz/superadmin)
+- [Hamkorlar paneli](https://sihhat.uz/hamkorlar)
+- API base URL: `https://sihhat.uz/api`
+
+2026-10-14 ikkala panel asosiy domenning alohida yo'llarida faollashtirildi.
+Menyu, ichki havola va reload panelning `/superadmin` yoki `/hamkorlar`
+prefiksini saqlaydi. Superadmin uchun parol va bir martalik MFA majburiy;
+hamkor va mijoz hisoblari superadmin APIlariga server tomonidan kiritilmaydi.
+HTTPS orqali haqiqiy MFA kirishi, Secure/HttpOnly cookie, CSRF va logout
+tekshirildi. Lokal backend **111/111**, brauzer **8/8**, yo'l testlari **2/2**
+o'tdi. Web jarayonlari PM2 `fork` rejimida; ichki staging va xatoda eski
+releasega qaytish qo'llanadi. Avvalgi alohida admin/hamkor domenlari ham
+ishlaydi. Tafsilotlar [HOSTRA.md](docs/HOSTRA.md)da.
+
+Kirish rekvizitlari va MFA ulash sahifasi private `.local/hostra`da.
+`HOSTRA_KIRISH.html`ni Chrome/Edge'da ochganda joriy **6 raqamli MFA kodi**
+darhol ko'rinadi; harfli kalit telefon Authenticatorini ulash bo'limida.
+Private `owner-access.json`dan sahifani qayta yaratish: `npm run hostra:access`.
+Ular hostingning public papkasiga va Gitga kiritilmaydi. Android release
+API base URL bilan alohida yig'iladi; mavjud lokal debug APK o'zgarmadi.
+Joylash va tekshirish tartibi [HOSTRA.md](docs/HOSTRA.md)da.
 
 ## Railway
 
@@ -313,7 +349,7 @@ Eskiz uchun asosiy kabinet parolidan farq qiladigan SMS API login/paroli yoki to
 
 Bot: [@sihhat_admins_bot](https://t.me/sihhat_admins_bot). Xodim saytda **Telegram bot → Telegramga ulash**ni bosadi, botda **Start** qiladi va saytga qaytib Telegram hisobini tasdiqlaydi. Direktor/resepsion roli saytdagi mavjud tayinlovdan olinadi; botdagi tanlov orqali huquq berilmaydi.
 
-Server tokeni `.local/secrets/providers.env`da, Gitga kiritilmaydi. `npm run telegram:check` ulanishni tekshiradi, `npm run telegram:configure` o‘zbekcha buyruqlarni sozlaydi, `npm run dev:telegram` bot workerini alohida ishga tushiradi. Windowsda tayyor build va `TELEGRAM_MODE=polling` yoki `webhook` bilan `npm run local:start` API, domen worker va botni birga ochadi. Kompyuter o‘chsa lokal bot to‘xtaydi; doimiy server va telefon uchun HTTPS kabinet manzillari hali kerak. Tugmalar, ruxsatlar va sozlash: [Telegram yo‘riqnomasi](docs/TELEGRAM_BOT.md).
+Lokal token `.local/secrets/providers.env`da, Gitga kiritilmaydi. Production bot Hostra'da private server tokeni va HTTPS kabinetlar bilan polling rejimida ishlaydi. Lokal `TELEGRAM_MODE=disabled` qo'yildi: bir token bilan parallel polling yoqilmaydi. `npm run telegram:check` ulanishni tekshiradi, `npm run telegram:configure` o‘zbekcha buyruqlarni sozlaydi. Alohida test bot ishlatilsa `npm run dev:telegram` yoki Windowsdagi `npm run local:start` bilan lokal worker ochilishi mumkin. Tugmalar, ruxsatlar va sozlash: [Telegram yo‘riqnomasi](docs/TELEGRAM_BOT.md).
 
 ## Kerakli dasturlar va kutubxonalar
 

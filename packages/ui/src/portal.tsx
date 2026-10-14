@@ -36,6 +36,7 @@ import {
   type Actor,
 } from "@sihhat/api-client";
 import { useIdleSession } from "./session-idle";
+import { portalSection, portalUrl } from "./portal-routes";
 import { ThemeToggle } from "./appearance";
 import { PublicArticles } from "./articles";
 import { TelegramSettings } from "./telegram";
@@ -458,7 +459,13 @@ function PasswordChange({ refresh }: { refresh: () => void }) {
     </div>
   );
 }
-export function Portal({ mode }: { mode: "admin" | "partner" }) {
+export function Portal({
+  mode,
+  basePath = "",
+}: {
+  mode: "admin" | "partner";
+  basePath?: string;
+}) {
   const [actor, setActor] = useState<Actor | null>(null),
     [ready, setReady] = useState(false),
     [tenants, setTenants] = useState<Row[]>([]),
@@ -529,13 +536,13 @@ export function Portal({ mode }: { mode: "admin" | "partner" }) {
   }, [session]);
   useEffect(() => {
     const sync = () => {
-      setSection(location.pathname.split("/")[1] || "dashboard");
+      setSection(portalSection(location.pathname, basePath));
       setEpoch((value) => value + 1);
     };
     sync();
     window.addEventListener("popstate", sync);
     return () => window.removeEventListener("popstate", sync);
-  }, []);
+  }, [basePath]);
   useEffect(() => {
     if (!actor || actor.mustChangePassword) return;
     api((admin ? "/superadmin" : "/partner") + "/sanatoriums?limit=100")
@@ -553,21 +560,16 @@ export function Portal({ mode }: { mode: "admin" | "partner" }) {
     const timer = setTimeout(() => setToast(""), 6000);
     return () => clearTimeout(timer);
   }, [toast]);
-  const go = useCallback((id: string, params?: Record<string, string>) => {
-    const suffix =
-      params && Object.keys(params).length
-        ? "?" + new URLSearchParams(params).toString()
-        : "";
-    window.history.pushState(
-      {},
-      "",
-      (id === "dashboard" ? "/" : "/" + id) + suffix,
-    );
-    setSection(id);
-    setMenu(false);
-    setForm(null);
-    setEpoch((value) => value + 1);
-  }, []);
+  const go = useCallback(
+    (id: string, params?: Record<string, string>) => {
+      window.history.pushState({}, "", portalUrl(id, basePath, params));
+      setSection(id);
+      setMenu(false);
+      setForm(null);
+      setEpoch((value) => value + 1);
+    },
+    [basePath],
+  );
   useEffect(() => {
     if (!menu) return;
     const previous = document.activeElement as HTMLElement | null;
@@ -764,7 +766,7 @@ export function Portal({ mode }: { mode: "admin" | "partner" }) {
             <X size={19} />
           </button>
           <a
-            href="/"
+            href={portalUrl("dashboard", basePath)}
             className="brand"
             onClick={(e) => {
               e.preventDefault();

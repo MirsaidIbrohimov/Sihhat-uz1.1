@@ -78,6 +78,51 @@ Lucide ikonkalar ilovaga lokal qo‘shilgan. Mobil tekshiruv:
 `npm run mobile:check`; joriy APKni qayta yig‘ish/o‘rnatish va `apk`
 papkasidagi nusxani yangilash [README](../README.md#tayyor-apk)da.
 
+## Hostra
+
+Amaldagi hosting **Hostra**. Source paket: `npm run hostra:package`;
+natija va hash manifesti private `.local/hostra`da. SSH tokeni
+`.local/secrets/hostra.env`dagi `HOSTRA_SSH_TOKEN`ga qo'yiladi.
+Accountning PostgreSQL/Redis socketlari, production sirlar, media S3,
+HTTPS/portlar, migratsiya va jonli tekshirish tartibi [HOSTRA.md](HOSTRA.md)da.
+Source upload, lokal build va provider qabul sinovini alohida qayd eting.
+
+2026-10-14 asosiy jonli manzillar: `https://sihhat.uz/superadmin` va
+`https://sihhat.uz/hamkorlar`; API base `https://sihhat.uz/api`.
+Panel ichidagi menyu va reload shu prefikslarni saqlaydi. Admin loginida
+MFA majburiy; boshqa rol superadmin ma'lumoti yoki amaliga serverda kira
+olmaydi. Login sahifasiga kirish hisobga vakolat bermaydi. CORS/CSRF uchun
+Origin faqat `https://sihhat.uz`: unga `/superadmin` yoki `/hamkorlar`
+yo'lini qo'shmang. Avvalgi alohida domenlar ham ishlaydi: admin
+`https://sihhat-admin-mirsaid2028.wwwz.uz`, hamkorlar
+`https://sihhat-mirsaid2028.wwwz.uz`, API base shu domenning `/api` yo'li.
+Private media `/home/terminal/.sihhat/media`da; S3 Hostra disk varianti uchun
+talab qilinmaydi. PM2 nomlari `sihhat-prod-api`, `sihhat-prod-worker`,
+`sihhat-prod-admin`, `sihhat-prod-partner`, `sihhat-prod-telegram`.
+Botning odatiy RSSi 200 MBdan yuqori: restart limiti **384M**,
+`kill_timeout=40000`, bitta polling jarayoni. PM2 application limitlarini
+oddiy reload yangilamasa, faqat bot registrationini qayta yaratib,
+eski 25 soniyalik long polling tugashini kuting. Database va media
+o'chirilmaydi. Bootstrap login/parol/MFA private `secrets` papkasida;
+lokal ulash sahifasi `.local/hostra/HOSTRA_KIRISH.html`da.
+
+Web wrapperlar Next'ni alohida jarayonda boshlaydi: ikkala web xizmatining
+PM2 konfiguratsiyasida `exec_mode: 'fork'`ni aniq yozing. Mavjud cluster
+registrationni oddiy reload bilan o'tkazmang: faqat tegishli web xizmatini
+to'xtatib/PM2dan olib, port bo'shagach ko'rib chiqilgan yangi cwd/script
+bilan qayta ro'yxatdan o'tkazing. Database yoki workerga tegmang. Avval
+yangi release ichki loopback portda tekshiriladi; current symlink, runtime
+va PM2ning private zaxirasi saqlanadi. Readiness xato bo'lsa eski release
+va runtimega qaytiladi. To'liq tartib [HOSTRA.md](HOSTRA.md)da.
+
+Hostra kirish faylini Chrome/Edge'da oching: asosiy joydagi **6 raqamli MFA
+kodi** panelga kiritiladi. **MFA kodini nusxalash** faqat raqamlarni oladi.
+Harfli kalit yopiq **MFA'ni telefondagi Authenticatorga ulash** bo'limida;
+u telefon ilovasini bir marta sozlash uchun. Kod 30 soniyada yangilanadi
+va bir marta ishlatiladi; qayta kirishda yangisini kuting. Qurilma vaqti
+avtomatik bo'lsin. `npm run hostra:access` private `owner-access.json`dan
+HTMLni qayta yaratadi; server hisobiga, parolga yoki MFA kalitiga yozmaydi.
+
 ## Railway
 
 Railway konfiguratsiyasi `.railway/railway.ts`da. Lokal sozlama tekshiruvi:
@@ -762,7 +807,7 @@ public feedni saqlangan hisobda server javobini kutmasdan ko‘rsatadi;
 kesh muddatsiz va API hostiga
 bog‘langan. Saqlangan narx/mavjudlik yakuniy bron hisobi sifatida ishlatilmaydi.
 
-`NODE_ENV=production` real SMS, tanlangan Payme/Tezcheck merchant rekvizitlari, S3, Redis va HTTPS originlarni talab qiladi; lokal payment-confirm endpointi yopiladi. Tezcheck kassasi ham haqiqiy to‘lov qabul qilishga tayyor bo‘lishi kerak. Production superadminini demo seed orqali yaratmang. `BOOTSTRAP_LOGIN` va `BOOTSTRAP_PASSWORD`ni secret muhitida berib, `npm run bootstrap -w @sihhat/api`dan foydalaning; bir martalik MFA kaliti/URI private enrollment fayliga yoziladi, logga chiqarilmaydi. Yuqoridagi “Panel faolsizligi va telefondagi autentifikator” tartibi bilan telefonga ulang.
+`NODE_ENV=production` tasdiqlangan SMS yoki aniq `SMS_ADAPTER=disabled`, tanlangan Payme/Tezcheck merchant rekvizitlari, private storage, Redis va HTTPS originlarni talab qiladi; lokal payment-confirm endpointi yopiladi. Hostra'da private PostgreSQL/Redis socketi va `/home/terminal/.sihhat/media` persistent papkasi qo'llanadi; boshqa platformalarda S3/tashqi database va Redis talabi saqlanadi. Tezcheck kassasi ham haqiqiy to‘lov qabul qilishga tayyor bo‘lishi kerak. Production superadminini demo seed orqali yaratmang. `BOOTSTRAP_LOGIN` va `BOOTSTRAP_PASSWORD`ni secret muhitida berib, `npm run bootstrap -w @sihhat/api`dan foydalaning; bir martalik MFA kaliti/URI private enrollment fayliga yoziladi, logga chiqarilmaydi. Yuqoridagi “Panel faolsizligi va telefondagi autentifikator” tartibi bilan telefonga ulang.
 
 `infra/docker/compose.yaml` PostgreSQL/Redis/MinIO uchun local muqobil muhit. Unda test DB va S3 bucketni alohida tayyorlash, `.env`ning DB URL/portlarini moslash kerak; ishlatilmagan Compose muhiti tekshirilgan deb belgilanmaydi.
 
