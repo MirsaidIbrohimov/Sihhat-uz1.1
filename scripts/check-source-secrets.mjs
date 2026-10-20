@@ -37,7 +37,7 @@ for (const path of files) {
     continue;
   }
   if (/\.(?:apk|aab)$/i.test(basename)) {
-    if (!normalized.startsWith('apk/')) {
+    if (!normalized.startsWith('apk/') && !normalized.startsWith('ilova/')) {
       matches.push({ path, issue: 'private_or_generated_file' });
     }
     continue;

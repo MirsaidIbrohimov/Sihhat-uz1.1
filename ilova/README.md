@@ -1,13 +1,13 @@
 # Sihhat uz — demo Android ilovasi
 
-Joriy versiya: **0.1.1 (build 2)**, 2026-10-15.
+Joriy versiya: **0.1.1 (build 2)**, 2026-10-20.
 
-**[APKni yuklab olish](https://github.com/MirsaidIbrohimov/Sihhat-uz1.1/releases/download/v0.1.1-demo/Sihhat-uz-demo-0.1.1.apk)** ·
-[Reliz](https://github.com/MirsaidIbrohimov/Sihhat-uz1.1/releases/tag/v0.1.1-demo) ·
-[SHA-256](SHA256SUMS.txt)
+### 📱 Yuklab olish:
+* **To'g'ridan-to'g'ri yuklab olish havolasi:** [Sihhat-uz-demo-0.1.1.apk](https://github.com/MirsaidIbrohimov/Sihhat-uz1.1/raw/main/ilova/Sihhat-uz-demo-0.1.1.apk)
+* **GitHub sahifasi:** [Sihhat-uz-demo-0.1.1.apk](https://github.com/MirsaidIbrohimov/Sihhat-uz1.1/blob/main/ilova/Sihhat-uz-demo-0.1.1.apk)
+* **SHA-256 nazorat summasi:** [SHA256SUMS.txt](SHA256SUMS.txt)
 
-Lokal fayl shu papkada: `Sihhat-uz-demo-0.1.1.apk`.
-APK GitHub Releases orqali tarqatiladi; Git tarixiga kiritilmaydi.
+Lokal fayl shu papkada: `Sihhat-uz-demo-0.1.1.apk` (~59.6 MB).
 
 1. APKni Android telefoningizga o‘rnating va internetni yoqing.
 2. Sinov raqamining `+998`dan keyingi 9 raqamini kiriting.

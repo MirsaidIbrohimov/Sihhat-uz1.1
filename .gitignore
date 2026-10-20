@@ -13,6 +13,7 @@ coverage/
 *.tsbuildinfo
 *.apk
 !/apk/Sihhat-uz-demo-0.1.1.apk
+!/ilova/*.apk
 *.aab
 **/.gradle/
 **/__pycache__/
