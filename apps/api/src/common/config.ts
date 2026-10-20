@@ -20,6 +20,7 @@ const schema = z.object({
   HOLD_MINUTES: z.coerce.number().int().min(1).max(30).default(5),
   SMS_ADAPTER: z.enum(['local', 'http', 'eskiz', 'disabled']).default('local'),
   DEMO_OTP_ENABLED: z.enum(['true', 'false']).default('false').transform(v => v === 'true'),
+  PUBLIC_DEMO_ENABLED: z.enum(['true', 'false']).default('false').transform(v => v === 'true'),
   SMS_HTTP_URL: z.string().default(''), SMS_HTTP_TOKEN: z.string().default(''),
   ESKIZ_TOKEN: z.string().default(''), ESKIZ_EMAIL: z.string().default(''), ESKIZ_PASSWORD: z.string().default(''),
   ESKIZ_SENDER: z.string().min(1).max(20).default('4546'),
@@ -118,6 +119,17 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
   const result = schema.safeParse({ ...secrets, ...env });
   if (!result.success) throw new Error(`Konfiguratsiya xatosi: ${result.error.issues.map(i => `${i.path.join('.')}: ${i.message}`).join('; ')}`);
   const c = result.data;
+  if (c.PUBLIC_DEMO_ENABLED) {
+    const isolated = (() => { try { return /\/[a-z0-9_]+_demo$/.test(new URL(c.DATABASE_URL).pathname); } catch { return false; } })();
+    const providerKeys = [c.SMS_HTTP_TOKEN, c.ESKIZ_TOKEN, c.ESKIZ_EMAIL, c.ESKIZ_PASSWORD, c.TEZCHECK_API_KEY, c.TEZCHECK_WEBHOOK_SECRET, c.PAYME_KEY, c.PAYME_MERCHANT_ID, c.GEMINI_API_KEY, c.AI_HTTP_TOKEN, c.PUSH_HTTP_TOKEN, c.TELEGRAM_BOT_TOKEN, c.S3_ACCESS_KEY, c.S3_SECRET_KEY];
+    if (c.NODE_ENV !== 'test' || !isolated || !c.DEMO_OTP_ENABLED || c.SMS_ADAPTER !== 'local'
+      || c.PAYMENT_MODE !== 'local' || c.AI_ADAPTER !== 'catalog' || c.PUSH_ADAPTER !== 'local'
+      || c.TELEGRAM_MODE !== 'disabled' || c.WORKER_MODE !== 'database' || c.STORAGE_ADAPTER !== 'local'
+      || !/[\\/]demo-media$/.test(c.STORAGE_PATH) || providerKeys.some(Boolean)
+      || c.CORS_ORIGINS.split(',').some(origin => !remoteUrl(origin, ['https:'], true))) {
+      throw new Error('Public demo: alohida _demo bazasi, test muhiti, demo-media, HTTPS origin va o‘chirilgan haqiqiy providerlar kerak');
+    }
+  }
   if (env.RAILWAY_ENVIRONMENT_ID && c.NODE_ENV !== 'production') throw new Error('Production: Railwayda NODE_ENV=production kerak');
   if (c.DEMO_OTP_ENABLED && (c.NODE_ENV === 'production' || c.SMS_ADAPTER !== 'local')) throw new Error('Demo OTP faqat lokal development/test SMS adapteri bilan ishlaydi');
   if (c.PAYMENT_MODE === 'tezcheck' && !c.TEZCHECK_API_KEY) throw new Error('Tezcheck: server API kaliti kerak');

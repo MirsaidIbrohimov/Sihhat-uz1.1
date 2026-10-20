@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
 import '../concept_ui.dart';
@@ -11,6 +10,7 @@ import '../widgets.dart';
 import '../design.dart';
 import '../appearance.dart';
 import '../branding.dart';
+import '../demo_otp.dart';
 
 class _UzbekPhoneFormatter extends TextInputFormatter {
   String digits(String value) => value
@@ -91,8 +91,7 @@ class _LoginScreenState extends State<LoginScreen> {
         code.clear();
         final preview = r['demo_code'];
         demoCode =
-            kDebugMode &&
-                widget.showDemoOtp &&
+            demoOtpAllowed(widget.api.baseUrl, enabled: widget.showDemoOtp) &&
                 preview is String &&
                 RegExp(r'^\d{6}$').hasMatch(preview)
             ? preview
@@ -203,7 +202,9 @@ class _LoginScreenState extends State<LoginScreen> {
                     const Center(child: IconTile('message-square', size: 110)),
                     const SizedBox(height: 28),
                     Text(
-                      'SMS kodini kiriting',
+                      demoCode == null
+                          ? 'SMS kodini kiriting'
+                          : 'Demo kodni kiriting',
                       textAlign: TextAlign.center,
                       style: conceptHeading(c, size: 28),
                     ),
@@ -263,6 +264,18 @@ class _LoginScreenState extends State<LoginScreen> {
                         if (!busy) verify();
                       },
                     ),
+                  if (challenge == null &&
+                      demoOtpAllowed(
+                        widget.api.baseUrl,
+                        enabled: widget.showDemoOtp,
+                      )) ...[
+                    const SizedBox(height: 16),
+                    const ConceptCard(
+                      child: Text(
+                        'Demo rejim. SMS yuborilmaydi; kod shu oynada chiqadi. Sinov raqamidan foydalaning.',
+                      ),
+                    ),
+                  ],
                   if (demoCode != null) ...[
                     const SizedBox(height: 18),
                     ConceptCard(
@@ -323,7 +336,9 @@ class _LoginScreenState extends State<LoginScreen> {
                     challenge == null ? 'shield-check' : 'info',
                     challenge == null
                         ? 'Telefon raqamingiz hisobga kirish va bron bo‘yicha aloqa uchun ishlatiladi.'
-                        : 'Kod kelishi biroz vaqt olishi mumkin.',
+                        : demoCode == null
+                        ? 'Kod kelishi biroz vaqt olishi mumkin.'
+                        : 'Demo koddan faqat sinov uchun foydalaning.',
                   ),
                 ],
               ),

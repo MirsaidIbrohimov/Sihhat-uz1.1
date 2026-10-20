@@ -8,7 +8,9 @@ from pathlib import Path
 root = Path(__file__).resolve().parent.parent
 apk = Path(sys.argv[1]) if len(sys.argv) > 1 else root / '.local/releases/sihhat-uz-preview.apk'
 secrets = []
-for source in (root / '.local/secrets/providers.env', root / 'apps/api/.env', root / '.local/android-signing/key.properties'):
+for source in (root / '.local/secrets/providers.env', root / '.local/secrets/hostra.env',
+               root / '.local/hostra/providers.env', root / 'apps/api/.env',
+               root / 'apps/mobile/android/key.properties', root / '.local/android-signing/key.properties'):
     if not source.exists():
         continue
     for line in source.read_text(encoding='utf-8-sig').splitlines():
@@ -28,7 +30,8 @@ def collect_access(value):
         for item in value:
             collect_access(item)
 
-for source in (root / '.local/dev-access.json', root / '.local/superadmin-access.json', root / '.local/azimshifo-access.json'):
+for source in (root / '.local/dev-access.json', root / '.local/superadmin-access.json',
+               root / '.local/azimshifo-access.json', root / '.local/hostra/owner-access.json'):
     if source.exists():
         collect_access(json.loads(source.read_text(encoding='utf-8-sig')))
 patterns = {encoded for secret in secrets for encoded in (secret.encode(), secret.encode('utf-16-le'), base64.b64encode(secret.encode()))}

@@ -8,6 +8,10 @@ const config: NextConfig = {
   async rewrites() {
     return [
       {
+        source: "/demo-api/:path*",
+        destination: "http://127.0.0.1:4100/:path*",
+      },
+      {
         source: "/api/:path*",
         destination: `${process.env.SIHHAT_API_URL ?? "http://127.0.0.1:4000"}/:path*`,
       },

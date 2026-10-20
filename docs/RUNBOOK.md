@@ -183,8 +183,37 @@ TTL, cooldown, urinish limiti va bir martalik ishlatish saqlanadi.
 opt-in lokal development/test rejimida qaytariladi. Production yoki
 `http`/`eskiz` adapterida uni yoqish konfiguratsiya xatosi beradi.
 Flutter paneli debug va `--dart-define=DEMO_OTP_ENABLED=true` bilan ochiladi;
-release buildda panel yo‘q. Haqiqiy SMSga o‘tganda backend flagini `false`
+odatiy release buildda panel yo‘q. Haqiqiy SMSga o‘tganda backend flagini `false`
 qiling, tasdiqlangan SMS adapterini yoqing va APKni qayta tayyorlang.
+
+### Internet orqali imzolangan demo APK
+
+2026-10-15 demo versiya **0.1.1+2**: manzil
+`https://sihhat.uz/demo-api`; **Kod yuborish → Demo koddan foydalanish →
+Tasdiqlash**. Sinov raqamidan foydalaning. USB reverse yoki lokal API kerak
+emas; birinchi kirish uchun internet kerak. Haqiqiy SMS yuborilmaydi.
+
+```powershell
+npm run mobile:demo
+python scripts/check-apk-secrets.py ilova/Sihhat-uz-demo-0.1.1.apk
+Get-FileHash -Algorithm SHA256 -LiteralPath ilova/Sihhat-uz-demo-0.1.1.apk
+npm run check:secrets
+```
+
+`ilova/SHA256SUMS.txt`ni APK bilan birga GitHub Releasesga yuklang.
+APK `.gitignore`da qoladi; Gitga source, yo‘riqnoma va SHA-256 manifesti
+kiritiladi. Demo signing kaliti va `.local/releases`dagi tekshiruv dalillari
+private saqlanadi. [Yuklash havolasi](../ilova/README.md).
+
+Server konfiguratsiyasi: `PUBLIC_DEMO_ENABLED=true`, `DEMO_OTP_ENABLED=true`,
+`NODE_ENV=test`, nomi `_demo` bilan tugaydigan **alohida database**,
+alohida `demo-media`, HTTPS origin, lokal SMS/to‘lov/push, katalog AI,
+database worker va o‘chirilgan Telegram. Haqiqiy provider kalitlari
+berilmaydi. Noto‘g‘ri konfiguratsiyada API ishga tushmaydi.
+Staff/admin/hamkor endpointlari, web cookie sessiyasi va Swagger yopiq;
+faqat mobil mijoz Bearer sessiyasi ishlaydi. OTP javobi `Cache-Control:
+no-store` bilan qaytadi, plaintext kod xotiradagi SMS ro‘yxatiga yozilmaydi.
+Production `https://sihhat.uz/api`da demo rejimi yoqilmaydi.
 
 ## Sanatoriya anketasi va tekshiruv
 

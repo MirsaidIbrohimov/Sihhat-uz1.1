@@ -46,6 +46,7 @@
     "mobile:check": "node scripts/check-mobile.mjs",
     "mobile:preview": "node scripts/mobile-preview.mjs",
     "mobile:release": "node scripts/build-mobile-release.mjs",
+    "mobile:demo": "node scripts/build-mobile-release.mjs https://sihhat.uz/demo-api --demo",
     "mobile:test:recovery": "node scripts/test-mobile-recovery.mjs",
     "openapi": "npm run openapi -w @sihhat/api",
     "test": "npm run test -w @sihhat/api",

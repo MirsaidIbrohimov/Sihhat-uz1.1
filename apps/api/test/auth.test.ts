@@ -127,6 +127,35 @@ test('B1: every superadmin operation rejects anonymous, staff and customer acces
   forgedCookie.cookies.set('sihhat_access', Buffer.from(JSON.stringify({ kind: 'SUPERADMIN', id: ctx.webSession.user.id })).toString('base64url'));
   assert.equal((await forgedCookie.call('/superadmin/sanatoriums')).status, 401);
 });
+test('public demo OTP creates only a mobile customer, never stores plaintext or changes browser cookies', async () => {
+  const config = ctx.auth.config;
+  const saved = { PUBLIC_DEMO_ENABLED: config.PUBLIC_DEMO_ENABLED, DEMO_OTP_ENABLED: config.DEMO_OTP_ENABLED };
+  config.PUBLIC_DEMO_ENABLED = true; config.DEMO_OTP_ENABLED = true;
+  try {
+    const client = new Client(ctx.base);
+    assert.equal((await client.call('/auth/staff/login', 'POST', { login: 'admin.test', password: testPassword })).body.code, 'DEMO_ACCESS_DENIED');
+    assert.equal((await ctx.admin.call('/auth/me')).body.code, 'DEMO_ACCESS_DENIED');
+    const request = await client.call('/auth/customer/otp/request', 'POST', { phone: '+998900007777' });
+    assert.equal(request.status, 201);
+    assert.match(request.body.demo_code, /^\d{6}$/);
+    assert.equal(ctx.auth.sms.sent.has(request.body.challenge_id), false);
+    assert.equal(request.headers.get('cache-control'), 'no-store');
+    const login = await client.call('/auth/customer/otp/verify', 'POST', { challenge_id: request.body.challenge_id, code: request.body.demo_code });
+    assert.equal(login.status, 201);
+    assert.equal(login.body.user.kind, 'CUSTOMER');
+    assert.equal(login.headers.getSetCookie().length, 0);
+    client.token = login.body.access_token;
+    assert.equal((await client.call('/auth/me')).body.kind, 'CUSTOMER');
+    assert.equal((await client.call('/superadmin/sanatoriums')).body.code, 'DEMO_ACCESS_DENIED');
+    assert.equal((await client.call('/partner/sanatoriums')).body.code, 'DEMO_ACCESS_DENIED');
+    assert.equal((await client.call('/auth/customer/otp/verify', 'POST', { challenge_id: request.body.challenge_id, code: request.body.demo_code })).status, 401);
+    const logout = await client.call('/auth/logout', 'POST', {});
+    assert.equal(logout.status, 201);
+    assert.equal(logout.headers.getSetCookie().length, 0);
+    assert.equal((await client.call('/auth/me')).status, 401);
+  } finally { Object.assign(config, saved); }
+  assert.equal((await ctx.admin.call('/superadmin/sanatoriums')).status, 200);
+});
 test('B1: staff filter applies before pagination and enforces tenant scope', async () => {
   const a = (await ctx.admin.call('/superadmin/sanatoriums', 'POST', { name: 'Filter A' })).body;
   const b = (await ctx.admin.call('/superadmin/sanatoriums', 'POST', { name: 'Filter B' })).body;

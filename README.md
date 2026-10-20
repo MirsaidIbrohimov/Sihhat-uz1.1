@@ -2,7 +2,7 @@
 
 Sanatoriyalar uchun bron platformasi: NestJS/PostgreSQL backend, superadmin sayti, direktor/resepsion/hisobchi sayti, xodimlar Telegram boti va Flutter Android ilovasi.
 
-Kanonik repozitoriya: [MirsaidIbrohimov/Sihhat-uz1.1](https://github.com/MirsaidIbrohimov/Sihhat-uz1.1). Yangilangan: **2026-10-14**. O‘zgarishlar lokal saqlanadi; GitHubga foydalanuvchining aniq topshirig‘i bilan yuklanadi.
+Kanonik repozitoriya: [MirsaidIbrohimov/Sihhat-uz1.1](https://github.com/MirsaidIbrohimov/Sihhat-uz1.1). Yangilangan: **2026-10-15**. O‘zgarishlar lokal saqlanadi; GitHubga foydalanuvchining aniq topshirig‘i bilan yuklanadi.
 
 [Kerakli dasturlar va kutubxonalar](#kerakli-dasturlar-va-kutubxonalar),
 [ishga tushirish tartibi](#lokal-ishga-tushirish) va [tayyor APK](#tayyor-apk)
@@ -316,8 +316,12 @@ Lokal sinov uchun `apps/api/.env`da `NODE_ENV=development`,
 Raqamni kiriting → **Kod yuborish** → ekrandagi **Demo koddan foydalanish** →
 **Tasdiqlash**. Telefoningizga haqiqiy SMS yuborilmaydi. Kod har so‘rovda
 yaratiladi; muddati, urinishlar va qayta yuborish cheklovlari amal qiladi.
-Oddiy konfiguratsiyada demo kod berilmaydi, release ilovada ko‘rsatilmaydi;
-production yoki haqiqiy SMS adapterida demo konfiguratsiyasi rad etiladi.
+Oddiy konfiguratsiyada demo kod berilmaydi va odatiy release ilovada
+ko‘rsatilmaydi; production yoki haqiqiy SMS adapterida demo konfiguratsiyasi
+rad etiladi. **0.1.1 demo APK** alohida `https://sihhat.uz/demo-api` manziliga
+ulanadi: internet orqali kod shu oynada chiqadi, USB yoki lokal kompyuter
+kerak emas. Bu alohida sinov muhiti; sinov raqamidan foydalaning.
+Imzolangan demo build `npm run mobile:demo` bilan tayyorlanadi.
 
 ## Kod tuzilishi
 
@@ -423,7 +427,30 @@ Batafsil misollar [mobil README](apps/mobile/README.md) va
 
 ## Tayyor APK
 
-Joriy fayl: **[apk/sihhat-uz-preview.apk](apk/sihhat-uz-preview.apk)**.
+Joriy **0.1.1 (build 2)** imzolangan demo:
+**[APKni yuklab olish](https://github.com/MirsaidIbrohimov/Sihhat-uz1.1/releases/download/v0.1.1-demo/Sihhat-uz-demo-0.1.1.apk)**.
+Lokal nusxa: `ilova/Sihhat-uz-demo-0.1.1.apk`;
+[foydalanish tartibi va SHA-256](ilova/README.md).
+
+Sinov raqamining `+998`dan keyingi 9 raqamini kiriting → **Kod yuborish** →
+**Demo koddan foydalanish** → **Tasdiqlash**. Kod har safar yangidan
+yaratiladi, SMS yuborilmaydi. HTTPS demo API internet orqali ishlaydi;
+asosiy `https://sihhat.uz/api`da demo kirish yoqilmaydi. Namoyish katalogi
+va amallari sinov ma’lumotlaridir; haqiqiy bron/to‘lov qabuli emas.
+
+```powershell
+npm run mobile:demo
+python scripts/check-apk-secrets.py ilova/Sihhat-uz-demo-0.1.1.apk
+Get-FileHash -Algorithm SHA256 -LiteralPath ilova/Sihhat-uz-demo-0.1.1.apk
+```
+
+APK GitHub Releases ilovasi sifatida tarqatiladi; Git tarixiga build,
+signing kaliti yoki private konfiguratsiya kiritilmaydi. `ilova` papkasida
+foydalanish yo‘riqnomasi va `SHA256SUMS.txt` saqlanadi.
+
+### Oldingi USB preview
+
+Oldingi fayl: **[apk/sihhat-uz-preview.apk](apk/sihhat-uz-preview.apk)**.
 2026-10-10 yangi UI bilan yig‘ilgan Android **ARM64 debug** nusxa;
 Samsung SM-A165Fga ma’lumotlarini saqlagan holda o‘rnatildi. API manzili
 `http://127.0.0.1:4000`, lokal demo SMS oynasi yoqilgan.

@@ -85,6 +85,7 @@ export async function createApp(options: { quiet?: boolean; swagger?: boolean } 
   express.set('json replacer', (_key: string, value: unknown) => typeof value === 'bigint' ? value.toString() : value);
   app.use((req: Request & { requestId?: string }, res: Response, next: NextFunction) => {
     req.requestId = randomUUID(); res.setHeader('X-Request-ID', req.requestId);
+    if (config.PUBLIC_DEMO_ENABLED) res.setHeader('Cache-Control', 'no-store');
     const started = Date.now();
     if (!options.quiet) res.on('finish', () => console.log(JSON.stringify({ request_id: req.requestId, method: req.method, path: req.path, status: res.statusCode, elapsed_ms: Date.now()-started })));
     next();
@@ -94,6 +95,6 @@ export async function createApp(options: { quiet?: boolean; swagger?: boolean } 
   app.enableShutdownHooks();
   const definition = new DocumentBuilder().setTitle('Sihhat uz API').setDescription('UZS summalari tiyin birligida string. Staff: HttpOnly cookie + X-CSRF-Token; Android: Bearer.').setVersion('1.0').addBearerAuth().addCookieAuth('sihhat_access').build();
   const document = enrichOpenApi(SwaggerModule.createDocument(app, definition));
-  if (options.swagger !== false) SwaggerModule.setup('docs', app, document, { jsonDocumentUrl: '/openapi.json' });
+  if (options.swagger !== false && !config.PUBLIC_DEMO_ENABLED) SwaggerModule.setup('docs', app, document, { jsonDocumentUrl: '/openapi.json' });
   return { app, config, document };
 }

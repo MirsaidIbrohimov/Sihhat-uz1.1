@@ -1,6 +1,6 @@
 # Sihhat uz — amalga oshirish holati
 
-Yangilangan: 2026-10-14. Asos: ISHLAB_CHIQISH_REJASI.md va SIHHAT_UZ_ARXITEKTURA.md.
+Yangilangan: 2026-10-15. Asos: ISHLAB_CHIQISH_REJASI.md va SIHHAT_UZ_ARXITEKTURA.md.
 
 | Bosqich | Holat | Dalil |
 | --- | --- | --- |
@@ -13,6 +13,41 @@ Yangilangan: 2026-10-14. Asos: ISHLAB_CHIQISH_REJASI.md va SIHHAT_UZ_ARXITEKTURA
 | Telegram — xodimlar boti | Kod, lokal worker va rasmiy API ulanishi tayyor | Egasi superadminining hisobi bog‘langan; mijoz yordam xabari va bot javobi bir suhbatga tushishi lokal backend testida tekshirildi |
 | F3 — Android | Yangi UI/SMS kirish, 9 raqamli maydon/inline xato, yagona ikonkalar, reklama/admin tanlovi, offline katalog/profil/rasm va bron/QR, debug preview | 2026-10-10 Flutter analyze xatosiz; 61/61 unit/widget test. Oldingi Samsung tekshiruvida ikki force-stop va API so‘rovlari bloklangan offline bron/QR tekshirildi; Hostra HTTPS API tayyor, mavjud debug APK lokal APIga bog‘langan |
 | R1 — real pilot | Gemini, Eskiz va Tezcheck rekvizitlari olindi; pilot to‘liq emas | Gemini ulandi, Eskiz standart SMSi yetib keldi; 2026-10-08 Tezcheck signed o‘qishida kassa active/accepts_payments=true. Hostra HTTPS va panel MFA kirishi tekshirildi; haqiqiy OTP, direct merchant to‘lovi/webhook, push va real sanatoriya piloti qolgan |
+
+## 2026-10-15 internet orqali demo kirish va APK
+
+- Android versiyasi **0.1.1+2**. Imzolangan demo build uchun
+  `npm run mobile:demo` va `ilova/Sihhat-uz-demo-0.1.1.apk` yo‘li qo‘shildi;
+  builddagi versiya `pubspec.yaml` va APK manifestida solishtiriladi.
+  Demo kod faqat aniq build flagi va HTTPS `/demo-api` uchun ko‘rsatiladi.
+  Kichik ekranda telefon maydoni ko‘rinishi saqlandi.
+- Hostra release `20261015T075745Z-demo-e8e336c7aeee` faollashtirildi.
+  Demo PostgreSQL **16.15** alohida private klaster/socketda va
+  `sihhat_demo` bazasida ishlaydi; production database rekvizitlari demo
+  jarayoniga berilmaydi. Server paketi Ubuntu ARM64 rasmiy arxividan olinib,
+  imzolangan indeks va SHA-256 tekshirildi. Demo bazaga **14 migratsiya**
+  qo‘llandi; faqat synthetic demo katalog yaratildi, login/parolli staff
+  hisoblari yaratilmagan.
+- `sihhat-demo-db` va `sihhat-demo-api` PM2da ishlaydi. Demo API loopback
+  `4100`, tashqi yo‘l **`https://sihhat.uz/demo-api`**. Private `demo-media`,
+  alohida AUTH/MFA kalitlari; haqiqiy SMS, merchant, AI va Telegram kalitlari
+  yo‘q. Staff/admin/hamkor APIlari va cookie sessiyasi rad etiladi;
+  `Cache-Control: no-store`, bir martalik challenge va urinish limiti bor.
+- Ichki staging va jonli yo‘llarda **17 tekshiruv** o‘tdi. Asosiy API,
+  worker va Telegram jarayonlari qayta ishga tushirilmadi. HTTPS orqali
+  **16 tekshiruv**: readiness, demo katalog, kod olish, noto‘g‘ri/to‘g‘ri
+  kod, faqat mijoz sessiyasi, qayta ishlatilgan kodning rad etilishi,
+  logout va production APIga demo token bilan kirishning rad etilishi.
+  SMS yuborilmadi, haqiqiy to‘lov sinalmadi.
+- Lokal PostgreSQLda backend **113/113**, mobil analyzer xatosiz va
+  **62/62** unit/widget test, barcha workspace TypeScript tekshiruvi,
+  ikkala web panelning production buildi o‘tdi. Bu APKning yangi jismoniy
+  qurilmadagi qabul dalili yoki rasmiy SMS/to‘lov provider qabuli emas.
+- Source va yo‘riqnoma Gitga, APK esa GitHub Releasesga tarqatiladi;
+  signing kalitlari, demo hisoblar, `.env`, `.local`, database/media va
+  buildlar Git tarixiga kiritilmaydi. [APK yo‘riqnomasi](../ilova/README.md).
+  Private dalillar: `.local/hostra/demo-build.json`, `demo-activation.json`,
+  `.local/releases/demo-https-check.json`.
 
 ## 2026-10-14 alohida panel yo'llari va kirish himoyasi
 

@@ -14,12 +14,15 @@ export type ApiRequest = Request & { actor: Actor; requestId: string };
 export class AuthGuard implements CanActivate {
   constructor(@Inject(Reflector) private readonly reflector: Reflector, @Inject(AuthService) private readonly auth: AuthService) {}
   async canActivate(context: ExecutionContext) {
-    if (this.reflector.getAllAndOverride<boolean>('public', [context.getHandler(), context.getClass()])) return true;
     const req = context.switchToHttp().getRequest<ApiRequest>();
+    if (this.auth.config.PUBLIC_DEMO_ENABLED && (/^\/(?:superadmin|partner|telegram)(?:\/|$)|^\/auth\/staff\//i.test(req.path)
+      || req.cookies?.sihhat_access || req.cookies?.sihhat_refresh)) fail('DEMO_ACCESS_DENIED', 'Demo server faqat mobil mijoz sinovi uchun', 403);
+    if (this.reflector.getAllAndOverride<boolean>('public', [context.getHandler(), context.getClass()])) return true;
     const bearer = req.headers.authorization?.startsWith('Bearer ') ? req.headers.authorization.slice(7) : undefined;
     const token = bearer ?? req.cookies?.sihhat_access;
     if (typeof token !== 'string' || !token || token.length > 128) fail('UNAUTHENTICATED', 'Tizimga kiring', 401);
     const actor = await this.auth.authenticate(token, bearer ? 'MOBILE' : 'WEB');
+    if (this.auth.config.PUBLIC_DEMO_ENABLED && (!bearer || actor.kind !== 'CUSTOMER')) fail('DEMO_ACCESS_DENIED', 'Demo server faqat mobil mijoz sinovi uchun', 403);
     req.actor = actor;
     if (!bearer && !['GET', 'HEAD', 'OPTIONS'].includes(req.method)) await this.auth.csrf(actor.sessionId, req.header('X-CSRF-Token'), req.header('Origin'));
     if (actor.mustChangePassword && !['/auth/me', '/auth/activity', '/auth/change-password', '/auth/logout'].includes(req.path)) fail('PASSWORD_CHANGE_REQUIRED', 'Birinchi kirishda parolni almashtiring', 403);

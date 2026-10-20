@@ -42,6 +42,7 @@ export class AuthService {
   }
   private otpHash(id: string, code: string) { return createHmac('sha256', this.config.AUTH_SECRET).update(`${id}:${code}`).digest('hex'); }
   async login(body: unknown, ip: string, userAgent = '') {
+    if (this.config.PUBLIC_DEMO_ENABLED) fail('DEMO_ACCESS_DENIED', 'Demo serverda xodim kirishi yopiq', 403);
     const input = parse(staffLoginInput, body);
     await this.limit(`staff-login-ip:${ip}`, 30, 900);
     await this.limit(`staff-login:${input.login}`, 10, 900);

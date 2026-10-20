@@ -7,6 +7,26 @@ Asosiy jonli panel manzillari (2026-10-14):
 [superadmin](https://sihhat.uz/superadmin) va
 [hamkorlar](https://sihhat.uz/hamkorlar). API base `https://sihhat.uz/api`.
 
+2026-10-15: **`https://sihhat.uz/demo-api`** Android demo uchun alohida
+ishga tushirildi. Versiya **0.1.1+2**,
+[APK va kirish tartibi](../ilova/README.md). Demo kod ekranda chiqadi;
+production `/api`da demo kirish yoqilmagan.
+
+Demo uchun private PostgreSQL **16.15** klasteri
+`/home/terminal/.sihhat/demo-postgres/data`da, TCP o‘chirilgan va socket
+shu private papka ichida. Asosiy account database bilan ulashilmaydi.
+Database `sihhat_demo`, API loopback `4100`, media `demo-media`; haqiqiy
+provider kalitlari yo‘q. `sihhat-demo-db` va `sihhat-demo-api` PM2 orqali
+qayta ochiladi. Runtime va ulanish rekvizitlari private `secrets`da;
+ular public root yoki Gitga kiritilmaydi.
+
+Release `20261015T075745Z-demo-e8e336c7aeee` yangi web buildlari bilan
+faol; oldingi release saqlangan. Ichki staging/jonli yo‘llarda **17**,
+tashqi HTTPS demo login/izolyatsiyada **16** tekshiruv o‘tdi. Asosiy API,
+domen worker va Telegram PIDlari saqlandi. PM2 holati saqlangan.
+Demo bazada 14 migratsiya va bitta aniq demo sanatoriya bor; haqiqiy
+bron/to‘lov yoki SMS provider qabul natijasi hisoblanmaydi.
+
 ## Paket va kirish
 
 `npm run hostra:package` joriy ishchi source fayllaridan tekshirilgan arxiv

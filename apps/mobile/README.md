@@ -4,6 +4,15 @@ Flutter mijoz ilovasi: SMS orqali kirish, sanatoriya qidirish va filtrlar,
 tafsilotlar, bir nechta xonali bron, to‘lov holati, QR, qaytarish so‘rovi,
 profil, bildirishnomalar, yordam xizmati va serverdan ishlaydigan AI.
 
+2026-10-15: **0.1.1 (build 2)** imzolangan demo APK
+[`ilova` papkasida](../../ilova/README.md) va
+[GitHub Releases](https://github.com/MirsaidIbrohimov/Sihhat-uz1.1/releases/tag/v0.1.1-demo)da.
+`https://sihhat.uz/demo-api`ga internet orqali ulanadi; USB kerak emas.
+Sinov raqami → **Kod yuborish** → **Demo koddan foydalanish** → **Tasdiqlash**.
+SMS yuborilmaydi. Kod bir martalik, muddati va urinish cheklovi saqlanadi.
+Demo mijozlari, katalog va sinov to‘lovlari alohida bazada ishlaydi.
+Joriy analyzer xatosiz va **62/62** unit/widget test o‘tdi.
+
 2026-10-10: [UI maketlari](../../UI/index.html) uslubi ichki sahifalar va
 telefon/SMS kirishga joriy etildi. `concept_ui.dart` umumiy mavzu, sahifa,
 karta, pastki amal tugmasi va bitta tahrirlanadigan maydonga asoslangan
@@ -153,6 +162,15 @@ mahalliy HTTP va sinov to‘lov tugmasidan foydalanadi. Release imzolash uchun
 alohida signing konfiguratsiyasi talab qilinadi; u quyida tayyorlanadi.
 
 ## Imzolangan release APK
+
+Demo uchun loyiha ildizida `npm run mobile:demo` ishlatiladi. Bu buyruq
+`DEMO_OTP_ENABLED=true` va alohida HTTPS `/demo-api` manzili bilan
+`ilova/Sihhat-uz-demo-0.1.1.apk`ni yaratadi. Versiya/build raqami
+`pubspec.yaml`dan olinadi, APK manifesti bilan solishtiriladi; imzo,
+debug/HTTP cheklovi va SHA-256 dalili
+`.local/releases/android-demo-release.json`da. Oddiy production release
+demo kodni ko‘rsatmaydi. Kod chiqarish uchun build flagi bilan birga server
+javobidagi haqiqiy demo challenge ham kerak; kod ilovaga qotirib yozilmagan.
 
 Loyiha ildizida:
 

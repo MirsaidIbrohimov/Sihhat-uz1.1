@@ -23,7 +23,7 @@ export class Sms {
     this.assertReady();
     if (this.config.SMS_ADAPTER === 'local') {
       if (this.config.NODE_ENV === 'production') fail('SMS_UNAVAILABLE', 'SMS xizmati sozlanmagan', 503);
-      this.sent.set(id, code);
+      if (!this.config.PUBLIC_DEMO_ENABLED) this.sent.set(id, code);
       if (this.config.NODE_ENV !== 'test') {
         const folder = resolve('../../.local/dev-sms');
         await mkdir(folder, { recursive: true });
