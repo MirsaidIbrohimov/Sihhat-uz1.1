@@ -2,7 +2,9 @@ node_modules/
 dist/
 .next/
 .local/
-/apk/
+/apk/*
+!/apk/Sihhat-uz-demo-0.1.1.apk
+!/apk/README.md
 .env
 .env.*
 !.env.example
@@ -10,6 +12,7 @@ dist/
 coverage/
 *.tsbuildinfo
 *.apk
+!/apk/Sihhat-uz-demo-0.1.1.apk
 *.aab
 **/.gradle/
 **/__pycache__/

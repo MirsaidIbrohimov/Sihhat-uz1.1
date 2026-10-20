@@ -32,8 +32,14 @@ for (const path of files) {
   const basename = normalized.split('/').at(-1);
   if (/(^|\/)(?:\.local|node_modules|\.next|\.gradle|\.dart_tool|build|dist)(\/|$)/.test(normalized)
       || (/^\.env(?:\.|$)/.test(basename) && !['.env.example', '.env.test.example'].includes(basename))
-      || basename === 'key.properties' || /\.(?:jks|keystore|p12|apk|aab|tsbuildinfo)$/i.test(basename)) {
+      || basename === 'key.properties' || /\.(?:jks|keystore|p12|tsbuildinfo)$/i.test(basename)) {
     matches.push({ path, issue: 'private_or_generated_file' });
+    continue;
+  }
+  if (/\.(?:apk|aab)$/i.test(basename)) {
+    if (!normalized.startsWith('apk/')) {
+      matches.push({ path, issue: 'private_or_generated_file' });
+    }
     continue;
   }
   const data = readFileSync(resolve(root, path));
