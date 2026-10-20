@@ -14,5 +14,5 @@ bool demoOtpAllowed(
       url.userInfo.isEmpty &&
       !url.hasQuery &&
       !url.hasFragment &&
-      url.path == '/demo-api';
+      (url.path == '/demo-api' || url.path == '/api');
 }

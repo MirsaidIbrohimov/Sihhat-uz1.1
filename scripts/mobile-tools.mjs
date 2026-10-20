@@ -43,7 +43,7 @@ export function runTool(executable, args, options = {}) {
     rest.windowsVerbatimArguments = true;
   }
   const result = spawnSync(command, commandArgs, {
-    cwd, env, windowsHide: true, encoding: 'utf8', timeout: 600_000,
+    cwd, env, windowsHide: true, encoding: 'utf8', timeout: 1_800_000,
     stdio: capture ? 'pipe' : 'inherit', ...rest,
   });
   if (result.error) throw result.error;

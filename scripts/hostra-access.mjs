@@ -21,7 +21,7 @@ async function main() {
     await readFile(resolve(folder, "owner-access.json"), "utf8"),
   );
   if (
-    !/^[a-z0-9._-]{3,64}$/.test(access.login ?? "") ||
+    !/^[a-z0-9._@-]{3,64}$/.test(access.login ?? "") ||
     typeof access.password !== "string" ||
     access.password.length < 12 ||
     !/^[A-Z2-7]{32}$/.test(access.mfa_secret ?? "")

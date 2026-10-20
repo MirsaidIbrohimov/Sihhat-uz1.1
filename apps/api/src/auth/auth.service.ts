@@ -9,7 +9,7 @@ import { Sms } from './sms';
 import { Actor, effective } from './permissions';
 
 export const phoneSchema = z.string().transform(v => v.replace(/[\s()-]/g, '')).pipe(z.string().regex(/^\+998\d{9}$/));
-export const loginSchema = z.string().trim().toLowerCase().min(3).max(64).regex(/^[a-z0-9._-]+$/);
+export const loginSchema = z.string().trim().toLowerCase().min(3).max(64).regex(/^[a-z0-9._@-]+$/);
 export const passwordSchema = z.string().min(12).max(128).refine(v => /[a-z]/.test(v) && /[A-Z]/.test(v) && /[0-9]/.test(v), 'Parolda katta/kichik harf va raqam bo‘lsin');
 export const staffLoginInput = z.object({ login: loginSchema, password: z.string().min(1).max(128), mfa_code: z.string().regex(/^\d{6}$/).optional() }).strict();
 export const otpRequestInput = z.object({ phone: phoneSchema }).strict();
