@@ -4,6 +4,7 @@
   "private": true,
   "exports": {
     ".": "./src/portal.tsx",
+    "./landing": "./src/landing.tsx",
     "./styles.css": "./src/styles.css"
   },
   "scripts": {
