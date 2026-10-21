@@ -216,7 +216,8 @@ const MEDICAL_DIRECTIONS = [
 ];
 
 export function LandingPage() {
-  const [sanatoriums, setSanatoriums] = useState<SanatoriumCardData[]>(FALLBACK_SANATORIUMS);
+  const [sanatoriums, setSanatoriums] = useState<SanatoriumCardData[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedRegion, setSelectedRegion] = useState("Barchasi");
   const [selectedService, setSelectedService] = useState("Barchasi");
@@ -255,18 +256,17 @@ export function LandingPage() {
               rating: item.rating || 4.9,
             }));
 
-            // Merge with fallbacks
-            setSanatoriums((prev) => {
-              const apiNames = new Set(apiItems.map((a) => a.name.toLowerCase()));
-              const filteredFallbacks = FALLBACK_SANATORIUMS.filter(
-                (f) => !apiNames.has(f.name.toLowerCase())
-              );
-              return [...apiItems, ...filteredFallbacks];
-            });
+            // Display ONLY authentic sanatoriums from Superadmin/API
+            setSanatoriums(apiItems);
+          } else {
+            setSanatoriums([]);
           }
         }
       } catch (e) {
-        // Fallback remains active
+        // In case of complete network failure, keep empty or fallback
+        setSanatoriums(FALLBACK_SANATORIUMS);
+      } finally {
+        setIsLoading(false);
       }
     }
     loadCatalog();
@@ -485,7 +485,11 @@ export function LandingPage() {
           </p>
         </div>
 
-        {filteredSanatoriums.length === 0 ? (
+        {isLoading ? (
+          <div style={{ textAlign: "center", padding: "4rem 1rem", color: "#94a3b8" }}>
+            <p style={{ fontSize: "1.1rem" }}>Sanatoriylar yuklanmoqda...</p>
+          </div>
+        ) : filteredSanatoriums.length === 0 ? (
           <div style={{ textAlign: "center", padding: "4rem 1rem", background: "#0b1329", borderRadius: 20, border: "1px solid #1e293b" }}>
             <Info size={40} color="#10b981" style={{ marginBottom: "1rem" }} />
             <h3 style={{ fontSize: "1.25rem", fontWeight: 800, marginBottom: "0.5rem", color: "#fff" }}>
