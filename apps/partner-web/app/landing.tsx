@@ -30,6 +30,8 @@ import {
   Activity,
   Tv,
   Car,
+  ChevronLeft,
+  CheckCircle2,
 } from "lucide-react";
 import "./landing.css";
 
@@ -55,6 +57,20 @@ export interface SanatoriumCardData {
   child_rules?: string;
   rating?: number | null;
   tag?: string;
+  room_types?: Array<{
+    id: string;
+    name: string;
+    maxGuests: number;
+  }>;
+  rate_plans?: Array<{
+    id: string;
+    name: string;
+    baseAmount: string;
+    minNights?: number;
+    policy?: {
+      name: string;
+    };
+  }>;
 }
 
 const FALLBACK_SANATORIUMS: SanatoriumCardData[] = [
@@ -63,7 +79,7 @@ const FALLBACK_SANATORIUMS: SanatoriumCardData[] = [
     name: "Zomin Sanatoriyasi",
     region: "Jizzax (Zomin)",
     address: "Zomin tumani, Zomin milliy tabiat bog'i",
-    tag: "Tog' havosi & Ignabargli o'rmon",
+    tag: "🏔️ 2000m Tog' havosi",
     meals: "3 mahal parhez va milliy taomlar",
     description: "Dengiz sathidan 2000 metr balandlikda, toza tog' va ignabargli archazorlar bag'rida joylashgan eng yirik iqlimiy kurort. Toza tog' havosi va zamonaviy fizioterapiya majmuasi.",
     directions: "Nafas a'zolari (bronxial astma, surunkali bronxit), asab tizimi, tayanch-harakat a'zolari va umumiy immunitetni tiklash.",
@@ -89,7 +105,7 @@ const FALLBACK_SANATORIUMS: SanatoriumCardData[] = [
     name: "Chortoq Sanatoriyasi",
     region: "Namangan (Chortoq)",
     address: "Namangan viloyati, Chortoq tumani",
-    tag: "Shifobaxsh mineral suvlar",
+    tag: "💧 Shifobaxsh Yod-Brom",
     meals: "3 mahal shifobaxsh parhez taomlar",
     description: "O'zbekistondagi eng mashhur yod-bromli va mineral suvli balneologik shifo maskani. Chortoq suvi oshqozon-ichak va moddalar almashinuvini yaxshilashda tengsizdir.",
     directions: "Oshqozon-ichak xastaliklari (gastrit, kolit, yara), jigar va o't pufagi, moddalar almashinuvi, qandli diabet va bo'g'im kasalliklari.",
@@ -109,7 +125,7 @@ const FALLBACK_SANATORIUMS: SanatoriumCardData[] = [
     name: "Chimyon Sanatoriyasi",
     region: "Farg'ona",
     address: "Farg'ona viloyati, Oltiariq tumani, Chimyon qishlog'i",
-    tag: "Serovodorod va shifobaxsh balchiq",
+    tag: "♨️ Mineral Balchiqlar",
     meals: "3 mahal parhez stol taomlari",
     description: "Markaziy Osiyodagi eng yirik serovodorodli shifobaxsh buloqlar va mineral balchiq kurorti. Qon aylanish va bo'g'im kasalliklarini davolashda yuqori samarali.",
     directions: "Yurak-qon tomir tizimi, tayanch-harakat a'zolari (artrit, artroz, osteoxondroz), teri kasalliklari, ginekologiya va urologiya.",
@@ -129,7 +145,7 @@ const FALLBACK_SANATORIUMS: SanatoriumCardData[] = [
     name: "Oqtosh Sanatoriyasi",
     region: "Toshkent viloyati",
     address: "Bo'stonliq tumani, Oqtosh qishlog'i",
-    tag: "Tog' daryosi & O'pka reabilitatsiyasi",
+    tag: "🌲 O'pka Reabilitatsiyasi",
     meals: "3 mahal vitaminlarga boy parhez taomlar",
     description: "Dengiz sathidan 1100 metr balandlikda, Oqtoshsoy va Oqsoqotasoy daryolari oralig'ida joylashgan. Ignabargli va keng bargli o'rmonlar toza tog' havosi bilan ta'minlaydi.",
     directions: "Nafas olish a'zolarining no-sil kasalliklari, o'pka reabilitatsiyasi, allergik kasalliklar, asab tizimi toliqishi.",
@@ -149,7 +165,7 @@ const FALLBACK_SANATORIUMS: SanatoriumCardData[] = [
     name: "Bo'ston Sanatoriyasi",
     region: "Toshkent viloyati",
     address: "Qibray tumani, Bo'zsuv kanali bo'yida",
-    tag: "Kardiologiya va zamonaviy reabilitatsiya",
+    tag: "❤️ Kardiologiya Maskani",
     meals: "3 mahal maxsus parhez ovqatlar",
     description: "Toshkent shahriga yaqin, Bo'zsuv kanali sohilidagi go'zal maskan. Eng so'nggi rusumdagi kardiologik diagnostika va davolash apparatlari bilan jihozlangan.",
     directions: "Yurak-qon tomir tizimi xastaliklari (yurak ishemiyasi, gipertoniya, infarktdan keyingi tiklanish), asab tizimi, endokrinologiya.",
@@ -200,7 +216,6 @@ const MEDICAL_DIRECTIONS = [
 ];
 
 export function LandingPage() {
-  const [theme, setTheme] = useState<"light" | "dark">("light");
   const [sanatoriums, setSanatoriums] = useState<SanatoriumCardData[]>(FALLBACK_SANATORIUMS);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedRegion, setSelectedRegion] = useState("Barchasi");
@@ -210,27 +225,7 @@ export function LandingPage() {
   >(null);
   const [galleryIndex, setGalleryIndex] = useState(0);
 
-  // Initialize theme
-  useEffect(() => {
-    try {
-      const saved = localStorage.getItem("sihhat-web-theme");
-      if (saved === "dark" || saved === "light") {
-        setTheme(saved);
-        document.documentElement.dataset.theme = saved;
-      }
-    } catch {}
-  }, []);
-
-  const toggleTheme = () => {
-    const next = theme === "dark" ? "light" : "dark";
-    setTheme(next);
-    document.documentElement.dataset.theme = next;
-    try {
-      localStorage.setItem("sihhat-web-theme", next);
-    } catch {}
-  };
-
-  // Fetch real catalog from API
+  // Direct API integration: load real data from Sihhat API
   useEffect(() => {
     async function loadCatalog() {
       try {
@@ -243,7 +238,7 @@ export function LandingPage() {
               name: item.name,
               region: item.region || "O'zbekiston",
               address: item.address || "",
-              tag: item.services?.[0] || "Tavsiya etiladi",
+              tag: item.services?.[0] ? `✨ ${item.services[0]}` : "Tavsiya etiladi",
               meals: item.meals || "3 mahal ovqatlanish",
               description: item.description || "",
               directions: item.directions || "",
@@ -260,11 +255,11 @@ export function LandingPage() {
               rating: item.rating || 4.9,
             }));
 
-            // Merge API items with fallbacks ensuring no duplicate IDs
+            // Merge with fallbacks
             setSanatoriums((prev) => {
-              const apiIds = new Set(apiItems.map((a) => a.name.toLowerCase()));
+              const apiNames = new Set(apiItems.map((a) => a.name.toLowerCase()));
               const filteredFallbacks = FALLBACK_SANATORIUMS.filter(
-                (f) => !apiIds.has(f.name.toLowerCase())
+                (f) => !apiNames.has(f.name.toLowerCase())
               );
               return [...apiItems, ...filteredFallbacks];
             });
@@ -276,6 +271,35 @@ export function LandingPage() {
     }
     loadCatalog();
   }, []);
+
+  // When a sanatorium is selected, fetch its full detailed record (room_types, rate_plans) from API
+  const openSanatoriumDetails = async (item: SanatoriumCardData) => {
+    setGalleryIndex(0);
+    setActiveModal({ type: "details", item });
+
+    if (item.id && !item.id.includes("ref")) {
+      try {
+        const detailRes = await fetch(`/api/catalog/sanatoriums/${item.id}`);
+        if (detailRes.ok) {
+          const detailData = await detailRes.json();
+          setActiveModal({
+            type: "details",
+            item: {
+              ...item,
+              room_types: detailData.room_types,
+              rate_plans: detailData.rate_plans,
+              photo_ids: detailData.photo_ids && detailData.photo_ids.length > 0 ? detailData.photo_ids : item.photo_ids,
+              description: detailData.description || item.description,
+              directions: detailData.directions || item.directions,
+              map_url: detailData.map_url || item.map_url,
+            },
+          });
+        }
+      } catch (e) {
+        // Use existing item
+      }
+    }
+  };
 
   // Filter sanatoriums
   const filteredSanatoriums = useMemo(() => {
@@ -304,26 +328,29 @@ export function LandingPage() {
 
   return (
     <div className="landing-page">
-      {/* Header */}
+      {/* 1. Header with Official Logo */}
       <header className="landing-header">
         <div className="landing-nav-container">
           <a href="/" className="landing-brand">
-            <div className="brand-icon-wrap">
-              <HeartPulse size={24} />
+            <img
+              src="/branding/sihhat-logo.jpg"
+              alt="Sihhat.uz Rasmiy Logosi"
+              className="brand-logo-img"
+            />
+            <div className="brand-name">
+              Sihhat<span>.uz</span>
             </div>
-            <span className="brand-name">Sihhat.uz</span>
           </a>
 
           <ul className="landing-nav-links">
             <li><a href="#sanatoriylar">Sanatoriylar</a></li>
             <li><a href="#yonalishlar">Davolash sohalari</a></li>
-            <li><a href="#afzalliklar">Afzalliklar</a></li>
-            <li><a href="#ilova">Ilovani yuklab olish</a></li>
+            <li><a href="#afzalliklar">Nega biz?</a></li>
+            <li><a href="#ilova">Mobil ilova</a></li>
             <li>
               <button
                 type="button"
                 onClick={() => setActiveModal("oferta")}
-                style={{ background: "none", border: "none", cursor: "pointer", font: "inherit", color: "inherit", padding: 0 }}
               >
                 Oferta
               </button>
@@ -331,38 +358,32 @@ export function LandingPage() {
           </ul>
 
           <div className="landing-nav-actions">
-            <button
-              type="button"
-              onClick={toggleTheme}
-              className="icon-button"
-              title="Mavzuni almashtirish"
-              style={{ width: 38, height: 38, borderRadius: 10, border: "1px solid var(--border-color)", background: "var(--card-bg)", color: "var(--text-main)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}
-            >
-              {theme === "dark" ? <Sun size={18} /> : <Moon size={18} />}
-            </button>
-
             <a href="/hamkorlar" className="partner-portal-btn">
               <Building2 size={16} />
-              <span>Hamkorlar kirishi</span>
+              <span>Hamkorlar</span>
+            </a>
+            <a href="#ilova" className="apk-header-btn">
+              <Download size={15} />
+              <span>APK Yuklab olish</span>
             </a>
           </div>
         </div>
       </header>
 
-      {/* Hero Section */}
+      {/* 2. Hero Section */}
       <section className="landing-hero">
         <div className="hero-content">
           <div className="hero-badge">
-            <Sparkles size={16} />
-            <span>O'zbekistondagi №1 Sanatoriylar Milliy Portali</span>
+            <Sparkles size={15} />
+            <span>O‘zbekiston Sanatoriylarini Onlayn Bron Qilish Milliy Portali</span>
           </div>
 
           <h1 className="hero-title">
-            Salomatligingiz va xotirjam hordig'ingiz uchun <span className="highlight">eng sara sanatoriylar</span>
+            Salomatlik va dam olish maskanlarini <span className="highlight">rasmiy kassa narxlarida</span> toping
           </h1>
 
           <p className="hero-subtitle">
-            O'zbekistonning barcha so'lim maskanlaridagi shifoxona va sanatoriylarini to'g'ridan-to'g'ri, rasmiy kassa narxlarida, ustamasiz onlayn tanlang va bron qiling.
+            Toza tog‘ havosi, shifobaxsh mineral suvlar va litsenziyalangan shifokorlar nazorati. Ortiqcha to‘lovsiz va navbatsiz — to‘g‘ridan-to‘g‘ri bron qiling.
           </p>
 
           {/* Interactive Search Card */}
@@ -377,7 +398,7 @@ export function LandingPage() {
             >
               <div className="search-field-group">
                 <label className="search-field-label">
-                  <Search size={14} />
+                  <Search size={13} />
                   <span>Sanatoriya nomi</span>
                 </label>
                 <input
@@ -391,7 +412,7 @@ export function LandingPage() {
 
               <div className="search-field-group">
                 <label className="search-field-label">
-                  <MapPin size={14} />
+                  <MapPin size={13} />
                   <span>Hudud / Viloyat</span>
                 </label>
                 <select
@@ -411,8 +432,8 @@ export function LandingPage() {
 
               <div className="search-field-group">
                 <label className="search-field-label">
-                  <Stethoscope size={14} />
-                  <span>Davolash sohasi</span>
+                  <Stethoscope size={13} />
+                  <span>Davolash yo'nalishi</span>
                 </label>
                 <select
                   value={selectedService}
@@ -439,45 +460,44 @@ export function LandingPage() {
           {/* Trust Badges */}
           <div className="hero-trust-row">
             <div className="trust-item">
-              <div className="trust-icon-circle"><Check size={16} /></div>
-              <span>100% Rasmiy sanatoriya narxlari</span>
+              <div className="trust-icon-circle"><Check size={14} /></div>
+              <span>100% Rasmiy Kassa Narxlari</span>
             </div>
             <div className="trust-item">
-              <div className="trust-icon-circle"><ShieldCheck size={16} /></div>
-              <span>Litsenziyalangan shifokorlar va tekshirilgan maskanlar</span>
+              <div className="trust-icon-circle"><ShieldCheck size={14} /></div>
+              <span>Sog'liqni Saqlash Litsenziyasi Tekshirilgan</span>
             </div>
             <div className="trust-item">
-              <div className="trust-icon-circle"><Smartphone size={16} /></div>
-              <span>Mobil ilovada qulay boshqaruv va QR-vaucher</span>
+              <div className="trust-icon-circle"><Smartphone size={14} /></div>
+              <span>QR-Kodli Elektron Vaucher</span>
             </div>
           </div>
         </div>
       </section>
 
-      {/* Sanatoriums Catalog Section */}
+      {/* 3. Featured Sanatoriums Section */}
       <section id="sanatoriylar" className="sanatoriums-section">
         <div className="section-header">
           <span className="section-tag">Eng sara maskanlar</span>
           <h2 className="section-title">O'zbekistonning mashhur sanatoriylari</h2>
           <p className="section-description">
-            Tabiiy iqlim, shifobaxsh mineral buloqlar va zamonaviy tibbiy muolajalar bilan sog'lig'ingizni tiklang.
+            To'g'ridan-to'g'ri API tizimimizga ulangan sanatoriylarning shart-sharoitlari, narxlari va mavjud xonalari.
           </p>
         </div>
 
         {filteredSanatoriums.length === 0 ? (
-          <div style={{ textAlign: "center", padding: "4rem 1rem", background: "var(--card-bg)", borderRadius: 20 }}>
-            <Info size={40} color="#087d66" style={{ marginBottom: "1rem" }} />
-            <h3 style={{ fontSize: "1.25rem", fontWeight: 800, marginBottom: "0.5rem" }}>
+          <div style={{ textAlign: "center", padding: "4rem 1rem", background: "#0b1329", borderRadius: 20, border: "1px solid #1e293b" }}>
+            <Info size={40} color="#10b981" style={{ marginBottom: "1rem" }} />
+            <h3 style={{ fontSize: "1.25rem", fontWeight: 800, marginBottom: "0.5rem", color: "#fff" }}>
               Qidiruv bo'yicha sanatoriyalar topilmadi
             </h3>
-            <p style={{ color: "var(--text-muted)", marginBottom: "1.5rem" }}>
+            <p style={{ color: "#94a3b8", marginBottom: "1.5rem" }}>
               Filtrlarni o'zgartirib qayta urinib ko'ring yoki barcha sanatoriyalarni ko'ring.
             </p>
             <button
               type="button"
               onClick={() => { setSearchQuery(""); setSelectedRegion("Barchasi"); setSelectedService("Barchasi"); }}
               className="partner-portal-btn"
-              style={{ cursor: "pointer" }}
             >
               Barcha sanatoriyalarni ko'rsatish
             </button>
@@ -510,11 +530,11 @@ export function LandingPage() {
 
                   <div className="card-content-body">
                     <div className="card-location-row">
-                      <MapPin size={14} color="#087d66" />
+                      <MapPin size={14} color="#10b981" />
                       <span>{s.region}</span>
                       {s.rating && (
-                        <span style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 3, color: "#d97706", fontWeight: 700 }}>
-                          <Star size={14} fill="#d97706" />
+                        <span style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 3, color: "#f59e0b", fontWeight: 700 }}>
+                          <Star size={13} fill="#f59e0b" />
                           <span>{s.rating}</span>
                         </span>
                       )}
@@ -536,10 +556,7 @@ export function LandingPage() {
                     <div className="card-action-footer">
                       <button
                         type="button"
-                        onClick={() => {
-                          setGalleryIndex(0);
-                          setActiveModal({ type: "details", item: s });
-                        }}
+                        onClick={() => openSanatoriumDetails(s)}
                         className="btn-view-details"
                       >
                         <span>Batafsil ma'lumot</span>
@@ -549,9 +566,9 @@ export function LandingPage() {
                       <button
                         type="button"
                         onClick={() => setActiveModal("download")}
-                        className="partner-portal-btn"
+                        className="apk-header-btn"
                         style={{ padding: "0.65rem 1rem", fontSize: "0.85rem", cursor: "pointer" }}
-                        title="Ilova orqali bron qilish"
+                        title="Ilovada bron qilish"
                       >
                         <Smartphone size={16} />
                         <span>Bron qilish</span>
@@ -565,14 +582,14 @@ export function LandingPage() {
         )}
       </section>
 
-      {/* Medical Directions Section */}
+      {/* 4. Medical Directions Section */}
       <section id="yonalishlar" className="medical-section">
         <div className="medical-container">
           <div className="section-header">
             <span className="section-tag">Shifobaxsh yo'nalishlar</span>
             <h2 className="section-title">Qaysi sohalar bo'yicha davolanish mumkin?</h2>
             <p className="section-description">
-              O'zbekiston sanatoriylari o'ziga xos tabiiy omillar, shifobaxsh balchiqlar va zamonaviy tibbiy uskunalar bilan jihozlangan.
+              O'zbekiston sanatoriylari o'ziga xos tabiiy iqlim omillari, shifobaxsh balchiqlar va zamonaviy tibbiy muolajalar bilan jihozlangan.
             </p>
           </div>
 
@@ -593,7 +610,7 @@ export function LandingPage() {
         </div>
       </section>
 
-      {/* Why Choose Us Section */}
+      {/* 5. Why Choose Us Section */}
       <section id="afzalliklar" className="why-section">
         <div className="section-header">
           <span className="section-tag">Nega aynan Sihhat.uz?</span>
@@ -607,7 +624,7 @@ export function LandingPage() {
           <div className="why-card">
             <div className="why-icon-box"><ShieldCheck size={28} /></div>
             <h3 className="why-card-title">Kafolatlangan kassa narxlari</h3>
-            <p className="why-card-desc">Hech qanday yashirin komissiyalarsiz, to'g'ridan-to'g'ri sanatoriya kassasi bilan bir xil narxda.</p>
+            <p className="why-card-desc">Hech qanday yashirin vositachilik to'lovlarisiz, to'g'ridan-to'g'ri sanatoriya kassasi bilan bir xil narxda.</p>
           </div>
 
           <div className="why-card">
@@ -630,13 +647,13 @@ export function LandingPage() {
         </div>
       </section>
 
-      {/* App Download Banner */}
+      {/* 6. App Download Banner (with QR and direct link) */}
       <section id="ilova" className="app-download-section">
         <div className="app-container">
           <div>
             <div className="app-badge">
-              <Download size={15} />
-              <span>Sihhat.uz Mobil Ilovasi</span>
+              <Download size={14} />
+              <span>Sihhat.uz Rasmiy Mobil Ilovasi</span>
             </div>
 
             <h2 className="app-title">
@@ -649,19 +666,19 @@ export function LandingPage() {
 
             <ul className="app-features-list">
               <li>
-                <Check size={18} color="#9ef0d5" />
-                <span>Tezkor SMS orqali kirish (kod: 123456)</span>
+                <CheckCircle2 size={18} color="#34d399" />
+                <span>Tezkor Demo SMS orqali kirish (kod: 123456)</span>
               </li>
               <li>
-                <Check size={18} color="#9ef0d5" />
+                <CheckCircle2 size={18} color="#34d399" />
                 <span>Bo'sh xonalar va kunlik narxlarni onlayn tekshirish</span>
               </li>
               <li>
-                <Check size={18} color="#9ef0d5" />
+                <CheckCircle2 size={18} color="#34d399" />
                 <span>QR-kodli elektron vaucher va buyurtmalar tarixi</span>
               </li>
               <li>
-                <Check size={18} color="#9ef0d5" />
+                <CheckCircle2 size={18} color="#34d399" />
                 <span>Offline rejimda ham sanatoriylar ma'lumotlarini ko'rish</span>
               </li>
             </ul>
@@ -678,7 +695,7 @@ export function LandingPage() {
                 rel="noreferrer"
                 className="btn-download-gh"
               >
-                <ExternalLink size={17} />
+                <ExternalLink size={16} />
                 <span>GitHub orqali</span>
               </a>
             </div>
@@ -692,27 +709,29 @@ export function LandingPage() {
                 className="qr-img"
               />
             </div>
-            <div className="qr-hint">Telefon kamerangizni tuting</div>
+            <div className="qr-hint">Telefon kamerangizni qarating</div>
             <div className="qr-subhint">Kamerani QR-kodga yo'naltirib, APK faylni to'g'ridan-to'g'ri yuklab oling</div>
           </div>
         </div>
       </section>
 
-      {/* Footer */}
+      {/* 7. Footer */}
       <footer className="landing-footer">
         <div className="footer-container">
           <div>
-            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
-              <div className="brand-icon-wrap" style={{ width: 34, height: 34 }}>
-                <HeartPulse size={20} />
-              </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 14 }}>
+              <img
+                src="/branding/sihhat-logo.jpg"
+                alt="Sihhat.uz Logo"
+                style={{ width: 36, height: 36, borderRadius: 10, objectFit: "cover" }}
+              />
               <span style={{ fontSize: "1.3rem", fontWeight: 800, color: "#fff" }}>Sihhat.uz</span>
             </div>
             <p className="footer-brand-desc">
               O'zbekiston Respublikasi bo'ylab sanatoriya va sog'lomlashtirish maskanlarini qulay bron qilish yagona milliy platformasi.
             </p>
-            <div style={{ fontSize: "0.85rem", color: "#9ef0d5" }}>
-              Demo sinov versiyasi: 0.1.1
+            <div style={{ fontSize: "0.82rem", color: "#34d399" }}>
+              API versiyasi: 0.1.0 · Demo APK: 0.1.1
             </div>
           </div>
 
@@ -741,7 +760,7 @@ export function LandingPage() {
               <li><a href="/hamkorlar">Sanatoriyalar kabineti</a></li>
               <li><a href="/superadmin">Superadmin boshqaruvi</a></li>
               <li style={{ marginTop: 8 }}>
-                <a href={apkUrl} download style={{ color: "#9ef0d5", fontWeight: 700, display: "flex", alignItems: "center", gap: 4 }}>
+                <a href={apkUrl} download style={{ color: "#34d399", fontWeight: 700, display: "flex", alignItems: "center", gap: 4 }}>
                   <Download size={14} />
                   <span>APK yuklab olish</span>
                 </a>
@@ -761,22 +780,22 @@ export function LandingPage() {
         </div>
       </footer>
 
-      {/* Sanatorium Details Modal */}
+      {/* Sanatorium Details Modal with Live Room Types & Rate Plans from API */}
       {activeModal && typeof activeModal === "object" && activeModal.type === "details" && (
         <div className="legal-modal-backdrop" onClick={() => setActiveModal(null)}>
           <div className="legal-modal-card" style={{ maxWidth: 880 }} onClick={(e) => e.stopPropagation()}>
             <div className="legal-modal-header">
               <div>
                 <h3 className="legal-modal-title">{activeModal.item.name}</h3>
-                <span style={{ fontSize: "0.85rem", color: "var(--text-muted)", display: "flex", alignItems: "center", gap: 4, marginTop: 4 }}>
-                  <MapPin size={14} color="#087d66" />
+                <span style={{ fontSize: "0.85rem", color: "#94a3b8", display: "flex", alignItems: "center", gap: 4, marginTop: 4 }}>
+                  <MapPin size={14} color="#10b981" />
                   <span>{activeModal.item.region} — {activeModal.item.address}</span>
                 </span>
               </div>
               <button
                 type="button"
                 onClick={() => setActiveModal(null)}
-                style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-muted)" }}
+                style={{ background: "none", border: "none", cursor: "pointer", color: "#94a3b8" }}
               >
                 <X size={22} />
               </button>
@@ -786,7 +805,7 @@ export function LandingPage() {
               {/* Photo Showcase */}
               {activeModal.item.photo_ids && activeModal.item.photo_ids.length > 0 && (
                 <div style={{ marginBottom: "1.5rem" }}>
-                  <div style={{ width: "100%", height: 320, borderRadius: 16, overflow: "hidden", background: "#052620", marginBottom: 10 }}>
+                  <div style={{ width: "100%", height: 320, borderRadius: 16, overflow: "hidden", background: "#020617", marginBottom: 10 }}>
                     <img
                       src={`/api/media/${activeModal.item.photo_ids[galleryIndex] || activeModal.item.photo_ids[0]}`}
                       alt={activeModal.item.name}
@@ -808,7 +827,7 @@ export function LandingPage() {
                             height: 50,
                             borderRadius: 8,
                             overflow: "hidden",
-                            border: idx === galleryIndex ? "2px solid #087d66" : "2px solid transparent",
+                            border: idx === galleryIndex ? "2px solid #10b981" : "2px solid #1e293b",
                             padding: 0,
                             cursor: "pointer",
                             flexShrink: 0,
@@ -832,10 +851,25 @@ export function LandingPage() {
               <h4>Tibbiy ko'rsatmalar va davolash yo'nalishlari</h4>
               <p>{activeModal.item.directions}</p>
 
-              <div className="details-modal-grid" style={{ marginTop: "1rem" }}>
+              {/* Live Room Types from API */}
+              {activeModal.item.room_types && activeModal.item.room_types.length > 0 && (
+                <div>
+                  <h4>Mavjud xona turlari</h4>
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 10, margin: "10px 0" }}>
+                    {activeModal.item.room_types.map((rt) => (
+                      <div key={rt.id} style={{ padding: "10px 14px", borderRadius: 12, background: "#111e38", border: "1px solid #1e293b" }}>
+                        <div style={{ fontWeight: 700, color: "#fff" }}>{rt.name}</div>
+                        <div style={{ fontSize: "0.8rem", color: "#94a3b8" }}>Maksimal: {rt.maxGuests} nafar mehmon</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1.5rem", marginTop: "1rem" }}>
                 <div>
                   <h4>Davolash xizmatlari</h4>
-                  <ul style={{ paddingLeft: 18, margin: 0, color: "var(--text-muted)", fontSize: "0.9rem" }}>
+                  <ul style={{ paddingLeft: 18, margin: 0, color: "#94a3b8", fontSize: "0.9rem" }}>
                     {activeModal.item.services.map((srv, i) => (
                       <li key={i} style={{ marginBottom: 4 }}>{srv}</li>
                     ))}
@@ -844,7 +878,7 @@ export function LandingPage() {
 
                 <div>
                   <h4>Qulayliklar va sharoitlar</h4>
-                  <ul style={{ paddingLeft: 18, margin: 0, color: "var(--text-muted)", fontSize: "0.9rem" }}>
+                  <ul style={{ paddingLeft: 18, margin: 0, color: "#94a3b8", fontSize: "0.9rem" }}>
                     {activeModal.item.amenities.map((am, i) => (
                       <li key={i} style={{ marginBottom: 4 }}>{am}</li>
                     ))}
@@ -852,19 +886,19 @@ export function LandingPage() {
                 </div>
               </div>
 
-              <div style={{ background: "var(--bg)", padding: "1rem", borderRadius: 14, marginTop: "1.5rem", border: "1px solid var(--border-color)" }}>
+              <div style={{ background: "#030712", padding: "1rem", borderRadius: 14, marginTop: "1.5rem", border: "1px solid #1e293b" }}>
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "1rem", fontSize: "0.88rem" }}>
                   <div>
-                    <strong>Kunlik narx:</strong> {activeModal.item.from_amount} so'mdan
+                    <strong style={{ color: "#fff" }}>Kunlik narx:</strong> {activeModal.item.from_amount} so'mdan
                   </div>
                   <div>
-                    <strong>Ovqatlanish:</strong> {activeModal.item.meals}
+                    <strong style={{ color: "#fff" }}>Ovqatlanish:</strong> {activeModal.item.meals}
                   </div>
                   <div>
-                    <strong>Kirish / Chiqish:</strong> {activeModal.item.check_in_time} / {activeModal.item.check_out_time}
+                    <strong style={{ color: "#fff" }}>Kirish / Chiqish:</strong> {activeModal.item.check_in_time} / {activeModal.item.check_out_time}
                   </div>
                   <div>
-                    <strong>Kerakli hujjatlar:</strong> {activeModal.item.required_documents}
+                    <strong style={{ color: "#fff" }}>Kerakli hujjatlar:</strong> {activeModal.item.required_documents}
                   </div>
                 </div>
               </div>
@@ -889,9 +923,7 @@ export function LandingPage() {
             <div className="legal-modal-footer">
               <button
                 type="button"
-                onClick={() => {
-                  setActiveModal("download");
-                }}
+                onClick={() => setActiveModal("download")}
                 className="btn-download-apk"
                 style={{ padding: "0.7rem 1.4rem", fontSize: "0.95rem", cursor: "pointer" }}
               >
@@ -912,23 +944,23 @@ export function LandingPage() {
               <button
                 type="button"
                 onClick={() => setActiveModal(null)}
-                style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-muted)" }}
+                style={{ background: "none", border: "none", cursor: "pointer", color: "#94a3b8" }}
               >
                 <X size={22} />
               </button>
             </div>
             <div className="legal-modal-body" style={{ textAlign: "center" }}>
-              <div style={{ width: 180, height: 180, margin: "0 auto 1.5rem", background: "#fff", padding: 12, borderRadius: 16, boxShadow: "0 8px 24px rgba(0,0,0,0.1)" }}>
+              <div style={{ width: 170, height: 170, margin: "0 auto 1.5rem", background: "#fff", padding: 12, borderRadius: 16, boxShadow: "0 8px 24px rgba(0,0,0,0.3)" }}>
                 <img src="/branding/app-qr.svg" alt="QR Kod" style={{ width: "100%", height: "100%" }} />
               </div>
 
-              <h4 style={{ margin: "0 0 0.5rem", fontSize: "1.15rem" }}>Kamerangizni QR-kodga yo'naltiring</h4>
-              <p style={{ color: "var(--text-muted)", fontSize: "0.9rem", marginBottom: "1.5rem" }}>
+              <h4 style={{ margin: "0 0 0.5rem", fontSize: "1.15rem", color: "#fff" }}>Kamerangizni QR-kodga qarating</h4>
+              <p style={{ color: "#94a3b8", fontSize: "0.9rem", marginBottom: "1.5rem" }}>
                 Telefoningiz orqali rasmiy demo versiyadagi APK faylni to'g'ridan-to'g'ri o'rnating.
               </p>
 
-              <div style={{ background: "var(--bg)", padding: "1rem", borderRadius: 14, textAlign: "left", fontSize: "0.88rem", marginBottom: "1.5rem", border: "1px solid var(--border-color)" }}>
-                <div style={{ fontWeight: 700, color: "#087d66", marginBottom: 4 }}>🔑 Demo kirish ma'lumotlari:</div>
+              <div style={{ background: "#030712", padding: "1rem", borderRadius: 14, textAlign: "left", fontSize: "0.88rem", marginBottom: "1.5rem", border: "1px solid #1e293b" }}>
+                <div style={{ fontWeight: 700, color: "#10b981", marginBottom: 4 }}>🔑 Demo kirish ma'lumotlari:</div>
                 <div>Telefon raqami: <code>+998901234567</code> (yoki istalgan raqam)</div>
                 <div>Demo SMS OTP kod: <code>123456</code></div>
               </div>
@@ -956,7 +988,7 @@ export function LandingPage() {
               <button
                 type="button"
                 onClick={() => setActiveModal(null)}
-                style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-muted)" }}
+                style={{ background: "none", border: "none", cursor: "pointer", color: "#94a3b8" }}
               >
                 <X size={22} />
               </button>
@@ -966,27 +998,27 @@ export function LandingPage() {
 
               <h4>1. Umumiy qoidalar</h4>
               <p>
-                Ushbu Ommaviy Oferta (keyingi o'rinlarda — «Shartnoma») «Sihhat.uz» axborot platformasi (keyingi o'rinlarda — «Platforma» yoki «Ijrochi») orqali O'zbekiston Respublikasi hududidagi sanatoriylar, dam olish maskanlari va sog'lomlashtirish majmualari (keyingi o'rinlarda — «Sanatoriya») xizmatlarini bron qilish tartibi va shartlarini belgilaydi.
+                Ushbu Ommaviy Oferta «Sihhat.uz» axborot platformasi orqali O'zbekiston Respublikasi hududidagi sanatoriylar, dam olish maskanlari va sog'lomlashtirish majmualari xizmatlarini bron qilish tartibi va shartlarini belgilaydi.
               </p>
 
               <h4>2. Xizmat predmeti</h4>
               <p>
-                Ijrochi Foydalanuvchiga Platforma orqali Sanatoriyalarning shart-sharoitlari, davolash profili, mavjud xonalari va rasmiy narxlari to'g'risida to'liq va haqqoniy ma'lumot olish hamda ularni onlayn bron qilish imkoniyatini taqdim etadi. Platformadagi narxlar Sanatoriyaning rasmiy kassa narxlariga teng bo'lib, qo'shimcha yashirin to'lovlar undirilmaydi.
+                Platformadagi narxlar Sanatoriyaning rasmiy kassa narxlariga teng bo'lib, qo'shimcha yashirin to'lovlar undirilmaydi.
               </p>
 
               <h4>3. Bron qilish va tasdiqlash tartibi</h4>
               <p>
-                Foydalanuvchi kerakli sanatoriya, xona turi, kelish va ketish sanalarini tanlab, o'zining shaxsiy ma'lumotlarini (F.I.Sh., telefon raqami) kiritadi. Bron muvaffaqiyatli rasmiylashtirilgach, Foydalanuvchiga elektron vaucher (QR-kodli bron tasdig'i) taqdim etiladi.
+                Foydalanuvchi kerakli sanatoriya, xona turi, kelish va ketish sanalarini tanlab, o'zining shaxsiy ma'lumotlarini kiritadi va elektron vaucher (QR-kodli bron tasdig'i) oladi.
               </p>
 
               <h4>4. To'lov va hisob-kitoblar</h4>
               <p>
-                To'lovlar Sanatoriya qoidalariga muvofiq onlayn to'lov tizimlari orqali yoki Sanatoriyaga yetib kelganda qabulxona kassasida naqd/plastik karta orqali amalga oshiriladi. Har bir to'lov bo'yicha belgilangan tartibda elektron fiskal chek shakllantiriladi.
+                To'lovlar Sanatoriya qoidalariga muvofiq onlayn yoki yetib kelganda qabulxona kassasida amalga oshiriladi.
               </p>
 
               <h4>5. Tomonlarning javobgarligi</h4>
               <p>
-                Platforma Sanatoriya tomonidan ko'rsatiladigan tibbiy va maishiy xizmatlarning sifati, shifokorlar xulosasi hamda mijozning sub'ektiv kutuvlariga bevosita javobgar emas. Sanatoriya o'z navbatida tasdiqlangan bron bo'yicha mijozga xonani o'z vaqtida taqdim etishga to'liq javobgardir.
+                Sanatoriya o'z navbatida tasdiqlangan bron bo'yicha mijozga xonani o'z vaqtida taqdim etishga to'liq javobgardir.
               </p>
             </div>
             <div className="legal-modal-footer">
@@ -994,7 +1026,6 @@ export function LandingPage() {
                 type="button"
                 onClick={() => setActiveModal(null)}
                 className="partner-portal-btn"
-                style={{ cursor: "pointer" }}
               >
                 Tushunarli
               </button>
@@ -1012,40 +1043,29 @@ export function LandingPage() {
               <button
                 type="button"
                 onClick={() => setActiveModal(null)}
-                style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-muted)" }}
+                style={{ background: "none", border: "none", cursor: "pointer", color: "#94a3b8" }}
               >
                 <X size={22} />
               </button>
             </div>
             <div className="legal-modal-body">
               <p>
-                Ushbu Maxfiylik siyosati O'zbekiston Respublikasining 2019-yil 2-iyuldagi «Shaxsga doir ma'lumotlar to'g'risida»gi O'RQ-547-son Qonuni talablariga muvofiq ishlab chiqilgan bo'lib, Foydalanuvchilarning shaxsiy ma'lumotlarini to'plash, qayta ishlash va himoya qilish tartibini belgilaydi.
+                Ushbu Maxfiylik siyosati O'zbekiston Respublikasining 2019-yil 2-iyuldagi «Shaxsga doir ma'lumotlar to'g'risida»gi O'RQ-547-son Qonuni talablariga muvofiq ishlab chiqilgan.
               </p>
 
               <h4>1. Yig'iladigan ma'lumotlar</h4>
               <p>
-                Platformadan foydalanish jarayonida quyidagi ma'lumotlar qayta ishlanadi:
+                Telefon raqami (avtorizatsiya uchun), F.I.Sh., tanlangan sanatoriya va tashrif sanalari.
               </p>
-              <ul>
-                <li>Telefon raqami (avtorizatsiya va tasdiqlash uchun);</li>
-                <li>Foydalanuvchining ismi va familiyasi;</li>
-                <li>Tanlangan sanatoriya, xona va tashrif sanalari;</li>
-                <li>Qurilma modeli va ilovadan foydalanish parametrlari.</li>
-              </ul>
 
               <h4>2. Ma'lumotlardan foydalanish maqsadi</h4>
               <p>
-                Shaxsiy ma'lumotlar faqat Sanatoriyada xonani bron qilish, mijoz bilan bog'lanish, buyurtma holati haqida SMS/xabarnoma yuborish hamda xizmat sifatini oshirish maqsadida qo'llaniladi.
+                Shaxsiy ma'lumotlar faqat Sanatoriyada xonani bron qilish va mijoz bilan bog'lanish maqsadida qo'llaniladi.
               </p>
 
               <h4>3. Ma'lumotlar xavfsizligi</h4>
               <p>
-                Sihhat.uz ma'lumotlar xavfsizligini ta'minlash uchun ilg'or shifrlash (HTTPS, TLS, tokenlashtirish) va himoyalangan server infratuzilmasidan foydalanadi. Foydalanuvchining shaxsiy ma'lumotlari qonun hujjatlarida nazarda tutilgan hollardan tashqari uchinchi shaxslarga berilmaydi.
-              </p>
-
-              <h4>4. Hisob va ma'lumotlarni o'chirish huquqi</h4>
-              <p>
-                Foydalanuvchi istalgan vaqtda o'z profilini o'chirish yoki shaxsiy ma'lumotlarini bazadan chiqarishni talab qilish huquqiga ega. Buning uchun mobil ilovadagi tegishli tugma yoki qo'llab-quvvatlash xizmatiga murojaat qilish kifoya.
+                Ilg'or shifrlash (HTTPS, TLS, tokenlashtirish) vositalari bilan himoyalangan.
               </p>
             </div>
             <div className="legal-modal-footer">
@@ -1053,7 +1073,6 @@ export function LandingPage() {
                 type="button"
                 onClick={() => setActiveModal(null)}
                 className="partner-portal-btn"
-                style={{ cursor: "pointer" }}
               >
                 Yopish
               </button>
@@ -1071,34 +1090,25 @@ export function LandingPage() {
               <button
                 type="button"
                 onClick={() => setActiveModal(null)}
-                style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-muted)" }}
+                style={{ background: "none", border: "none", cursor: "pointer", color: "#94a3b8" }}
               >
                 <X size={22} />
               </button>
             </div>
             <div className="legal-modal-body">
-              <p>
-                Har bir sanatoriya o'zining xona sig'imi va mavsumiga qarab belgilangan qaytarish siyosatiga (Refund Policy) ega. Platformada standart quyidagi qaytarish muddatlari amal qiladi:
-              </p>
-
               <h4>1. 72 soatlik bepul bekor qilish</h4>
               <p>
-                Sanatoriyaga kelish sanasidan kamida 72 soat (3 kun) oldin bron bekor qilingan taqdirda, to'langan mablag' mijozga <strong>100% to'liq hajmda</strong> jarimalarsiz qaytariladi.
+                Kelish sanasidan kamida 72 soat oldin bekor qilinganda, to'langan mablag' mijozga <strong>100% to'liq hajmda</strong> jarimalarsiz qaytariladi.
               </p>
 
               <h4>2. 24–48 soat qolganda bekor qilish</h4>
               <p>
-                Kelish vaqtiga 24 soatdan 48 soatgacha vaqt qolganda bron bekor qilinsa, Sanatoriya qoidalariga ko'ra 1 kunlik yashash xarajati yoki bank komissiyasi ushlab qolinishi mumkin.
+                Kelish vaqtiga 24-48 soat qolganda bekor qilinsa, Sanatoriya qoidalariga muvofiq qaytariladi.
               </p>
 
-              <h4>3. 24 soatdan kam vaqt qolganda yoki kelinmaganda (No-Show)</h4>
+              <h4>3. Qaytarish muddati</h4>
               <p>
-                Mijoz ogohlantirmasdan sanatoriyaga kelmagan yoki 24 soatdan kam vaqt qolganda bekor qilgan taqdirda, band qilingan xona bo'sh turgani uchun birinchi kunlik to'lov qaytarilmasligi mumkin.
-              </p>
-
-              <h4>4. Mablag'ni qaytarish muddati</h4>
-              <p>
-                Tasdiqlangan qaytarish arizalari bo'yicha pul mablag'lari mijoz to'lov qilgan bank kartasiga 1 dan 5 ish kunigacha bo'lgan muddatda qaytarib o'tkaziladi.
+                Pul mablag'lari mijoz to'lov qilgan bank kartasiga 1 dan 5 ish kunigacha bo'lgan muddatda qaytariladi.
               </p>
             </div>
             <div className="legal-modal-footer">
@@ -1106,7 +1116,6 @@ export function LandingPage() {
                 type="button"
                 onClick={() => setActiveModal(null)}
                 className="partner-portal-btn"
-                style={{ cursor: "pointer" }}
               >
                 Tushunarli
               </button>
