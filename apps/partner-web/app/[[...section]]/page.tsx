@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { Portal } from "@sihhat/ui";
-import { LandingPage } from "@sihhat/ui/landing";
+import { LandingPage } from "../landing";
 
 type Props = {
   params: Promise<{ section?: string[] }>;
