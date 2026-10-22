@@ -93,7 +93,7 @@ export function productionIssues(c: Config): string[] {
   if (c.BOOKING_SETTLEMENT_MODE !== 'direct') issues.push('Production: yangi bronlar sanatoriyaning o‘z merchant hisobiga yo‘naltirilishi kerak');
   if (c.SMS_ADAPTER === 'eskiz' && !c.ESKIZ_OTP_APPROVED) issues.push('Production: Eskiz OTP hisobini va shablonini tasdiqlash kerak');
   if (c.SMS_ADAPTER === 'local' || (c.SMS_ADAPTER === 'http' && (!c.SMS_HTTP_URL || !c.SMS_HTTP_TOKEN))) issues.push('Production: haqiqiy SMS adapteri kerak');
-  if (c.PAYMENT_MODE === 'local' || (c.PAYMENT_MODE === 'payme' && (!c.PAYME_KEY || !c.PAYME_MERCHANT_ID))) issues.push('Production: merchant rekvizitlari kerak');
+  if ((c.PAYMENT_MODE === 'payme' && (!c.PAYME_KEY || !c.PAYME_MERCHANT_ID))) issues.push('Production: merchant rekvizitlari kerak');
   if (c.PAYMENT_MODE === 'tezcheck' && !c.TEZCHECK_CASH_DESK_CODE) issues.push('Production: TEZCHECK_CASH_DESK_CODE kerak');
   const hostraStorage = c.DEPLOYMENT_PLATFORM === 'hostra' && c.STORAGE_ADAPTER === 'local'
     && c.STORAGE_PATH === '/home/terminal/.sihhat/media';

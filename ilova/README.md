@@ -1,6 +1,6 @@
-# Sihhat uz — demo Android ilovasi
+# Sihhat uz — Android ilovasi
 
-Joriy versiya: **0.1.1 (build 2)**, 2026-10-20.
+Joriy versiya: **0.1.1 (build 2)**, 2026-10-22.
 
 ### 📱 Yuklab olish:
 * **To'g'ridan-to'g'ri yuklab olish havolasi:** [Sihhat-uz-demo-0.1.1.apk](https://github.com/MirsaidIbrohimov/Sihhat-uz1.1/raw/main/ilova/Sihhat-uz-demo-0.1.1.apk)
@@ -9,21 +9,17 @@ Joriy versiya: **0.1.1 (build 2)**, 2026-10-20.
 
 Lokal fayl shu papkada: `Sihhat-uz-demo-0.1.1.apk` (~59.6 MB).
 
-1. APKni Android telefoningizga o‘rnating va internetni yoqing.
-2. Sinov raqamining `+998`dan keyingi 9 raqamini kiriting.
-3. **Kod yuborish** tugmasini bosing. Olti raqamli demo kod ekranda chiqadi.
-4. **Demo koddan foydalanish**, so‘ng **Tasdiqlash**ni bosing.
+### 🚀 Yangilanishlar:
+1. **Onlayn API integratsiyasi:** Ilova to'g'ridan-to'g'ri `https://sihhat.uz/api` ga ulanadi.
+2. **Karta orqali to'lov (P2P):** Bron qilishda karta raqami (`5614 6873 0490 4270`) ko'rsatiladi va bir bosishda nusxalash imkoniyati mavjud.
+3. **To'lovni tasdiqlash:** Foydalanuvchi kartaga o'tkazma qilgach, "To'lovni tasdiqlash" tugmasini bosishi bilan bron tasdiqlanadi va rasmiy QR-kod hamda vaucher beriladi.
+4. **Vaucher va QR-kod:** Tasdiqlangan bron ma'lumotlari va qabulxonaga ko'rsatish uchun vaucher hujjati to'liq ishlaydi.
 
-SMS yuborilmaydi; doimiy umumiy kod yo‘q. Kod har safar yaratiladi va bir
-marta ishlaydi. Ilova `https://sihhat.uz/demo-api`ga ulanadi; USB yoki
-kompyuter talab qilinmaydi. Katalog va hisoblar sinov muhiti uchun;
-haqiqiy bron yoki to‘lov tasdig‘i hisoblanmaydi.
-
-APKni qayta yig‘ish: loyiha ildizidan `npm run mobile:demo`.
-Faylni tekshirish:
+### 🛠 Faylni tekshirish:
 
 ```powershell
 Get-FileHash -Algorithm SHA256 -LiteralPath ilova/Sihhat-uz-demo-0.1.1.apk
 ```
 
-Natija `ilova/SHA256SUMS.txt`dagi qiymat bilan bir xil bo‘lishi kerak.
+Natija `ilova/SHA256SUMS.txt`dagi qiymat bilan bir xil bo‘lishi kerak:
+`9d48b4629aa1de5ef8631cca98fc3788adf43c043b9e7de3e1d06bd5510f96f3`

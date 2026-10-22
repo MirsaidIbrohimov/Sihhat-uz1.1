@@ -1,7 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -794,6 +794,9 @@ class _BookingScreenState extends State<BookingScreen>
     if (!mounted) return;
     if (saved != null) setState(() => booking = saved);
     await refresh();
+    if (mounted && booking != null && ['HOLD', 'PAYMENT_PENDING'].contains(booking!['status']) && checkout == null) {
+      unawaited(pay());
+    }
   }
 
   Future<void> refresh() =>
@@ -1125,36 +1128,132 @@ class _BookingScreenState extends State<BookingScreen>
                         ],
                       ),
                     ),
-                  if (checkout?['mode'] == 'local' && kDebugMode && pending)
+                  if (pending)
                     ConceptCard(
-                      color: context.colors.warning,
                       child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text(
-                            'Mahalliy sinov to‘lovi. Haqiqiy pul o‘tkazilmaydi.',
-                            style: TextStyle(fontSize: 12),
+                          Row(
+                            children: [
+                              const SihhatIcon('credit-card', size: 20),
+                              const SizedBox(width: 8),
+                              Text(
+                                'Karta orqali to‘lov (P2P)',
+                                style: conceptHeading(context, size: 16),
+                              ),
+                            ],
                           ),
-                          TextButton(
-                            onPressed: busy
-                                ? null
-                                : () async {
-                                    setState(() => busy = true);
-                                    try {
-                                      await widget.api.send(
-                                        '/payments/${checkout!['order_id']}/local-confirm',
-                                        method: 'POST',
-                                        body: {},
-                                      );
-                                      await refresh();
-                                    } catch (e) {
-                                      if (mounted) {
-                                        setState(() => error = e.toString());
-                                      }
-                                    } finally {
-                                      if (mounted) setState(() => busy = false);
-                                    }
+                          const SizedBox(height: 12),
+                          Container(
+                            padding: const EdgeInsets.all(14),
+                            decoration: BoxDecoration(
+                              color: context.colors.soft,
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        'To‘lov kartasi raqami',
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          color: context.colors.muted,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      const SelectableText(
+                                        '5614 6873 0490 4270',
+                                        style: TextStyle(
+                                          fontSize: 18,
+                                          fontWeight: FontWeight.w700,
+                                          letterSpacing: 1.2,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        'Sihhat.uz rasmiy to‘lov hisobi',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color: context.colors.primary,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                IconButton(
+                                  icon: const SihhatIcon('copy', size: 20),
+                                  tooltip: 'Nusxa olish',
+                                  onPressed: () {
+                                    Clipboard.setData(
+                                      const ClipboardData(
+                                        text: '5614687304904270',
+                                      ),
+                                    );
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text('Karta raqami nusxalandi'),
+                                        duration: Duration(seconds: 2),
+                                      ),
+                                    );
                                   },
-                            child: const Text('Sinov to‘lovini tasdiqlash'),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          Text(
+                            'Iltimos, yuqoridagi kartaga ${money(b['amount'])} o‘tkazing va pastdagi tugmani bosing.',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: context.colors.muted,
+                            ),
+                          ),
+                          const SizedBox(height: 14),
+                          SizedBox(
+                            width: double.infinity,
+                            child: FilledButton.icon(
+                              onPressed: busy
+                                  ? null
+                                  : () async {
+                                      setState(() => busy = true);
+                                      try {
+                                        if (checkout == null) {
+                                          final r = asJson(
+                                            await widget.api.send(
+                                              '/customer/bookings/${widget.id}/checkout',
+                                              method: 'POST',
+                                              body: {},
+                                            ),
+                                          );
+                                          checkout = r;
+                                        }
+                                        await widget.api.send(
+                                          '/payments/${checkout!['order_id']}/local-confirm',
+                                          method: 'POST',
+                                          body: {},
+                                        );
+                                        await refresh();
+                                      } catch (e) {
+                                        if (mounted) {
+                                          setState(() => error = e.toString());
+                                          ScaffoldMessenger.of(context).showSnackBar(
+                                            SnackBar(
+                                              content: Text(e.toString()),
+                                              backgroundColor: Colors.redAccent,
+                                            ),
+                                          );
+                                        }
+                                      } finally {
+                                        if (mounted) setState(() => busy = false);
+                                      }
+                                    },
+                              icon: const SihhatIcon('check', size: 18),
+                              label: const Text('To‘lovni tasdiqlash'),
+                            ),
                           ),
                         ],
                       ),
