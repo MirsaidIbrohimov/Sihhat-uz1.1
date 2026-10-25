@@ -1,0 +1,587 @@
+<!doctype html>
+<html lang="uz">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'none'; base-uri 'none'; form-action 'none'">
+  <title>Sihhat.uz — Superadmin Kirish Kartasi</title>
+  <style>
+    :root {
+      --primary: #059669;
+      --primary-hover: #047857;
+      --primary-light: #ecfdf5;
+      --primary-border: #a7f3d0;
+      --bg: #0f172a;
+      --card-bg: #1e293b;
+      --card-border: #334155;
+      --text: #f8fafc;
+      --text-muted: #94a3b8;
+      --input-bg: #0f172a;
+      --input-border: #475569;
+      --accent: #10b981;
+      --accent-glow: rgba(16, 185, 129, 0.25);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background: #0b1120;
+      color: var(--text);
+      line-height: 1.5;
+      padding: 32px 16px;
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+    .container {
+      width: 100%;
+      max-width: 620px;
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 24px;
+      padding: 36px 32px;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+    }
+    .header {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      margin-bottom: 24px;
+      padding-bottom: 20px;
+      border-bottom: 1px solid var(--card-border);
+    }
+    .logo-badge {
+      width: 52px;
+      height: 52px;
+      background: linear-gradient(135deg, #10b981 0%, #047857 100%);
+      border-radius: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 26px;
+      font-weight: 800;
+      color: #fff;
+      box-shadow: 0 4px 14px var(--accent-glow);
+    }
+    .title-group h1 {
+      font-size: 22px;
+      font-weight: 700;
+      color: #fff;
+      letter-spacing: -0.02em;
+    }
+    .title-group p {
+      font-size: 13px;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(16, 185, 129, 0.15);
+      border: 1px solid rgba(16, 185, 129, 0.35);
+      color: #34d399;
+      font-size: 12px;
+      font-weight: 600;
+      padding: 4px 10px;
+      border-radius: 20px;
+      margin-left: auto;
+    }
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      background: #10b981;
+      border-radius: 50%;
+      animation: pulse 2s infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.4; transform: scale(0.85); }
+    }
+
+    .notice-box {
+      background: rgba(16, 185, 129, 0.08);
+      border: 1px solid rgba(16, 185, 129, 0.2);
+      border-radius: 12px;
+      padding: 14px 16px;
+      font-size: 13px;
+      color: #a7f3d0;
+      margin-bottom: 24px;
+      line-height: 1.5;
+    }
+    .notice-box strong {
+      color: #fff;
+    }
+
+    .field-group {
+      margin-bottom: 18px;
+    }
+    .field-label {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 13px;
+      font-weight: 600;
+      color: #cbd5e1;
+      margin-bottom: 6px;
+    }
+    .input-wrapper {
+      display: flex;
+      gap: 8px;
+    }
+    input[type="text"], input[type="password"] {
+      flex: 1;
+      background: var(--input-bg);
+      border: 1px solid var(--input-border);
+      border-radius: 10px;
+      padding: 12px 14px;
+      color: #fff;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 15px;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+    input[type="text"]:focus, input[type="password"]:focus {
+      border-color: var(--accent);
+    }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      background: #334155;
+      border: 1px solid #475569;
+      color: #f1f5f9;
+      padding: 11px 16px;
+      border-radius: 10px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all 0.15s;
+    }
+    .btn:hover {
+      background: #475569;
+      border-color: #64748b;
+    }
+    .btn-primary {
+      background: var(--primary);
+      border-color: var(--primary);
+      color: #fff;
+    }
+    .btn-primary:hover {
+      background: var(--primary-hover);
+      border-color: var(--primary-hover);
+    }
+    .btn-icon {
+      padding: 11px 13px;
+    }
+
+    /* 2FA MFA Card */
+    .mfa-box {
+      background: linear-gradient(180deg, rgba(30, 41, 59, 0.7) 0%, rgba(15, 23, 42, 0.9) 100%);
+      border: 1px solid rgba(16, 185, 129, 0.4);
+      border-radius: 18px;
+      padding: 24px;
+      margin: 24px 0;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
+    }
+    .mfa-box::before {
+      content: "";
+      position: absolute;
+      top: 0; left: 0; right: 0; height: 3px;
+      background: linear-gradient(90deg, #10b981, #06b6d4, #10b981);
+    }
+    .mfa-label {
+      font-size: 13px;
+      font-weight: 600;
+      color: #94a3b8;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .mfa-code {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 48px;
+      font-weight: 800;
+      letter-spacing: 8px;
+      color: #34d399;
+      margin: 10px 0 6px 0;
+      text-shadow: 0 0 25px rgba(52, 211, 153, 0.35);
+      user-select: all;
+    }
+    .timer-wrap {
+      width: 100%;
+      height: 6px;
+      background: #334155;
+      border-radius: 3px;
+      margin: 12px 0 10px 0;
+      overflow: hidden;
+    }
+    .timer-bar {
+      height: 100%;
+      background: #10b981;
+      width: 100%;
+      transition: width 1s linear, background-color 0.3s;
+    }
+    .timer-bar.urgent {
+      background: #f59e0b;
+    }
+    .timer-bar.critical {
+      background: #ef4444;
+    }
+    .mfa-hint {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-bottom: 14px;
+    }
+    .mfa-actions {
+      display: flex;
+      justify-content: center;
+      gap: 10px;
+    }
+
+    /* Links Grid */
+    .links-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-top: 24px;
+    }
+    .link-card {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 14px;
+      border-radius: 12px;
+      text-decoration: none;
+      font-size: 14px;
+      font-weight: 600;
+      transition: all 0.15s;
+    }
+    .link-superadmin {
+      background: linear-gradient(135deg, #059669 0%, #047857 100%);
+      color: #fff;
+      box-shadow: 0 4px 14px rgba(5, 150, 105, 0.3);
+    }
+    .link-superadmin:hover {
+      background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+      transform: translateY(-1px);
+    }
+    .link-partner {
+      background: #334155;
+      color: #e2e8f0;
+      border: 1px solid #475569;
+    }
+    .link-partner:hover {
+      background: #475569;
+      color: #fff;
+      transform: translateY(-1px);
+    }
+
+    /* Details */
+    details {
+      margin-top: 22px;
+      padding-top: 18px;
+      border-top: 1px solid var(--card-border);
+      color: var(--text-muted);
+      font-size: 13px;
+    }
+    summary {
+      cursor: pointer;
+      font-weight: 600;
+      color: #cbd5e1;
+      user-select: none;
+    }
+    summary:hover {
+      color: #fff;
+    }
+    .details-content {
+      margin-top: 14px;
+      line-height: 1.6;
+    }
+    .details-content ol {
+      margin-left: 20px;
+      margin-bottom: 14px;
+    }
+    .details-content li {
+      margin-bottom: 6px;
+    }
+    .details-content a {
+      color: #34d399;
+      text-decoration: none;
+    }
+    .details-content a:hover {
+      text-decoration: underline;
+    }
+
+    /* Notification Toast */
+    #toast {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%) translateY(80px);
+      background: #10b981;
+      color: #fff;
+      padding: 10px 22px;
+      border-radius: 30px;
+      font-size: 14px;
+      font-weight: 600;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+      opacity: 0;
+      pointer-events: none;
+      transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+      z-index: 9999;
+    }
+    #toast.show {
+      transform: translateX(-50%) translateY(0);
+      opacity: 1;
+    }
+
+    @media (max-width: 540px) {
+      .container { padding: 24px 18px; }
+      .links-grid { grid-template-columns: 1fr; }
+      .mfa-code { font-size: 38px; letter-spacing: 5px; }
+      .status-badge { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <div class="header">
+    <div class="logo-badge">S</div>
+    <div class="title-group">
+      <h1>Sihhat.uz — Superadmin</h1>
+      <p>Boshqaruv paneli kirish ma'lumotlari</p>
+    </div>
+    <div class="status-badge">
+      <div class="status-dot"></div>
+      Server faol
+    </div>
+  </div>
+
+  <div class="notice-box">
+    <strong>💡 Email orqali kirish ulandi:</strong> Endi siz Superadmin paneliga <code>mirsaid2028@gmail.com</code> (email) yoki <code>mirsaid2028</code> (login) orqali to'g'ridan-to'g'ri kira olasiz! Parol va jonli 2FA MFA kodi avtomatik hisoblanadi.
+  </div>
+
+  <!-- Login Field -->
+  <div class="field-group">
+    <div class="field-label">
+      <span>Superadmin Email / Login</span>
+      <span style="font-size: 11px; color: #64748b;">(Ikkisi ham ishlaydi)</span>
+    </div>
+    <div class="input-wrapper">
+      <input id="login" type="text" readonly value="mirsaid2028@gmail.com">
+      <button class="btn" type="button" onclick="copyField('login', 'Email nusxalandi!')">
+        📋 Nusxalash
+      </button>
+    </div>
+  </div>
+
+  <!-- Password Field -->
+  <div class="field-group">
+    <div class="field-label">
+      <span>Parol</span>
+      <span style="font-size: 11px; color: #64748b;">(Maxfiy)</span>
+    </div>
+    <div class="input-wrapper">
+      <input id="password" type="password" readonly value="Sihhat2026!MirsaidAdmin">
+      <button class="btn btn-icon" type="button" title="Ko'rsatish / Yashirish" onclick="togglePassword('password')">
+        👁️
+      </button>
+      <button class="btn" type="button" onclick="copyField('password', 'Parol nusxalandi!')">
+        📋 Nusxalash
+      </button>
+    </div>
+  </div>
+
+  <!-- 2FA Live TOTP Card -->
+  <div class="mfa-box" aria-label="Joriy 6 raqamli MFA kodi">
+    <div class="mfa-label">Jonli MFA (2FA) Autentifikator Kodi</div>
+    <div class="mfa-code" id="code">······</div>
+    <div class="timer-wrap">
+      <div class="timer-bar" id="timer-bar"></div>
+    </div>
+    <div class="mfa-hint" id="remaining">Kod hisoblanmoqda…</div>
+    <div class="mfa-actions">
+      <button class="btn btn-primary" id="copy-code-btn" type="button" onclick="copyCode()">
+        ⚡ MFA kodini nusxalash
+      </button>
+    </div>
+  </div>
+
+  <!-- Action Links -->
+  <div class="links-grid">
+    <a class="link-card link-superadmin" href="https://sihhat.uz/superadmin" target="_blank" rel="noopener noreferrer">
+      🚀 Superadmin Paneliga Kirish
+    </a>
+    <a class="link-card link-partner" href="https://sihhat.uz/hamkorlar" target="_blank" rel="noopener noreferrer">
+      🏢 Hamkorlar Paneli
+    </a>
+  </div>
+
+  <!-- Authenticator Setup Details -->
+  <details>
+    <summary>📱 MFA'ni telefondagi Google / Microsoft Authenticatorga ulash</summary>
+    <div class="details-content">
+      <p style="margin-bottom: 10px;">Agar kodni telefoningiz orqali olishni istasangiz:</p>
+      <ol>
+        <li>Telefonda <b>Google Authenticator</b> yoki <b>Microsoft Authenticator</b> ilovasini oching.</li>
+        <li><b>Sozlash kalitini qo'lda kiritish</b> (Enter setup key) bandini tanlang.</li>
+        <li>Hisob nomi: <b>Sihhat.uz Superadmin</b></li>
+        <li>Kalit turini: <b>Vaqtga asoslangan (Time-based / TOTP)</b> tanlang.</li>
+        <li>Quyidagi sozlash kalitini kiriting:</li>
+      </ol>
+
+      <div class="field-group" style="margin-top: 10px;">
+        <div class="input-wrapper">
+          <input id="secret" type="password" readonly value="P4IG4XADFUCBEN4G5HNGF6BIWZUJ6THN">
+          <button class="btn btn-icon" type="button" title="Ko'rsatish / Yashirish" onclick="togglePassword('secret')">
+            👁️
+          </button>
+          <button class="btn" type="button" onclick="copyField('secret', 'MFA sozlash kaliti nusxalandi!')">
+            📋 Nusxalash
+          </button>
+        </div>
+      </div>
+
+      <p style="margin-top: 10px;">
+        🔗 <a href="otpauth://totp/Sihhat%20uz:mirsaid2028?secret=P4IG4XADFUCBEN4G5HNGF6BIWZUJ6THN&amp;issuer=Sihhat%20uz&amp;digits=6&amp;period=30">
+          Ilova orqali avtomatik ulash havolasi
+        </a>
+      </p>
+    </div>
+  </details>
+
+  <p style="font-size: 11px; color: #475569; text-align: center; margin-top: 24px;">
+    🔒 Xavfsizlik: Bu fayl maxfiy kirish ma'lumotlarini o'z ichiga oladi. Jonli MFA kodi brauzeringiz ichida Web Crypto API orqali hisoblanadi. Uni hech kimga bermang.
+  </p>
+</div>
+
+<div id="toast">Nusxalandi!</div>
+
+<script>
+  const el = id => document.getElementById(id);
+
+  function showToast(text) {
+    const toast = el('toast');
+    toast.textContent = text;
+    toast.classList.add('show');
+    setTimeout(() => toast.classList.remove('show'), 2200);
+  }
+
+  function togglePassword(id) {
+    const field = el(id);
+    field.type = field.type === 'password' ? 'text' : 'password';
+  }
+
+  async function copyField(id, successMsg) {
+    const input = el(id);
+    try {
+      await navigator.clipboard.writeText(input.value);
+      showToast(successMsg || 'Nusxalandi!');
+    } catch {
+      input.focus();
+      input.select();
+      document.execCommand('copy');
+      showToast(successMsg || 'Nusxalandi!');
+    }
+  }
+
+  async function copyCode() {
+    await refreshTotp();
+    const code = el('code').textContent;
+    if (/^\d{6}$/.test(code)) {
+      try {
+        await navigator.clipboard.writeText(code);
+        showToast('MFA kodi (' + code + ') nusxalandi!');
+      } catch {
+        const selection = window.getSelection();
+        const range = document.createRange();
+        range.selectNodeContents(el('code'));
+        selection.removeAllRanges();
+        selection.addRange(range);
+        document.execCommand('copy');
+        showToast('MFA kodi nusxalandi!');
+      }
+    }
+  }
+
+  // Base32 Decoder
+  function decode32(secret) {
+    const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+    let bits = 0, value = 0;
+    const bytes = [];
+    for (const char of secret) {
+      const digit = alphabet.indexOf(char);
+      if (digit < 0) throw new Error('Invalid setup key');
+      value = (value << 5) | digit;
+      bits += 5;
+      if (bits >= 8) {
+        bytes.push((value >>> (bits - 8)) & 255);
+        bits -= 8;
+      }
+    }
+    return new Uint8Array(bytes);
+  }
+
+  let cryptoKeyPromise = null;
+  let currentStep = -1;
+
+  async function refreshTotp() {
+    try {
+      const now = Math.floor(Date.now() / 1000);
+      const step = Math.floor(now / 30);
+      const secondsRemaining = 30 - (now % 30);
+
+      // Update timer bar & text
+      const timerBar = el('timer-bar');
+      const percentage = (secondsRemaining / 30) * 100;
+      timerBar.style.width = percentage + '%';
+
+      if (secondsRemaining <= 5) {
+        timerBar.className = 'timer-bar critical';
+      } else if (secondsRemaining <= 10) {
+        timerBar.className = 'timer-bar urgent';
+      } else {
+        timerBar.className = 'timer-bar';
+      }
+
+      el('remaining').textContent = 'Yangi kodga ' + secondsRemaining + ' soniya qoldi';
+
+      if (step !== currentStep) {
+        const secretVal = el('secret').value;
+        cryptoKeyPromise ??= crypto.subtle.importKey(
+          'raw',
+          decode32(secretVal),
+          { name: 'HMAC', hash: 'SHA-1' },
+          false,
+          ['sign']
+        );
+
+        const counter = new Uint8Array(8);
+        new DataView(counter.buffer).setBigUint64(0, BigInt(step));
+        const digest = new Uint8Array(await crypto.subtle.sign('HMAC', await cryptoKeyPromise, counter));
+        const offset = digest[digest.length - 1] & 15;
+        const number = new DataView(digest.buffer).getUint32(offset) & 0x7fffffff;
+
+        const codeStr = String(number % 1000000).padStart(6, '0');
+        el('code').textContent = codeStr;
+        currentStep = step;
+      }
+    } catch (err) {
+      el('code').textContent = '······';
+      el('remaining').textContent = 'Xatolik: Chrome yoki Edge brauzerida oching.';
+    }
+  }
+
+  // Initial call and 1-second interval
+  refreshTotp();
+  setInterval(refreshTotp, 1000);
+</script>
+</body>
+</html>

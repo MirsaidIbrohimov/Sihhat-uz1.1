@@ -46,7 +46,16 @@ export class AuthService {
     const input = parse(staffLoginInput, body);
     await this.limit(`staff-login-ip:${ip}`, 30, 900);
     await this.limit(`staff-login:${input.login}`, 10, 900);
-    const user = await this.db.user.findUnique({ where: { login: input.login } });
+    const searchLogin = input.login.trim().toLowerCase();
+    const usernamePart = searchLogin.includes('@') ? searchLogin.split('@')[0] : searchLogin;
+    const user = await this.db.user.findFirst({
+      where: {
+        OR: [
+          { login: searchLogin },
+          { login: usernamePart }
+        ]
+      }
+    });
     const valid = await passwordMatches(input.password, user?.passwordHash ?? null);
     if (!user || !valid || user.status !== 'ACTIVE' || user.kind === 'CUSTOMER') fail('LOGIN_FAILED', 'Login yoki parol noto‘g‘ri', 401);
     return this.db.atomic(async tx => {
