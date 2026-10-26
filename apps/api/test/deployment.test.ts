@@ -10,8 +10,8 @@ import type { Actor } from '../src/auth/permissions';
 
 const env = (): NodeJS.ProcessEnv => ({
   NODE_ENV: 'production', PORT: '8080',
-  DATABASE_URL: 'postgresql://example:example@postgres.railway.internal:5432/railway',
-  REDIS_URL: 'redis://example:example@redis.railway.internal:6379',
+  DATABASE_URL: 'postgresql://example:example@db.example.internal:5432/sihhat',
+  REDIS_URL: 'redis://example:example@redis.example.internal:6379',
   AUTH_SECRET: randomBytes(32).toString('hex'), MFA_ENCRYPTION_KEY: randomBytes(32).toString('hex'),
   CORS_ORIGINS: 'https://admin.example.com, https://partner.example.com',
   SMS_ADAPTER: 'eskiz', ESKIZ_TOKEN: 'example-provider-token', ESKIZ_OTP_APPROVED: 'true',
@@ -21,14 +21,11 @@ const env = (): NodeJS.ProcessEnv => ({
   WORKER_MODE: 'redis',
 });
 
-test('deployment: production accepts Railway private databases, HTTPS panels and an injected port', () => {
-  const config = loadConfig({ ...env(), RAILWAY_ENVIRONMENT_ID: 'example-environment' });
+test('deployment: production accepts remote private databases, HTTPS panels and an injected port', () => {
+  const config = loadConfig(env());
   assert.equal(config.PORT, 8080);
   assert.equal(config.CORS_ORIGINS, 'https://admin.example.com,https://partner.example.com');
   assert.deepEqual(productionIssues(config), []);
-});
-test('deployment: a public Railway service cannot enable development adapters', () => {
-  assert.throws(() => loadConfig({ ...env(), RAILWAY_ENVIRONMENT_ID: 'example-environment', NODE_ENV: 'development' }), /Railwayda NODE_ENV/);
 });
 test('deployment: loopback database/Redis/S3 endpoints cannot reach production', () => {
   for (const [key, value] of [

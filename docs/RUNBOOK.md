@@ -123,16 +123,6 @@ va bir marta ishlatiladi; qayta kirishda yangisini kuting. Qurilma vaqti
 avtomatik bo'lsin. `npm run hostra:access` private `owner-access.json`dan
 HTMLni qayta yaratadi; server hisobiga, parolga yoki MFA kalitiga yozmaydi.
 
-## Railway
-
-Railway konfiguratsiyasi `.railway/railway.ts`da. Lokal sozlama tekshiruvi:
-`npm run railway:check`; builddan keyingi production preflight:
-`npm run deploy:check`. Lokal adapterlar bilan preflight xato qaytarishi
-kutiladi. API + worker + Telegram + ikkala panel, database/Redis, S3,
-HTTPS domenlar, shared sirlar va birinchi admin yaratish tartibi
-[RAILWAY.md](RAILWAY.md)da. Lokal ishga tushirishni cloud deployment
-yoki provider qabuli deb hisoblamang.
-
 ## Logo va Android ko‘rinishi
 
 Asl logo `assets/branding/sihhat-logo.jpg`da. `npm run brand:assets` uning
@@ -603,8 +593,7 @@ Flutter paketlari `apps/mobile`da `flutter pub get` bilan olinadi.
 Joriy lokal Android ARM64 debug nusxa
 [`apk/sihhat-uz-preview.apk`](../apk/sihhat-uz-preview.apk)da.
 Asl build `.local/releases`da saqlanadi; nusxani yangilash va tekshirish
-[READMEning APK bo‘limi](../README.md#tayyor-apk)da. `apk/` Git va
-Railway uploadidan chiqarilgan. Ushbu APKga lokal API va USB reverse kerak;
+[READMEning APK bo‘limi](../README.md#tayyor-apk)da. `apk/` Gitdan chiqarilgan. Ushbu APKga lokal API va USB reverse kerak;
 release uchun haqiqiy HTTPS manzili va signing bilan qayta build qilinadi.
 
 ```powershell

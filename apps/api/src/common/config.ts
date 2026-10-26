@@ -130,7 +130,6 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
       throw new Error('Public demo: alohida _demo bazasi, test muhiti, demo-media, HTTPS origin va o‘chirilgan haqiqiy providerlar kerak');
     }
   }
-  if (env.RAILWAY_ENVIRONMENT_ID && c.NODE_ENV !== 'production') throw new Error('Production: Railwayda NODE_ENV=production kerak');
   if (c.DEMO_OTP_ENABLED && (c.NODE_ENV === 'production' || c.SMS_ADAPTER !== 'local')) throw new Error('Demo OTP faqat lokal development/test SMS adapteri bilan ishlaydi');
   if (c.PAYMENT_MODE === 'tezcheck' && !c.TEZCHECK_API_KEY) throw new Error('Tezcheck: server API kaliti kerak');
   if (c.TELEGRAM_MODE !== 'disabled' && !c.TELEGRAM_BOT_TOKEN) throw new Error('Telegram: server bot tokeni kerak');

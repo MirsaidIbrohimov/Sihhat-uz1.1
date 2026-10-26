@@ -1,7 +1,6 @@
 # Hostra'ga joylash
 
 Amaldagi hosting tanlovi — [Hostra](https://hostrauz.shop/dashboard).
-Railway konfiguratsiyasi boshqa platforma uchun oldingi tayyorlov hisoblanadi.
 
 Asosiy jonli panel manzillari (2026-10-14):
 [superadmin](https://sihhat.uz/superadmin) va

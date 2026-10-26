@@ -18,7 +18,7 @@ Haqiqiy checkout/payment return/webhook va bank qabuli hali sinalmagan.
 Yangi bronlar `BOOKING_SETTLEMENT_MODE=direct` bilan har sanatoriyaning
 o‘z tasdiqlangan merchant ulanishini talab qiladi; platforma kassasining
 faolligi bu talabni almashtirmaydi. HTTPS va webhook secret deploymentda
-sozlanadi. Railway tartibi [RAILWAY.md](RAILWAY.md)da.
+sozlanadi.
 
 ## Qayta diagnostika — 2026-10-04
 

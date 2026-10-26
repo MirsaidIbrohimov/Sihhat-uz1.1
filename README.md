@@ -108,25 +108,10 @@ Ular hostingning public papkasiga va Gitga kiritilmaydi. Android release
 API base URL bilan alohida yig'iladi; mavjud lokal debug APK o'zgarmadi.
 Joylash va tekshirish tartibi [HOSTRA.md](docs/HOSTRA.md)da.
 
-## Railway
-
-Railway uchun [`.railway/railway.ts`](.railway/railway.ts) tayyorlandi:
-API, domen worker, Telegram, superadmin va hamkorlar paneli; PostgreSQL,
-Redis, S3 bucket va private MFA volume. Panellar Railway `PORT`ini oladi,
-IPv4/IPv6 ishlaydi; API migratsiyasi faqat pre-deploy bosqichida bajariladi.
-`npm run railway:check` lokal konfiguratsiyani, `npm run deploy:check`
-production talablarini tekshiradi. Sirlar uchun namuna
-[`.railway/.env.example`](.railway/.env.example)da.
-
-Bu cloud deployment dalili emas: haqiqiy Railway environment, HTTPS
-domenlar, tasdiqlangan SMS/merchant va Redis/S3 qabul sinovi kerak.
-To‘liq joylash tartibi [RAILWAY.md](docs/RAILWAY.md)da. O‘zgarishlar lokal
-saqlanadi; GitHubga avtomatik push qilinmaydi.
-
 2026-10-08 yakuniy tekshiruv: backend **99/99**, mobil **56/56**, Flutter
 analyzer, TypeScript, API va ikkala panel buildi o‘tdi. Barcha **11 migratsiya**
 yangi lokal bazada, inventar exclusion va 4 ledger guard bilan tekshirildi.
-Railway `PORT`ini taqlid qilgan ikki panel IPv4/IPv6, `/api` proksisi va
+Production standartini taqlid qilgan ikki panel IPv4/IPv6, `/api` proksisi va
 katalogda **200** qaytardi; uch xodim rolida login/cookie/CSRF/logout o‘tdi.
 `npm audit`: **0** zaiflik. APKda **57** maxfiy qiymat bayt namunasi, moslik **0**.
 Samsungga joriy oddiy `lib/main.dart` debug APK o‘rnatilib ochildi.
@@ -335,7 +320,7 @@ Imzolangan demo build `npm run mobile:demo` bilan tayyorlanadi.
 | `packages/api-client-ts` | Web API mijozi |
 | `scripts`, `test/web` | Lokal muhit, APK/build/tiklanish vositalari va Playwright sinovlari |
 | `docs`, `infra` | Arxitektura, holat, OpenAPI, runbook va Docker muhiti |
-| `apk` | Joriy debug APKning lokal nusxasi; bu papka Gitga va Railwayga yuborilmaydi |
+| `apk` | Joriy release/demo APK nusxasi; bu papka Gitga yuborilmaydi |
 
 ## Gemini, Eskiz va Tezcheck sozlamalari
 
@@ -371,7 +356,7 @@ Flutter paketlariniki `apps/mobile/pubspec.lock`da saqlanadi.
 | JDK / Android Studio JBR | Android Gradle buildi; bu kompyuterda **Java 25.0.3** ishlatilgan. Gradle **9.3.1** wrapper orqali olinadi |
 | Python 3 | APK ichidagi maxfiy ma’lumotlarni tekshirish; skript uchun alohida `pip` kutubxonasi kerak emas |
 | Playwright Chromium | Faqat web brauzer sinovlari uchun: `npx playwright install chromium` |
-| Redis va private S3 storage | Railway/production worker va media uchun; lokal muhitda DB worker va fayl storage ishlatiladi |
+| Redis va private S3 storage | Production worker va media uchun; lokal muhitda DB worker va fayl storage ishlatiladi |
 
 ### API, saytlar va vositalar
 
@@ -390,7 +375,6 @@ Jadvaldagi versiyalar manifestlarda ko‘rsatilgan asosiy versiyalardir.
 | Ikkala web panel va umumiy UI | `next` **16.x**, `react` va `react-dom` **19.2.x**, `lucide-react` **0.468.x** |
 | TypeScript va tur ta’riflari | `typescript` **5.9.x**, `tsx` **4.x**; `@types/node` **24.x**, `@types/react`/`@types/react-dom` **19.2.x**, `@types/express` **5.x**, `@types/pg` **8.x**, `@types/cookie-parser` **1.4.x** |
 | Tekshiruv va format | `@playwright/test` **1.56.x**, `prettier` **3.6.x** |
-| Railway konfiguratsiyasi | `railway` SDK **3.13.1**; joylash tartibi [RAILWAY.md](docs/RAILWAY.md)da |
 
 ### Flutter Android kutubxonalari
 
@@ -472,8 +456,7 @@ Copy-Item -LiteralPath .local/releases/sihhat-uz-preview.apk -Destination apk/si
 python scripts/check-apk-secrets.py apk/sihhat-uz-preview.apk
 ```
 
-`apk/` va `*.apk` Gitdan chiqarilgan; `apk/` Railway uploadidan ham
-chiqarilgan. APK GitHubga yuklanmaydi.
+`apk/` va `*.apk` Gitdan chiqarilgan. APK GitHubga yuklanmaydi.
 
 ## Lokal ishga tushirish
 

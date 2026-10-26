@@ -2,7 +2,9 @@ import {existsSync, readFileSync, readdirSync} from 'node:fs';
 import {spawnSync} from 'node:child_process';
 import {join, resolve} from 'node:path';
 
-export const root = resolve(import.meta.dirname, '..');
+export const root = process.platform === 'win32' && existsSync('C:\\Loyiha\\SIF028~1')
+  ? 'C:\\Loyiha\\SIF028~1'
+  : resolve(import.meta.dirname, '..');
 export const mobile = join(root, 'apps/mobile');
 const properties = join(mobile, 'android/local.properties');
 const localProperties = existsSync(properties) ? readFileSync(properties, 'utf8') : '';

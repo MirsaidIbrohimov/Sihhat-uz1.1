@@ -172,13 +172,6 @@ class _EntryState extends State<_Entry> {
         ),
       );
     }
-    if (!widget.api.signedIn) {
-      return LoginScreen(
-        widget.api,
-        showDemoOtp: widget.showDemoOtp,
-        onAuthenticated: () => setState(() => error = null),
-      );
-    }
     return Home(widget.api, sessionError: error, retrySession: restore);
   }
 }

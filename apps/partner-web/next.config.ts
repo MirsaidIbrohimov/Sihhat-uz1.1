@@ -1,7 +1,5 @@
 import type { NextConfig } from "next";
-if (process.env.RAILWAY_ENVIRONMENT_ID && !process.env.SIHHAT_API_URL) {
-  throw new Error("Railway: web build uchun SIHHAT_API_URL belgilang.");
-}
+
 const config: NextConfig = {
   transpilePackages: ["@sihhat/ui", "@sihhat/api-client"],
   poweredByHeader: false,

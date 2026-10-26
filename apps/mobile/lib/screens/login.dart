@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../concept_ui.dart';
 
@@ -63,6 +64,19 @@ class _LoginScreenState extends State<LoginScreen> {
     phone.dispose();
     code.dispose();
     super.dispose();
+  }
+
+  Future<void> _openTelegramBot() async {
+    final uri = Uri.parse('https://t.me/sihhat_support_bot');
+    try {
+      if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+        await launchUrl(uri, mode: LaunchMode.platformDefault);
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() => error = 'Telegram ilovasi ochilmadi. @sihhat_support_bot manziliga kiring.');
+      }
+    }
   }
 
   Future<void> request() async {
@@ -151,6 +165,13 @@ class _LoginScreenState extends State<LoginScreen> {
             challenge == null ? 'Sihhat uz' : 'Tasdiqlash',
             style: conceptHeading(c, size: challenge == null ? 26 : 20),
           ),
+          leading: Navigator.canPop(context)
+              ? IconButton(
+                  icon: const Icon(Icons.arrow_back),
+                  tooltip: 'Orqaga',
+                  onPressed: () => Navigator.pop(context, false),
+                )
+              : null,
           actions: const [ConceptAppearanceToggle(), SizedBox(width: 12)],
         ),
         bottomNavigationBar: Padding(
@@ -196,7 +217,75 @@ class _LoginScreenState extends State<LoginScreen> {
                         height: 1.5,
                       ),
                     ),
-                    const SizedBox(height: 32),
+                    const SizedBox(height: 24),
+                    ConceptCard(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Row(
+                            children: [
+                              Container(
+                                width: 44,
+                                height: 44,
+                                decoration: BoxDecoration(
+                                  color: const Color(0xff229ed9),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: const Icon(Icons.send_rounded, color: Colors.white, size: 22),
+                              ),
+                              const SizedBox(width: 14),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Text(
+                                      'Telegram orqali tezkor kirish',
+                                      style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      'SMS kutmasdan, 1-bosishda kiring',
+                                      style: TextStyle(color: c.colors.muted, fontSize: 13),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 14),
+                          ElevatedButton.icon(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xff229ed9),
+                              foregroundColor: Colors.white,
+                              elevation: 0,
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            ),
+                            icon: const Icon(Icons.telegram, size: 22),
+                            label: const Text(
+                              'Telegram botni ochish (@sihhat_support_bot)',
+                              style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
+                            ),
+                            onPressed: busy ? null : _openTelegramBot,
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    Row(
+                      children: [
+                        Expanded(child: Divider(color: c.colors.border)),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 12),
+                          child: Text(
+                            'yoki telefon raqam orqali',
+                            style: TextStyle(color: c.colors.muted, fontSize: 13, fontWeight: FontWeight.w500),
+                          ),
+                        ),
+                        Expanded(child: Divider(color: c.colors.border)),
+                      ],
+                    ),
+                    const SizedBox(height: 20),
                   ] else ...[
                     const SizedBox(height: 22),
                     const Center(child: IconTile('message-square', size: 110)),
@@ -225,7 +314,30 @@ class _LoginScreenState extends State<LoginScreen> {
                         fontSize: 17,
                       ),
                     ),
-                    const SizedBox(height: 30),
+                    const SizedBox(height: 14),
+                    GestureDetector(
+                      onTap: _openTelegramBot,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                        decoration: BoxDecoration(
+                          color: const Color(0xff229ed9).withValues(alpha: 0.08),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: const Color(0xff229ed9).withValues(alpha: 0.25)),
+                        ),
+                        child: const Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.telegram, color: Color(0xff229ed9), size: 18),
+                            SizedBox(width: 8),
+                            Text(
+                              'SMS kelmadimi? @sihhat_support_bot orqali oling',
+                              style: TextStyle(color: Color(0xff229ed9), fontWeight: FontWeight.w600, fontSize: 13),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 24),
                   ],
                   if (challenge == null)
                     TextField(
@@ -340,6 +452,27 @@ class _LoginScreenState extends State<LoginScreen> {
                         ? 'Kod kelishi biroz vaqt olishi mumkin.'
                         : 'Demo koddan faqat sinov uchun foydalaning.',
                   ),
+                  if (challenge == null) ...[
+                    const SizedBox(height: 16),
+                    Center(
+                      child: TextButton.icon(
+                        onPressed: busy
+                            ? null
+                            : () {
+                                if (Navigator.canPop(context)) {
+                                  Navigator.pop(context, false);
+                                } else if (widget.onAuthenticated != null) {
+                                  widget.onAuthenticated!();
+                                }
+                              },
+                        icon: const Icon(Icons.explore_outlined, size: 20),
+                        label: const Text(
+                          'Ilovani ko‘rish (Mehmon sifatida)',
+                          style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+                        ),
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),

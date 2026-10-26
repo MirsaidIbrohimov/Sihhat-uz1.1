@@ -1,10 +1,9 @@
 import { spawn } from 'node:child_process';
 import { resolve } from 'node:path';
 
-// npm workspace commands run in the app directory. Keep local defaults while
-// allowing Railway to select the listening port and a dual-stack interface.
+// npm workspace commands run in the app directory.
 const port = process.env.PORT ?? process.argv[2];
-const host = process.env.SIHHAT_WEB_HOST ?? (process.env.RAILWAY_ENVIRONMENT_ID ? '::' : '127.0.0.1');
+const host = process.env.SIHHAT_WEB_HOST ?? '127.0.0.1';
 if (!/^\d+$/.test(port ?? '') || Number(port) < 1 || Number(port) > 65535) {
   console.error('Web: PORT 1–65535 oralig‘idagi butun son bo‘lishi kerak.');
   process.exit(1);
