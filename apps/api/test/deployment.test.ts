@@ -4,6 +4,7 @@ import { randomBytes } from 'node:crypto';
 import { loadConfig, productionIssues } from '../src/common/config';
 import { AuthService } from '../src/auth/auth.service';
 import { Sms } from '../src/auth/sms';
+import { EmailService } from '../src/auth/email';
 import { AppError } from '../src/common/errors';
 import type { Db } from '../src/common/db';
 import type { Actor } from '../src/auth/permissions';
@@ -93,7 +94,8 @@ test('deployment: disabled customer SMS cannot issue or verify OTPs or change ph
   let databaseCalls = 0;
   const db = new Proxy({}, { get() { databaseCalls++; throw new Error('Database must not be used while SMS is disabled'); } }) as Db;
   const sms = new Sms(config);
-  const auth = new AuthService(db, config, sms);
+  const email = new EmailService(config);
+  const auth = new AuthService(db, config, sms, email);
   const id = '7c387e01-0842-40a3-850d-86a55b4f0a3d';
   const customer = { kind: 'CUSTOMER', id } as Actor;
   const unavailable = (error: unknown) => error instanceof AppError && error.code === 'SMS_DISABLED' && error.getStatus() === 503;
@@ -106,4 +108,41 @@ test('deployment: disabled customer SMS cannot issue or verify OTPs or change ph
   assert.equal(sms.sent.size, 0);
   await assert.rejects(() => auth.phoneChangeRequest({ kind: 'STAFF' } as Actor, {}), (error: unknown) => error instanceof AppError && error.code === 'PERMISSION_DENIED');
   assert.throws(() => loadConfig({ ...env(), SMS_ADAPTER: 'disabled', DEMO_OTP_ENABLED: 'true' }), /Demo OTP/);
+});
+
+test('deployment: email OTP issues challenge and dispatches email', async () => {
+  const config = loadConfig({ ...env(), SMS_ADAPTER: 'disabled', SMTP_HOST: 'smtp.example.com' });
+  const sms = new Sms(config);
+  const email = new EmailService(config);
+  (email as any).transporter = { sendMail: async () => ({}) };
+  let challengeCreated: any = null;
+  const mockDb = {
+    atomic: async (fn: any) => fn({
+      $executeRaw: async () => 1,
+      otpChallenge: {
+        findFirst: async () => null,
+        updateMany: async () => ({ count: 0 }),
+        create: async ({ data }: any) => { challengeCreated = { purpose: 'LOGIN', attempts: 0, consumedAt: null, ...data }; return challengeCreated; },
+        findUnique: async () => challengeCreated,
+        update: async ({ data }: any) => { Object.assign(challengeCreated, data); return challengeCreated; },
+      },
+      user: {
+        findFirst: async () => null,
+        create: async ({ data }: any) => ({ id: '11111111-1111-1111-1111-111111111111', ...data, status: 'ACTIVE', mustChangePassword: false }),
+      },
+      booking: { updateMany: async () => ({ count: 0 }) },
+      session: { create: async ({ data }: any) => ({ id: '22222222-2222-2222-2222-222222222222', ...data }) },
+      auditLog: { create: async () => ({}) },
+    }),
+    $queryRaw: async () => [{ count: 1 }],
+  } as unknown as Db;
+  const auth = new AuthService(mockDb, config, sms, email);
+  const req = await auth.requestOtp({ email: 'test@example.com' }, '127.0.0.1');
+  assert.ok(req.challenge_id);
+  const code = email.sent.get(req.challenge_id)!;
+  assert.match(code, /^\d{6}$/);
+  const ver = await auth.verifyOtp({ challenge_id: req.challenge_id, code }, '127.0.0.1');
+  assert.equal(ver.user.login, 'test@example.com');
+  assert.equal(ver.user.kind, 'CUSTOMER');
+  assert.ok(ver.access_token);
 });

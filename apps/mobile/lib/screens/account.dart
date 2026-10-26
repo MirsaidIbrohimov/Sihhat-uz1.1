@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../data/api.dart';
 import '../widgets.dart';
@@ -774,29 +773,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
           const SizedBox(height: 18),
           const EmptyView('Profilingizni ko‘rish uchun kiring.'),
           const SizedBox(height: 20),
-          ElevatedButton.icon(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xff229ed9),
-              foregroundColor: Colors.white,
-              elevation: 0,
-              padding: const EdgeInsets.symmetric(vertical: 14),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            ),
-            icon: const Icon(Icons.telegram, size: 22),
-            label: const Text(
-              'Telegram orqali kirish (@sihhat_support_bot)',
-              style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
-            ),
-            onPressed: () async {
-              final uri = Uri.parse('https://t.me/sihhat_support_bot');
-              try {
-                if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
-                  await launchUrl(uri, mode: LaunchMode.platformDefault);
-                }
-              } catch (_) {}
-            },
-          ),
-          const SizedBox(height: 12),
           FilledButton(
             onPressed: () async {
               if (await ensureLogin(context, widget.api)) {
@@ -804,7 +780,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 if (mounted) setState(() => epoch++);
               }
             },
-            child: const Text('Telefon raqam orqali kirish'),
+            child: const Text('Email orqali kirish'),
           ),
           const SizedBox(height: 24),
           const ConceptAppearanceSettings(),

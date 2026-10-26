@@ -794,7 +794,10 @@ class _BookingScreenState extends State<BookingScreen>
     if (!mounted) return;
     if (saved != null) setState(() => booking = saved);
     await refresh();
-    if (mounted && booking != null && ['HOLD', 'PAYMENT_PENDING'].contains(booking!['status']) && checkout == null) {
+    if (mounted &&
+        booking != null &&
+        ['HOLD', 'PAYMENT_PENDING'].contains(booking!['status']) &&
+        checkout == null) {
       unawaited(pay());
     }
   }
@@ -1154,7 +1157,8 @@ class _BookingScreenState extends State<BookingScreen>
                               children: [
                                 Expanded(
                                   child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
                                       Text(
                                         'To‘lov kartasi raqami',
@@ -1195,7 +1199,9 @@ class _BookingScreenState extends State<BookingScreen>
                                     );
                                     ScaffoldMessenger.of(context).showSnackBar(
                                       const SnackBar(
-                                        content: Text('Karta raqami nusxalandi'),
+                                        content: Text(
+                                          'Karta raqami nusxalandi',
+                                        ),
                                         duration: Duration(seconds: 2),
                                       ),
                                     );
@@ -1240,7 +1246,9 @@ class _BookingScreenState extends State<BookingScreen>
                                       } catch (e) {
                                         if (mounted) {
                                           setState(() => error = e.toString());
-                                          ScaffoldMessenger.of(context).showSnackBar(
+                                          ScaffoldMessenger.of(
+                                            this.context,
+                                          ).showSnackBar(
                                             SnackBar(
                                               content: Text(e.toString()),
                                               backgroundColor: Colors.redAccent,
@@ -1248,7 +1256,9 @@ class _BookingScreenState extends State<BookingScreen>
                                           );
                                         }
                                       } finally {
-                                        if (mounted) setState(() => busy = false);
+                                        if (mounted) {
+                                          setState(() => busy = false);
+                                        }
                                       }
                                     },
                               icon: const SihhatIcon('check', size: 18),

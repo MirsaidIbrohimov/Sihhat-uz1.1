@@ -6,13 +6,17 @@ import { Db, audit, hash, lock, emit, type Tx } from '../common/db';
 import { fail, parse, uuid } from '../common/errors';
 import { decrypt, encrypt, matchTotp, opaque, passwordHash, passwordMatches } from '../common/crypto';
 import { Sms } from './sms';
+import { EmailService } from './email';
 import { Actor, effective } from './permissions';
 
 export const phoneSchema = z.string().transform(v => v.replace(/[\s()-]/g, '')).pipe(z.string().regex(/^\+998\d{9}$/));
 export const loginSchema = z.string().trim().toLowerCase().min(3).max(64).regex(/^[a-z0-9._@-]+$/);
 export const passwordSchema = z.string().min(12).max(128).refine(v => /[a-z]/.test(v) && /[A-Z]/.test(v) && /[0-9]/.test(v), 'Parolda katta/kichik harf va raqam bo‘lsin');
 export const staffLoginInput = z.object({ login: loginSchema, password: z.string().min(1).max(128), mfa_code: z.string().regex(/^\d{6}$/).optional() }).strict();
-export const otpRequestInput = z.object({ phone: phoneSchema }).strict();
+export const otpRequestInput = z.object({
+  email: z.string().email('To‘g‘ri email manzil kiriting').max(120).toLowerCase().trim().optional(),
+  phone: phoneSchema.optional(),
+}).strict().refine(d => Boolean(d.email || d.phone), { message: 'Elektron pochta (email) kiritilishi shart' });
 export const otpVerifyInput = z.object({ challenge_id: uuid, code: z.string().regex(/^\d{6}$/) }).strict();
 export const changePasswordInput = z.object({ current_password: z.string().max(128), new_password: passwordSchema }).strict();
 export const webIdleTimeoutSeconds = (kind: string) => kind === 'SUPERADMIN' ? 2 * 3600 : kind === 'STAFF' ? 4 * 3600 : null;
@@ -30,7 +34,12 @@ export function webDeviceLabel(userAgent = '') {
 
 @Injectable()
 export class AuthService {
-  constructor(@Inject(Db) readonly db: Db, @Inject(CONFIG) readonly config: Config, @Inject(Sms) readonly sms: Sms) {}
+  constructor(
+    @Inject(Db) readonly db: Db,
+    @Inject(CONFIG) readonly config: Config,
+    @Inject(Sms) readonly sms: Sms,
+    @Inject(EmailService) readonly email: EmailService,
+  ) {}
   async limit(key: string, max: number, seconds: number) {
     const id = hash(key);
     const rows = await this.db.$queryRaw<{ count: number }[]>`
@@ -77,28 +86,44 @@ export class AuthService {
     });
   }
   async requestOtp(body: unknown, ip: string) {
-    const { phone } = parse(otpRequestInput, body);
-    this.sms.assertReady();
+    const input = parse(otpRequestInput, body);
+    const email = input.email?.trim().toLowerCase();
+    const phone = input.phone;
+    if (!email) {
+      this.sms.assertReady();
+    }
+    const identifier = (email || phone)!;
+    const isEmail = Boolean(email);
     await this.limit(`otp-ip:${ip}`, 20, 3600);
-    await this.limit(`otp-phone:${phone}`, 10, 3600);
+    await this.limit(`otp-target:${identifier}`, 10, 3600);
     const code = randomInt(0, 1_000_000).toString().padStart(6, '0');
     const challenge = await this.db.atomic(async tx => {
-      await lock(tx, `otp:${phone}`);
-      const recent = await tx.otpChallenge.findFirst({ where: { phone, purpose: 'LOGIN' }, orderBy: { createdAt: 'desc' } });
-      if (recent && recent.createdAt.getTime() + this.config.OTP_RESEND_SECONDS * 1000 > Date.now()) fail('OTP_COOLDOWN', 'Qayta SMS uchun kuting', 429);
-      const collision = await tx.user.findUnique({ where: { phone } });
-      if (collision && collision.kind !== 'CUSTOMER') fail('CUSTOMER_AUTH_ONLY', 'Bu raqam xodim hisobiga tegishli', 403);
-      await tx.otpChallenge.updateMany({ where: { phone, purpose: 'LOGIN', consumedAt: null }, data: { consumedAt: new Date() } });
+      await lock(tx, `otp:${identifier}`);
+      const recent = await tx.otpChallenge.findFirst({ where: { phone: identifier, purpose: 'LOGIN' }, orderBy: { createdAt: 'desc' } });
+      if (recent && recent.createdAt.getTime() + this.config.OTP_RESEND_SECONDS * 1000 > Date.now()) fail('OTP_COOLDOWN', isEmail ? 'Qayta kod uchun biroz kuting' : 'Qayta SMS uchun kuting', 429);
+      const collision = await tx.user.findFirst({ where: { OR: [{ login: identifier }, { phone: identifier }] } });
+      if (collision && collision.kind !== 'CUSTOMER') fail('CUSTOMER_AUTH_ONLY', isEmail ? 'Bu email xodim hisobiga tegishli' : 'Bu raqam xodim hisobiga tegishli', 403);
+      await tx.otpChallenge.updateMany({ where: { phone: identifier, purpose: 'LOGIN', consumedAt: null }, data: { consumedAt: new Date() } });
       const { randomUUID } = await import('node:crypto'); const id = randomUUID();
-      return tx.otpChallenge.create({ data: { id, phone, codeHash: this.otpHash(id, code), expiresAt: new Date(Date.now() + this.config.OTP_TTL_SECONDS * 1000) } });
+      return tx.otpChallenge.create({ data: { id, phone: identifier, codeHash: this.otpHash(id, code), expiresAt: new Date(Date.now() + this.config.OTP_TTL_SECONDS * 1000) } });
     });
-    await this.sms.send(challenge.id, phone, code, challenge.expiresAt);
-    return { challenge_id: challenge.id, expires_at: challenge.expiresAt, resend_after: this.config.OTP_RESEND_SECONDS,
-      ...(this.config.DEMO_OTP_ENABLED && this.config.NODE_ENV !== 'production' && this.config.SMS_ADAPTER === 'local' ? { demo_code: code } : {}) };
+    if (isEmail) {
+      await this.email.send(challenge.id, identifier, code, challenge.expiresAt);
+    } else {
+      await this.sms.send(challenge.id, identifier, code, challenge.expiresAt);
+    }
+    return {
+      challenge_id: challenge.id,
+      expires_at: challenge.expiresAt,
+      resend_after: this.config.OTP_RESEND_SECONDS,
+      ...(this.config.DEMO_OTP_ENABLED && this.config.NODE_ENV !== 'production' && (isEmail || this.config.SMS_ADAPTER === 'local') ? { demo_code: code } : {}),
+    };
   }
   async verifyOtp(body: unknown, ip: string) {
     const input = parse(otpVerifyInput, body);
-    this.sms.assertReady();
+    if (this.config.SMS_ADAPTER === 'disabled' && !this.config.SMTP_HOST && this.config.NODE_ENV === 'production' && !this.config.DEMO_OTP_ENABLED) {
+      this.sms.assertReady();
+    }
     await this.limit(`verify-ip:${ip}`, 40, 900);
     const result = await this.db.atomic(async tx => {
       await lock(tx, `challenge:${input.challenge_id}`);
@@ -107,10 +132,34 @@ export class AuthService {
       await tx.otpChallenge.update({ where: { id: challenge.id }, data: { attempts: { increment: 1 } } });
       if (challenge.codeHash !== this.otpHash(challenge.id, input.code)) return null;
       await lock(tx, `otp:${challenge.phone}`);
-      const user = await tx.user.upsert({ where: { phone: challenge.phone }, create: { kind: 'CUSTOMER', name: 'Mijoz', phone: challenge.phone }, update: {} });
+      const identifier = challenge.phone;
+      const isEmail = identifier.includes('@');
+      let user = await tx.user.findFirst({
+        where: isEmail ? { login: identifier } : { phone: identifier },
+      });
+      if (!user) {
+        user = await tx.user.create({
+          data: {
+            kind: 'CUSTOMER',
+            name: isEmail ? identifier.split('@')[0] : 'Mijoz',
+            login: isEmail ? identifier : null,
+            phone: isEmail ? null : identifier,
+          },
+        });
+      }
       if (user.kind !== 'CUSTOMER' || user.status !== 'ACTIVE') return null;
       await tx.otpChallenge.update({ where: { id: challenge.id }, data: { consumedAt: new Date() } });
-      await tx.booking.updateMany({where:{userId:null,source:{not:'APP'},guest:{path:['phone'],equals:challenge.phone}},data:{userId:user.id}});
+      if (isEmail) {
+        await tx.booking.updateMany({
+          where: { userId: null, source: { not: 'APP' }, guest: { path: ['email'], equals: identifier } },
+          data: { userId: user.id },
+        });
+      } else {
+        await tx.booking.updateMany({
+          where: { userId: null, source: { not: 'APP' }, guest: { path: ['phone'], equals: identifier } },
+          data: { userId: user.id },
+        });
+      }
       await audit(tx, user.id, 'auth.otp_login', user.id);
       return { ...await this.issue(tx, user.id, 'MOBILE'), user: this.publicUser(user) };
     });

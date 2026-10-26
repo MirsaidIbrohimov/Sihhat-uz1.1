@@ -1,41 +1,14 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../concept_ui.dart';
-
 import '../data/api.dart';
 import '../widgets.dart';
 import '../design.dart';
 import '../appearance.dart';
 import '../branding.dart';
 import '../demo_otp.dart';
-
-class _UzbekPhoneFormatter extends TextInputFormatter {
-  String digits(String value) => value
-      .replaceFirst(RegExp(r'^\s*\+998'), '')
-      .replaceAll(RegExp(r'\D'), '');
-
-  @override
-  TextEditingValue formatEditUpdate(
-    TextEditingValue oldValue,
-    TextEditingValue newValue,
-  ) {
-    final number = digits(newValue.text);
-    final cursor = newValue.selection.extentOffset;
-    return TextEditingValue(
-      text: number,
-      selection: TextSelection.collapsed(
-        offset: cursor < 0
-            ? number.length
-            : digits(newValue.text.substring(0, cursor)).length
-                  .clamp(0, number.length),
-      ),
-    );
-  }
-}
 
 class LoginScreen extends StatefulWidget {
   final Api api;
@@ -52,50 +25,46 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  final phone = TextEditingController(), code = TextEditingController();
-  String? challenge, error, demoCode, phoneError;
-  static const phoneLengthError = '+998 dan keyin aynan 9 ta raqam kiriting.';
+  final email = TextEditingController(), code = TextEditingController();
+  String? challenge, error, demoCode, emailError;
+  static const emailFormatError =
+      'To‘g‘ri elektron pochta manzilini kiriting (masalan, foydalanuvchi@mail.uz).';
   bool busy = false;
   int wait = 0;
   Timer? timer;
+
   @override
   void dispose() {
     timer?.cancel();
-    phone.dispose();
+    email.dispose();
     code.dispose();
     super.dispose();
   }
 
-  Future<void> _openTelegramBot() async {
-    final uri = Uri.parse('https://t.me/sihhat_support_bot');
-    try {
-      if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
-        await launchUrl(uri, mode: LaunchMode.platformDefault);
-      }
-    } catch (_) {
-      if (mounted) {
-        setState(() => error = 'Telegram ilovasi ochilmadi. @sihhat_support_bot manziliga kiring.');
-      }
-    }
+  bool _isValidEmail(String text) {
+    return RegExp(
+      r'^[a-zA-Z0-9.!#$%&’*+/=?^_`{|}~-]+@[a-zA-Z0-9-]+(?:\.[a-zA-Z0-9-]+)+$',
+    ).hasMatch(text.trim());
   }
 
   Future<void> request() async {
-    if (!RegExp(r'^\d{9}$').hasMatch(phone.text)) {
-      setState(() => phoneError = phoneLengthError);
+    final em = email.text.trim().toLowerCase();
+    if (!_isValidEmail(em)) {
+      setState(() => emailError = emailFormatError);
       return;
     }
     FocusScope.of(context).unfocus();
     setState(() {
       busy = true;
       error = null;
-      phoneError = null;
+      emailError = null;
     });
     try {
       final r = asJson(
         await widget.api.send(
           '/auth/customer/otp/request',
           method: 'POST',
-          body: {'phone': '+998${phone.text}'},
+          body: {'email': em},
         ),
       );
       if (!mounted) return;
@@ -125,7 +94,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
   Future<void> verify() async {
     if (!RegExp(r'^\d{6}$').hasMatch(code.text)) {
-      setState(() => error = 'SMSdagi 6 raqamli kodni kiriting.');
+      setState(() => error = 'Pochtaga yuborilgan 6 xonali kodni kiriting.');
       return;
     }
     setState(() {
@@ -180,7 +149,7 @@ class _LoginScreenState extends State<LoginScreen> {
             label: busy
                 ? 'Tekshirilmoqda…'
                 : challenge == null
-                ? 'Kod yuborish'
+                ? 'Tasdiqlash kodini olish'
                 : 'Tasdiqlash',
             onPressed: busy
                 ? null
@@ -209,7 +178,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                     const SizedBox(height: 10),
                     Text(
-                      'Dam olishni rejalashtirish shu yerdan boshlanadi.',
+                      'Dam olish va sihatgohlarni rejalashtirish shu yerdan boshlanadi.',
                       textAlign: TextAlign.center,
                       style: TextStyle(
                         color: c.colors.muted,
@@ -217,82 +186,14 @@ class _LoginScreenState extends State<LoginScreen> {
                         height: 1.5,
                       ),
                     ),
-                    const SizedBox(height: 24),
-                    ConceptCard(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          Row(
-                            children: [
-                              Container(
-                                width: 44,
-                                height: 44,
-                                decoration: BoxDecoration(
-                                  color: const Color(0xff229ed9),
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                child: const Icon(Icons.send_rounded, color: Colors.white, size: 22),
-                              ),
-                              const SizedBox(width: 14),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    const Text(
-                                      'Telegram orqali tezkor kirish',
-                                      style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16),
-                                    ),
-                                    const SizedBox(height: 2),
-                                    Text(
-                                      'SMS kutmasdan, 1-bosishda kiring',
-                                      style: TextStyle(color: c.colors.muted, fontSize: 13),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 14),
-                          ElevatedButton.icon(
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xff229ed9),
-                              foregroundColor: Colors.white,
-                              elevation: 0,
-                              padding: const EdgeInsets.symmetric(vertical: 14),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                            ),
-                            icon: const Icon(Icons.telegram, size: 22),
-                            label: const Text(
-                              'Telegram botni ochish (@sihhat_support_bot)',
-                              style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
-                            ),
-                            onPressed: busy ? null : _openTelegramBot,
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-                    Row(
-                      children: [
-                        Expanded(child: Divider(color: c.colors.border)),
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 12),
-                          child: Text(
-                            'yoki telefon raqam orqali',
-                            style: TextStyle(color: c.colors.muted, fontSize: 13, fontWeight: FontWeight.w500),
-                          ),
-                        ),
-                        Expanded(child: Divider(color: c.colors.border)),
-                      ],
-                    ),
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 28),
                   ] else ...[
                     const SizedBox(height: 22),
-                    const Center(child: IconTile('message-square', size: 110)),
-                    const SizedBox(height: 28),
+                    const Center(child: IconTile('mail', size: 100)),
+                    const SizedBox(height: 24),
                     Text(
                       demoCode == null
-                          ? 'SMS kodini kiriting'
+                          ? 'Tasdiqlash kodi'
                           : 'Demo kodni kiriting',
                       textAlign: TextAlign.center,
                       style: conceptHeading(c, size: 28),
@@ -300,69 +201,42 @@ class _LoginScreenState extends State<LoginScreen> {
                     const SizedBox(height: 12),
                     Text(
                       demoCode == null
-                          ? 'Kod telefon raqamingizga yuborildi.'
-                          : 'Telefon raqamingizni demo kod bilan tasdiqlang.',
+                          ? '6 xonali tasdiqlash kodi elektron pochtangizga yuborildi:'
+                          : 'Elektron pochtangizni demo kod bilan tasdiqlang:',
                       textAlign: TextAlign.center,
                       style: TextStyle(color: c.colors.muted, fontSize: 16),
                     ),
-                    const SizedBox(height: 14),
+                    const SizedBox(height: 10),
                     Text(
-                      '+998${phone.text}',
+                      email.text.trim().toLowerCase(),
                       textAlign: TextAlign.center,
                       style: const TextStyle(
                         fontWeight: FontWeight.w700,
                         fontSize: 17,
                       ),
                     ),
-                    const SizedBox(height: 14),
-                    GestureDetector(
-                      onTap: _openTelegramBot,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                        decoration: BoxDecoration(
-                          color: const Color(0xff229ed9).withValues(alpha: 0.08),
-                          borderRadius: BorderRadius.circular(10),
-                          border: Border.all(color: const Color(0xff229ed9).withValues(alpha: 0.25)),
-                        ),
-                        child: const Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(Icons.telegram, color: Color(0xff229ed9), size: 18),
-                            SizedBox(width: 8),
-                            Text(
-                              'SMS kelmadimi? @sihhat_support_bot orqali oling',
-                              style: TextStyle(color: Color(0xff229ed9), fontWeight: FontWeight.w600, fontSize: 13),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
                     const SizedBox(height: 24),
                   ],
                   if (challenge == null)
                     TextField(
-                      controller: phone,
+                      controller: email,
                       enabled: !busy,
-                      keyboardType: TextInputType.phone,
-                      autofillHints: const [AutofillHints.telephoneNumber],
-                      inputFormatters: [_UzbekPhoneFormatter()],
+                      keyboardType: TextInputType.emailAddress,
+                      autofillHints: const [AutofillHints.email],
                       textInputAction: TextInputAction.done,
                       decoration: InputDecoration(
-                        labelText: 'Telefon raqami',
-                        prefixText: '+998 ',
-                        hintText: '90 123 45 67',
-                        helperText: '9 ta raqam kiriting',
-                        errorText: phoneError,
+                        labelText: 'Elektron pochta (Email)',
+                        hintText: 'foydalanuvchi@mail.uz',
+                        helperText: 'Tasdiqlash kodi shu pochtaga yuboriladi',
+                        errorText: emailError,
                         errorMaxLines: 2,
                         prefixIcon: const Padding(
                           padding: EdgeInsets.all(14),
-                          child: SihhatIcon('phone'),
+                          child: Icon(Icons.email_outlined),
                         ),
                       ),
                       onChanged: (value) => setState(() {
-                        phoneError = value.length == 9
-                            ? null
-                            : phoneLengthError;
+                        emailError = _isValidEmail(value) ? null : emailError;
                       }),
                       onSubmitted: (_) {
                         if (!busy) request();
@@ -384,7 +258,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     const SizedBox(height: 16),
                     const ConceptCard(
                       child: Text(
-                        'Demo rejim. SMS yuborilmaydi; kod shu oynada chiqadi. Sinov raqamidan foydalaning.',
+                        'Demo rejim. Xat pochtaga yuborilmaydi; tasdiqlash kodi shu oynada ko‘rsatiladi.',
                       ),
                     ),
                   ],
@@ -395,7 +269,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           SelectableText(
-                            'Demo SMS kodi: $demoCode',
+                            'Demo tasdiqlash kodi: $demoCode',
                             style: const TextStyle(
                               fontWeight: FontWeight.w700,
                               fontSize: 20,
@@ -403,7 +277,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                           const SizedBox(height: 8),
                           const Text(
-                            'Sinov rejimi. Telefoningizga SMS yuborilmaydi.',
+                            'Sinov rejimi. Pochtangizga xat yuborilmadi.',
                           ),
                           TextButton(
                             onPressed: busy
@@ -434,12 +308,12 @@ class _LoginScreenState extends State<LoginScreen> {
                                 challenge = null;
                                 code.clear();
                                 error = null;
-                                phoneError = null;
+                                emailError = null;
                                 demoCode = null;
                                 wait = 0;
                               });
                             },
-                      child: const Text('Telefon raqamini tuzatish'),
+                      child: const Text('Email manzilini tuzatish'),
                     ),
                   ],
                   const SizedBox(height: 24),
@@ -447,9 +321,9 @@ class _LoginScreenState extends State<LoginScreen> {
                   ConceptRow(
                     challenge == null ? 'shield-check' : 'info',
                     challenge == null
-                        ? 'Telefon raqamingiz hisobga kirish va bron bo‘yicha aloqa uchun ishlatiladi.'
+                        ? 'Elektron pochtangiz hisobga xavfsiz kirish va bron tafsilotlari uchun ishlatiladi.'
                         : demoCode == null
-                        ? 'Kod kelishi biroz vaqt olishi mumkin.'
+                        ? 'Kod kelishi 1-2 daqiqa olishi mumkin. Spam papkasini ham tekshirib ko‘ring.'
                         : 'Demo koddan faqat sinov uchun foydalaning.',
                   ),
                   if (challenge == null) ...[
@@ -468,7 +342,10 @@ class _LoginScreenState extends State<LoginScreen> {
                         icon: const Icon(Icons.explore_outlined, size: 20),
                         label: const Text(
                           'Ilovani ko‘rish (Mehmon sifatida)',
-                          style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+                          style: TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 14,
+                          ),
                         ),
                       ),
                     ),

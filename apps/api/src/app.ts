@@ -17,6 +17,7 @@ import { StaffController } from './auth/staff.controller';
 import { StaffService } from './auth/staff.service';
 import { AuthGuard, Public } from './auth/guard';
 import { Sms } from './auth/sms';
+import { EmailService } from './auth/email';
 import { SanatoriumService } from './sanatoriums/sanatorium.service';
 import { SanatoriumController } from './sanatoriums/sanatorium.controller';
 import { MerchantSetupService } from './sanatoriums/merchant-setup.service';
@@ -55,7 +56,7 @@ import { TelegramController } from './telegram/telegram.controller';
 
 @Global() @Module({ providers: [{ provide: CONFIG, useFactory: () => loadConfig() }, Db], exports: [CONFIG, Db] })
 export class CoreModule {}
-@Global() @Module({ providers: [AuthService, StaffService, Sms], controllers: [AuthController, StaffController], exports: [AuthService, StaffService, Sms] })
+@Global() @Module({ providers: [AuthService, StaffService, Sms, EmailService], controllers: [AuthController, StaffController], exports: [AuthService, StaffService, Sms, EmailService] })
 export class AuthModule {}
 @Module({ providers: [SanatoriumService,MerchantSetupService], controllers: [SanatoriumController], exports: [SanatoriumService] })
 export class SanatoriumModule {}
