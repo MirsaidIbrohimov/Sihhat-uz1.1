@@ -10,6 +10,7 @@ const schema = z.object({
   PORT: z.coerce.number().int().min(1).max(65535).default(4000),
   TRUST_PROXY: z.enum(['none', 'private']).default('none'),
   DATABASE_URL: z.string().startsWith('postgresql://'),
+  DATABASE_POOL_MAX: z.coerce.number().int().min(2).max(100).default(10),
   TEST_DATABASE_URL: z.string().optional(),
   CORS_ORIGINS: z.string().min(1).transform(value => value.split(',').map(origin => origin.trim()).join(',')),
   AUTH_SECRET: z.string().min(32).refine(s => !s.startsWith('replace-'), 'Tasodifiy AUTH_SECRET belgilang'),

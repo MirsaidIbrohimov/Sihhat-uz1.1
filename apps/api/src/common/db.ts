@@ -17,7 +17,7 @@ export const lock = async (tx: Tx, key: string) => { await tx.$executeRaw`SELECT
 
 @Injectable()
 export class Db extends PrismaClient implements OnModuleDestroy {
-  constructor(@Inject(CONFIG) config: Config) { super({ adapter: new PrismaPg({ connectionString: config.DATABASE_URL, max: 25, options:'-c timezone=UTC' }) }); }
+  constructor(@Inject(CONFIG) config: Config) { super({ adapter: new PrismaPg({ connectionString: config.DATABASE_URL, max: config.DATABASE_POOL_MAX, options:'-c timezone=UTC' }) }); }
   async onModuleDestroy() { await this.$disconnect(); }
   async atomic<T>(fn: (tx: Tx) => Promise<T>): Promise<T> {
     for (let attempt = 0; ; attempt++) {

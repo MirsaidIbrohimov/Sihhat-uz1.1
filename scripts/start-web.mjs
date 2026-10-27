@@ -13,8 +13,19 @@ if (!['127.0.0.1', '0.0.0.0', '::'].includes(host)) {
   process.exit(1);
 }
 const next = resolve(import.meta.dirname, '../node_modules/next/dist/bin/next');
-const child = spawn(process.execPath, [next, 'start', '--hostname', host, '--port', port], {
-  stdio: 'inherit', windowsHide: true,
+const nodeArgs = [
+  '--max-old-space-size=256',
+  '--optimize-for-size',
+  next,
+  'start',
+  '--hostname',
+  host,
+  '--port',
+  port,
+];
+const child = spawn(process.execPath, nodeArgs, {
+  stdio: 'inherit',
+  windowsHide: true,
 });
 for (const signal of ['SIGINT', 'SIGTERM']) process.once(signal, () => child.kill(signal));
 child.once('error', () => { console.error('Web jarayoni ishga tushmadi. Build va dependencylarni tekshiring.'); process.exitCode = 1; });
