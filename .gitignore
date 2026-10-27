@@ -2,9 +2,8 @@ node_modules/
 dist/
 .next/
 .local/
-/apk/*
-!/apk/Sihhat-uz-demo-0.1.1.apk
-!/apk/README.md
+/apk/
+*KIRISH.html
 .env
 .env.*
 !.env.example
@@ -12,7 +11,6 @@ dist/
 coverage/
 *.tsbuildinfo
 *.apk
-!/apk/Sihhat-uz-demo-0.1.1.apk
 !/ilova/*.apk
 *.aab
 **/.gradle/
