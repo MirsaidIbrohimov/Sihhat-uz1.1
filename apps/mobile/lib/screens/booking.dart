@@ -1322,7 +1322,7 @@ class BookingDocumentScreen extends StatelessWidget {
   const BookingDocumentScreen(this.booking, {super.key});
   @override
   Widget build(BuildContext context) => ConceptPage(
-    title: 'Bron hujjati',
+    title: 'Rasmiy vaucher',
     body: ListView(
       padding: const EdgeInsets.all(20),
       children: [
@@ -1330,13 +1330,28 @@ class BookingDocumentScreen extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const IconTile('file-text', size: 60),
+              Center(
+                child: Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: context.colors.border),
+                  ),
+                  child: QrImageView(
+                    data: 'sihhat://booking/${booking['id']}',
+                    version: QrVersions.auto,
+                    size: 150,
+                    backgroundColor: Colors.white,
+                  ),
+                ),
+              ),
               const SizedBox(height: 20),
               SelectableText(
-                booking['reference'],
-                style: conceptHeading(context, size: 28),
+                booking['reference'] ?? 'SH-XXXXXX',
+                style: conceptHeading(context, size: 26),
               ),
-              const Divider(height: 32),
+              const Divider(height: 28),
               ConceptRow('user-round', booking['guest']?['name'] ?? ''),
               ConceptRow(
                 'calendar-days',
@@ -1345,13 +1360,44 @@ class BookingDocumentScreen extends StatelessWidget {
               ConceptRow('coins', money(booking['amount'])),
               const SizedBox(height: 12),
               Pill(booking['status']),
+              const SizedBox(height: 20),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton.icon(
+                  icon: const SihhatIcon('copy', size: 18),
+                  label: const Text('Vaucher ma’lumotlarini nusxalash'),
+                  onPressed: () {
+                    final ref = booking['reference'] ?? '';
+                    final guest = booking['guest']?['name'] ?? '';
+                    final checkIn = booking['checkIn'].toString().substring(0, 10);
+                    final checkOut = booking['checkOut'].toString().substring(0, 10);
+                    final cost = money(booking['amount']);
+                    final text = '🌿 SIHHAT.UZ — ELEKTRON VAUCHER\n'
+                        '━━━━━━━━━━━━━━━━━━━━━\n'
+                        '📋 Bron kodi: $ref\n'
+                        '👤 Mehmon: $guest\n'
+                        '📅 Muddat: $checkIn — $checkOut\n'
+                        '💰 Summa: $cost\n'
+                        '✅ Holati: Rasmiy tasdiqlangan\n'
+                        '━━━━━━━━━━━━━━━━━━━━━\n'
+                        'Sanatoriya qabulxonasida ushbu kod yoki ilovadagi QR-kodni ko‘rsating.';
+                    Clipboard.setData(ClipboardData(text: text));
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Vaucher ma’lumotlari nusxalandi!'),
+                        backgroundColor: Color(0xFF059669),
+                      ),
+                    );
+                  },
+                ),
+              ),
             ],
           ),
         ),
         const ConceptInfo(
           icon: 'shield-check',
           title: 'Qabulxonada ko‘rsating',
-          text: 'Bron holati ilovadagi yangilangan ma’lumotlar asosida tekshiriladi. Shaxsingizni tasdiqlovchi hujjatni olib boring.',
+          text: 'Ushbu vaucher va QR-kod sanatoriyaga yetib borganingizda shaxsingizni tasdiqlash va xonaga joylashish (Check-in) uchun xizmat qiladi.',
         ),
       ],
     ),

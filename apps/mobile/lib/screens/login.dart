@@ -149,7 +149,7 @@ class _LoginScreenState extends State<LoginScreen> {
             label: busy
                 ? 'Tekshirilmoqda…'
                 : challenge == null
-                ? 'Tasdiqlash kodini olish'
+                ? 'Tasdiqlash kodini yuborish'
                 : 'Tasdiqlash',
             onPressed: busy
                 ? null

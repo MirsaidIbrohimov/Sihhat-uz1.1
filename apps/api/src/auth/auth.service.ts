@@ -263,11 +263,11 @@ export class AuthService {
     });
   }
   async profile(actor: Actor, body: unknown) {
-    const input = parse(z.object({ name: z.string().trim().min(2).max(120), login: loginSchema.optional() }).strict(), body);
+    const input = parse(z.object({ name: z.string().trim().min(2).max(120), phone: phoneSchema.optional(), login: loginSchema.optional() }).strict(), body);
     if (actor.kind === 'CUSTOMER' && input.login) fail('PERMISSION_DENIED', 'Mijoz login bilan kirmaydi', 403);
     return this.db.atomic(async tx => {
       const user = await tx.user.update({ where: { id: actor.id }, data: input });
-      await audit(tx, actor.id, 'account.profile_updated', actor.id, undefined, undefined, { name: user.name, login: user.login });
+      await audit(tx, actor.id, 'account.profile_updated', actor.id, undefined, undefined, { name: user.name, login: user.login, phone: user.phone });
       return this.publicUser(user);
     });
   }
@@ -302,6 +302,15 @@ export class AuthService {
     });
   }
   publicUser(user: { id: string; kind: string; name: string; phone: string | null; login: string | null; mustChangePassword: boolean }) {
-    return { id: user.id, kind: user.kind, name: user.name, phone: user.phone, login: user.login, must_change_password: user.mustChangePassword };
+    const isEmail = user.login?.includes('@');
+    return {
+      id: user.id,
+      kind: user.kind,
+      name: user.name,
+      phone: user.phone,
+      email: isEmail ? user.login : null,
+      login: user.login,
+      must_change_password: user.mustChangePassword,
+    };
   }
 }

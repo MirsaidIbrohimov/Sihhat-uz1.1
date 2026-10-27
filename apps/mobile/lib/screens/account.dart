@@ -826,10 +826,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     style: conceptHeading(context, size: 25),
                   ),
                   const SizedBox(height: 6),
-                  Text(
-                    p['phone'] ?? '',
-                    style: TextStyle(color: context.colors.muted),
-                  ),
+                  Builder(builder: (_) {
+                    final email = p['email'] ?? (p['login']?.toString().contains('@') == true ? p['login'] : '');
+                    final phone = p['phone'] ?? '';
+                    final list = [
+                      if (email != null && email.toString().isNotEmpty) email.toString(),
+                      if (phone != null && phone.toString().isNotEmpty) phone.toString(),
+                    ];
+                    return Text(
+                      list.isNotEmpty ? list.join(' · ') : 'Email orqali tasdiqlangan',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: context.colors.muted, fontSize: 13),
+                    );
+                  }),
                 ],
               ),
             ),
@@ -957,7 +966,7 @@ class _ProfileNameDialogState extends State<_ProfileNameDialog> {
             children: [
               Expanded(
                 child: Text(
-                  'Profilni tahrirlash',
+                  'Ism-familiyani o‘zgartirish',
                   style: conceptHeading(context, size: 24),
                 ),
               ),

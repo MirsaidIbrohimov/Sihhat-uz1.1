@@ -49,18 +49,54 @@ export class EmailService {
           subject: `Sihhat uz — Kirish tasdiqlash kodi: ${code}`,
           text: `Sihhat uz ilovasiga kirish uchun tasdiqlash kodingiz: ${code}\n\nUshbu kod 2 daqiqa davomida amal qiladi. Kodni hech kimga bermang.`,
           html: `
-            <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 480px; margin: 20px auto; padding: 28px; border: 1px solid #e2e8f0; border-radius: 16px; background: #ffffff;">
-              <h2 style="color: #0d9488; margin: 0 0 16px 0; font-size: 24px; font-weight: 700;">Sihhat uz</h2>
-              <p style="font-size: 16px; color: #1e293b; margin: 0 0 16px 0; line-height: 1.5;">
-                Ilovaga kirish uchun quyidagi 6 xonali tasdiqlash kodini kiriting:
-              </p>
-              <div style="background: #f0fdfa; border: 1.5px dashed #0d9488; border-radius: 12px; padding: 18px; text-align: center; margin: 20px 0;">
-                <span style="font-size: 36px; font-weight: 800; letter-spacing: 8px; color: #0f766e; font-family: monospace;">${code}</span>
-              </div>
-              <p style="font-size: 13px; color: #64748b; margin: 0; line-height: 1.5;">
-                Ushbu kod 2 daqiqa davomida amal qiladi. Kodni begonalarga bermang.
-              </p>
-            </div>
+            <!doctype html>
+            <html lang="uz">
+            <head><meta charset="utf-8"></head>
+            <body style="margin: 0; padding: 0; background-color: #f1f5f9; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+              <table border="0" cellpadding="0" cellspacing="0" width="100%" style="table-layout: fixed;">
+                <tr>
+                  <td align="center" style="padding: 36px 16px;">
+                    <table border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width: 480px; background: #ffffff; border-radius: 20px; box-shadow: 0 4px 16px rgba(15, 23, 42, 0.06); border: 1px solid #e2e8f0; overflow: hidden;">
+                      <tr>
+                        <td style="background: linear-gradient(135deg, #059669 0%, #0d9488 100%); padding: 28px 32px; text-align: center;">
+                          <h1 style="color: #ffffff; font-size: 26px; font-weight: 800; margin: 0; letter-spacing: -0.5px;">Sihhat<span style="opacity: 0.85;">.uz</span></h1>
+                          <p style="color: #ecfdf5; font-size: 13px; margin: 6px 0 0 0; font-weight: 500;">Sanatoriylarni onlayn tanlash va bron qilish</p>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td style="padding: 32px 32px 24px 32px;">
+                          <h2 style="font-size: 18px; font-weight: 700; color: #0f172a; margin: 0 0 12px 0;">Kirishni tasdiqlang</h2>
+                          <p style="font-size: 15px; color: #475569; margin: 0 0 24px 0; line-height: 1.6;">
+                            Ilovaga kirish uchun quyidagi 6 xonali bir martalik tasdiqlash kodidan foydalaning:
+                          </p>
+                          <div style="background: #f0fdf4; border: 2px dashed #059669; border-radius: 14px; padding: 20px; text-align: center; margin-bottom: 24px;">
+                            <div style="font-size: 38px; font-weight: 800; letter-spacing: 10px; color: #065f46; font-family: 'Courier New', Courier, monospace; line-height: 1;">
+                              ${code}
+                            </div>
+                          </div>
+                          <div style="background: #fffbeb; border-left: 4px solid #f59e0b; padding: 12px 14px; border-radius: 6px; margin-bottom: 24px;">
+                            <p style="font-size: 13px; color: #92400e; margin: 0; line-height: 1.5;">
+                              ⚠️ <strong>Muhim:</strong> Ushbu kod <strong>2 daqiqa</strong> davomida amal qiladi. Kodni begonalarga bermang.
+                            </p>
+                          </div>
+                          <p style="font-size: 13px; color: #94a3b8; margin: 0; line-height: 1.5;">
+                            Agar siz bu so‘rovni amalga oshirmagan bo‘lsangiz, ushbu xatni e’tiborsiz qoldiring.
+                          </p>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td style="background: #f8fafc; padding: 18px 32px; border-top: 1px solid #f1f5f9; text-align: center;">
+                          <p style="font-size: 12px; color: #94a3b8; margin: 0;">
+                            © ${new Date().getFullYear()} Sihhat.uz · Barcha huquqlar himoyalangan.
+                          </p>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+              </table>
+            </body>
+            </html>
           `,
         });
       } catch (err: any) {

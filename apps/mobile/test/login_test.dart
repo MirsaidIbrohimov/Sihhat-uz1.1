@@ -12,7 +12,7 @@ import 'api_test.dart' show MemoryStore;
 
 void main() {
   testWidgets(
-    'phone accepts exactly nine national digits and shows errors beneath the field',
+    'email accepts valid email format and shows error for invalid format',
     (tester) async {
       var requests = 0;
       final api = Api(
@@ -20,7 +20,7 @@ void main() {
         store: MemoryStore(),
         client: MockClient((request) async {
           requests++;
-          expect(jsonDecode(request.body)['phone'], '+998901234567');
+          expect(jsonDecode(request.body)['email'], 'test@example.com');
           return http.Response(
             '{"challenge_id":"challenge","resend_after":60}',
             201,
@@ -31,35 +31,22 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.byType(SihhatLogo), findsOneWidget);
       final input = find.byType(TextField);
-      for (final value in [
-        '',
-        '90123456',
-        '9012345678',
-        '+998 90 123 45 678',
-      ]) {
+      for (final value in ['', 'notanemail', 'test@', '@domain.com']) {
         await tester.enterText(input, value);
-        await tester.tap(find.text('Kod yuborish'));
+        await tester.tap(find.text('Tasdiqlash kodini yuborish'));
         await tester.pumpAndSettle();
-        final field = tester.widget<TextField>(input);
-        expect(field.decoration!.prefixText, '+998 ');
         expect(
-          field.decoration!.errorText,
-          '+998 dan keyin aynan 9 ta raqam kiriting.',
-        );
-        expect(
-          tester.getTopLeft(find.text(field.decoration!.errorText!)).dy,
-          greaterThan(tester.getTopLeft(input).dy),
+          find.text('To‘g‘ri elektron pochta manzilini kiriting (masalan, foydalanuvchi@mail.uz).'),
+          findsOneWidget,
         );
         expect(requests, 0);
       }
-      await tester.enterText(input, '+998 (90) 123-45-67');
+      await tester.enterText(input, 'test@example.com');
       await tester.pumpAndSettle();
-      expect(tester.widget<TextField>(input).controller!.text, '901234567');
-      expect(tester.widget<TextField>(input).decoration!.errorText, isNull);
-      await tester.tap(find.text('Kod yuborish'));
+      await tester.tap(find.text('Tasdiqlash kodini yuborish'));
       await tester.pumpAndSettle();
       expect(requests, 1);
-      expect(find.text('+998901234567'), findsOneWidget);
+      expect(find.text('test@example.com'), findsOneWidget);
       expect(tester.takeException(), isNull);
       await tester.pumpWidget(const SizedBox.shrink());
       api.client.close();
@@ -67,7 +54,7 @@ void main() {
   );
 
   testWidgets(
-    'OTP screen validates phone, shows cooldown and persists mobile login',
+    'OTP screen validates email, shows cooldown and persists mobile login',
     (tester) async {
       final store = MemoryStore();
       final api = Api(
@@ -76,7 +63,7 @@ void main() {
         client: MockClient((request) async {
           final body = jsonDecode(request.body);
           if (request.url.path.endsWith('/request')) {
-            expect(body['phone'], '+998901234567');
+            expect(body['email'], 'test@example.com');
             return http.Response(
               '{"challenge_id":"challenge","resend_after":60}',
               201,
@@ -106,8 +93,8 @@ void main() {
       );
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
-      await tester.enterText(find.byType(TextField).first, '+998901234567');
-      await tester.tap(find.text('Kod yuborish'));
+      await tester.enterText(find.byType(TextField).first, 'test@example.com');
+      await tester.tap(find.text('Tasdiqlash kodini yuborish'));
       await tester.pumpAndSettle();
       expect(find.textContaining('Qayta yuborish:'), findsOneWidget);
       await tester.enterText(find.byType(TextField).last, '123456');

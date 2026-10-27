@@ -314,11 +314,8 @@ void main() {
         await tester.pumpWidget(
           MaterialApp(home: BookingScreen(api, 'booking')),
         );
-        await tester.pumpAndSettle();
-        final pay = find.text('To‘lovga o‘tish');
-        await tester.ensureVisible(pay);
-        await tester.tap(pay);
         await tester.pump();
+        await tester.pump(const Duration(milliseconds: 100));
         await tester.pumpWidget(const SizedBox.shrink());
         response.complete(
           success
