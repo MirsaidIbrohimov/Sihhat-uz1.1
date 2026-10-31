@@ -17,6 +17,9 @@ export class EmailService {
         host: this.config.SMTP_HOST,
         port: this.config.SMTP_PORT,
         secure: this.config.SMTP_SECURE,
+        connectionTimeout: 5000,
+        greetingTimeout: 5000,
+        socketTimeout: 5000,
         auth: this.config.SMTP_USER
           ? {
               user: this.config.SMTP_USER,
@@ -41,14 +44,9 @@ export class EmailService {
       }
     }
 
-    if (this.transporter) {
-      try {
-        await this.transporter.sendMail({
-          from: this.config.SMTP_FROM || 'Sihhat uz <no-reply@sihhat.uz>',
-          to: email,
-          subject: `Sihhat uz — Kirish tasdiqlash kodi: ${code}`,
-          text: `Sihhat uz ilovasiga kirish uchun tasdiqlash kodingiz: ${code}\n\nUshbu kod 2 daqiqa davomida amal qiladi. Kodni hech kimga bermang.`,
-          html: `
+    const subject = `Sihhat uz — Kirish tasdiqlash kodi: ${code}`;
+    const text = `Sihhat uz ilovasiga kirish uchun tasdiqlash kodingiz: ${code}\n\nUshbu kod 2 daqiqa davomida amal qiladi. Kodni hech kimga bermang.`;
+    const html = `
             <!doctype html>
             <html lang="uz">
             <head><meta charset="utf-8"></head>
@@ -97,7 +95,49 @@ export class EmailService {
               </table>
             </body>
             </html>
-          `,
+          `;
+
+    if (this.config.RESEND_API_KEY) {
+      try {
+        const fromAddress = (this.config.SMTP_FROM && this.config.SMTP_FROM.includes('@') && !this.config.SMTP_FROM.includes('@gmail.com'))
+          ? this.config.SMTP_FROM
+          : 'Sihhat uz <onboarding@resend.dev>';
+        const response = await fetch('https://api.resend.com/emails', {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${this.config.RESEND_API_KEY}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            from: fromAddress,
+            to: [email],
+            subject,
+            text,
+            html,
+          }),
+        });
+        if (!response.ok) {
+          const detail = await response.text();
+          console.error('[EmailService] Resend HTTP error:', response.status, detail);
+          throw new Error(`Resend API: ${response.status} ${detail}`);
+        }
+        return;
+      } catch (err: any) {
+        console.error('[EmailService] Resend error:', err?.message || err);
+        if (!this.transporter && this.config.NODE_ENV === 'production' && !this.config.DEMO_OTP_ENABLED) {
+          fail('EMAIL_SEND_FAILED', 'Emailga kod yuborishda xatolik yuz berdi. Qayta urinib ko‘ring.', 500);
+        }
+      }
+    }
+
+    if (this.transporter) {
+      try {
+        await this.transporter.sendMail({
+          from: this.config.SMTP_FROM || 'Sihhat uz <no-reply@sihhat.uz>',
+          to: email,
+          subject,
+          text,
+          html,
         });
       } catch (err: any) {
         console.error('[EmailService] SMTP error:', err?.message || err);

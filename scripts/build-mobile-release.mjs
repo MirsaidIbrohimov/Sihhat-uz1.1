@@ -14,7 +14,7 @@ const demo = process.argv.includes('--demo');
 const version = /^version:\s*(\d+\.\d+\.\d+)\+(\d+)\s*$/m.exec(readFileSync(join(mobile, 'pubspec.yaml'), 'utf8'));
 if (!version) throw new Error('pubspec.yaml da versiya va build raqami kerak.');
 const apkName = demo ? `Sihhat-uz-demo-${version[1]}.apk` : 'sihhat-uz-release.apk';
-if (demo && url.pathname !== '/demo-api') throw new Error('Demo release uchun alohida HTTPS /demo-api manzili kerak.');
+if (demo && !['/demo-api', '/api'].includes(url.pathname)) throw new Error('Demo release uchun alohida HTTPS /demo-api yoki /api manzili kerak.');
 if (!existsSync(join(mobile, 'android/key.properties'))) throw new Error('Avval npm run mobile:signing:init buyrug‘ini bajaring yoki mavjud key.properties ni sozlang.');
 // Flutter must regenerate native plugin registration for this build mode.
 // --no-pub can retain the integration_test registrant from a debug build.

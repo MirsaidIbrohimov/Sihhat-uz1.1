@@ -33,6 +33,7 @@ const schema = z.object({
   SMTP_PASS: z.string().default(''),
   SMTP_FROM: z.string().default('Sihhat uz <no-reply@sihhat.uz>'),
   SMTP_SECURE: z.enum(['true', 'false']).default('false').transform(v => v === 'true'),
+  RESEND_API_KEY: z.string().default(''),
   STORAGE_ADAPTER: z.enum(['local', 's3']).default('local'),
   STORAGE_PATH: z.string().default('../../.local/uploads'),
   S3_ENDPOINT: z.string().default(''), S3_REGION: z.string().default('us-east-1'),

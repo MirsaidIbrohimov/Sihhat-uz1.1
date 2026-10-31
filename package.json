@@ -11,10 +11,6 @@
     "node": ">=24.15.0"
   },
   "scripts": {
-    "local:start": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/local-services.ps1 start",
-    "local:status": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/local-services.ps1 status",
-    "local:stop": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/local-services.ps1 stop",
-    "superadmin:local": "npm run superadmin:local -w @sihhat/api",
     "brand:assets": "node scripts/brand-assets.mjs",
     "web:assets": "node scripts/web-assets.mjs",
     "dev:api": "npm run dev -w @sihhat/api",
@@ -52,8 +48,6 @@
     "db:generate": "npm run db:generate -w @sihhat/api",
     "db:migrate": "npm run db:migrate -w @sihhat/api",
     "db:seed": "npm run db:seed -w @sihhat/api",
-    "db:local": "node scripts/local-postgres.mjs start",
-    "db:stop": "node scripts/local-postgres.mjs stop",
     "check": "npm run typecheck --workspaces --if-present",
     "check:secrets": "node scripts/check-source-secrets.mjs"
   },

@@ -121,7 +121,7 @@ export class AuthService {
   }
   async verifyOtp(body: unknown, ip: string) {
     const input = parse(otpVerifyInput, body);
-    if (this.config.SMS_ADAPTER === 'disabled' && !this.config.SMTP_HOST && this.config.NODE_ENV === 'production' && !this.config.DEMO_OTP_ENABLED) {
+    if (this.config.SMS_ADAPTER === 'disabled' && !this.config.SMTP_HOST && !this.config.RESEND_API_KEY && this.config.NODE_ENV === 'production' && !this.config.DEMO_OTP_ENABLED) {
       this.sms.assertReady();
     }
     await this.limit(`verify-ip:${ip}`, 40, 900);

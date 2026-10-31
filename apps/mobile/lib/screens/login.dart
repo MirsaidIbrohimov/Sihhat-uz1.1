@@ -326,30 +326,6 @@ class _LoginScreenState extends State<LoginScreen> {
                         ? 'Kod kelishi 1-2 daqiqa olishi mumkin. Spam papkasini ham tekshirib ko‘ring.'
                         : 'Demo koddan faqat sinov uchun foydalaning.',
                   ),
-                  if (challenge == null) ...[
-                    const SizedBox(height: 16),
-                    Center(
-                      child: TextButton.icon(
-                        onPressed: busy
-                            ? null
-                            : () {
-                                if (Navigator.canPop(context)) {
-                                  Navigator.pop(context, false);
-                                } else if (widget.onAuthenticated != null) {
-                                  widget.onAuthenticated!();
-                                }
-                              },
-                        icon: const Icon(Icons.explore_outlined, size: 20),
-                        label: const Text(
-                          'Ilovani ko‘rish (Mehmon sifatida)',
-                          style: TextStyle(
-                            fontWeight: FontWeight.w600,
-                            fontSize: 14,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
                 ],
               ),
             ),
