@@ -101,8 +101,8 @@ export class EmailService {
       try {
         const fromAddress = (this.config.SMTP_FROM && this.config.SMTP_FROM.includes('@') && !this.config.SMTP_FROM.includes('@gmail.com'))
           ? this.config.SMTP_FROM
-          : 'Sihhat uz <onboarding@resend.dev>';
-        const response = await fetch('https://api.resend.com/emails', {
+          : 'Sihhat uz <noreply@sihhat.uz>';
+        let response = await fetch('https://api.resend.com/emails', {
           method: 'POST',
           headers: {
             Authorization: `Bearer ${this.config.RESEND_API_KEY}`,
@@ -116,6 +116,22 @@ export class EmailService {
             html,
           }),
         });
+        if (!response.ok && fromAddress !== 'Sihhat uz <onboarding@resend.dev>') {
+          response = await fetch('https://api.resend.com/emails', {
+            method: 'POST',
+            headers: {
+              Authorization: `Bearer ${this.config.RESEND_API_KEY}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              from: 'Sihhat uz <onboarding@resend.dev>',
+              to: [email],
+              subject,
+              text,
+              html,
+            }),
+          });
+        }
         if (!response.ok) {
           const detail = await response.text();
           console.error('[EmailService] Resend HTTP error:', response.status, detail);
