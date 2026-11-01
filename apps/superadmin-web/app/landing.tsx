@@ -79,25 +79,34 @@ const FALLBACK_SANATORIUMS: SanatoriumCardData[] = [
     name: "Zomin Sanatoriyasi",
     region: "Jizzax (Zomin)",
     address: "Zomin tumani, Zomin milliy tabiat bog'i",
-    tag: "🏔️ 2000m Tog' havosi",
+    tag: "🏔️ 2000m Toza tog' havosi",
     meals: "3 mahal parhez va milliy taomlar",
     description: "Dengiz sathidan 2000 metr balandlikda, toza tog' va ignabargli archazorlar bag'rida joylashgan eng yirik iqlimiy kurort. Toza tog' havosi va zamonaviy fizioterapiya majmuasi.",
     directions: "Nafas a'zolari (bronxial astma, surunkali bronxit), asab tizimi, tayanch-harakat a'zolari va umumiy immunitetni tiklash.",
     services: ["Fizioterapiya", "Massaj", "Tuzli g'or (Speleoterapiya)", "Inflyatsiya", "Balchiq bilan davolash"],
     amenities: ["Wi-Fi", "Yopiq basseyn", "Sauna & Jakuzi", "Tennis korti", "Avtoturargoh", "Lift", "Xonada televizor"],
-    from_amount: "450 000",
-    price_label: "Kunlik davolanish va 3 mahal ovqat bilan",
+    from_amount: "5 000",
+    price_label: "Hamyonbop 'Arzon' tarifi (5 000 so'm) va to'liq davolash bilan",
     map_url: "https://www.google.com/maps/place/Zomin+sanatoriysi/@39.6342404,68.4998058,434m/data=!3m1!1e3",
     check_in_time: "08:00",
     check_out_time: "20:00",
     required_documents: "Pasport, sanatoriya-kurort kartasi (mavjud bo'lsa)",
     child_rules: "4 yoshdan katta bolalar qabul qilinadi",
     rating: 4.9,
-    photo_ids: [
-      "7a5f9fe3-561b-456c-8692-5e96e725f582",
-      "11a0694a-c729-41a8-a8a8-6e3af8a04199",
-      "1699854a-34f9-4cf4-a735-c2ff759b006f",
-      "717a4be2-f1cd-4442-93c0-ff5c345ec3a2",
+    photos: [
+      "https://zomin-san.uz/admin/slider/uploads/1744980607_8214.jpg",
+      "https://zomin-san.uz/admin/foto/uploads/1745043510_2413.jpg",
+      "https://zomin-san.uz/admin/foto/uploads/1745043547_7093.jpg",
+      "https://zomin-san.uz/admin/xona/uploads/1745055508_5411.jpg",
+    ],
+    room_types: [
+      { id: "e8a1562b-87b2-4d2a-89aa-56a8f1011111", name: "Arzon (Ekonom)", maxGuests: 2 },
+      { id: "e8a1562b-87b2-4d2a-89aa-56a8f1022222", name: "Standart (2 kishilik)", maxGuests: 2 },
+      { id: "e8a1562b-87b2-4d2a-89aa-56a8f1033333", name: "Lyuks (2 xonali)", maxGuests: 3 },
+    ],
+    rate_plans: [
+      { id: "c5123d44-98e1-4567-bf12-aa1111111111", name: "Arzon", baseAmount: "500000", policy: { name: "24 soat oldin bepul bekor qilish" } },
+      { id: "c5123d44-98e1-4567-bf12-aa2222222222", name: "Standart to'liq davolash bilan", baseAmount: "45000000", policy: { name: "24 soat oldin bepul bekor qilish" } },
     ],
   },
   {
@@ -239,14 +248,15 @@ export function LandingPage() {
               name: item.name,
               region: item.region || "O'zbekiston",
               address: item.address || "",
-              tag: item.services?.[0] ? `✨ ${item.services[0]}` : "Tavsiya etiladi",
+              tag: item.tag || (item.services?.[0] ? `✨ ${item.services[0]}` : "Tavsiya etiladi"),
               meals: item.meals || "3 mahal ovqatlanish",
               description: item.description || "",
               directions: item.directions || "",
               services: item.services || [],
               amenities: item.amenities || [],
               photo_ids: item.photo_ids || [],
-              from_amount: item.from_amount ? (Number(item.from_amount) / 100).toLocaleString("ru-RU") : "450 000",
+              photos: item.photos || [],
+              from_amount: item.from_amount ? (Number(item.from_amount) / 100).toLocaleString("ru-RU") : "5 000",
               price_label: item.price_label || "Boshlang'ich tarif",
               map_url: item.map_url,
               check_in_time: item.check_in_time || "08:00",
@@ -286,9 +296,10 @@ export function LandingPage() {
             type: "details",
             item: {
               ...item,
-              room_types: detailData.room_types,
-              rate_plans: detailData.rate_plans,
+              room_types: detailData.room_types || item.room_types,
+              rate_plans: detailData.rate_plans || item.rate_plans,
               photo_ids: detailData.photo_ids && detailData.photo_ids.length > 0 ? detailData.photo_ids : item.photo_ids,
+              photos: detailData.photos && detailData.photos.length > 0 ? detailData.photos : item.photos,
               description: detailData.description || item.description,
               directions: detailData.directions || item.directions,
               map_url: detailData.map_url || item.map_url,
@@ -509,9 +520,12 @@ export function LandingPage() {
         ) : (
           <div className="sanatorium-cards-grid">
             {filteredSanatoriums.map((s) => {
-              const photoUrl = s.photo_ids?.[0]
-                ? `/api/media/${s.photo_ids[0]}`
-                : "/branding/welcome-retreat.png";
+              const cardPhotos = (s.photos && s.photos.length > 0)
+                ? s.photos
+                : (s.photo_ids && s.photo_ids.length > 0)
+                  ? s.photo_ids.map((id) => `/api/media/${id}`)
+                  : ["/branding/welcome-retreat.png"];
+              const photoUrl = cardPhotos[0];
 
               return (
                 <div key={s.id} className="sanatorium-card">
@@ -807,47 +821,57 @@ export function LandingPage() {
 
             <div className="legal-modal-body">
               {/* Photo Showcase */}
-              {activeModal.item.photo_ids && activeModal.item.photo_ids.length > 0 && (
-                <div style={{ marginBottom: "1.5rem" }}>
-                  <div style={{ width: "100%", height: 320, borderRadius: 16, overflow: "hidden", background: "#020617", marginBottom: 10 }}>
-                    <img
-                      src={`/api/media/${activeModal.item.photo_ids[galleryIndex] || activeModal.item.photo_ids[0]}`}
-                      alt={activeModal.item.name}
-                      style={{ width: "100%", height: "100%", objectFit: "cover" }}
-                      onError={(e) => {
-                        (e.target as HTMLImageElement).src = "/branding/welcome-retreat.png";
-                      }}
-                    />
-                  </div>
-                  {activeModal.item.photo_ids.length > 1 && (
-                    <div style={{ display: "flex", gap: 8, overflowX: "auto", paddingBottom: 4 }}>
-                      {activeModal.item.photo_ids.map((pid, idx) => (
-                        <button
-                          key={pid}
-                          type="button"
-                          onClick={() => setGalleryIndex(idx)}
-                          style={{
-                            width: 70,
-                            height: 50,
-                            borderRadius: 8,
-                            overflow: "hidden",
-                            border: idx === galleryIndex ? "2px solid #10b981" : "2px solid #1e293b",
-                            padding: 0,
-                            cursor: "pointer",
-                            flexShrink: 0,
-                          }}
-                        >
-                          <img
-                            src={`/api/media/${pid}`}
-                            alt=""
-                            style={{ width: "100%", height: "100%", objectFit: "cover" }}
-                          />
-                        </button>
-                      ))}
+              {(() => {
+                const modalPhotos = (activeModal.item.photos && activeModal.item.photos.length > 0)
+                  ? activeModal.item.photos
+                  : (activeModal.item.photo_ids && activeModal.item.photo_ids.length > 0)
+                    ? activeModal.item.photo_ids.map((id) => `/api/media/${id}`)
+                    : [];
+
+                if (modalPhotos.length === 0) return null;
+
+                return (
+                  <div style={{ marginBottom: "1.5rem" }}>
+                    <div style={{ width: "100%", height: 320, borderRadius: 16, overflow: "hidden", background: "#020617", marginBottom: 10 }}>
+                      <img
+                        src={modalPhotos[galleryIndex] || modalPhotos[0]}
+                        alt={activeModal.item.name}
+                        style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).src = "/branding/welcome-retreat.png";
+                        }}
+                      />
                     </div>
-                  )}
-                </div>
-              )}
+                    {modalPhotos.length > 1 && (
+                      <div style={{ display: "flex", gap: 8, overflowX: "auto", paddingBottom: 4 }}>
+                        {modalPhotos.map((pUrl, idx) => (
+                          <button
+                            key={idx}
+                            type="button"
+                            onClick={() => setGalleryIndex(idx)}
+                            style={{
+                              width: 70,
+                              height: 50,
+                              borderRadius: 8,
+                              overflow: "hidden",
+                              border: idx === galleryIndex ? "2px solid #10b981" : "2px solid #1e293b",
+                              padding: 0,
+                              cursor: "pointer",
+                              flexShrink: 0,
+                            }}
+                          >
+                            <img
+                              src={pUrl}
+                              alt=""
+                              style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                            />
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
 
               <h4>Sanatoriya haqida</h4>
               <p>{activeModal.item.description}</p>
@@ -864,6 +888,30 @@ export function LandingPage() {
                       <div key={rt.id} style={{ padding: "10px 14px", borderRadius: 12, background: "#111e38", border: "1px solid #1e293b" }}>
                         <div style={{ fontWeight: 700, color: "#fff" }}>{rt.name}</div>
                         <div style={{ fontSize: "0.8rem", color: "#94a3b8" }}>Maksimal: {rt.maxGuests} nafar mehmon</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Rate Plans from API */}
+              {activeModal.item.rate_plans && activeModal.item.rate_plans.length > 0 && (
+                <div style={{ marginTop: "1rem" }}>
+                  <h4>Tariflar va narxlar</h4>
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 10, margin: "10px 0" }}>
+                    {activeModal.item.rate_plans.map((rp) => (
+                      <div key={rp.id} style={{ padding: "10px 14px", borderRadius: 12, background: "#064e3b22", border: "1px solid #05966955" }}>
+                        <div style={{ fontWeight: 700, color: "#10b981", fontSize: "1.05rem" }}>
+                          {rp.name}
+                        </div>
+                        <div style={{ fontSize: "1rem", color: "#fff", fontWeight: 700, marginTop: 4 }}>
+                          {(Number(rp.baseAmount) / 100).toLocaleString("ru-RU")} so'm / kuniga
+                        </div>
+                        {rp.policy?.name && (
+                          <div style={{ fontSize: "0.75rem", color: "#94a3b8", marginTop: 4 }}>
+                            {rp.policy.name}
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>
