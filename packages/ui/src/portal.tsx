@@ -288,7 +288,6 @@ function Login({
       await api("/auth/staff/login", "POST", {
         login: data.get("login"),
         password: data.get("password"),
-        ...(mode === "admin" ? { mfa_code: data.get("mfa_code") } : {}),
       });
       const actor = await restoreSession();
       if (actor.kind !== (mode === "admin" ? "SUPERADMIN" : "STAFF")) {
@@ -389,22 +388,6 @@ function Login({
               </button>
             </span>
           </label>
-          {mode === "admin" && (
-            <label className="field">
-              <span>Autentifikator kodi</span>
-              <input
-                name="mfa_code"
-                pattern="[0-9]{6}"
-                inputMode="numeric"
-                maxLength={6}
-                autoComplete="one-time-code"
-                placeholder="MFA kodi (agar yoqilgan bo‘lsa)"
-              />
-              <small>
-                Google Authenticator yoki Microsoft Authenticator kodi (agar hisobingizda 2FA yoqilgan bo‘lsa).
-              </small>
-            </label>
-          )}
           {error && <ErrorBox message={error} />}
           <button className="button primary" disabled={busy}>
             {busy ? "Tekshirilmoqda…" : "Kirish"}
@@ -412,7 +395,7 @@ function Login({
           </button>
           <p className="login-note">
             {mode === "admin"
-              ? "Ikki bosqichli himoya yoqilgan."
+              ? "Platforma administratori xavfsiz kirish tizimi."
               : "Kirish ma’lumotlarini direktoringiz yoki administratordan oling."}
           </p>
         </form>
