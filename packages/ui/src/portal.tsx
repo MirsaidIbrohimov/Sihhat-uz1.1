@@ -394,15 +394,14 @@ function Login({
               <span>Autentifikator kodi</span>
               <input
                 name="mfa_code"
-                required
                 pattern="[0-9]{6}"
                 inputMode="numeric"
                 maxLength={6}
                 autoComplete="one-time-code"
+                placeholder="MFA kodi (agar yoqilgan bo‘lsa)"
               />
               <small>
-                Telefoningizdagi Google Authenticator yoki Microsoft
-                Authenticator ilovasining joriy 6 raqamli kodi.
+                Google Authenticator yoki Microsoft Authenticator kodi (agar hisobingizda 2FA yoqilgan bo‘lsa).
               </small>
             </label>
           )}
@@ -447,7 +446,7 @@ function PasswordChange({ refresh }: { refresh: () => void }) {
               label: "Yangi parol",
               type: "password",
               required: true,
-              minLength: 12,
+              minLength: 8,
             },
           ],
           submit: (v) => api("/auth/change-password", "POST", v),

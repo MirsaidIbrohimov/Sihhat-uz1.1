@@ -11,7 +11,7 @@ import { Actor, effective } from './permissions';
 
 export const phoneSchema = z.string().transform(v => v.replace(/[\s()-]/g, '')).pipe(z.string().regex(/^\+998\d{9}$/));
 export const loginSchema = z.string().trim().toLowerCase().min(3).max(64).regex(/^[a-z0-9._@-]+$/);
-export const passwordSchema = z.string().min(12).max(128).refine(v => /[a-z]/.test(v) && /[A-Z]/.test(v) && /[0-9]/.test(v), 'Parolda katta/kichik harf va raqam bo‘lsin');
+export const passwordSchema = z.string().min(8).max(128).refine(v => /[a-z]/.test(v) && /[A-Z]/.test(v) && /[0-9]/.test(v), 'Parolda katta/kichik harf va raqam bo‘lsin');
 export const staffLoginInput = z.object({ login: loginSchema, password: z.string().min(1).max(128), mfa_code: z.string().regex(/^\d{6}$/).optional() }).strict();
 export const otpRequestInput = z.object({
   email: z.string().email('To‘g‘ri email manzil kiriting').max(120).toLowerCase().trim().optional(),
@@ -72,10 +72,12 @@ export class AuthService {
       const current = await tx.user.findUniqueOrThrow({ where: { id: user.id } });
       if (current.status !== 'ACTIVE' || current.passwordHash !== user.passwordHash) fail('LOGIN_FAILED', 'Kirish rad etildi', 401);
       if (current.kind === 'SUPERADMIN') {
-        if (!current.mfaSecret || !input.mfa_code) fail('MFA_REQUIRED', 'Authenticator kodini kiriting', 401);
-        const step = matchTotp(decrypt(current.mfaSecret, this.config.MFA_ENCRYPTION_KEY), input.mfa_code, current.mfaLastStep);
-        if (step === null) fail('MFA_INVALID', 'MFA kodi xato yoki avval ishlatilgan', 401);
-        await tx.user.update({ where: { id: current.id }, data: { mfaLastStep: step } });
+        if (current.mfaSecret) {
+          if (!input.mfa_code) fail('MFA_REQUIRED', 'Authenticator kodini kiriting', 401);
+          const step = matchTotp(decrypt(current.mfaSecret, this.config.MFA_ENCRYPTION_KEY), input.mfa_code, current.mfaLastStep);
+          if (step === null) fail('MFA_INVALID', 'MFA kodi xato yoki avval ishlatilgan', 401);
+          await tx.user.update({ where: { id: current.id }, data: { mfaLastStep: step } });
+        }
       } else {
         const active = await tx.membership.count({ where: { userId: current.id, status: 'ACTIVE' } });
         if (!active) fail('STAFF_NOT_APPROVED', 'Hisob hali tasdiqlanmagan yoki bloklangan', 403);
