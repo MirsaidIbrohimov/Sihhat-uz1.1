@@ -72,7 +72,11 @@ class HealthController {
   @Get('live') live() { return { status: 'ok', service: 'sihhat-api' }; }
   @Get('ready') async ready() { await this.db.$queryRaw`SELECT 1`; return { status: 'ok', database: 'ready' }; }
 }
-@Module({ imports: [CoreModule, AuthModule, SanatoriumModule, BookingModule,FinanceModule,OperationsModule], controllers: [HealthController], providers: [{ provide: APP_GUARD, useClass: AuthGuard }] })
+@Controller() @Public()
+class RootController {
+  @Get() root() { return { status: 'ok', service: 'sihhat-api' }; }
+}
+@Module({ imports: [CoreModule, AuthModule, SanatoriumModule, BookingModule,FinanceModule,OperationsModule], controllers: [HealthController, RootController], providers: [{ provide: APP_GUARD, useClass: AuthGuard }] })
 export class AppModule {}
 
 export async function createApp(options: { quiet?: boolean; swagger?: boolean } = {}) {
