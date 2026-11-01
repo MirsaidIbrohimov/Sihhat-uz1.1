@@ -41,8 +41,8 @@ const schema = z.object({
   WORKER_MODE: z.enum(['database', 'redis']).default('database'),
   REDIS_URL: z.string().default('redis://127.0.0.1:6379'),
   REDIS_SOCKET_PATH: z.enum(['', '/run/redis/redis.sock']).default(''),
-  PAYMENT_MODE: z.enum(['local', 'payme', 'tezcheck']).default('local'),
-  BOOKING_SETTLEMENT_MODE: z.enum(['direct', 'legacy_platform']).default('direct'),
+  PAYMENT_MODE: z.enum(['local', 'payme', 'tezcheck']).default('tezcheck'),
+  BOOKING_SETTLEMENT_MODE: z.enum(['direct', 'legacy_platform']).default('legacy_platform'),
   TEZCHECK_API_KEY: z.string().default(''),
   TEZCHECK_CASH_DESK_CODE: z.string().max(128).default(''),
   TEZCHECK_WEBHOOK_SECRET: z.string().default(''),
@@ -132,8 +132,14 @@ export function productionIssues(c: Config): string[] {
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
   // Optional local secrets stay outside app sources, public assets and APK builds.
   // Tests never load these credentials. Deployment can use environment variables.
-  const path = resolve(env.SIHHAT_SECRETS_FILE ?? '../../.local/secrets/providers.env');
-  const secrets = env === process.env && env.NODE_ENV !== 'test' && existsSync(path) ? parseEnv(readFileSync(path)) : {};
+  const candidates: string[] = [];
+  if (env.SIHHAT_SECRETS_FILE && existsSync(env.SIHHAT_SECRETS_FILE)) candidates.push(env.SIHHAT_SECRETS_FILE);
+  for (const rel of ['.local/secrets/providers.env', '../../.local/secrets/providers.env', '../../../../.local/secrets/providers.env']) {
+    const full = resolve(rel);
+    if (existsSync(full)) candidates.push(full);
+  }
+  const secretsPath = candidates[0];
+  const secrets = env === process.env && env.NODE_ENV !== 'test' && secretsPath ? parseEnv(readFileSync(secretsPath)) : {};
   const result = schema.safeParse({ ...secrets, ...env });
   if (!result.success) throw new Error(`Konfiguratsiya xatosi: ${result.error.issues.map(i => `${i.path.join('.')}: ${i.message}`).join('; ')}`);
   const c = result.data;

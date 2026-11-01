@@ -12,6 +12,7 @@ export class PaymentController{
   @Post('payments/:id/refresh') refresh(@CurrentActor() a:Actor,@Param('id') id:string){return this.tez.refresh(a,id);}
   @Get('superadmin/integrations/tezcheck') @Roles('SUPERADMIN') tezcheck(@CurrentActor() a:Actor){return this.tez.overview(a);}
   @Public() @Post('payments/tezcheck') @HttpCode(200) webhook(@Req() r:Request&{rawBody?:Buffer},@Headers('x-checkout-timestamp') t?:string,@Headers('x-checkout-delivery') d?:string,@Headers('x-checkout-signature') s?:string){return this.tez.webhook(r.rawBody??Buffer.alloc(0),t,d,s);}
+  @Public() @Post('payments/quick-checkout') quickCheckout(@Body() b: unknown) { return this.tez.quickCheckout(b); }
   @Post('payments/:id/local-confirm') local(@CurrentActor() a:Actor,@Param('id') id:string,@Headers('idempotency-key') k?:string){return this.service.localConfirm(a,id,k);}
   @Public() @Post('payments/payme') @HttpCode(200) callback(@Body() b:unknown,@Headers('authorization') auth?:string){return this.service.rpc(b,auth);}
   @Get('partner/payments') @Roles('STAFF','SUPERADMIN') list(@CurrentActor() a:Actor,@Query() q:unknown){return this.service.list(a,q);}

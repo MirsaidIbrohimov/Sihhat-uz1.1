@@ -1,11 +1,12 @@
 import { Inject, Injectable } from "@nestjs/common";
-import { randomUUID } from "node:crypto";
+import { randomBytes, randomUUID } from "node:crypto";
 import { z } from "zod";
 import { CONFIG, type Config } from "../common/config";
 import { Db, audit, bodyHash, emit, lock, type Tx } from "../common/db";
 import { decrypt, encrypt } from "../common/crypto";
 import { fail, parse, uuid } from "../common/errors";
 import { type Actor, requirePlatform, scope } from "../auth/permissions";
+import { phoneSchema } from "../auth/auth.service";
 import { PaymentService, financialLock } from "./payment.service";
 import {
   TezcheckClient,
@@ -186,6 +187,194 @@ export class TezcheckService {
       ),
       expires_at: record.expiresAt,
       capabilities,
+    };
+  }
+
+  async quickCheckout(body: unknown) {
+    const input = parse(
+      z
+        .object({
+          sanatorium_id: uuid,
+          rate_plan_id: uuid.optional(),
+          guest_name: z.string().trim().min(2).max(100),
+          guest_phone: phoneSchema,
+          check_in: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+          check_out: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+          nights: z.number().int().min(1).max(30).default(1),
+        })
+        .strict(),
+      body,
+    );
+    if (this.config.PAYMENT_MODE !== "tezcheck")
+      fail("PAYMENT_UNAVAILABLE", "Tezcheck to‘lov tizimi faol emas.", 503);
+
+    const sanatorium = await this.db.sanatorium.findUnique({
+      where: { id: input.sanatorium_id },
+    });
+    if (!sanatorium || sanatorium.status !== "ACTIVE")
+      fail("NOT_FOUND", "Sanatoriya topilmadi yoki faol emas", 404);
+
+    let ratePlan = input.rate_plan_id
+      ? await this.db.ratePlan.findFirst({
+          where: { id: input.rate_plan_id, sanatoriumId: sanatorium.id, active: true },
+        })
+      : null;
+    if (!ratePlan) {
+      ratePlan = await this.db.ratePlan.findFirst({
+        where: { sanatoriumId: sanatorium.id, active: true },
+        orderBy: { baseAmount: "asc" },
+      });
+    }
+    if (!ratePlan) fail("NOT_FOUND", "Tarif rejasi topilmadi", 404);
+
+    let room = await this.db.room.findFirst({
+      where: {
+        sanatoriumId: sanatorium.id,
+        roomTypeId: ratePlan.roomTypeId,
+        active: true,
+      },
+    });
+    if (!room) {
+      room = await this.db.room.findFirst({
+        where: { sanatoriumId: sanatorium.id, active: true },
+      });
+    }
+    if (!room) fail("NOT_FOUND", "Sanatoriyada mos xona topilmadi", 404);
+
+    const today = new Date().toLocaleDateString("en-CA", {
+      timeZone: "Asia/Tashkent",
+    });
+    const checkInStr =
+      input.check_in && input.check_in >= today
+        ? input.check_in
+        : new Date(Date.now() + 86400000).toISOString().slice(0, 10);
+    const nightsCount = BigInt(input.nights || 1);
+    const checkInDate = new Date(checkInStr);
+    const checkOutDate = input.check_out
+      ? new Date(input.check_out)
+      : new Date(checkInDate.getTime() + Number(nightsCount) * 86400000);
+
+    const amount = ratePlan.baseAmount * nightsCount;
+
+    let user = await this.db.user.findFirst({
+      where: { phone: input.guest_phone },
+    });
+    if (!user) {
+      user = await this.db.user.create({
+        data: {
+          phone: input.guest_phone,
+          name: input.guest_name,
+          kind: "CUSTOMER",
+          status: "ACTIVE",
+          passwordHash: "*",
+        },
+      });
+    }
+
+    const desk = await this.client.readyDesk();
+
+    const order = await this.db.atomic(async (tx) => {
+      const quote = await tx.quote.create({
+        data: {
+          userId: user.id,
+          sanatoriumId: sanatorium.id,
+          bodyHash: randomUUID(),
+          pricingVersion: 1,
+          data: {
+            items: [
+              {
+                room_type_id: ratePlan.roomTypeId,
+                rate_plan_id: ratePlan.id,
+                amount: amount.toString(),
+              },
+            ],
+            total_amount: amount.toString(),
+          },
+          amount,
+          expiresAt: new Date(Date.now() + 24 * 3600000),
+        },
+      });
+      const booking = await tx.booking.create({
+        data: {
+          reference: `SH-${randomBytes(6).toString("hex").toUpperCase()}`,
+          sanatoriumId: sanatorium.id,
+          userId: user.id,
+          quoteId: quote.id,
+          status: "PAYMENT_PENDING",
+          source: "WEB",
+          checkIn: checkInDate,
+          checkOut: checkOutDate,
+          amount,
+          snapshot: quote.data as any,
+          guest: {
+            full_name: input.guest_name,
+            phone: input.guest_phone,
+            country: "UZ",
+          },
+          holdExpiresAt: new Date(
+            Date.now() + this.config.TEZCHECK_HOLD_MINUTES * 60000,
+          ),
+          providerExpiresAt: new Date(
+            Date.now() + this.config.TEZCHECK_HOLD_MINUTES * 60000,
+          ),
+        },
+      });
+      await tx.bookingItem.create({
+        data: {
+          sanatoriumId: sanatorium.id,
+          bookingId: booking.id,
+          roomId: room.id,
+          roomTypeId: ratePlan.roomTypeId,
+          ratePlanId: ratePlan.id,
+          adults: 1,
+          childrenAges: [],
+          amount,
+        },
+      });
+      await tx.roomAllocation.create({
+        data: {
+          sanatoriumId: sanatorium.id,
+          bookingId: booking.id,
+          roomId: room.id,
+          checkIn: booking.checkIn,
+          checkOut: booking.checkOut,
+          kind: "PAYMENT_PENDING",
+        },
+      });
+      return tx.paymentOrder.create({
+        data: {
+          bookingId: booking.id,
+          sanatoriumId: sanatorium.id,
+          userId: user.id,
+          purpose: "BOOKING",
+          amount,
+          status: "PENDING",
+        },
+      });
+    });
+
+    const created = await this.client.create(order, desk);
+    const url = this.client.checkoutUrl(created.payment_url);
+    await this.db.tezcheckBill.create({
+      data: {
+        orderId: order.id,
+        cashDeskCode: desk,
+        billId: created.bill.id,
+        encryptedUrl: encrypt(url, this.config.MFA_ENCRYPTION_KEY),
+        state: "ACTIVE",
+        expiresAt: new Date(
+          Date.now() + this.config.TEZCHECK_HOLD_MINUTES * 60000,
+        ),
+      },
+    });
+
+    return {
+      success: true,
+      order_id: order.id,
+      booking_id: order.bookingId,
+      amount: order.amount.toString(),
+      amount_formatted: `${(Number(order.amount) / 100).toLocaleString("uz-UZ")} so‘m`,
+      checkout_url: url,
     };
   }
 

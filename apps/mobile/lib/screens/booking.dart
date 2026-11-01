@@ -1141,7 +1141,7 @@ class _BookingScreenState extends State<BookingScreen>
                               const SihhatIcon('credit-card', size: 20),
                               const SizedBox(width: 8),
                               Text(
-                                'Karta orqali to‘lov (P2P)',
+                                'TezCheck orqali to‘lov',
                                 style: conceptHeading(context, size: 16),
                               ),
                             ],
@@ -1153,116 +1153,47 @@ class _BookingScreenState extends State<BookingScreen>
                               color: context.colors.soft,
                               borderRadius: BorderRadius.circular(14),
                             ),
-                            child: Row(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        'To‘lov kartasi raqami',
+                                Row(
+                                  children: [
+                                    const SihhatIcon('shield-check', size: 18),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: Text(
+                                        'Xavfsiz onlayn to‘lov (Click, Payme, Uzcard, Humo)',
                                         style: TextStyle(
-                                          fontSize: 11,
-                                          color: context.colors.muted,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 4),
-                                      const SelectableText(
-                                        '5614 6873 0490 4270',
-                                        style: TextStyle(
-                                          fontSize: 18,
-                                          fontWeight: FontWeight.w700,
-                                          letterSpacing: 1.2,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 2),
-                                      Text(
-                                        'Sihhat.uz rasmiy to‘lov hisobi',
-                                        style: TextStyle(
-                                          fontSize: 12,
-                                          color: context.colors.primary,
+                                          fontSize: 13,
                                           fontWeight: FontWeight.w600,
+                                          color: context.colors.primary,
                                         ),
                                       ),
-                                    ],
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  'Karta raqami talab qilinmaydi. To‘lov to‘g‘ridan-to‘g‘ri rasmiy TezCheck sahifasida amalga oshiriladi.',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: context.colors.muted,
                                   ),
                                 ),
-                                IconButton(
-                                  icon: const SihhatIcon('copy', size: 20),
-                                  tooltip: 'Nusxa olish',
-                                  onPressed: () {
-                                    Clipboard.setData(
-                                      const ClipboardData(
-                                        text: '5614687304904270',
-                                      ),
-                                    );
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(
-                                        content: Text(
-                                          'Karta raqami nusxalandi',
-                                        ),
-                                        duration: Duration(seconds: 2),
-                                      ),
-                                    );
-                                  },
-                                ),
                               ],
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                          Text(
-                            'Iltimos, yuqoridagi kartaga ${money(b['amount'])} o‘tkazing va pastdagi tugmani bosing.',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: context.colors.muted,
                             ),
                           ),
                           const SizedBox(height: 14),
                           SizedBox(
                             width: double.infinity,
                             child: FilledButton.icon(
-                              onPressed: busy
-                                  ? null
-                                  : () async {
-                                      setState(() => busy = true);
-                                      try {
-                                        if (checkout == null) {
-                                          final r = asJson(
-                                            await widget.api.send(
-                                              '/customer/bookings/${widget.id}/checkout',
-                                              method: 'POST',
-                                              body: {},
-                                            ),
-                                          );
-                                          checkout = r;
-                                        }
-                                        await widget.api.send(
-                                          '/payments/${checkout!['order_id']}/local-confirm',
-                                          method: 'POST',
-                                          body: {},
-                                        );
-                                        await refresh();
-                                      } catch (e) {
-                                        if (mounted) {
-                                          setState(() => error = e.toString());
-                                          ScaffoldMessenger.of(
-                                            this.context,
-                                          ).showSnackBar(
-                                            SnackBar(
-                                              content: Text(e.toString()),
-                                              backgroundColor: Colors.redAccent,
-                                            ),
-                                          );
-                                        }
-                                      } finally {
-                                        if (mounted) {
-                                          setState(() => busy = false);
-                                        }
-                                      }
-                                    },
-                              icon: const SihhatIcon('check', size: 18),
-                              label: const Text('To‘lovni tasdiqlash'),
+                              onPressed: busy ? null : pay,
+                              icon: const SihhatIcon('arrow-right', size: 18),
+                              label: Text(
+                                checking
+                                    ? 'TezCheck sahifasini qayta ochish'
+                                    : 'TezCheck orqali to‘lash',
+                              ),
                             ),
                           ),
                         ],

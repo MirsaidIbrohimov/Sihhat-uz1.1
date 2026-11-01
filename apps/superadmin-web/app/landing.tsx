@@ -32,8 +32,19 @@ import {
   Car,
   ChevronLeft,
   CheckCircle2,
+  CreditCard,
 } from "lucide-react";
 import "./landing.css";
+
+export type RatePlanItem = {
+  id: string;
+  name: string;
+  baseAmount: string;
+  minNights?: number;
+  policy?: {
+    name: string;
+  };
+};
 
 export interface SanatoriumCardData {
   id: string;
@@ -231,9 +242,41 @@ export function LandingPage() {
   const [selectedRegion, setSelectedRegion] = useState("Barchasi");
   const [selectedService, setSelectedService] = useState("Barchasi");
   const [activeModal, setActiveModal] = useState<
-    null | "oferta" | "maxfiylik" | "qaytarish" | "download" | { type: "details"; item: SanatoriumCardData }
+    | null
+    | "oferta"
+    | "maxfiylik"
+    | "qaytarish"
+    | "download"
+    | { type: "details"; item: SanatoriumCardData }
+    | { type: "checkout"; item: SanatoriumCardData; ratePlan?: RatePlanItem }
   >(null);
   const [galleryIndex, setGalleryIndex] = useState(0);
+
+  // Quick TezCheck checkout state
+  const [checkoutGuestName, setCheckoutGuestName] = useState("");
+  const [checkoutGuestPhone, setCheckoutGuestPhone] = useState("+998");
+  const [checkoutCheckIn, setCheckoutCheckIn] = useState(() => {
+    const d = new Date(Date.now() + 86400000);
+    return d.toISOString().slice(0, 10);
+  });
+  const [checkoutNights, setCheckoutNights] = useState(1);
+  const [checkoutSelectedRateId, setCheckoutSelectedRateId] = useState<string>("");
+  const [checkoutLoading, setCheckoutLoading] = useState(false);
+  const [checkoutError, setCheckoutError] = useState("");
+  const [checkoutSuccessUrl, setCheckoutSuccessUrl] = useState("");
+
+  function openCheckout(item: SanatoriumCardData, ratePlan?: RatePlanItem) {
+    setActiveModal({ type: "checkout", item, ratePlan });
+    setCheckoutError("");
+    setCheckoutSuccessUrl("");
+    if (ratePlan) {
+      setCheckoutSelectedRateId(ratePlan.id);
+    } else if (item.rate_plans && item.rate_plans.length > 0) {
+      setCheckoutSelectedRateId(item.rate_plans[0].id);
+    } else {
+      setCheckoutSelectedRateId("");
+    }
+  }
 
   // Direct API integration: load real data from Sihhat API
   useEffect(() => {
@@ -583,13 +626,20 @@ export function LandingPage() {
 
                       <button
                         type="button"
-                        onClick={() => setActiveModal("download")}
+                        onClick={() => openCheckout(s)}
                         className="apk-header-btn"
-                        style={{ padding: "0.65rem 1rem", fontSize: "0.85rem", cursor: "pointer" }}
-                        title="Ilovada bron qilish"
+                        style={{
+                          padding: "0.65rem 1rem",
+                          fontSize: "0.85rem",
+                          cursor: "pointer",
+                          background: "linear-gradient(135deg, #0d9488 0%, #059669 100%)",
+                          color: "#fff",
+                          border: "none",
+                        }}
+                        title="TezCheck orqali to'lash va bron qilish"
                       >
-                        <Smartphone size={16} />
-                        <span>Bron qilish</span>
+                        <CreditCard size={16} />
+                        <span>To'lash</span>
                       </button>
                     </div>
                   </div>
@@ -900,18 +950,49 @@ export function LandingPage() {
                   <h4>Tariflar va narxlar</h4>
                   <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 10, margin: "10px 0" }}>
                     {activeModal.item.rate_plans.map((rp) => (
-                      <div key={rp.id} style={{ padding: "10px 14px", borderRadius: 12, background: "#064e3b22", border: "1px solid #05966955" }}>
-                        <div style={{ fontWeight: 700, color: "#10b981", fontSize: "1.05rem" }}>
-                          {rp.name}
-                        </div>
-                        <div style={{ fontSize: "1rem", color: "#fff", fontWeight: 700, marginTop: 4 }}>
-                          {(Number(rp.baseAmount) / 100).toLocaleString("ru-RU")} so'm / kuniga
-                        </div>
-                        {rp.policy?.name && (
-                          <div style={{ fontSize: "0.75rem", color: "#94a3b8", marginTop: 4 }}>
-                            {rp.policy.name}
+                      <div
+                        key={rp.id}
+                        style={{
+                          padding: "10px 14px",
+                          borderRadius: 12,
+                          background: "#064e3b22",
+                          border: "1px solid #05966955",
+                          display: "flex",
+                          justifyContent: "space-between",
+                          alignItems: "center",
+                          gap: 12,
+                        }}
+                      >
+                        <div>
+                          <div style={{ fontWeight: 700, color: "#10b981", fontSize: "1.05rem" }}>
+                            {rp.name}
                           </div>
-                        )}
+                          <div style={{ fontSize: "1rem", color: "#fff", fontWeight: 700, marginTop: 4 }}>
+                            {(Number(rp.baseAmount) / 100).toLocaleString("ru-RU")} so'm / kuniga
+                          </div>
+                          {rp.policy?.name && (
+                            <div style={{ fontSize: "0.75rem", color: "#94a3b8", marginTop: 4 }}>
+                              {rp.policy.name}
+                            </div>
+                          )}
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => openCheckout(activeModal.item, rp)}
+                          style={{
+                            padding: "6px 14px",
+                            borderRadius: 8,
+                            background: "linear-gradient(135deg, #0d9488 0%, #059669 100%)",
+                            color: "#fff",
+                            border: "none",
+                            fontSize: "0.85rem",
+                            cursor: "pointer",
+                            fontWeight: 600,
+                            whiteSpace: "nowrap",
+                          }}
+                        >
+                          To'lash
+                        </button>
                       </div>
                     ))}
                   </div>
@@ -972,16 +1053,303 @@ export function LandingPage() {
               )}
             </div>
 
-            <div className="legal-modal-footer">
+            <div className="legal-modal-footer" style={{ display: "flex", gap: 12, justifyContent: "flex-end" }}>
+              <button
+                type="button"
+                onClick={() => openCheckout(activeModal.item)}
+                className="btn-download-apk"
+                style={{
+                  padding: "0.7rem 1.4rem",
+                  fontSize: "0.95rem",
+                  cursor: "pointer",
+                  background: "linear-gradient(135deg, #0d9488 0%, #059669 100%)",
+                  color: "#fff",
+                  border: "none",
+                }}
+              >
+                <CreditCard size={18} />
+                <span>TezCheck orqali to'lash</span>
+              </button>
               <button
                 type="button"
                 onClick={() => setActiveModal("download")}
-                className="btn-download-apk"
-                style={{ padding: "0.7rem 1.4rem", fontSize: "0.95rem", cursor: "pointer" }}
+                className="partner-portal-btn"
+                style={{ padding: "0.7rem 1.2rem", fontSize: "0.95rem", cursor: "pointer" }}
               >
                 <Smartphone size={18} />
-                <span>Ilovada xonani bron qilish</span>
+                <span>Ilovada ochish</span>
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* TezCheck Direct Online Checkout Modal */}
+      {activeModal && typeof activeModal === "object" && activeModal.type === "checkout" && (
+        <div className="legal-modal-backdrop" onClick={() => !checkoutLoading && setActiveModal(null)}>
+          <div
+            className="legal-modal-card"
+            style={{ maxWidth: 580 }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="legal-modal-header">
+              <div>
+                <h3 className="legal-modal-title" style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <ShieldCheck size={22} style={{ color: "#10b981" }} />
+                  <span>TezCheck orqali to'lov</span>
+                </h3>
+                <p style={{ margin: "4px 0 0", fontSize: "0.85rem", color: "#94a3b8" }}>
+                  {activeModal.item.name} · {activeModal.item.region}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => !checkoutLoading && setActiveModal(null)}
+                style={{ background: "none", border: "none", cursor: "pointer", color: "#94a3b8" }}
+              >
+                <X size={22} />
+              </button>
+            </div>
+
+            <div className="legal-modal-body" style={{ padding: "1.25rem 1.5rem" }}>
+              {checkoutSuccessUrl ? (
+                <div style={{ textAlign: "center", padding: "1.5rem 0" }}>
+                  <div style={{ width: 64, height: 64, borderRadius: "50%", background: "rgba(16, 185, 129, 0.15)", color: "#10b981", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 1rem" }}>
+                    <Check size={36} />
+                  </div>
+                  <h4 style={{ color: "#fff", fontSize: "1.2rem", marginBottom: "0.5rem" }}>TezCheck sahifasi ochildi!</h4>
+                  <p style={{ color: "#94a3b8", fontSize: "0.9rem", marginBottom: "1.5rem" }}>
+                    To'lov xavfsiz rasmiy sahifada yakunlanadi (Click, Payme, Uzcard / Humo).
+                  </p>
+                  <a
+                    href={checkoutSuccessUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="btn-download-apk"
+                    style={{ display: "inline-flex", gap: 8, padding: "0.8rem 1.6rem", textDecoration: "none", background: "linear-gradient(135deg, #0d9488 0%, #059669 100%)", color: "#fff", borderRadius: 10, fontWeight: 600 }}
+                  >
+                    <span>To'lov sahifasiga qaytadan o'tish</span>
+                    <ExternalLink size={18} />
+                  </a>
+                </div>
+              ) : (
+                <form
+                  onSubmit={async (e) => {
+                    e.preventDefault();
+                    setCheckoutError("");
+                    setCheckoutLoading(true);
+                    try {
+                      const res = await fetch("/api/payments/quick-checkout", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                          sanatorium_id: activeModal.item.id,
+                          rate_plan_id: checkoutSelectedRateId || undefined,
+                          guest_name: checkoutGuestName.trim(),
+                          guest_phone: checkoutGuestPhone.trim().replace(/[\s()-]/g, ""),
+                          check_in: checkoutCheckIn,
+                          nights: Number(checkoutNights) || 1,
+                        }),
+                      });
+                      const json = await res.json();
+                      if (!res.ok) {
+                        throw new Error(json.message || "To'lov hisobini yaratishda xatolik yuz berdi");
+                      }
+                      setCheckoutSuccessUrl(json.checkout_url);
+                      window.open(json.checkout_url, "_blank");
+                    } catch (err: any) {
+                      setCheckoutError(err.message || "Xatolik yuz berdi");
+                    } finally {
+                      setCheckoutLoading(false);
+                    }
+                  }}
+                  style={{ display: "flex", flexDirection: "column", gap: "1rem" }}
+                >
+                  {/* Rate plan picker */}
+                  <div>
+                    <label style={{ display: "block", fontSize: "0.85rem", color: "#94a3b8", marginBottom: 6 }}>
+                      Tanlangan tarif
+                    </label>
+                    <select
+                      value={checkoutSelectedRateId}
+                      onChange={(e) => setCheckoutSelectedRateId(e.target.value)}
+                      style={{
+                        width: "100%",
+                        padding: "0.75rem 1rem",
+                        borderRadius: 10,
+                        border: "1px solid rgba(255,255,255,0.15)",
+                        background: "#0f172a",
+                        color: "#fff",
+                        fontSize: "0.95rem",
+                      }}
+                    >
+                      {(activeModal.item.rate_plans && activeModal.item.rate_plans.length > 0) ? (
+                        activeModal.item.rate_plans.map((rp) => (
+                          <option key={rp.id} value={rp.id}>
+                            {rp.name} — {(Number(rp.baseAmount) / 100).toLocaleString("ru-RU")} so'm / kuniga
+                          </option>
+                        ))
+                      ) : (
+                        <option value="">
+                          Asosiy tarif — {activeModal.item.from_amount} so'm / kuniga
+                        </option>
+                      )}
+                    </select>
+                  </div>
+
+                  {/* Name and Phone */}
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem" }}>
+                    <div>
+                      <label style={{ display: "block", fontSize: "0.85rem", color: "#94a3b8", marginBottom: 6 }}>
+                        Ism va familiya *
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={checkoutGuestName}
+                        onChange={(e) => setCheckoutGuestName(e.target.value)}
+                        placeholder="Masalan, Mirsaid Ibrohimov"
+                        style={{
+                          width: "100%",
+                          padding: "0.75rem 1rem",
+                          borderRadius: 10,
+                          border: "1px solid rgba(255,255,255,0.15)",
+                          background: "#0f172a",
+                          color: "#fff",
+                          fontSize: "0.95rem",
+                          boxSizing: "border-box",
+                        }}
+                      />
+                    </div>
+                    <div>
+                      <label style={{ display: "block", fontSize: "0.85rem", color: "#94a3b8", marginBottom: 6 }}>
+                        Telefon raqam *
+                      </label>
+                      <input
+                        type="tel"
+                        required
+                        value={checkoutGuestPhone}
+                        onChange={(e) => setCheckoutGuestPhone(e.target.value)}
+                        placeholder="+998901234567"
+                        style={{
+                          width: "100%",
+                          padding: "0.75rem 1rem",
+                          borderRadius: 10,
+                          border: "1px solid rgba(255,255,255,0.15)",
+                          background: "#0f172a",
+                          color: "#fff",
+                          fontSize: "0.95rem",
+                          boxSizing: "border-box",
+                        }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Dates */}
+                  <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: "0.75rem" }}>
+                    <div>
+                      <label style={{ display: "block", fontSize: "0.85rem", color: "#94a3b8", marginBottom: 6 }}>
+                        Kelish sanasi *
+                      </label>
+                      <input
+                        type="date"
+                        required
+                        value={checkoutCheckIn}
+                        onChange={(e) => setCheckoutCheckIn(e.target.value)}
+                        style={{
+                          width: "100%",
+                          padding: "0.75rem 1rem",
+                          borderRadius: 10,
+                          border: "1px solid rgba(255,255,255,0.15)",
+                          background: "#0f172a",
+                          color: "#fff",
+                          fontSize: "0.95rem",
+                          boxSizing: "border-box",
+                        }}
+                      />
+                    </div>
+                    <div>
+                      <label style={{ display: "block", fontSize: "0.85rem", color: "#94a3b8", marginBottom: 6 }}>
+                        Kunlar soni
+                      </label>
+                      <input
+                        type="number"
+                        min="1"
+                        max="30"
+                        value={checkoutNights}
+                        onChange={(e) => setCheckoutNights(Math.max(1, parseInt(e.target.value) || 1))}
+                        style={{
+                          width: "100%",
+                          padding: "0.75rem 1rem",
+                          borderRadius: 10,
+                          border: "1px solid rgba(255,255,255,0.15)",
+                          background: "#0f172a",
+                          color: "#fff",
+                          fontSize: "0.95rem",
+                          boxSizing: "border-box",
+                        }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* TezCheck Safety callout */}
+                  <div
+                    style={{
+                      background: "rgba(13, 148, 136, 0.12)",
+                      border: "1px solid rgba(13, 148, 136, 0.35)",
+                      borderRadius: 12,
+                      padding: "0.85rem 1rem",
+                      display: "flex",
+                      gap: 12,
+                      alignItems: "flex-start",
+                    }}
+                  >
+                    <ShieldCheck size={20} style={{ color: "#2dd4bf", flexShrink: 0, marginTop: 2 }} />
+                    <div style={{ fontSize: "0.85rem", color: "#cbd5e1", lineHeight: 1.5 }}>
+                      <strong style={{ color: "#5eead4", display: "block", marginBottom: 2 }}>
+                        Plastik karta raqami talab qilinmaydi
+                      </strong>
+                      Tugmani bosganingizda to'lov to'g'ridan-to'g'ri rasmiy <strong>TezCheck</strong> sahifasida (Click, Payme, Uzcard / Humo) xavfsiz amalga oshiriladi.
+                    </div>
+                  </div>
+
+                  {checkoutError && (
+                    <div style={{ background: "rgba(239, 68, 68, 0.15)", border: "1px solid rgba(239, 68, 68, 0.4)", borderRadius: 10, padding: "0.75rem 1rem", color: "#fca5a5", fontSize: "0.85rem" }}>
+                      {checkoutError}
+                    </div>
+                  )}
+
+                  <button
+                    type="submit"
+                    disabled={checkoutLoading}
+                    className="btn-download-apk"
+                    style={{
+                      padding: "0.9rem 1.4rem",
+                      fontSize: "1rem",
+                      fontWeight: 600,
+                      cursor: checkoutLoading ? "not-allowed" : "pointer",
+                      background: "linear-gradient(135deg, #0d9488 0%, #059669 100%)",
+                      color: "#fff",
+                      border: "none",
+                      borderRadius: 12,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      gap: 8,
+                      boxShadow: "0 4px 14px rgba(13, 148, 136, 0.4)",
+                    }}
+                  >
+                    {checkoutLoading ? (
+                      <span>TezCheck sahifasi ochilmoqda…</span>
+                    ) : (
+                      <>
+                        <span>TezCheck orqali to'lash</span>
+                        <ExternalLink size={18} />
+                      </>
+                    )}
+                  </button>
+                </form>
+              )}
             </div>
           </div>
         </div>
