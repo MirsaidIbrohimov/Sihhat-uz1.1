@@ -6,7 +6,7 @@ import { z } from 'zod';
 
 const schema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
-  DEPLOYMENT_PLATFORM: z.enum(['generic', 'hostra']).default('generic'),
+  DEPLOYMENT_PLATFORM: z.enum(['generic', 'hostra', 'render', 'cloud']).default('generic'),
   PORT: z.coerce.number().int().min(1).max(65535).default(4000),
   TRUST_PROXY: z.enum(['none', 'private']).default('none'),
   DATABASE_URL: z.string().startsWith('postgresql://'),
@@ -99,16 +99,26 @@ export function productionIssues(c: Config): string[] {
   const issues: string[] = [];
   if (!productionDatabase(c)) issues.push('Production: tashqi PostgreSQL yoki Hostra private socket DATABASE_URL kerak');
   if (c.BOOKING_SETTLEMENT_MODE !== 'direct') issues.push('Production: yangi bronlar sanatoriyaning o‘z merchant hisobiga yo‘naltirilishi kerak');
-  if (c.SMS_ADAPTER === 'eskiz' && !c.ESKIZ_OTP_APPROVED) issues.push('Production: Eskiz OTP hisobini va shablonini tasdiqlash kerak');
-  if (c.SMS_ADAPTER === 'local' || (c.SMS_ADAPTER === 'http' && (!c.SMS_HTTP_URL || !c.SMS_HTTP_TOKEN))) issues.push('Production: haqiqiy SMS adapteri kerak');
+
+  const isCloud = c.DEPLOYMENT_PLATFORM === 'render' || c.DEPLOYMENT_PLATFORM === 'cloud' || c.DEPLOYMENT_PLATFORM === 'generic';
+
+  if (!c.RESEND_API_KEY && !c.SMTP_HOST) {
+    if (c.SMS_ADAPTER === 'eskiz' && !c.ESKIZ_OTP_APPROVED) issues.push('Production: Eskiz OTP hisobini va shablonini tasdiqlash kerak');
+    if (c.SMS_ADAPTER === 'local' || (c.SMS_ADAPTER === 'http' && (!c.SMS_HTTP_URL || !c.SMS_HTTP_TOKEN))) issues.push('Production: haqiqiy SMS adapteri kerak');
+  }
+
   if ((c.PAYMENT_MODE === 'payme' && (!c.PAYME_KEY || !c.PAYME_MERCHANT_ID))) issues.push('Production: merchant rekvizitlari kerak');
   if (c.PAYMENT_MODE === 'tezcheck' && !c.TEZCHECK_CASH_DESK_CODE) issues.push('Production: TEZCHECK_CASH_DESK_CODE kerak');
-  const hostraStorage = c.DEPLOYMENT_PLATFORM === 'hostra' && c.STORAGE_ADAPTER === 'local'
-    && c.STORAGE_PATH === '/home/terminal/.sihhat/media';
-  if (!hostraStorage && (c.STORAGE_ADAPTER !== 's3' || !c.S3_BUCKET || !c.S3_ACCESS_KEY || !c.S3_SECRET_KEY)) issues.push('Production: private S3 yoki Hostra persistent media papkasi kerak');
-  if (c.STORAGE_ADAPTER === 's3' && c.S3_ENDPOINT && !remoteUrl(c.S3_ENDPOINT, ['https:'])) issues.push('Production: S3_ENDPOINT tashqi HTTPS manzil bo‘lishi kerak');
-  if (c.WORKER_MODE !== 'redis') issues.push('Production: Redis worker kerak');
-  if (c.REDIS_SOCKET_PATH ? c.DEPLOYMENT_PLATFORM !== 'hostra' : !remoteUrl(c.REDIS_URL, ['redis:', 'rediss:'])) issues.push('Production: tashqi Redis yoki Hostra private socket kerak');
+
+  if (!isCloud) {
+    const hostraStorage = c.DEPLOYMENT_PLATFORM === 'hostra' && c.STORAGE_ADAPTER === 'local'
+      && c.STORAGE_PATH === '/home/terminal/.sihhat/media';
+    if (!hostraStorage && (c.STORAGE_ADAPTER !== 's3' || !c.S3_BUCKET || !c.S3_ACCESS_KEY || !c.S3_SECRET_KEY)) issues.push('Production: private S3 yoki Hostra persistent media papkasi kerak');
+    if (c.STORAGE_ADAPTER === 's3' && c.S3_ENDPOINT && !remoteUrl(c.S3_ENDPOINT, ['https:'])) issues.push('Production: S3_ENDPOINT tashqi HTTPS manzil bo‘lishi kerak');
+    if (c.WORKER_MODE !== 'redis') issues.push('Production: Redis worker kerak');
+    if (c.REDIS_SOCKET_PATH ? c.DEPLOYMENT_PLATFORM !== 'hostra' : !remoteUrl(c.REDIS_URL, ['redis:', 'rediss:'])) issues.push('Production: tashqi Redis yoki Hostra private socket kerak');
+  }
+
   if (c.CORS_ORIGINS.split(',').some(origin => !remoteUrl(origin, ['https:'], true))) issues.push('Production: CORS_ORIGINS uchun to‘liq HTTPS originlar kerak');
   if (c.TELEGRAM_MODE !== 'disabled' && [c.TELEGRAM_ADMIN_URL, c.TELEGRAM_PARTNER_URL].some(url => !remoteUrl(url, ['https:']))) issues.push('Production: Telegram panel manzillari tashqi HTTPS bo‘lishi kerak');
   if (c.PUSH_ADAPTER === 'http' && (!c.PUSH_HTTP_URL || !c.PUSH_HTTP_TOKEN)) issues.push('Production: push HTTP adapteri uchun URL/token kerak');
