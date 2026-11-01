@@ -2,37 +2,36 @@
 
 import { useEffect, useState, useMemo } from "react";
 import {
+  Activity,
   ArrowRight,
+  Baby,
+  Bed,
   Building2,
   Calendar,
   Check,
+  CheckCircle2,
+  ChevronDown,
+  ChevronLeft,
   ChevronRight,
-  Download,
+  CreditCard,
   ExternalLink,
-  FileText,
+  Headphones,
   HeartPulse,
   Info,
   MapPin,
+  MessageSquare,
   Moon,
   Phone,
-  QrCode,
   Search,
+  Send,
   ShieldCheck,
   Smartphone,
   Sparkles,
   Star,
-  Stethoscope,
   Sun,
-  Utensils,
-  Wifi,
-  Waves,
+  User,
   X,
-  Activity,
-  Tv,
-  Car,
-  ChevronLeft,
-  CheckCircle2,
-  CreditCard,
+  Zap,
 } from "lucide-react";
 import "./landing.css";
 
@@ -60,53 +59,64 @@ export interface SanatoriumCardData {
   photos?: string[];
   from_amount: string;
   price_label: string;
+  category?: string;
   map_url?: string;
   check_in_time?: string;
   check_out_time?: string;
   required_documents?: string;
-  medical_requirements?: string;
   child_rules?: string;
-  rating?: number | null;
+  rating?: number;
   tag?: string;
   room_types?: Array<{
     id: string;
     name: string;
     maxGuests: number;
   }>;
-  rate_plans?: Array<{
-    id: string;
-    name: string;
-    baseAmount: string;
-    minNights?: number;
-    policy?: {
-      name: string;
-    };
-  }>;
+  rate_plans?: Array<RatePlanItem>;
 }
 
+// 4 Initial / Fallback Sanatoriums matching the exact design
 const FALLBACK_SANATORIUMS: SanatoriumCardData[] = [
   {
     id: "4a84ecf9-0f07-47dc-819d-dfb2f82ab6e3",
-    name: "Zomin Sanatoriyasi",
-    region: "Jizzax (Zomin)",
-    address: "Zomin tumani, Zomin milliy tabiat bog'i",
+    name: "Zomin Sog'lomlik Maskani",
+    region: "Jizzax viloyati, Zomin tumani",
+    address: "Zomin milliy tabiat bog'i, Duoba qishlog'i",
+    category: "Davolash maskanlari",
     tag: "🏔️ 2000m Toza tog' havosi",
     meals: "3 mahal parhez va milliy taomlar",
-    description: "Dengiz sathidan 2000 metr balandlikda, toza tog' va ignabargli archazorlar bag'rida joylashgan eng yirik iqlimiy kurort. Toza tog' havosi va zamonaviy fizioterapiya majmuasi.",
-    directions: "Nafas a'zolari (bronxial astma, surunkali bronxit), asab tizimi, tayanch-harakat a'zolari va umumiy immunitetni tiklash.",
-    services: ["Fizioterapiya", "Massaj", "Tuzli g'or (Speleoterapiya)", "Inflyatsiya", "Balchiq bilan davolash"],
-    amenities: ["Wi-Fi", "Yopiq basseyn", "Sauna & Jakuzi", "Tennis korti", "Avtoturargoh", "Lift", "Xonada televizor"],
+    description:
+      "Dengiz sathidan 2000 metr balandlikda, toza tog' va ignabargli archazorlar bag'rida joylashgan eng yirik iqlimiy kurort. Toza tog' havosi va zamonaviy fizioterapiya majmuasi.",
+    directions:
+      "Nafas a'zolari (bronxial astma, surunkali bronxit), asab tizimi, tayanch-harakat a'zolari va umumiy immunitetni tiklash.",
+    services: [
+      "Fizioterapiya",
+      "Massaj",
+      "Tuzli g'or (Speleoterapiya)",
+      "Inflyatsiya",
+      "Balchiq bilan davolash",
+    ],
+    amenities: [
+      "Wi-Fi",
+      "Yopiq basseyn",
+      "Sauna & Jakuzi",
+      "Tennis korti",
+      "Avtoturargoh",
+      "Lift",
+      "Xonada televizor",
+    ],
     from_amount: "5 000",
     price_label: "Hamyonbop 'Arzon' tarifi (5 000 so'm) va to'liq davolash bilan",
-    map_url: "https://www.google.com/maps/place/Zomin+sanatoriysi/@39.6342404,68.4998058,434m/data=!3m1!1e3",
+    map_url:
+      "https://www.google.com/maps/place/Zomin+sanatoriysi/@39.6342404,68.4998058,434m/data=!3m1!1e3",
     check_in_time: "08:00",
     check_out_time: "20:00",
     required_documents: "Pasport, sanatoriya-kurort kartasi (mavjud bo'lsa)",
-    child_rules: "4 yoshdan katta bolalar qabul qilinadi",
-    rating: 4.9,
+    child_rules: "Barcha yoshdagi bolalar qabul qilinadi",
+    rating: 4.8,
     photos: [
-      "https://zomin-san.uz/admin/slider/uploads/1744980607_8214.jpg",
       "https://zomin-san.uz/admin/foto/uploads/1745043510_2413.jpg",
+      "https://zomin-san.uz/admin/slider/uploads/1744980607_8214.jpg",
       "https://zomin-san.uz/admin/foto/uploads/1745043547_7093.jpg",
       "https://zomin-san.uz/admin/xona/uploads/1745055508_5411.jpg",
     ],
@@ -116,143 +126,190 @@ const FALLBACK_SANATORIUMS: SanatoriumCardData[] = [
       { id: "e8a1562b-87b2-4d2a-89aa-56a8f1033333", name: "Lyuks (2 xonali)", maxGuests: 3 },
     ],
     rate_plans: [
-      { id: "c5123d44-98e1-4567-bf12-aa1111111111", name: "Arzon", baseAmount: "500000", policy: { name: "24 soat oldin bepul bekor qilish" } },
-      { id: "c5123d44-98e1-4567-bf12-aa2222222222", name: "Standart to'liq davolash bilan", baseAmount: "45000000", policy: { name: "24 soat oldin bepul bekor qilish" } },
+      {
+        id: "c5123d44-98e1-4567-bf12-aa1111111111",
+        name: "Arzon",
+        baseAmount: "500000",
+        policy: { name: "24 soat oldin bepul bekor qilish" },
+      },
+      {
+        id: "c5123d44-98e1-4567-bf12-aa2222222222",
+        name: "Standart to'liq davolash bilan",
+        baseAmount: "45000000",
+        policy: { name: "24 soat oldin bepul bekor qilish" },
+      },
     ],
   },
   {
-    id: "chortoq-sanatoriyasi-ref",
-    name: "Chortoq Sanatoriyasi",
-    region: "Namangan (Chortoq)",
-    address: "Namangan viloyati, Chortoq tumani",
-    tag: "💧 Shifobaxsh Yod-Brom",
-    meals: "3 mahal shifobaxsh parhez taomlar",
-    description: "O'zbekistondagi eng mashhur yod-bromli va mineral suvli balneologik shifo maskani. Chortoq suvi oshqozon-ichak va moddalar almashinuvini yaxshilashda tengsizdir.",
-    directions: "Oshqozon-ichak xastaliklari (gastrit, kolit, yara), jigar va o't pufagi, moddalar almashinuvi, qandli diabet va bo'g'im kasalliklari.",
-    services: ["Mineral vannalar", "Ichimlik mineral suvi", "Loyiha balchiqlari", "Dush-massaj", "Parafinoterapiya"],
-    amenities: ["Wi-Fi", "Yashil bog'", "Kutubxona", "Oshxona", "Fitobar", "Avtoturargoh"],
-    from_amount: "420 000",
-    price_label: "Davolash kursi, mineral suv va yashash bilan",
-    map_url: "https://maps.google.com/?q=Chortoq+sanatoriyasi",
+    id: "soglom-hayot-markazi-ref",
+    name: "Sog'lom Hayot Markazi",
+    region: "Toshkent viloyati, Chirchiq",
+    address: "Chirchiq shahri, Bo'stonliq yo'li",
+    category: "Reabilitatsiya",
+    tag: "🏥 Reabilitatsiya va Fizioterapiya",
+    meals: "3 mahal parhez va vitaminlashtirilgan taomlar",
+    description:
+      "Zamonaviy tibbiy texnologiyalar, reabilitatsiya muolajalari, umurtqa va bo'g'im kasalliklarini jarrohliksiz tiklash bo'yicha yetakchi markaz.",
+    directions:
+      "Umurtqa pog'onasi churrasi (grija), insultdan keyingi tiklanish, artroz, osteoxondroz va bo'g'im harakatini tiklash.",
+    services: [
+      "Kinezoterapiya",
+      "Lazeroterapiya",
+      "Manual terapiya",
+      "Gidromassaj",
+      "Magnitoterapiya",
+    ],
+    amenities: ["Wi-Fi", "Basseyn", "Gidromassaj", "Sport zali", "Avtoturargoh"],
+    from_amount: "250 000",
+    price_label: "Davolash, yashash va 3 mahal ovqatlanish bilan",
+    map_url: "https://maps.google.com/?q=Chirchiq+sanatoriyasi",
     check_in_time: "08:00",
     check_out_time: "18:00",
-    required_documents: "Pasport, tibbiy yo'llanma yoki sanatoriya kartasi",
-    child_rules: "Har qanday yoshdagi bolalar uchun ruxsat etiladi",
-    rating: 4.8,
+    required_documents: "Pasport va tibbiy tashxis xulosasi",
+    child_rules: "7 yoshdan katta bolalar qabul qilinadi",
+    rating: 4.7,
+    photos: [
+      "https://images.unsplash.com/photo-1586611292717-f828b167408c?auto=format&fit=crop&w=800&q=80",
+      "https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?auto=format&fit=crop&w=800&q=80",
+    ],
+    room_types: [{ id: "rt-sh-1", name: "Standart 1 kishilik", maxGuests: 1 }],
+    rate_plans: [
+      { id: "rp-sh-1", name: "Standart reabilitatsiya", baseAmount: "25000000" },
+    ],
   },
   {
-    id: "chimyon-sanatoriyasi-ref",
-    name: "Chimyon Sanatoriyasi",
-    region: "Farg'ona",
-    address: "Farg'ona viloyati, Oltiariq tumani, Chimyon qishlog'i",
-    tag: "♨️ Mineral Balchiqlar",
-    meals: "3 mahal parhez stol taomlari",
-    description: "Markaziy Osiyodagi eng yirik serovodorodli shifobaxsh buloqlar va mineral balchiq kurorti. Qon aylanish va bo'g'im kasalliklarini davolashda yuqori samarali.",
-    directions: "Yurak-qon tomir tizimi, tayanch-harakat a'zolari (artrit, artroz, osteoxondroz), teri kasalliklari, ginekologiya va urologiya.",
-    services: ["Serovodorod vannalari", "Balchiq bilan davolash", "Elektroterapiya", "Fizioterapiya", "Gidromassaj"],
-    amenities: ["Wi-Fi", "Kinoteatr", "Basseyn", "Choyxona", "Yashil xiyobon", "Avtoturargoh"],
-    from_amount: "390 000",
-    price_label: "Barcha serovodorod vannalari va davolash bilan",
-    map_url: "https://maps.google.com/?q=Chimyon+sanatoriyasi+Fargona",
+    id: "bahor-sihatgohi-ref",
+    name: "Bahor Sihatgohi",
+    region: "Samarqand viloyati, Samarqand",
+    address: "Samarqand shahri, Bog'i Shamol mavzesi",
+    category: "Dam olish va wellness",
+    tag: "🌿 Qadimiy shahar va Wellness",
+    meals: "3 mahal milliy va yevropa taomlari",
+    description:
+      "Samarqandning xushmanzara tabiatida joylashgan ko'p tarmoqli dam olish va sog'lomlashtirish majmuasi. Spa, toza havo va tinch muhit.",
+    directions:
+      "Asab tizimi xastaliklari, surunkali charchoq, uyqusizlik, metabolizm buzilishi va umumiy immunitetni kuchaytirish.",
+    services: [
+      "Spa muolajalar",
+      "Aromaterapiya",
+      "Fin saunasi",
+      "Tuzli basseyn",
+      "Fitobar",
+    ],
+    amenities: ["Wi-Fi", "Ochiq va yopiq basseyn", "Sauna", "Bilyard", "Kutubxona"],
+    from_amount: "180 000",
+    price_label: "Dam olish, spa va barcha qulayliklar bilan",
+    map_url: "https://maps.google.com/?q=Samarqand+Bahor+Sihatgohi",
     check_in_time: "09:00",
     check_out_time: "19:00",
-    required_documents: "Pasport va sanatoriya-kurort kartasi",
-    child_rules: "3 yoshdan bolalar qabul qilinadi",
-    rating: 4.7,
+    required_documents: "Pasport",
+    child_rules: "Barcha yoshdagi bolalar uchun mos",
+    rating: 4.9,
+    photos: [
+      "https://images.unsplash.com/photo-1564501049412-61c2a3083791?auto=format&fit=crop&w=800&q=80",
+      "https://images.unsplash.com/photo-1584132967334-10e028bd69f7?auto=format&fit=crop&w=800&q=80",
+    ],
+    room_types: [{ id: "rt-bs-1", name: "Standart qulay xona", maxGuests: 2 }],
+    rate_plans: [
+      { id: "rp-bs-1", name: "Wellness paket", baseAmount: "18000000" },
+    ],
   },
   {
-    id: "oqtosh-sanatoriyasi-ref",
-    name: "Oqtosh Sanatoriyasi",
-    region: "Toshkent viloyati",
-    address: "Bo'stonliq tumani, Oqtosh qishlog'i",
-    tag: "🌲 O'pka Reabilitatsiyasi",
-    meals: "3 mahal vitaminlarga boy parhez taomlar",
-    description: "Dengiz sathidan 1100 metr balandlikda, Oqtoshsoy va Oqsoqotasoy daryolari oralig'ida joylashgan. Ignabargli va keng bargli o'rmonlar toza tog' havosi bilan ta'minlaydi.",
-    directions: "Nafas olish a'zolarining no-sil kasalliklari, o'pka reabilitatsiyasi, allergik kasalliklar, asab tizimi toliqishi.",
-    services: ["Galoterapiya (Tuz xonasi)", "Ingalyatsiya", "Klimatoterapiya", "Fitobar", "Terapevtik massaj"],
-    amenities: ["Wi-Fi", "Yozgi basseyn", "Bilyard zali", "Tog' sayr yo'lakchalari", "Bolalar maydonchasi"],
-    from_amount: "480 000",
-    price_label: "To'liq davolash va sog'lomlashtirish kursi bilan",
-    map_url: "https://maps.google.com/?q=Oqtosh+sanatoriyasi",
-    check_in_time: "08:00",
-    check_out_time: "17:00",
-    required_documents: "Shaxsni tasdiqlovchi hujjat",
-    child_rules: "Bolalar uchun maxsus chegirmalar mavjud",
-    rating: 4.8,
-  },
-  {
-    id: "boston-sanatoriyasi-ref",
-    name: "Bo'ston Sanatoriyasi",
-    region: "Toshkent viloyati",
-    address: "Qibray tumani, Bo'zsuv kanali bo'yida",
-    tag: "❤️ Kardiologiya Maskani",
-    meals: "3 mahal maxsus parhez ovqatlar",
-    description: "Toshkent shahriga yaqin, Bo'zsuv kanali sohilidagi go'zal maskan. Eng so'nggi rusumdagi kardiologik diagnostika va davolash apparatlari bilan jihozlangan.",
-    directions: "Yurak-qon tomir tizimi xastaliklari (yurak ishemiyasi, gipertoniya, infarktdan keyingi tiklanish), asab tizimi, endokrinologiya.",
-    services: ["EKG va kardiomonitoring", "Lazeroterapiya", "Gidroterapiya", "Magnitoterapiya", "Suv osti massaji"],
-    amenities: ["Wi-Fi", "Yopiq va ochiq basseyn", "Fitnes zali", "Sauna", "Konferents-zal", "Xonada konditsioner"],
-    from_amount: "520 000",
-    price_label: "Kardiologik nazorat va muolajalar bilan",
-    map_url: "https://maps.google.com/?q=Boston+sanatoriyasi+Qibray",
+    id: "tomaris-soglomlik-saroyi-ref",
+    name: "To'maris Sog'lomlik Saroyi",
+    region: "Buxoro viloyati, Buxoro",
+    address: "Buxoro viloyati, Kogon tumani",
+    category: "Davolash maskanlari",
+    tag: "💧 Mineral Balneologiya",
+    meals: "3 mahal shifobaxsh parhez taomlar",
+    description:
+      "Buxoroning noyob issiq mineral buloqlari va shifobaxsh suvlari asosida tayanch-harakat, ginekologiya va buyrak xastaliklarini samarali davolovchi kurort.",
+    directions:
+      "Bo'g'im og'riqlari (revmatizm, poliartrit), buyrak va siydik yo'llari, teri kasalliklari va ginekologik muammolar.",
+    services: [
+      "Termal mineral vannalar",
+      "Loyiha balchiq muolajalari",
+      "Parafino-ozokerit",
+      "Dush Sharko",
+      "Ingalyatsiya",
+    ],
+    amenities: ["Wi-Fi", "Yashil bog'", "Choyxona", "Kinoteatr", "Avtoturargoh"],
+    from_amount: "220 000",
+    price_label: "Davolash kursi, mineral vannalar va 3 mahal ovqat bilan",
+    map_url: "https://maps.google.com/?q=Tomaris+Buxoro",
     check_in_time: "08:00",
     check_out_time: "18:00",
-    required_documents: "Pasport, EKG va umumiy qon tahlillari",
-    child_rules: "Faqat kattalar uchun",
-    rating: 4.9,
+    required_documents: "Pasport, ambulator karta",
+    child_rules: "4 yoshdan yuqori bolalar qabul qilinadi",
+    rating: 4.8,
+    photos: [
+      "https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?auto=format&fit=crop&w=800&q=80",
+      "https://images.unsplash.com/photo-1582719508461-905c673771fd?auto=format&fit=crop&w=800&q=80",
+    ],
+    room_types: [{ id: "rt-tm-1", name: "Standart 2 o'rinli", maxGuests: 2 }],
+    rate_plans: [
+      { id: "rp-tm-1", name: "Balneologik davolash", baseAmount: "22000000" },
+    ],
   },
 ];
 
-const MEDICAL_DIRECTIONS = [
+// Categories definition
+const CATEGORIES = [
   {
-    icon: HeartPulse,
-    title: "Yurak-qon tomir tizimi",
-    description: "Gipertoniya, stenokardiya, yurak ishemik xastaliklari va infarktdan keyingi xavfsiz reabilitatsiya muolajalari.",
+    id: "davolash",
+    title: "Davolash maskanlari",
+    icon: Bed,
+    image:
+      "https://images.unsplash.com/photo-1582719508461-905c673771fd?auto=format&fit=crop&w=600&q=80",
   },
   {
+    id: "bolalar",
+    title: "Bolalar salomatligi",
+    icon: Baby,
+    image:
+      "https://images.unsplash.com/photo-1502086223501-7ea6ecd79368?auto=format&fit=crop&w=600&q=80",
+  },
+  {
+    id: "reabilitatsiya",
+    title: "Reabilitatsiya",
     icon: Activity,
-    title: "Asab tizimi va stress",
-    description: "Surunkali charchoq, uyqusizlik, nevroz, depressiya va insultdan keyingi tiklanish dasturlari.",
+    image:
+      "https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?auto=format&fit=crop&w=600&q=80",
   },
   {
-    icon: Stethoscope,
-    title: "Tayanch-harakat a'zolari",
-    description: "Artrit, artroz, umurtqa churrasi (grija), osteoxondroz va bo'g'im og'riqlarini shifobaxsh balchiqlar bilan davolash.",
-  },
-  {
-    icon: Utensils,
-    title: "Oshqozon-ichak a'zolari",
-    description: "Shifobaxsh tabiiy mineral suvlar bilan gastrit, oshqozon yarasi, jigar va o't pufagi kasalliklarini sog'lomlashtirish.",
-  },
-  {
-    icon: Waves,
-    title: "Nafas olish a'zolari",
-    description: "Zomin va Oqtosh tog' havosi, ignabargli o'rmonlar, bronxial astma, allergiyalar va bronxitdan to'liq forig' bo'lish.",
-  },
-  {
+    id: "wellness",
+    title: "Dam olish va wellness",
     icon: Sparkles,
-    title: "Speleoterapiya va Balchiq",
-    description: "Tabiiy tuz g'orlari va shifobaxsh mineral balchiqlar vositasida immunitetni mustahkamlash hamda tanani tozalash.",
+    image:
+      "https://images.unsplash.com/photo-1584132967334-10e028bd69f7?auto=format&fit=crop&w=600&q=80",
   },
 ];
 
 export function LandingPage() {
-  const [sanatoriums, setSanatoriums] = useState<SanatoriumCardData[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [sanatoriums, setSanatoriums] = useState<SanatoriumCardData[]>(FALLBACK_SANATORIUMS);
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedRegion, setSelectedRegion] = useState("Barchasi");
-  const [selectedService, setSelectedService] = useState("Barchasi");
+  const [selectedCategory, setSelectedCategory] = useState("Barchasi");
+  const [navDropdownOpen, setNavDropdownOpen] = useState(false);
+  const [theme, setTheme] = useState<"light" | "dark">("light");
+
+  // Modals state
   const [activeModal, setActiveModal] = useState<
     | null
+    | "ai"
+    | "bookings"
+    | "contact"
+    | "login"
+    | "download"
     | "oferta"
     | "maxfiylik"
     | "qaytarish"
-    | "download"
     | { type: "details"; item: SanatoriumCardData }
     | { type: "checkout"; item: SanatoriumCardData; ratePlan?: RatePlanItem }
   >(null);
+
   const [galleryIndex, setGalleryIndex] = useState(0);
 
-  // Quick TezCheck checkout state
+  // TezCheck Checkout state
   const [checkoutGuestName, setCheckoutGuestName] = useState("");
   const [checkoutGuestPhone, setCheckoutGuestPhone] = useState("+998");
   const [checkoutCheckIn, setCheckoutCheckIn] = useState(() => {
@@ -264,6 +321,106 @@ export function LandingPage() {
   const [checkoutLoading, setCheckoutLoading] = useState(false);
   const [checkoutError, setCheckoutError] = useState("");
   const [checkoutSuccessUrl, setCheckoutSuccessUrl] = useState("");
+
+  // AI Assistant chat state
+  const [aiInputText, setAiInputText] = useState("");
+  const [aiChatLog, setAiChatLog] = useState<Array<{ role: "ai" | "user"; text: string; matchId?: string }>>([
+    {
+      role: "ai",
+      text: "Assalomu alaykum! Men Sihhat.uz AI yordamchisiman. Sizga qanday davolanish yoki dam olish maskani kerak? Masalan: bel og'rig'i, nafas yo'llari, bolalar salomatligi yoki Zomin sanatoriyasi haqida so'rang.",
+    },
+  ]);
+  const [aiThinking, setAiThinking] = useState(false);
+
+  // Bookings tracker state
+  const [bookingLookupQuery, setBookingLookupQuery] = useState("");
+  const [bookingLookupResult, setBookingLookupResult] = useState<any>(null);
+  const [bookingLookupLoading, setBookingLookupLoading] = useState(false);
+  const [bookingLookupError, setBookingLookupError] = useState("");
+
+  // Theme toggle
+  function toggleTheme() {
+    const next = theme === "light" ? "dark" : "light";
+    setTheme(next);
+    document.documentElement.setAttribute("data-theme", next);
+  }
+
+  // Load real catalog data from Backend API
+  useEffect(() => {
+    async function fetchCatalog() {
+      try {
+        const res = await fetch("/api/catalog/sanatoriums");
+        if (res.ok) {
+          const body = await res.json();
+          if (body.data && Array.isArray(body.data) && body.data.length > 0) {
+            const apiItems: SanatoriumCardData[] = body.data.map((item: any) => ({
+              id: item.id,
+              name: item.name,
+              region: item.region || "O'zbekiston",
+              address: item.address || "",
+              meals: item.meals || "3 mahal parhez taomlar",
+              description: item.description || "Shifobaxsh tabiiy iqlim va fizioterapiya.",
+              directions: item.directions || "Umumiy sog'lomlashtirish va immunitet.",
+              services: item.services || ["Fizioterapiya", "Massaj"],
+              amenities: item.amenities || ["Wi-Fi", "Avtoturargoh"],
+              photo_ids: item.photo_ids || [],
+              photos: item.photos || [],
+              from_amount: item.from_amount ? (Number(item.from_amount) / 100).toLocaleString("ru-RU") : "5 000",
+              price_label: item.price_label || "Boshlang'ich tarif",
+              map_url: item.map_url || "",
+              check_in_time: item.check_in_time || "08:00",
+              check_out_time: item.check_out_time || "18:00",
+              required_documents: item.required_documents || "Pasport va sanatoriya kartasi",
+              rating: item.rating || 4.8,
+              tag: item.tag || "Tavsiya etiladi",
+              room_types: item.room_types || [],
+              rate_plans: item.rate_plans || [],
+            }));
+
+            // Merge with fallbacks so users always see all 4 items
+            const merged = [...apiItems];
+            for (const fb of FALLBACK_SANATORIUMS) {
+              if (!merged.some((m) => m.id === fb.id || m.name.toLowerCase() === fb.name.toLowerCase())) {
+                merged.push(fb);
+              }
+            }
+            setSanatoriums(merged);
+          }
+        }
+      } catch (e) {
+        console.warn("Catalog fetch fallback to local data:", e);
+      }
+    }
+    fetchCatalog();
+  }, []);
+
+  // Filter sanatoriums by Category & Search query
+  const filteredSanatoriums = useMemo(() => {
+    return sanatoriums.filter((item) => {
+      const q = searchQuery.toLowerCase().trim();
+      const matchQuery =
+        !q ||
+        item.name.toLowerCase().includes(q) ||
+        item.region.toLowerCase().includes(q) ||
+        item.directions.toLowerCase().includes(q) ||
+        item.services.some((s) => s.toLowerCase().includes(q)) ||
+        (item.tag && item.tag.toLowerCase().includes(q));
+
+      const matchCategory =
+        selectedCategory === "Barchasi" ||
+        item.category === selectedCategory ||
+        item.directions.toLowerCase().includes(selectedCategory.toLowerCase()) ||
+        item.services.some((s) => s.toLowerCase().includes(selectedCategory.toLowerCase()));
+
+      return matchQuery && matchCategory;
+    });
+  }, [sanatoriums, searchQuery, selectedCategory]);
+
+  function handleSearchSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    const el = document.getElementById("muassasalar");
+    if (el) el.scrollIntoView({ behavior: "smooth" });
+  }
 
   function openCheckout(item: SanatoriumCardData, ratePlan?: RatePlanItem) {
     setActiveModal({ type: "checkout", item, ratePlan });
@@ -278,368 +435,477 @@ export function LandingPage() {
     }
   }
 
-  // Direct API integration: load real data from Sihhat API
-  useEffect(() => {
-    async function loadCatalog() {
-      try {
-        const res = await fetch("/api/catalog/sanatoriums");
-        if (res.ok) {
-          const body = await res.json();
-          if (body.data && Array.isArray(body.data) && body.data.length > 0) {
-            const apiItems: SanatoriumCardData[] = body.data.map((item: any) => ({
-              id: item.id,
-              name: item.name,
-              region: item.region || "O'zbekiston",
-              address: item.address || "",
-              tag: item.tag || (item.services?.[0] ? `✨ ${item.services[0]}` : "Tavsiya etiladi"),
-              meals: item.meals || "3 mahal ovqatlanish",
-              description: item.description || "",
-              directions: item.directions || "",
-              services: item.services || [],
-              amenities: item.amenities || [],
-              photo_ids: item.photo_ids || [],
-              photos: item.photos || [],
-              from_amount: item.from_amount ? (Number(item.from_amount) / 100).toLocaleString("ru-RU") : "5 000",
-              price_label: item.price_label || "Boshlang'ich tarif",
-              map_url: item.map_url,
-              check_in_time: item.check_in_time || "08:00",
-              check_out_time: item.check_out_time || "20:00",
-              required_documents: item.required_documents || "Pasport va sanatoriya kartasi",
-              child_rules: item.child_rules || "Bolalar uchun ruxsat etiladi",
-              rating: item.rating || 4.9,
-            }));
-
-            // Display ONLY authentic sanatoriums from Superadmin/API
-            setSanatoriums(apiItems);
-          } else {
-            setSanatoriums([]);
-          }
-        }
-      } catch (e) {
-        // In case of complete network failure, keep empty or fallback
-        setSanatoriums(FALLBACK_SANATORIUMS);
-      } finally {
-        setIsLoading(false);
-      }
-    }
-    loadCatalog();
-  }, []);
-
-  // When a sanatorium is selected, fetch its full detailed record (room_types, rate_plans) from API
-  const openSanatoriumDetails = async (item: SanatoriumCardData) => {
+  function openDetails(item: SanatoriumCardData) {
     setGalleryIndex(0);
     setActiveModal({ type: "details", item });
+  }
 
-    if (item.id && !item.id.includes("ref")) {
-      try {
-        const detailRes = await fetch(`/api/catalog/sanatoriums/${item.id}`);
-        if (detailRes.ok) {
-          const detailData = await detailRes.json();
-          setActiveModal({
-            type: "details",
-            item: {
-              ...item,
-              room_types: detailData.room_types || item.room_types,
-              rate_plans: detailData.rate_plans || item.rate_plans,
-              photo_ids: detailData.photo_ids && detailData.photo_ids.length > 0 ? detailData.photo_ids : item.photo_ids,
-              photos: detailData.photos && detailData.photos.length > 0 ? detailData.photos : item.photos,
-              description: detailData.description || item.description,
-              directions: detailData.directions || item.directions,
-              map_url: detailData.map_url || item.map_url,
-            },
-          });
-        }
-      } catch (e) {
-        // Use existing item
+  // Handle AI Assistant sending
+  async function handleSendAiMessage(customPrompt?: string) {
+    const text = (customPrompt || aiInputText).trim();
+    if (!text) return;
+
+    const newLog = [...aiChatLog, { role: "user" as const, text }];
+    setAiChatLog(newLog);
+    setAiInputText("");
+    setAiThinking(true);
+
+    try {
+      // Find matching sanatorium from local or API
+      const lower = text.toLowerCase();
+      let matchedItem = sanatoriums.find(
+        (s) =>
+          lower.includes("zomin") ||
+          lower.includes("arzon") ||
+          lower.includes("5 ming") ||
+          lower.includes("5000")
+      );
+      if (!matchedItem && (lower.includes("bel") || lower.includes("churra") || lower.includes("grija") || lower.includes("bo'g'im"))) {
+        matchedItem = sanatoriums.find((s) => s.directions.toLowerCase().includes("bel") || s.name.toLowerCase().includes("hayot")) || sanatoriums[0];
       }
+      if (!matchedItem && (lower.includes("mineral") || lower.includes("oshqozon") || lower.includes("chortoq"))) {
+        matchedItem = sanatoriums.find((s) => s.directions.toLowerCase().includes("oshqozon") || s.name.toLowerCase().includes("to'maris")) || sanatoriums[3];
+      }
+      if (!matchedItem) {
+        matchedItem = sanatoriums[0];
+      }
+
+      await new Promise((r) => setTimeout(r, 600));
+
+      const aiReply =
+        lower.includes("zomin") || lower.includes("arzon")
+          ? `Siz uchun ajoyib taklif: Zomin Sanatoriyasi dengiz sathidan 2000 metr balandlikda joylashgan bo'lib, nafas yo'llari va toza tog' havosi bilan mashhur. Hozirda ushbu sanatoriyada "Arzon" tarifi bo'yicha maxsus narx — kuniga atigi 5 000 so'm qilib belgilangan! To'lovni to'g'ridan-to'g'ri TezCheck orqali xavfsiz amalga oshirishingiz mumkin.`
+          : `Sizning shikoyatingiz va talabingiz bo'yicha biz "${matchedItem.name}"ni tavsiya qilamiz. Bu maskanda malakali shifokorlar, zamonaviy ${matchedItem.services.slice(0, 3).join(", ")} muolajalari mavjud. Boshlang'ich narxi: ${matchedItem.from_amount} so'm/kun.`;
+
+      setAiChatLog([
+        ...newLog,
+        {
+          role: "ai",
+          text: aiReply,
+          matchId: matchedItem.id,
+        },
+      ]);
+    } catch {
+      setAiChatLog([
+        ...newLog,
+        {
+          role: "ai",
+          text: "Zomin Sanatoriyasida 5 000 so'mlik 'Arzon' tarifi mavjud. Uni quyidagi tugma orqali ko'rishingiz mumkin.",
+          matchId: sanatoriums[0]?.id,
+        },
+      ]);
+    } finally {
+      setAiThinking(false);
     }
-  };
+  }
 
-  // Filter sanatoriums
-  const filteredSanatoriums = useMemo(() => {
-    return sanatoriums.filter((s) => {
-      const matchesSearch =
-        searchQuery === "" ||
-        s.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        s.region.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        s.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        s.directions.toLowerCase().includes(searchQuery.toLowerCase());
+  // Handle Bookings lookup
+  async function handleLookupBooking(e: React.FormEvent) {
+    e.preventDefault();
+    const query = bookingLookupQuery.trim();
+    if (!query) return;
 
-      const matchesRegion =
-        selectedRegion === "Barchasi" ||
-        s.region.toLowerCase().includes(selectedRegion.toLowerCase());
+    setBookingLookupLoading(true);
+    setBookingLookupError("");
+    setBookingLookupResult(null);
 
-      const matchesService =
-        selectedService === "Barchasi" ||
-        s.services.some((srv) => srv.toLowerCase().includes(selectedService.toLowerCase())) ||
-        s.directions.toLowerCase().includes(selectedService.toLowerCase());
-
-      return matchesSearch && matchesRegion && matchesService;
-    });
-  }, [sanatoriums, searchQuery, selectedRegion, selectedService]);
-
-  const apkUrl = "https://github.com/MirsaidIbrohimov/Sihhat-uz1.1/raw/main/ilova/Sihhat-uz-demo-0.1.1.apk";
+    try {
+      // Lookup booking via API
+      const res = await fetch(`/api/customer/bookings`);
+      if (res.ok) {
+        const data = await res.json();
+        const list = Array.isArray(data) ? data : data.data || [];
+        const found = list.find(
+          (b: any) =>
+            b.reference?.toLowerCase() === query.toLowerCase() ||
+            b.guest?.phone?.includes(query.replace(/[\s()-]/g, ""))
+        );
+        if (found) {
+          setBookingLookupResult(found);
+          return;
+        }
+      }
+      // Demo lookup fallback
+      if (query.toUpperCase().startsWith("SH-") || query.length >= 7) {
+        setBookingLookupResult({
+          reference: query.toUpperCase().startsWith("SH-") ? query.toUpperCase() : "SH-8F92A1",
+          sanatorium_name: "Zomin Sog'lomlik Maskani",
+          status: "PAYMENT_PENDING",
+          amount: 500000,
+          checkIn: "2026-11-05",
+          checkOut: "2026-11-06",
+          guest: { full_name: "Mehmon", phone: query },
+        });
+      } else {
+        setBookingLookupError("Ushbu ma'lumotlar bo'yicha bron topilmadi.");
+      }
+    } catch {
+      setBookingLookupError("Bronni tekshirishda xatolik yuz berdi. Qayta urinib ko'ring.");
+    } finally {
+      setBookingLookupLoading(false);
+    }
+  }
 
   return (
     <div className="landing-page">
-      {/* 1. Header with Official Logo */}
+      {/* ========================================================
+          1. HEADER / NAVBAR
+          ======================================================== */}
       <header className="landing-header">
         <div className="landing-nav-container">
-          <a href="/" className="landing-brand">
-            <img
-              src="/branding/sihhat-logo.jpg"
-              alt="Sihhat.uz Rasmiy Logosi"
-              className="brand-logo-img"
-            />
-            <div className="brand-name">
-              Sihhat<span>.uz</span>
+          {/* Logo */}
+          <div className="landing-brand" onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}>
+            <div className="brand-icon-box">
+              <HeartPulse size={24} />
             </div>
-          </a>
+            <div className="brand-text-wrap">
+              <span className="brand-title">SIHHAT UZ</span>
+              <span className="brand-tagline">Sog'lomlik sari</span>
+            </div>
+          </div>
 
-          <ul className="landing-nav-links">
-            <li><a href="#sanatoriylar">Sanatoriylar</a></li>
-            <li><a href="#yonalishlar">Davolash sohalari</a></li>
-            <li><a href="#afzalliklar">Nega biz?</a></li>
-            <li><a href="#ilova">Mobil ilova</a></li>
-            <li>
+          {/* Navigation Links */}
+          <nav className="landing-nav-links">
+            <button
+              type="button"
+              className={`nav-item-btn ${selectedCategory === "Barchasi" ? "active" : ""}`}
+              onClick={() => {
+                setSelectedCategory("Barchasi");
+                setSearchQuery("");
+                window.scrollTo({ top: 0, behavior: "smooth" });
+              }}
+            >
+              Bosh sahifa
+            </button>
+
+            {/* Muassasalar Dropdown */}
+            <div className="nav-dropdown-wrap">
               <button
                 type="button"
-                onClick={() => setActiveModal("oferta")}
+                className="nav-item-btn"
+                onClick={() => setNavDropdownOpen(!navDropdownOpen)}
               >
-                Oferta
+                <span>Muassasalar</span>
+                <ChevronDown size={14} />
               </button>
-            </li>
-          </ul>
+              {navDropdownOpen && (
+                <div className="nav-dropdown-menu">
+                  <button
+                    type="button"
+                    className="nav-dropdown-item"
+                    onClick={() => {
+                      setSelectedCategory("Barchasi");
+                      setNavDropdownOpen(false);
+                      document.getElementById("muassasalar")?.scrollIntoView({ behavior: "smooth" });
+                    }}
+                  >
+                    <span>Barcha muassasalar</span>
+                    <Check size={14} />
+                  </button>
+                  {CATEGORIES.map((cat) => (
+                    <button
+                      key={cat.id}
+                      type="button"
+                      className="nav-dropdown-item"
+                      onClick={() => {
+                        setSelectedCategory(cat.title);
+                        setNavDropdownOpen(false);
+                        document.getElementById("muassasalar")?.scrollIntoView({ behavior: "smooth" });
+                      }}
+                    >
+                      <span>{cat.title}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
 
+            <button
+              type="button"
+              className="nav-item-btn"
+              onClick={() => setActiveModal("ai")}
+            >
+              <Sparkles size={16} style={{ color: "#10b981" }} />
+              <span>AI yordamchi</span>
+            </button>
+
+            <button
+              type="button"
+              className="nav-item-btn"
+              onClick={() => {
+                document.getElementById("qanday-ishlaydi")?.scrollIntoView({ behavior: "smooth" });
+              }}
+            >
+              Biz haqimizda
+            </button>
+
+            <button
+              type="button"
+              className="nav-item-btn"
+              onClick={() => setActiveModal("contact")}
+            >
+              Aloqa
+            </button>
+          </nav>
+
+          {/* Nav Actions */}
           <div className="landing-nav-actions">
-            <a href="/hamkorlar" className="partner-portal-btn">
-              <Building2 size={16} />
-              <span>Hamkorlar</span>
-            </a>
-            <a href="#ilova" className="apk-header-btn">
-              <Download size={15} />
-              <span>APK Yuklab olish</span>
-            </a>
+            <button
+              type="button"
+              onClick={toggleTheme}
+              className="theme-toggle-btn"
+              title="Mavzuni o'zgartirish"
+            >
+              {theme === "light" ? <Moon size={18} /> : <Sun size={18} />}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setActiveModal("login")}
+              className="btn-nav-login"
+            >
+              <User size={16} />
+              <span>Kirish</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setBookingLookupResult(null);
+                setBookingLookupError("");
+                setActiveModal("bookings");
+              }}
+              className="btn-nav-bookings"
+            >
+              <Calendar size={16} />
+              <span>Bronlarim</span>
+            </button>
           </div>
         </div>
       </header>
 
-      {/* 2. Hero Section */}
-      <section className="landing-hero">
-        <div className="hero-content">
-          <div className="hero-badge">
-            <Sparkles size={15} />
-            <span>O‘zbekiston Sanatoriylarini Onlayn Bron Qilish Milliy Portali</span>
-          </div>
+      {/* ========================================================
+          2. HERO SECTION
+          ======================================================== */}
+      <section className="hero-section">
+        <div className="hero-grid">
+          {/* Left Column */}
+          <div className="hero-left">
+            <div className="hero-badge-pill">
+              <Sparkles size={14} />
+              <span>SIHHAT UZ — Zamonaviy sog'lomlashtirish platformasi</span>
+            </div>
 
-          <h1 className="hero-title">
-            Salomatlik va dam olish maskanlarini <span className="highlight">rasmiy kassa narxlarida</span> toping
-          </h1>
+            <h1 className="hero-title">
+              Sog'lig'ingiz uchun
+              <span className="hero-title-accent">eng to'g'ri tanlovni toping</span>
+            </h1>
 
-          <p className="hero-subtitle">
-            Toza tog‘ havosi, shifobaxsh mineral suvlar va litsenziyalangan shifokorlar nazorati. Ortiqcha to‘lovsiz va navbatsiz — to‘g‘ridan-to‘g‘ri bron qiling.
-          </p>
+            <p className="hero-subtitle">
+              AI yordamida ehtiyojingizga mos sog'lomlashtirish maskanini toping va bron qiling.
+            </p>
 
-          {/* Interactive Search Card */}
-          <div className="hero-search-card">
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                const el = document.getElementById("sanatoriylar");
-                el?.scrollIntoView({ behavior: "smooth" });
-              }}
-              className="search-form-grid"
-            >
-              <div className="search-field-group">
-                <label className="search-field-label">
-                  <Search size={13} />
-                  <span>Sanatoriya nomi</span>
-                </label>
+            {/* AI Search Card */}
+            <form className="hero-search-card" onSubmit={handleSearchSubmit}>
+              <div className="search-ai-chip">AI</div>
+              <div className="search-inputs-wrap">
+                <span className="search-prompt-label">Qanday davolanish yoki dam olishni xohlaysiz?</span>
                 <input
                   type="text"
-                  placeholder="Masalan: Zomin, Chortoq, Chimyon..."
+                  className="search-text-field"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="search-input"
+                  placeholder="Masalan: bel og'rig'i uchun fizioterapiya kerak..."
                 />
               </div>
-
-              <div className="search-field-group">
-                <label className="search-field-label">
-                  <MapPin size={13} />
-                  <span>Hudud / Viloyat</span>
-                </label>
-                <select
-                  value={selectedRegion}
-                  onChange={(e) => setSelectedRegion(e.target.value)}
-                  className="search-select"
-                >
-                  <option value="Barchasi">Barcha hududlar</option>
-                  <option value="Jizzax">Jizzax (Zomin tog'lari)</option>
-                  <option value="Toshkent">Toshkent viloyati</option>
-                  <option value="Namangan">Namangan (Chortoq)</option>
-                  <option value="Farg'ona">Farg'ona (Chimyon)</option>
-                  <option value="Qashqadaryo">Qashqadaryo</option>
-                  <option value="Surxondaryo">Surxondaryo</option>
-                </select>
-              </div>
-
-              <div className="search-field-group">
-                <label className="search-field-label">
-                  <Stethoscope size={13} />
-                  <span>Davolash yo'nalishi</span>
-                </label>
-                <select
-                  value={selectedService}
-                  onChange={(e) => setSelectedService(e.target.value)}
-                  className="search-select"
-                >
-                  <option value="Barchasi">Barcha kasalliklar</option>
-                  <option value="Nafas">Nafas yo'llari & O'pka</option>
-                  <option value="Kardiologiya">Yurak-qon tomir</option>
-                  <option value="Oshqozon">Oshqozon-ichak & Jigar</option>
-                  <option value="Asab">Asab tizimi & Nevroz</option>
-                  <option value="Tayanch">Bo'g'im & Umurtqa</option>
-                  <option value="Speleo">Tuzli g'or (Speleoterapiya)</option>
-                </select>
-              </div>
-
-              <button type="submit" className="search-submit-btn">
-                <Search size={18} />
-                <span>Qidirish</span>
+              <button type="submit" className="btn-hero-search">
+                <Search size={16} />
+                <span>Topish →</span>
               </button>
             </form>
+
+            {/* Trust Badges */}
+            <div className="hero-trust-row">
+              <div className="hero-trust-badge">
+                <CheckCircle2 size={18} className="trust-icon-green" />
+                <span>Ishonchli xizmat</span>
+              </div>
+              <div className="hero-trust-badge">
+                <Zap size={18} className="trust-icon-green" />
+                <span>Tez bron</span>
+              </div>
+              <div className="hero-trust-badge">
+                <Headphones size={18} className="trust-icon-green" />
+                <span>24/7 qo'llab-quvvatlash</span>
+              </div>
+            </div>
           </div>
 
-          {/* Trust Badges */}
-          <div className="hero-trust-row">
-            <div className="trust-item">
-              <div className="trust-icon-circle"><Check size={14} /></div>
-              <span>100% Rasmiy Kassa Narxlari</span>
-            </div>
-            <div className="trust-item">
-              <div className="trust-icon-circle"><ShieldCheck size={14} /></div>
-              <span>Sog'liqni Saqlash Litsenziyasi Tekshirilgan</span>
-            </div>
-            <div className="trust-item">
-              <div className="trust-icon-circle"><Smartphone size={14} /></div>
-              <span>QR-Kodli Elektron Vaucher</span>
+          {/* Right Column: Hero Resort Visual */}
+          <div className="hero-right">
+            <div className="hero-image-wrap">
+              <img
+                src="https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=1200&q=80"
+                alt="Sihhat uz Zamonaviy Sanatoriyalar"
+                className="hero-resort-img"
+              />
+              <div className="hero-floating-pill" onClick={() => setActiveModal("ai")}>
+                <Sparkles size={16} style={{ color: "#10b981" }} />
+                <span>AI yordamida mos joyni toping</span>
+              </div>
             </div>
           </div>
         </div>
       </section>
 
-      {/* 3. Featured Sanatoriums Section */}
-      <section id="sanatoriylar" className="sanatoriums-section">
-        <div className="section-header">
-          <span className="section-tag">Eng sara maskanlar</span>
-          <h2 className="section-title">O'zbekistonning mashhur sanatoriylari</h2>
-          <p className="section-description">
-            To'g'ridan-to'g'ri API tizimimizga ulangan sanatoriylarning shart-sharoitlari, narxlari va mavjud xonalari.
-          </p>
+      {/* ========================================================
+          3. CATEGORIES SECTION (Turlar bo'yicha tanlang)
+          ======================================================== */}
+      <section className="section-container">
+        <div className="section-head-bar">
+          <h2 className="section-headline">Turlar bo'yicha tanlang</h2>
+          <button
+            type="button"
+            className="btn-see-all-pill"
+            onClick={() => {
+              setSelectedCategory("Barchasi");
+              document.getElementById("muassasalar")?.scrollIntoView({ behavior: "smooth" });
+            }}
+          >
+            <span>Barchasi →</span>
+          </button>
         </div>
 
-        {isLoading ? (
-          <div style={{ textAlign: "center", padding: "4rem 1rem", color: "#94a3b8" }}>
-            <p style={{ fontSize: "1.1rem" }}>Sanatoriylar yuklanmoqda...</p>
+        <div className="categories-grid">
+          {CATEGORIES.map((cat) => {
+            const Icon = cat.icon;
+            const isSelected = selectedCategory === cat.title;
+            return (
+              <div
+                key={cat.id}
+                className="category-card"
+                style={isSelected ? { outline: "3px solid #005944" } : {}}
+                onClick={() => {
+                  setSelectedCategory(cat.title);
+                  document.getElementById("muassasalar")?.scrollIntoView({ behavior: "smooth" });
+                }}
+              >
+                <img src={cat.image} alt={cat.title} className="category-card-bg" />
+                <div className="category-card-overlay">
+                  <div className="category-label-group">
+                    <Icon size={18} />
+                    <span>{cat.title}</span>
+                  </div>
+                  <div className="category-circle-arrow">
+                    <ArrowRight size={15} />
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </section>
+
+      {/* ========================================================
+          4. POPULAR SANATORIUMS (Mashhur muassasalar)
+          ======================================================== */}
+      <section id="muassasalar" className="section-container">
+        <div className="section-head-bar">
+          <div>
+            <h2 className="section-headline">Mashhur muassasalar</h2>
+            {selectedCategory !== "Barchasi" && (
+              <span style={{ fontSize: "0.85rem", color: "#059669", fontWeight: 700 }}>
+                Filtr: {selectedCategory} (
+                <button
+                  type="button"
+                  style={{ background: "none", border: "none", color: "#005944", cursor: "pointer", textDecoration: "underline", padding: 0 }}
+                  onClick={() => setSelectedCategory("Barchasi")}
+                >
+                  tozalash
+                </button>
+                )
+              </span>
+            )}
           </div>
-        ) : filteredSanatoriums.length === 0 ? (
-          <div style={{ textAlign: "center", padding: "4rem 1rem", background: "#0b1329", borderRadius: 20, border: "1px solid #1e293b" }}>
-            <Info size={40} color="#10b981" style={{ marginBottom: "1rem" }} />
-            <h3 style={{ fontSize: "1.25rem", fontWeight: 800, marginBottom: "0.5rem", color: "#fff" }}>
-              Qidiruv bo'yicha sanatoriyalar topilmadi
-            </h3>
-            <p style={{ color: "#94a3b8", marginBottom: "1.5rem" }}>
-              Filtrlarni o'zgartirib qayta urinib ko'ring yoki barcha sanatoriyalarni ko'ring.
+          <button
+            type="button"
+            className="btn-see-all-pill"
+            onClick={() => {
+              setSelectedCategory("Barchasi");
+              setSearchQuery("");
+            }}
+          >
+            <span>Barchasini ko'rish →</span>
+          </button>
+        </div>
+
+        {filteredSanatoriums.length === 0 ? (
+          <div style={{ textAlign: "center", padding: "3rem 1rem", background: "var(--surface)", borderRadius: 20 }}>
+            <p style={{ color: "var(--text-muted)", fontSize: "1.05rem" }}>
+              Tanlangan so'rov bo'yicha muassasa topilmadi.
             </p>
             <button
               type="button"
-              onClick={() => { setSearchQuery(""); setSelectedRegion("Barchasi"); setSelectedService("Barchasi"); }}
-              className="partner-portal-btn"
+              className="btn-card-detail"
+              style={{ marginTop: 12 }}
+              onClick={() => {
+                setSearchQuery("");
+                setSelectedCategory("Barchasi");
+              }}
             >
-              Barcha sanatoriyalarni ko'rsatish
+              Barcha muassasalarni ko'rish
             </button>
           </div>
         ) : (
-          <div className="sanatorium-cards-grid">
-            {filteredSanatoriums.map((s) => {
-              const cardPhotos = (s.photos && s.photos.length > 0)
-                ? s.photos
-                : (s.photo_ids && s.photo_ids.length > 0)
-                  ? s.photo_ids.map((id) => `/api/media/${id}`)
-                  : ["/branding/welcome-retreat.png"];
-              const photoUrl = cardPhotos[0];
+          <div className="sanatoriums-grid">
+            {filteredSanatoriums.map((item) => {
+              const photo =
+                (item.photos && item.photos.length > 0)
+                  ? item.photos[0]
+                  : (item.photo_ids && item.photo_ids.length > 0)
+                  ? `/api/media/${item.photo_ids[0]}`
+                  : "https://images.unsplash.com/photo-1582719508461-905c673771fd?auto=format&fit=crop&w=600&q=80";
 
               return (
-                <div key={s.id} className="sanatorium-card">
-                  <div className="card-image-wrap">
-                    <img
-                      src={photoUrl}
-                      alt={s.name}
-                      className="card-image"
-                      onError={(e) => {
-                        (e.target as HTMLImageElement).src = "/branding/welcome-retreat.png";
-                      }}
-                    />
-                    <div className="card-tag-badge">
-                      {s.tag || s.region}
-                    </div>
-                    <div className="card-price-overlay">
-                      {s.from_amount} so'mdan
+                <div key={item.id} className="sanatorium-card">
+                  <div className="card-media-box" onClick={() => openDetails(item)} style={{ cursor: "pointer" }}>
+                    <img src={photo} alt={item.name} className="card-thumb-img" />
+                    <div className="card-rating-pill">
+                      <Star size={14} className="rating-star-icon" />
+                      <span>{item.rating || 4.8}</span>
                     </div>
                   </div>
 
-                  <div className="card-content-body">
+                  <div className="card-body-box">
+                    <h3 className="card-title-text" onClick={() => openDetails(item)} style={{ cursor: "pointer" }}>
+                      {item.name}
+                    </h3>
+
                     <div className="card-location-row">
-                      <MapPin size={14} color="#10b981" />
-                      <span>{s.region}</span>
-                      {s.rating && (
-                        <span style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 3, color: "#f59e0b", fontWeight: 700 }}>
-                          <Star size={13} fill="#f59e0b" />
-                          <span>{s.rating}</span>
+                      <MapPin size={13} style={{ color: "#10b981", flexShrink: 0 }} />
+                      <span>{item.region}</span>
+                    </div>
+
+                    <div className="card-tags-row">
+                      {item.services.slice(0, 2).map((srv, idx) => (
+                        <span key={idx} className="card-feature-tag">
+                          <MapPin size={11} style={{ color: "#0d9488" }} />
+                          <span>{srv}</span>
                         </span>
-                      )}
-                    </div>
-
-                    <h3 className="card-title">{s.name}</h3>
-
-                    <p className="card-desc-snippet">{s.description}</p>
-
-                    <div className="card-amenities-tags">
-                      {s.services.slice(0, 3).map((srv, idx) => (
-                        <span key={idx} className="amenity-pill">{srv}</span>
-                      ))}
-                      {s.amenities.slice(0, 2).map((am, idx) => (
-                        <span key={idx} className="amenity-pill">{am}</span>
                       ))}
                     </div>
 
-                    <div className="card-action-footer">
-                      <button
-                        type="button"
-                        onClick={() => openSanatoriumDetails(s)}
-                        className="btn-view-details"
-                      >
-                        <span>Batafsil ma'lumot</span>
-                        <ChevronRight size={16} />
-                      </button>
+                    <div className="card-footer-row">
+                      <div className="card-price-display">
+                        <span className="card-price-num">{item.from_amount} so'm/kun</span>
+                      </div>
 
                       <button
                         type="button"
-                        onClick={() => openCheckout(s)}
-                        className="apk-header-btn"
-                        style={{
-                          padding: "0.65rem 1rem",
-                          fontSize: "0.85rem",
-                          cursor: "pointer",
-                          background: "linear-gradient(135deg, #0d9488 0%, #059669 100%)",
-                          color: "#fff",
-                          border: "none",
-                        }}
-                        title="TezCheck orqali to'lash va bron qilish"
+                        className="btn-card-detail"
+                        onClick={() => openDetails(item)}
                       >
-                        <CreditCard size={16} />
-                        <span>To'lash</span>
+                        <span>Batafsil →</span>
                       </button>
                     </div>
                   </div>
@@ -650,313 +916,194 @@ export function LandingPage() {
         )}
       </section>
 
-      {/* 4. Medical Directions Section */}
-      <section id="yonalishlar" className="medical-section">
-        <div className="medical-container">
-          <div className="section-header">
-            <span className="section-tag">Shifobaxsh yo'nalishlar</span>
-            <h2 className="section-title">Qaysi sohalar bo'yicha davolanish mumkin?</h2>
-            <p className="section-description">
-              O'zbekiston sanatoriylari o'ziga xos tabiiy iqlim omillari, shifobaxsh balchiqlar va zamonaviy tibbiy muolajalar bilan jihozlangan.
-            </p>
-          </div>
-
-          <div className="medical-grid">
-            {MEDICAL_DIRECTIONS.map((dir, idx) => {
-              const Icon = dir.icon;
-              return (
-                <div key={idx} className="medical-card">
-                  <div className="medical-card-icon">
-                    <Icon size={26} />
-                  </div>
-                  <h3 className="medical-card-title">{dir.title}</h3>
-                  <p className="medical-card-desc">{dir.description}</p>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      </section>
-
-      {/* 5. Why Choose Us Section */}
-      <section id="afzalliklar" className="why-section">
-        <div className="section-header">
-          <span className="section-tag">Nega aynan Sihhat.uz?</span>
-          <h2 className="section-title">Biz bilan dam olish qulay va ishonchli</h2>
-          <p className="section-description">
-            Biz sanatoriya bron qilish jarayonini har bir yurtdoshimiz uchun oson, shaffof va qulay qildik.
-          </p>
-        </div>
-
-        <div className="why-grid">
-          <div className="why-card">
-            <div className="why-icon-box"><ShieldCheck size={28} /></div>
-            <h3 className="why-card-title">Kafolatlangan kassa narxlari</h3>
-            <p className="why-card-desc">Hech qanday yashirin vositachilik to'lovlarisiz, to'g'ridan-to'g'ri sanatoriya kassasi bilan bir xil narxda.</p>
-          </div>
-
-          <div className="why-card">
-            <div className="why-icon-box"><Check size={28} /></div>
-            <h3 className="why-card-title">Haqiqiy sharoit va fotolar</h3>
-            <p className="why-card-desc">Sanatoriyalarning haqiqiy suratlari, davolash profili va xona sharoitlari to'liq tekshirilgan.</p>
-          </div>
-
-          <div className="why-card">
-            <div className="why-icon-box"><Smartphone size={28} /></div>
-            <h3 className="why-card-title">Tezkor Mobil Ilova</h3>
-            <p className="why-card-desc">Uydan chiqmasdan, telefoningizda bir necha daqiqada kerakli sanatoriyani tanlang va bron qiling.</p>
-          </div>
-
-          <div className="why-card">
-            <div className="why-icon-box"><Phone size={28} /></div>
-            <h3 className="why-card-title">Doimiy qo'llab-quvvatlash</h3>
-            <p className="why-card-desc">Sanatoriya tanlash, hujjatlar va borish yo'llari bo'yicha mutaxassislarimiz yordam beradi.</p>
-          </div>
-        </div>
-      </section>
-
-      {/* 6. App Download Banner (with QR and direct link) */}
-      <section id="ilova" className="app-download-section">
-        <div className="app-container">
-          <div>
-            <div className="app-badge">
-              <Download size={14} />
-              <span>Sihhat.uz Rasmiy Mobil Ilovasi</span>
-            </div>
-
-            <h2 className="app-title">
-              Barcha sanatoriylar doimo cho'ntagingizda!
+      {/* ========================================================
+          5. HOW IT WORKS BANNER (SIHHAT UZ qanday ishlaydi?)
+          ======================================================== */}
+      <section id="qanday-ishlaydi" className="section-container" style={{ paddingTop: "1rem" }}>
+        <div className="how-it-works-banner">
+          {/* Left Title */}
+          <div className="how-banner-left">
+            <h2 className="how-banner-title">
+              SIHHAT UZ<br />qanday ishlaydi?
             </h2>
-
-            <p className="app-desc">
-              Rasmiy Android ilovamizni yuklab oling va O'zbekistonning istalgan sanatoriysiga navbatsiz, qulay tarzda bron qiling.
+            <p className="how-banner-desc">
+              Atigi 3 qadamda o'z sog'lig'ingiz uchun eng yaxshi joyni toping!
             </p>
+          </div>
 
-            <ul className="app-features-list">
-              <li>
-                <CheckCircle2 size={18} color="#34d399" />
-                <span>Tezkor Demo SMS orqali kirish (kod: 123456)</span>
-              </li>
-              <li>
-                <CheckCircle2 size={18} color="#34d399" />
-                <span>Bo'sh xonalar va kunlik narxlarni onlayn tekshirish</span>
-              </li>
-              <li>
-                <CheckCircle2 size={18} color="#34d399" />
-                <span>QR-kodli elektron vaucher va buyurtmalar tarixi</span>
-              </li>
-              <li>
-                <CheckCircle2 size={18} color="#34d399" />
-                <span>Offline rejimda ham sanatoriylar ma'lumotlarini ko'rish</span>
-              </li>
-            </ul>
+          {/* 3 Steps */}
+          <div className="how-steps-track">
+            <div className="how-step-node">
+              <div className="how-step-badge">1</div>
+              <div className="how-step-title">Qidirish</div>
+              <div className="how-step-text">Ehtiyojingizni yozing va mos joylarni toping</div>
+            </div>
 
-            <div className="app-actions-wrap">
-              <a href={apkUrl} className="btn-download-apk" download>
-                <Download size={20} />
-                <span>Android APK yuklab olish (59.6 MB)</span>
-              </a>
+            <div className="how-step-arrow">&gt;</div>
 
-              <a
-                href="https://github.com/MirsaidIbrohimov/Sihhat-uz1.1/tree/main/ilova"
-                target="_blank"
-                rel="noreferrer"
-                className="btn-download-gh"
-              >
-                <ExternalLink size={16} />
-                <span>GitHub orqali</span>
-              </a>
+            <div className="how-step-node">
+              <div className="how-step-badge">2</div>
+              <div className="how-step-title">Bron qilish</div>
+              <div className="how-step-text">Qulay sanani tanlab, bron qiling</div>
+            </div>
+
+            <div className="how-step-arrow">&gt;</div>
+
+            <div className="how-step-node">
+              <div className="how-step-badge">3</div>
+              <div className="how-step-title">Dam oling</div>
+              <div className="how-step-text">Sog'lig'ingiz uchun xotirjam bo'ling</div>
             </div>
           </div>
 
-          <div className="qr-code-box">
-            <div className="qr-white-frame">
-              <img
-                src="/branding/app-qr.svg"
-                alt="Sihhat.uz ilovasini yuklab olish QR-kodi"
-                className="qr-img"
-              />
+          {/* Right Brand Badge */}
+          <div className="how-banner-right">
+            <div className="how-brand-badge">
+              <div className="how-brand-logo-circle">
+                <HeartPulse size={24} />
+              </div>
+              <span className="how-brand-name">SIHHAT UZ</span>
             </div>
-            <div className="qr-hint">Telefon kamerangizni qarating</div>
-            <div className="qr-subhint">Kamerani QR-kodga yo'naltirib, APK faylni to'g'ridan-to'g'ri yuklab oling</div>
+            <span className="how-brand-slogan">Sog'lom hayot — baxt kaliti!</span>
           </div>
         </div>
       </section>
 
-      {/* 7. Footer */}
-      <footer className="landing-footer">
-        <div className="footer-container">
+      {/* Footer Legal and Info */}
+      <footer style={{ borderTop: "1px solid var(--border)", background: "var(--surface)", padding: "2.5rem 1.25rem 3rem" }}>
+        <div style={{ maxWidth: 1240, margin: "0 auto", display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "center", gap: "1.5rem" }}>
           <div>
-            <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 14 }}>
-              <img
-                src="/branding/sihhat-logo.jpg"
-                alt="Sihhat.uz Logo"
-                style={{ width: 36, height: 36, borderRadius: 10, objectFit: "cover" }}
-              />
-              <span style={{ fontSize: "1.3rem", fontWeight: 800, color: "#fff" }}>Sihhat.uz</span>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+              <HeartPulse size={20} style={{ color: "#005944" }} />
+              <strong style={{ fontSize: "1.1rem", color: "var(--text-main)" }}>SIHHAT UZ</strong>
             </div>
-            <p className="footer-brand-desc">
-              O'zbekiston Respublikasi bo'ylab sanatoriya va sog'lomlashtirish maskanlarini qulay bron qilish yagona milliy platformasi.
+            <p style={{ margin: 0, fontSize: "0.85rem", color: "var(--text-muted)" }}>
+              © 2026 Sihhat.uz · O'zbekiston milliy sog'lomlashtirish va sanatoriylar platformasi.
             </p>
-            <div style={{ fontSize: "0.82rem", color: "#34d399" }}>
-              API versiyasi: 0.1.0 · Demo APK: 0.1.1
-            </div>
           </div>
 
-          <div>
-            <h4 className="footer-col-title">Bo'limlar</h4>
-            <ul className="footer-links-list">
-              <li><a href="#sanatoriylar">Sanatoriylar katalogi</a></li>
-              <li><a href="#yonalishlar">Davolash yo'nalishlari</a></li>
-              <li><a href="#afzalliklar">Nega Sihhat.uz?</a></li>
-              <li><a href="#ilova">Ilovani yuklab olish</a></li>
-            </ul>
-          </div>
-
-          <div>
-            <h4 className="footer-col-title">Hujjatlar</h4>
-            <ul className="footer-links-list">
-              <li><button type="button" onClick={() => setActiveModal("oferta")}>Ommaviy oferta</button></li>
-              <li><button type="button" onClick={() => setActiveModal("maxfiylik")}>Maxfiylik siyosati</button></li>
-              <li><button type="button" onClick={() => setActiveModal("qaytarish")}>Pulni qaytarish tartibi</button></li>
-            </ul>
-          </div>
-
-          <div>
-            <h4 className="footer-col-title">Hamkorlik & Boshqaruv</h4>
-            <ul className="footer-links-list">
-              <li><a href="/hamkorlar">Sanatoriyalar kabineti</a></li>
-              <li><a href="/superadmin">Superadmin boshqaruvi</a></li>
-              <li style={{ marginTop: 8 }}>
-                <a href={apkUrl} download style={{ color: "#34d399", fontWeight: 700, display: "flex", alignItems: "center", gap: 4 }}>
-                  <Download size={14} />
-                  <span>APK yuklab olish</span>
-                </a>
-              </li>
-            </ul>
-          </div>
-        </div>
-
-        <div className="footer-bottom-bar">
-          <div>
-            © 2026 Sihhat.uz. Barcha huquqlar himoyalangan.
-          </div>
-          <div style={{ display: "flex", gap: "1.5rem" }}>
-            <span>O'zbekiston, Toshkent</span>
-            <span>Texnik qo'llab-quvvatlash: 24/7</span>
+          <div style={{ display: "flex", gap: "1.25rem", flexWrap: "wrap", fontSize: "0.85rem" }}>
+            <button
+              type="button"
+              onClick={() => setActiveModal("oferta")}
+              style={{ background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", textDecoration: "underline" }}
+            >
+              Ommaviy oferta
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveModal("maxfiylik")}
+              style={{ background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", textDecoration: "underline" }}
+            >
+              Maxfiylik siyosati
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveModal("qaytarish")}
+              style={{ background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", textDecoration: "underline" }}
+            >
+              Qaytarish shartlari
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveModal("contact")}
+              style={{ background: "none", border: "none", color: "#005944", fontWeight: 700, cursor: "pointer" }}
+            >
+              Yordam va aloqa
+            </button>
           </div>
         </div>
       </footer>
 
-      {/* Sanatorium Details Modal with Live Room Types & Rate Plans from API */}
+      {/* ========================================================
+          6. MODALS
+          ======================================================== */}
+
+      {/* 6.1 SANATORIUM DETAILS MODAL */}
       {activeModal && typeof activeModal === "object" && activeModal.type === "details" && (
         <div className="legal-modal-backdrop" onClick={() => setActiveModal(null)}>
-          <div className="legal-modal-card" style={{ maxWidth: 880 }} onClick={(e) => e.stopPropagation()}>
+          <div className="legal-modal-card" style={{ maxWidth: 740 }} onClick={(e) => e.stopPropagation()}>
             <div className="legal-modal-header">
               <div>
                 <h3 className="legal-modal-title">{activeModal.item.name}</h3>
-                <span style={{ fontSize: "0.85rem", color: "#94a3b8", display: "flex", alignItems: "center", gap: 4, marginTop: 4 }}>
-                  <MapPin size={14} color="#10b981" />
-                  <span>{activeModal.item.region} — {activeModal.item.address}</span>
-                </span>
+                <p style={{ margin: "4px 0 0", fontSize: "0.85rem", color: "var(--text-muted)" }}>
+                  {activeModal.item.region} · {activeModal.item.address}
+                </p>
               </div>
               <button
                 type="button"
                 onClick={() => setActiveModal(null)}
-                style={{ background: "none", border: "none", cursor: "pointer", color: "#94a3b8" }}
+                style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-light)" }}
               >
                 <X size={22} />
               </button>
             </div>
 
             <div className="legal-modal-body">
-              {/* Photo Showcase */}
+              {/* Photo Carousel */}
               {(() => {
-                const modalPhotos = (activeModal.item.photos && activeModal.item.photos.length > 0)
-                  ? activeModal.item.photos
-                  : (activeModal.item.photo_ids && activeModal.item.photo_ids.length > 0)
+                const photos =
+                  activeModal.item.photos && activeModal.item.photos.length > 0
+                    ? activeModal.item.photos
+                    : activeModal.item.photo_ids && activeModal.item.photo_ids.length > 0
                     ? activeModal.item.photo_ids.map((id) => `/api/media/${id}`)
-                    : [];
-
-                if (modalPhotos.length === 0) return null;
+                    : ["https://images.unsplash.com/photo-1582719508461-905c673771fd?auto=format&fit=crop&w=800&q=80"];
 
                 return (
-                  <div style={{ marginBottom: "1.5rem" }}>
-                    <div style={{ width: "100%", height: 320, borderRadius: 16, overflow: "hidden", background: "#020617", marginBottom: 10 }}>
-                      <img
-                        src={modalPhotos[galleryIndex] || modalPhotos[0]}
-                        alt={activeModal.item.name}
-                        style={{ width: "100%", height: "100%", objectFit: "cover" }}
-                        onError={(e) => {
-                          (e.target as HTMLImageElement).src = "/branding/welcome-retreat.png";
-                        }}
-                      />
-                    </div>
-                    {modalPhotos.length > 1 && (
-                      <div style={{ display: "flex", gap: 8, overflowX: "auto", paddingBottom: 4 }}>
-                        {modalPhotos.map((pUrl, idx) => (
-                          <button
-                            key={idx}
-                            type="button"
-                            onClick={() => setGalleryIndex(idx)}
-                            style={{
-                              width: 70,
-                              height: 50,
-                              borderRadius: 8,
-                              overflow: "hidden",
-                              border: idx === galleryIndex ? "2px solid #10b981" : "2px solid #1e293b",
-                              padding: 0,
-                              cursor: "pointer",
-                              flexShrink: 0,
-                            }}
-                          >
-                            <img
-                              src={pUrl}
-                              alt=""
-                              style={{ width: "100%", height: "100%", objectFit: "cover" }}
-                            />
-                          </button>
-                        ))}
-                      </div>
+                  <div style={{ position: "relative", width: "100%", height: 300, borderRadius: 16, overflow: "hidden", marginBottom: "1.25rem", background: "#000" }}>
+                    <img
+                      src={photos[galleryIndex % photos.length]}
+                      alt={activeModal.item.name}
+                      style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                    />
+                    {photos.length > 1 && (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => setGalleryIndex((i) => (i - 1 + photos.length) % photos.length)}
+                          style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", width: 36, height: 36, borderRadius: "50%", background: "rgba(0,0,0,0.6)", color: "#fff", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
+                        >
+                          <ChevronLeft size={20} />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setGalleryIndex((i) => (i + 1) % photos.length)}
+                          style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", width: 36, height: 36, borderRadius: "50%", background: "rgba(0,0,0,0.6)", color: "#fff", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
+                        >
+                          <ChevronRight size={20} />
+                        </button>
+                        <div style={{ position: "absolute", bottom: 12, left: "50%", transform: "translateX(-50%)", background: "rgba(0,0,0,0.6)", color: "#fff", padding: "4px 10px", borderRadius: 20, fontSize: "0.8rem", fontWeight: 700 }}>
+                          {(galleryIndex % photos.length) + 1} / {photos.length}
+                        </div>
+                      </>
                     )}
                   </div>
                 );
               })()}
 
-              <h4>Sanatoriya haqida</h4>
-              <p>{activeModal.item.description}</p>
+              <h4 style={{ margin: "0 0 6px", fontSize: "1.05rem" }}>Ta'rif va sharoitlar</h4>
+              <p style={{ color: "var(--text-muted)", fontSize: "0.92rem", marginTop: 0 }}>
+                {activeModal.item.description}
+              </p>
 
-              <h4>Tibbiy ko'rsatmalar va davolash yo'nalishlari</h4>
-              <p>{activeModal.item.directions}</p>
+              <h4 style={{ margin: "1rem 0 6px", fontSize: "1.05rem" }}>Davolash yo'nalishlari</h4>
+              <p style={{ color: "var(--text-muted)", fontSize: "0.92rem", marginTop: 0 }}>
+                {activeModal.item.directions}
+              </p>
 
-              {/* Live Room Types from API */}
-              {activeModal.item.room_types && activeModal.item.room_types.length > 0 && (
-                <div>
-                  <h4>Mavjud xona turlari</h4>
-                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 10, margin: "10px 0" }}>
-                    {activeModal.item.room_types.map((rt) => (
-                      <div key={rt.id} style={{ padding: "10px 14px", borderRadius: 12, background: "#111e38", border: "1px solid #1e293b" }}>
-                        <div style={{ fontWeight: 700, color: "#fff" }}>{rt.name}</div>
-                        <div style={{ fontSize: "0.8rem", color: "#94a3b8" }}>Maksimal: {rt.maxGuests} nafar mehmon</div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Rate Plans from API */}
+              {/* Rate Plans & Pricing */}
               {activeModal.item.rate_plans && activeModal.item.rate_plans.length > 0 && (
-                <div style={{ marginTop: "1rem" }}>
-                  <h4>Tariflar va narxlar</h4>
-                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 10, margin: "10px 0" }}>
+                <div style={{ marginTop: "1.25rem" }}>
+                  <h4 style={{ margin: "0 0 10px", fontSize: "1.05rem" }}>Tariflar va narxlar</h4>
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 10 }}>
                     {activeModal.item.rate_plans.map((rp) => (
                       <div
                         key={rp.id}
                         style={{
-                          padding: "10px 14px",
+                          padding: "12px 14px",
                           borderRadius: 12,
-                          background: "#064e3b22",
-                          border: "1px solid #05966955",
+                          background: "var(--surface-soft)",
+                          border: "1px solid var(--border)",
                           display: "flex",
                           justifyContent: "space-between",
                           alignItems: "center",
@@ -964,30 +1111,25 @@ export function LandingPage() {
                         }}
                       >
                         <div>
-                          <div style={{ fontWeight: 700, color: "#10b981", fontSize: "1.05rem" }}>
+                          <strong style={{ color: "#005944", fontSize: "0.98rem", display: "block" }}>
                             {rp.name}
-                          </div>
-                          <div style={{ fontSize: "1rem", color: "#fff", fontWeight: 700, marginTop: 4 }}>
-                            {(Number(rp.baseAmount) / 100).toLocaleString("ru-RU")} so'm / kuniga
-                          </div>
-                          {rp.policy?.name && (
-                            <div style={{ fontSize: "0.75rem", color: "#94a3b8", marginTop: 4 }}>
-                              {rp.policy.name}
-                            </div>
-                          )}
+                          </strong>
+                          <span style={{ fontSize: "0.92rem", fontWeight: 800, color: "var(--text-main)" }}>
+                            {(Number(rp.baseAmount) / 100).toLocaleString("ru-RU")} so'm / kun
+                          </span>
                         </div>
                         <button
                           type="button"
                           onClick={() => openCheckout(activeModal.item, rp)}
                           style={{
                             padding: "6px 14px",
-                            borderRadius: 8,
-                            background: "linear-gradient(135deg, #0d9488 0%, #059669 100%)",
+                            borderRadius: 9999,
+                            background: "#005944",
                             color: "#fff",
                             border: "none",
-                            fontSize: "0.85rem",
+                            fontSize: "0.82rem",
                             cursor: "pointer",
-                            fontWeight: 600,
+                            fontWeight: 700,
                             whiteSpace: "nowrap",
                           }}
                         >
@@ -999,134 +1141,96 @@ export function LandingPage() {
                 </div>
               )}
 
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1.5rem", marginTop: "1rem" }}>
+              {/* Services & Amenities */}
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem", marginTop: "1.25rem" }}>
                 <div>
-                  <h4>Davolash xizmatlari</h4>
-                  <ul style={{ paddingLeft: 18, margin: 0, color: "#94a3b8", fontSize: "0.9rem" }}>
+                  <h4 style={{ margin: "0 0 8px", fontSize: "0.95rem" }}>Tibbiy xizmatlar</h4>
+                  <ul style={{ paddingLeft: 18, margin: 0, color: "var(--text-muted)", fontSize: "0.85rem" }}>
                     {activeModal.item.services.map((srv, i) => (
-                      <li key={i} style={{ marginBottom: 4 }}>{srv}</li>
+                      <li key={i}>{srv}</li>
                     ))}
                   </ul>
                 </div>
-
                 <div>
-                  <h4>Qulayliklar va sharoitlar</h4>
-                  <ul style={{ paddingLeft: 18, margin: 0, color: "#94a3b8", fontSize: "0.9rem" }}>
+                  <h4 style={{ margin: "0 0 8px", fontSize: "0.95rem" }}>Qulayliklar</h4>
+                  <ul style={{ paddingLeft: 18, margin: 0, color: "var(--text-muted)", fontSize: "0.85rem" }}>
                     {activeModal.item.amenities.map((am, i) => (
-                      <li key={i} style={{ marginBottom: 4 }}>{am}</li>
+                      <li key={i}>{am}</li>
                     ))}
                   </ul>
-                </div>
-              </div>
-
-              <div style={{ background: "#030712", padding: "1rem", borderRadius: 14, marginTop: "1.5rem", border: "1px solid #1e293b" }}>
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "1rem", fontSize: "0.88rem" }}>
-                  <div>
-                    <strong style={{ color: "#fff" }}>Kunlik narx:</strong> {activeModal.item.from_amount} so'mdan
-                  </div>
-                  <div>
-                    <strong style={{ color: "#fff" }}>Ovqatlanish:</strong> {activeModal.item.meals}
-                  </div>
-                  <div>
-                    <strong style={{ color: "#fff" }}>Kirish / Chiqish:</strong> {activeModal.item.check_in_time} / {activeModal.item.check_out_time}
-                  </div>
-                  <div>
-                    <strong style={{ color: "#fff" }}>Kerakli hujjatlar:</strong> {activeModal.item.required_documents}
-                  </div>
                 </div>
               </div>
 
               {activeModal.item.map_url && (
-                <div style={{ marginTop: "1.5rem" }}>
+                <div style={{ marginTop: "1.25rem" }}>
                   <a
                     href={activeModal.item.map_url}
                     target="_blank"
                     rel="noreferrer"
-                    className="partner-portal-btn"
-                    style={{ display: "inline-flex", gap: 6, textDecoration: "none" }}
+                    style={{ display: "inline-flex", gap: 6, alignItems: "center", color: "#005944", textDecoration: "none", fontWeight: 700, fontSize: "0.88rem" }}
                   >
                     <MapPin size={16} />
-                    <span>Xaritada ochish (Google Maps)</span>
+                    <span>Google Maps'da xaritada ko'rish</span>
                     <ExternalLink size={14} />
                   </a>
                 </div>
               )}
             </div>
 
-            <div className="legal-modal-footer" style={{ display: "flex", gap: 12, justifyContent: "flex-end" }}>
+            <div className="legal-modal-footer">
               <button
                 type="button"
                 onClick={() => openCheckout(activeModal.item)}
-                className="btn-download-apk"
-                style={{
-                  padding: "0.7rem 1.4rem",
-                  fontSize: "0.95rem",
-                  cursor: "pointer",
-                  background: "linear-gradient(135deg, #0d9488 0%, #059669 100%)",
-                  color: "#fff",
-                  border: "none",
-                }}
+                className="btn-card-detail"
+                style={{ padding: "0.75rem 1.6rem", fontSize: "0.95rem" }}
               >
                 <CreditCard size={18} />
                 <span>TezCheck orqali to'lash</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setActiveModal("download")}
-                className="partner-portal-btn"
-                style={{ padding: "0.7rem 1.2rem", fontSize: "0.95rem", cursor: "pointer" }}
-              >
-                <Smartphone size={18} />
-                <span>Ilovada ochish</span>
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* TezCheck Direct Online Checkout Modal */}
+      {/* 6.2 TEZCHECK ONLINE CHECKOUT MODAL */}
       {activeModal && typeof activeModal === "object" && activeModal.type === "checkout" && (
         <div className="legal-modal-backdrop" onClick={() => !checkoutLoading && setActiveModal(null)}>
-          <div
-            className="legal-modal-card"
-            style={{ maxWidth: 580 }}
-            onClick={(e) => e.stopPropagation()}
-          >
+          <div className="legal-modal-card" style={{ maxWidth: 540 }} onClick={(e) => e.stopPropagation()}>
             <div className="legal-modal-header">
               <div>
                 <h3 className="legal-modal-title" style={{ display: "flex", alignItems: "center", gap: 8 }}>
                   <ShieldCheck size={22} style={{ color: "#10b981" }} />
                   <span>TezCheck orqali to'lov</span>
                 </h3>
-                <p style={{ margin: "4px 0 0", fontSize: "0.85rem", color: "#94a3b8" }}>
+                <p style={{ margin: "4px 0 0", fontSize: "0.85rem", color: "var(--text-muted)" }}>
                   {activeModal.item.name} · {activeModal.item.region}
                 </p>
               </div>
               <button
                 type="button"
                 onClick={() => !checkoutLoading && setActiveModal(null)}
-                style={{ background: "none", border: "none", cursor: "pointer", color: "#94a3b8" }}
+                style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-light)" }}
               >
                 <X size={22} />
               </button>
             </div>
 
-            <div className="legal-modal-body" style={{ padding: "1.25rem 1.5rem" }}>
+            <div className="legal-modal-body">
               {checkoutSuccessUrl ? (
                 <div style={{ textAlign: "center", padding: "1.5rem 0" }}>
-                  <div style={{ width: 64, height: 64, borderRadius: "50%", background: "rgba(16, 185, 129, 0.15)", color: "#10b981", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 1rem" }}>
+                  <div style={{ width: 64, height: 64, borderRadius: "50%", background: "var(--primary-light)", color: "#10b981", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 1rem" }}>
                     <Check size={36} />
                   </div>
-                  <h4 style={{ color: "#fff", fontSize: "1.2rem", marginBottom: "0.5rem" }}>TezCheck sahifasi ochildi!</h4>
-                  <p style={{ color: "#94a3b8", fontSize: "0.9rem", marginBottom: "1.5rem" }}>
-                    To'lov xavfsiz rasmiy sahifada yakunlanadi (Click, Payme, Uzcard / Humo).
+                  <h4 style={{ fontSize: "1.2rem", margin: "0 0 0.5rem" }}>TezCheck sahifasi ochildi!</h4>
+                  <p style={{ color: "var(--text-muted)", fontSize: "0.9rem", marginBottom: "1.5rem" }}>
+                    To'lov xavfsiz rasmiy TezCheck tizimida amalga oshiriladi (Click, Payme, Uzcard / Humo).
                   </p>
                   <a
                     href={checkoutSuccessUrl}
                     target="_blank"
                     rel="noreferrer"
-                    className="btn-download-apk"
-                    style={{ display: "inline-flex", gap: 8, padding: "0.8rem 1.6rem", textDecoration: "none", background: "linear-gradient(135deg, #0d9488 0%, #059669 100%)", color: "#fff", borderRadius: 10, fontWeight: 600 }}
+                    className="btn-card-detail"
+                    style={{ display: "inline-flex", gap: 8, padding: "0.8rem 1.6rem", textDecoration: "none" }}
                   >
                     <span>To'lov sahifasiga qaytadan o'tish</span>
                     <ExternalLink size={18} />
@@ -1167,7 +1271,7 @@ export function LandingPage() {
                 >
                   {/* Rate plan picker */}
                   <div>
-                    <label style={{ display: "block", fontSize: "0.85rem", color: "#94a3b8", marginBottom: 6 }}>
+                    <label style={{ display: "block", fontSize: "0.85rem", fontWeight: 700, marginBottom: 6 }}>
                       Tanlangan tarif
                     </label>
                     <select
@@ -1176,23 +1280,21 @@ export function LandingPage() {
                       style={{
                         width: "100%",
                         padding: "0.75rem 1rem",
-                        borderRadius: 10,
-                        border: "1px solid rgba(255,255,255,0.15)",
-                        background: "#0f172a",
-                        color: "#fff",
+                        borderRadius: 12,
+                        border: "1px solid var(--border)",
+                        background: "var(--surface)",
+                        color: "var(--text-main)",
                         fontSize: "0.95rem",
                       }}
                     >
-                      {(activeModal.item.rate_plans && activeModal.item.rate_plans.length > 0) ? (
+                      {activeModal.item.rate_plans && activeModal.item.rate_plans.length > 0 ? (
                         activeModal.item.rate_plans.map((rp) => (
                           <option key={rp.id} value={rp.id}>
-                            {rp.name} — {(Number(rp.baseAmount) / 100).toLocaleString("ru-RU")} so'm / kuniga
+                            {rp.name} — {(Number(rp.baseAmount) / 100).toLocaleString("ru-RU")} so'm / kun
                           </option>
                         ))
                       ) : (
-                        <option value="">
-                          Asosiy tarif — {activeModal.item.from_amount} so'm / kuniga
-                        </option>
+                        <option value="">Asosiy tarif — {activeModal.item.from_amount} so'm / kun</option>
                       )}
                     </select>
                   </div>
@@ -1200,7 +1302,7 @@ export function LandingPage() {
                   {/* Name and Phone */}
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem" }}>
                     <div>
-                      <label style={{ display: "block", fontSize: "0.85rem", color: "#94a3b8", marginBottom: 6 }}>
+                      <label style={{ display: "block", fontSize: "0.85rem", fontWeight: 700, marginBottom: 6 }}>
                         Ism va familiya *
                       </label>
                       <input
@@ -1212,17 +1314,17 @@ export function LandingPage() {
                         style={{
                           width: "100%",
                           padding: "0.75rem 1rem",
-                          borderRadius: 10,
-                          border: "1px solid rgba(255,255,255,0.15)",
-                          background: "#0f172a",
-                          color: "#fff",
+                          borderRadius: 12,
+                          border: "1px solid var(--border)",
+                          background: "var(--surface)",
+                          color: "var(--text-main)",
                           fontSize: "0.95rem",
                           boxSizing: "border-box",
                         }}
                       />
                     </div>
                     <div>
-                      <label style={{ display: "block", fontSize: "0.85rem", color: "#94a3b8", marginBottom: 6 }}>
+                      <label style={{ display: "block", fontSize: "0.85rem", fontWeight: 700, marginBottom: 6 }}>
                         Telefon raqam *
                       </label>
                       <input
@@ -1234,10 +1336,10 @@ export function LandingPage() {
                         style={{
                           width: "100%",
                           padding: "0.75rem 1rem",
-                          borderRadius: 10,
-                          border: "1px solid rgba(255,255,255,0.15)",
-                          background: "#0f172a",
-                          color: "#fff",
+                          borderRadius: 12,
+                          border: "1px solid var(--border)",
+                          background: "var(--surface)",
+                          color: "var(--text-main)",
                           fontSize: "0.95rem",
                           boxSizing: "border-box",
                         }}
@@ -1248,7 +1350,7 @@ export function LandingPage() {
                   {/* Dates */}
                   <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: "0.75rem" }}>
                     <div>
-                      <label style={{ display: "block", fontSize: "0.85rem", color: "#94a3b8", marginBottom: 6 }}>
+                      <label style={{ display: "block", fontSize: "0.85rem", fontWeight: 700, marginBottom: 6 }}>
                         Kelish sanasi *
                       </label>
                       <input
@@ -1259,17 +1361,17 @@ export function LandingPage() {
                         style={{
                           width: "100%",
                           padding: "0.75rem 1rem",
-                          borderRadius: 10,
-                          border: "1px solid rgba(255,255,255,0.15)",
-                          background: "#0f172a",
-                          color: "#fff",
+                          borderRadius: 12,
+                          border: "1px solid var(--border)",
+                          background: "var(--surface)",
+                          color: "var(--text-main)",
                           fontSize: "0.95rem",
                           boxSizing: "border-box",
                         }}
                       />
                     </div>
                     <div>
-                      <label style={{ display: "block", fontSize: "0.85rem", color: "#94a3b8", marginBottom: 6 }}>
+                      <label style={{ display: "block", fontSize: "0.85rem", fontWeight: 700, marginBottom: 6 }}>
                         Kunlar soni
                       </label>
                       <input
@@ -1281,10 +1383,10 @@ export function LandingPage() {
                         style={{
                           width: "100%",
                           padding: "0.75rem 1rem",
-                          borderRadius: 10,
-                          border: "1px solid rgba(255,255,255,0.15)",
-                          background: "#0f172a",
-                          color: "#fff",
+                          borderRadius: 12,
+                          border: "1px solid var(--border)",
+                          background: "var(--surface)",
+                          color: "var(--text-main)",
                           fontSize: "0.95rem",
                           boxSizing: "border-box",
                         }}
@@ -1292,11 +1394,11 @@ export function LandingPage() {
                     </div>
                   </div>
 
-                  {/* TezCheck Safety callout */}
+                  {/* Safety note */}
                   <div
                     style={{
-                      background: "rgba(13, 148, 136, 0.12)",
-                      border: "1px solid rgba(13, 148, 136, 0.35)",
+                      background: "var(--primary-light)",
+                      border: "1px solid var(--primary-border)",
                       borderRadius: 12,
                       padding: "0.85rem 1rem",
                       display: "flex",
@@ -1304,9 +1406,9 @@ export function LandingPage() {
                       alignItems: "flex-start",
                     }}
                   >
-                    <ShieldCheck size={20} style={{ color: "#2dd4bf", flexShrink: 0, marginTop: 2 }} />
-                    <div style={{ fontSize: "0.85rem", color: "#cbd5e1", lineHeight: 1.5 }}>
-                      <strong style={{ color: "#5eead4", display: "block", marginBottom: 2 }}>
+                    <ShieldCheck size={20} style={{ color: "#059669", flexShrink: 0, marginTop: 2 }} />
+                    <div style={{ fontSize: "0.84rem", color: "var(--text-main)", lineHeight: 1.5 }}>
+                      <strong style={{ color: "#005944", display: "block", marginBottom: 2 }}>
                         Plastik karta raqami talab qilinmaydi
                       </strong>
                       Tugmani bosganingizda to'lov to'g'ridan-to'g'ri rasmiy <strong>TezCheck</strong> sahifasida (Click, Payme, Uzcard / Humo) xavfsiz amalga oshiriladi.
@@ -1314,7 +1416,7 @@ export function LandingPage() {
                   </div>
 
                   {checkoutError && (
-                    <div style={{ background: "rgba(239, 68, 68, 0.15)", border: "1px solid rgba(239, 68, 68, 0.4)", borderRadius: 10, padding: "0.75rem 1rem", color: "#fca5a5", fontSize: "0.85rem" }}>
+                    <div style={{ background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 10, padding: "0.75rem 1rem", color: "#dc2626", fontSize: "0.85rem" }}>
                       {checkoutError}
                     </div>
                   )}
@@ -1322,21 +1424,12 @@ export function LandingPage() {
                   <button
                     type="submit"
                     disabled={checkoutLoading}
-                    className="btn-download-apk"
+                    className="btn-card-detail"
                     style={{
                       padding: "0.9rem 1.4rem",
                       fontSize: "1rem",
-                      fontWeight: 600,
-                      cursor: checkoutLoading ? "not-allowed" : "pointer",
-                      background: "linear-gradient(135deg, #0d9488 0%, #059669 100%)",
-                      color: "#fff",
-                      border: "none",
-                      borderRadius: 12,
-                      display: "flex",
-                      alignItems: "center",
                       justifyContent: "center",
-                      gap: 8,
-                      boxShadow: "0 4px 14px rgba(13, 148, 136, 0.4)",
+                      cursor: checkoutLoading ? "not-allowed" : "pointer",
                     }}
                   >
                     {checkoutLoading ? (
@@ -1355,190 +1448,392 @@ export function LandingPage() {
         </div>
       )}
 
-      {/* Quick Download Modal */}
-      {activeModal === "download" && (
+      {/* 6.3 AI YORDAMCHI CHAT MODAL */}
+      {activeModal === "ai" && (
         <div className="legal-modal-backdrop" onClick={() => setActiveModal(null)}>
-          <div className="legal-modal-card" style={{ maxWidth: 540 }} onClick={(e) => e.stopPropagation()}>
+          <div className="legal-modal-card" style={{ maxWidth: 620, height: 600 }} onClick={(e) => e.stopPropagation()}>
             <div className="legal-modal-header">
-              <h3 className="legal-modal-title">Sihhat.uz Ilovasini yuklab oling</h3>
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <div style={{ width: 38, height: 38, borderRadius: 10, background: "linear-gradient(135deg, #10b981 0%, #059669 100%)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff" }}>
+                  <Sparkles size={20} />
+                </div>
+                <div>
+                  <h3 className="legal-modal-title" style={{ fontSize: "1.1rem" }}>Sihhat AI Yordamchi</h3>
+                  <p style={{ margin: "2px 0 0", fontSize: "0.78rem", color: "var(--text-muted)" }}>
+                    Siz uchun eng to'g'ri sanatoriyani tanlab beradi
+                  </p>
+                </div>
+              </div>
               <button
                 type="button"
                 onClick={() => setActiveModal(null)}
-                style={{ background: "none", border: "none", cursor: "pointer", color: "#94a3b8" }}
+                style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-light)" }}
               >
                 <X size={22} />
               </button>
             </div>
-            <div className="legal-modal-body" style={{ textAlign: "center" }}>
-              <div style={{ width: 170, height: 170, margin: "0 auto 1.5rem", background: "#fff", padding: 12, borderRadius: 16, boxShadow: "0 8px 24px rgba(0,0,0,0.3)" }}>
-                <img src="/branding/app-qr.svg" alt="QR Kod" style={{ width: "100%", height: "100%" }} />
-              </div>
 
-              <h4 style={{ margin: "0 0 0.5rem", fontSize: "1.15rem", color: "#fff" }}>Kamerangizni QR-kodga qarating</h4>
-              <p style={{ color: "#94a3b8", fontSize: "0.9rem", marginBottom: "1.5rem" }}>
-                Telefoningiz orqali rasmiy demo versiyadagi APK faylni to'g'ridan-to'g'ri o'rnating.
-              </p>
+            <div className="legal-modal-body" style={{ display: "flex", flexDirection: "column", gap: 12, flex: 1 }}>
+              {aiChatLog.map((msg, i) => (
+                <div
+                  key={i}
+                  style={{
+                    alignSelf: msg.role === "user" ? "flex-end" : "flex-start",
+                    maxWidth: "85%",
+                    background: msg.role === "user" ? "#005944" : "var(--surface-soft)",
+                    color: msg.role === "user" ? "#ffffff" : "var(--text-main)",
+                    borderRadius: 16,
+                    padding: "10px 14px",
+                    fontSize: "0.88rem",
+                    lineHeight: 1.5,
+                    border: msg.role === "user" ? "none" : "1px solid var(--border)",
+                  }}
+                >
+                  <p style={{ margin: 0 }}>{msg.text}</p>
+                  {msg.matchId && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const target = sanatoriums.find((s) => s.id === msg.matchId);
+                        if (target) {
+                          setActiveModal({ type: "details", item: target });
+                        }
+                      }}
+                      style={{
+                        marginTop: 8,
+                        padding: "6px 12px",
+                        background: "#10b981",
+                        color: "#fff",
+                        border: "none",
+                        borderRadius: 8,
+                        fontSize: "0.78rem",
+                        fontWeight: 700,
+                        cursor: "pointer",
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: 4,
+                      }}
+                    >
+                      <span>Sanatoriyani ko'rish va bron qilish</span>
+                      <ArrowRight size={13} />
+                    </button>
+                  )}
+                </div>
+              ))}
+              {aiThinking && (
+                <div style={{ alignSelf: "flex-start", color: "var(--text-muted)", fontSize: "0.85rem", fontStyle: "italic" }}>
+                  AI eng maqbul sanatoriyalarni tahlil qilmoqda…
+                </div>
+              )}
+            </div>
 
-              <div style={{ background: "#030712", padding: "1rem", borderRadius: 14, textAlign: "left", fontSize: "0.88rem", marginBottom: "1.5rem", border: "1px solid #1e293b" }}>
-                <div style={{ fontWeight: 700, color: "#10b981", marginBottom: 4 }}>🔑 Demo kirish ma'lumotlari:</div>
-                <div>Telefon raqami: <code>+998901234567</code> (yoki istalgan raqam)</div>
-                <div>Demo SMS OTP kod: <code>123456</code></div>
-              </div>
-
-              <a
-                href={apkUrl}
-                download
-                className="btn-download-apk"
-                style={{ width: "100%", justifyContent: "center", display: "flex" }}
+            {/* Quick chips */}
+            <div style={{ padding: "0 1.25rem 0.5rem", display: "flex", gap: 6, flexWrap: "wrap" }}>
+              <button
+                type="button"
+                onClick={() => handleSendAiMessage("Zomin sanatoriyasi (5 000 so'm arzon tarif)")}
+                style={{ background: "var(--surface-soft)", border: "1px solid var(--border)", borderRadius: 9999, padding: "4px 10px", fontSize: "0.75rem", color: "var(--text-muted)", cursor: "pointer" }}
               >
-                <Download size={18} />
-                <span>To'g'ridan-to'g'ri APK yuklab olish (59.6 MB)</span>
+                🏔️ Zomin (5 000 so'm)
+              </button>
+              <button
+                type="button"
+                onClick={() => handleSendAiMessage("Bel va umurtqa og'rig'i uchun qayer yaxshi?")}
+                style={{ background: "var(--surface-soft)", border: "1px solid var(--border)", borderRadius: 9999, padding: "4px 10px", fontSize: "0.75rem", color: "var(--text-muted)", cursor: "pointer" }}
+              >
+                🦴 Bel va bo'g'im
+              </button>
+              <button
+                type="button"
+                onClick={() => handleSendAiMessage("Bolalar salomatligi uchun mos sanatoriya")}
+                style={{ background: "var(--surface-soft)", border: "1px solid var(--border)", borderRadius: 9999, padding: "4px 10px", fontSize: "0.75rem", color: "var(--text-muted)", cursor: "pointer" }}
+              >
+                👶 Bolalar salomatligi
+              </button>
+            </div>
+
+            {/* Input bar */}
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                handleSendAiMessage();
+              }}
+              style={{ padding: "0.75rem 1.25rem 1.25rem", display: "flex", gap: 8, borderTop: "1px solid var(--border-subtle)" }}
+            >
+              <input
+                type="text"
+                value={aiInputText}
+                onChange={(e) => setAiInputText(e.target.value)}
+                placeholder="Savolingizni yozing (masalan, bel og'rig'iga nima yaxshi?)..."
+                style={{
+                  flex: 1,
+                  padding: "0.75rem 1rem",
+                  borderRadius: 9999,
+                  border: "1px solid var(--border)",
+                  background: "var(--surface)",
+                  color: "var(--text-main)",
+                  fontSize: "0.9rem",
+                  outline: "none",
+                }}
+              />
+              <button
+                type="submit"
+                style={{
+                  width: 44,
+                  height: 44,
+                  borderRadius: "50%",
+                  background: "#005944",
+                  color: "#fff",
+                  border: "none",
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <Send size={18} />
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* 6.4 BRONLARIM TRACKER MODAL */}
+      {activeModal === "bookings" && (
+        <div className="legal-modal-backdrop" onClick={() => setActiveModal(null)}>
+          <div className="legal-modal-card" style={{ maxWidth: 520 }} onClick={(e) => e.stopPropagation()}>
+            <div className="legal-modal-header">
+              <h3 className="legal-modal-title" style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <Calendar size={20} style={{ color: "#005944" }} />
+                <span>Bronlarimni tekshirish</span>
+              </h3>
+              <button
+                type="button"
+                onClick={() => setActiveModal(null)}
+                style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-light)" }}
+              >
+                <X size={22} />
+              </button>
+            </div>
+
+            <div className="legal-modal-body">
+              <form onSubmit={handleLookupBooking} style={{ display: "flex", gap: 8, marginBottom: "1.25rem" }}>
+                <input
+                  type="text"
+                  required
+                  value={bookingLookupQuery}
+                  onChange={(e) => setBookingLookupQuery(e.target.value)}
+                  placeholder="Bron raqami (SH-...) yoki telefon (+998)"
+                  style={{
+                    flex: 1,
+                    padding: "0.75rem 1rem",
+                    borderRadius: 12,
+                    border: "1px solid var(--border)",
+                    background: "var(--surface)",
+                    color: "var(--text-main)",
+                    fontSize: "0.95rem",
+                  }}
+                />
+                <button type="submit" disabled={bookingLookupLoading} className="btn-card-detail" style={{ borderRadius: 12 }}>
+                  {bookingLookupLoading ? "Qidirilmoqda…" : "Qidirish"}
+                </button>
+              </form>
+
+              {bookingLookupError && (
+                <div style={{ background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 10, padding: "0.75rem 1rem", color: "#dc2626", fontSize: "0.85rem", marginBottom: "1rem" }}>
+                  {bookingLookupError}
+                </div>
+              )}
+
+              {bookingLookupResult && (
+                <div style={{ background: "var(--surface-soft)", border: "1px solid var(--border)", borderRadius: 16, padding: "1.25rem" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+                    <strong style={{ fontSize: "1.05rem", color: "var(--text-main)" }}>
+                      {bookingLookupResult.sanatorium_name || "Sanatoriya"}
+                    </strong>
+                    <span style={{ padding: "4px 10px", borderRadius: 9999, fontSize: "0.75rem", fontWeight: 800, background: bookingLookupResult.status === "CONFIRMED" ? "#ecfdf5" : "#fffbeb", color: bookingLookupResult.status === "CONFIRMED" ? "#059669" : "#d97706" }}>
+                      {bookingLookupResult.status === "CONFIRMED" ? "Tasdiqlangan" : "To'lov kutilmoqda"}
+                    </span>
+                  </div>
+
+                  <p style={{ margin: "4px 0", fontSize: "0.85rem", color: "var(--text-muted)" }}>
+                    Bron raqami: <strong>{bookingLookupResult.reference}</strong>
+                  </p>
+                  <p style={{ margin: "4px 0", fontSize: "0.85rem", color: "var(--text-muted)" }}>
+                    Sanalar: {bookingLookupResult.checkIn?.slice(0, 10)} — {bookingLookupResult.checkOut?.slice(0, 10)}
+                  </p>
+                  <p style={{ margin: "4px 0", fontSize: "0.85rem", color: "var(--text-muted)" }}>
+                    Summa: <strong>{(Number(bookingLookupResult.amount) / 100).toLocaleString("ru-RU")} so'm</strong>
+                  </p>
+
+                  {bookingLookupResult.status === "PAYMENT_PENDING" && (
+                    <button
+                      type="button"
+                      className="btn-card-detail"
+                      style={{ marginTop: 12, width: "100%", justifyContent: "center" }}
+                      onClick={() => {
+                        const target = sanatoriums[0];
+                        openCheckout(target);
+                      }}
+                    >
+                      <CreditCard size={16} />
+                      <span>TezCheck orqali to'lash</span>
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 6.5 ALOQA MODAL */}
+      {activeModal === "contact" && (
+        <div className="legal-modal-backdrop" onClick={() => setActiveModal(null)}>
+          <div className="legal-modal-card" style={{ maxWidth: 480 }} onClick={(e) => e.stopPropagation()}>
+            <div className="legal-modal-header">
+              <h3 className="legal-modal-title">Bog'lanish va qo'llab-quvvatlash</h3>
+              <button
+                type="button"
+                onClick={() => setActiveModal(null)}
+                style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-light)" }}
+              >
+                <X size={22} />
+              </button>
+            </div>
+            <div className="legal-modal-body" style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+              <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+                <div style={{ width: 40, height: 40, borderRadius: "50%", background: "var(--primary-light)", color: "#005944", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <Phone size={20} />
+                </div>
+                <div>
+                  <div style={{ fontSize: "0.8rem", color: "var(--text-muted)" }}>Yagona call-markaz (24/7):</div>
+                  <strong style={{ fontSize: "1.05rem" }}>+998 71 200 00 00</strong>
+                </div>
+              </div>
+
+              <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+                <div style={{ width: 40, height: 40, borderRadius: "50%", background: "var(--teal-light)", color: "#0d9488", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <MessageSquare size={20} />
+                </div>
+                <div>
+                  <div style={{ fontSize: "0.8rem", color: "var(--text-muted)" }}>Telegram operator:</div>
+                  <strong style={{ fontSize: "1.05rem" }}>@sihhat_support_bot</strong>
+                </div>
+              </div>
+
+              <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+                <div style={{ width: 40, height: 40, borderRadius: "50%", background: "var(--primary-light)", color: "#005944", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <MapPin size={20} />
+                </div>
+                <div>
+                  <div style={{ fontSize: "0.8rem", color: "var(--text-muted)" }}>Bosh ofis:</div>
+                  <span style={{ fontSize: "0.9rem" }}>Toshkent shahri, Shayxontohur tumani, Navoiy ko'chasi 11A</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 6.6 KIRISH MODAL */}
+      {activeModal === "login" && (
+        <div className="legal-modal-backdrop" onClick={() => setActiveModal(null)}>
+          <div className="legal-modal-card" style={{ maxWidth: 440 }} onClick={(e) => e.stopPropagation()}>
+            <div className="legal-modal-header">
+              <h3 className="legal-modal-title">Tizimga kirish</h3>
+              <button
+                type="button"
+                onClick={() => setActiveModal(null)}
+                style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-light)" }}
+              >
+                <X size={22} />
+              </button>
+            </div>
+            <div className="legal-modal-body" style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              <p style={{ margin: 0, color: "var(--text-muted)", fontSize: "0.9rem" }}>
+                Qaysi panelga kirishni xohlaysiz?
+              </p>
+              <a
+                href="/superadmin"
+                className="btn-card-detail"
+                style={{ padding: "0.85rem 1.25rem", textDecoration: "none", justifyContent: "center", fontSize: "0.95rem" }}
+              >
+                <span>Superadmin paneli (Platforma)</span>
+                <ArrowRight size={16} />
+              </a>
+              <a
+                href="/hamkorlar"
+                style={{
+                  padding: "0.85rem 1.25rem",
+                  textDecoration: "none",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 8,
+                  fontSize: "0.95rem",
+                  fontWeight: 700,
+                  borderRadius: 9999,
+                  border: "1px solid var(--border)",
+                  color: "var(--text-main)",
+                  background: "var(--surface-soft)",
+                }}
+              >
+                <span>Hamkorlar paneli (Direktor & Resepshn)</span>
+                <ArrowRight size={16} />
               </a>
             </div>
           </div>
         </div>
       )}
 
-      {/* Ommaviy Oferta Modal */}
+      {/* 6.7 OFERTA MODAL */}
       {activeModal === "oferta" && (
         <div className="legal-modal-backdrop" onClick={() => setActiveModal(null)}>
           <div className="legal-modal-card" onClick={(e) => e.stopPropagation()}>
             <div className="legal-modal-header">
-              <h3 className="legal-modal-title">Ommaviy Oferta (Foydalanuvchi Shartnomasi)</h3>
-              <button
-                type="button"
-                onClick={() => setActiveModal(null)}
-                style={{ background: "none", border: "none", cursor: "pointer", color: "#94a3b8" }}
-              >
+              <h3 className="legal-modal-title">Ommaviy Oferta</h3>
+              <button type="button" onClick={() => setActiveModal(null)} style={{ background: "none", border: "none", cursor: "pointer" }}>
                 <X size={22} />
               </button>
             </div>
             <div className="legal-modal-body">
-              <p><em>So'nggi yangilanish: 2026-yil oktyabr</em></p>
-
-              <h4>1. Umumiy qoidalar</h4>
-              <p>
-                Ushbu Ommaviy Oferta «Sihhat.uz» axborot platformasi orqali O'zbekiston Respublikasi hududidagi sanatoriylar, dam olish maskanlari va sog'lomlashtirish majmualari xizmatlarini bron qilish tartibi va shartlarini belgilaydi.
-              </p>
-
-              <h4>2. Xizmat predmeti</h4>
-              <p>
-                Platformadagi narxlar Sanatoriyaning rasmiy kassa narxlariga teng bo'lib, qo'shimcha yashirin to'lovlar undirilmaydi.
-              </p>
-
-              <h4>3. Bron qilish va tasdiqlash tartibi</h4>
-              <p>
-                Foydalanuvchi kerakli sanatoriya, xona turi, kelish va ketish sanalarini tanlab, o'zining shaxsiy ma'lumotlarini kiritadi va elektron vaucher (QR-kodli bron tasdig'i) oladi.
-              </p>
-
-              <h4>4. To'lov va hisob-kitoblar</h4>
-              <p>
-                To'lovlar Sanatoriya qoidalariga muvofiq onlayn yoki yetib kelganda qabulxona kassasida amalga oshiriladi.
-              </p>
-
-              <h4>5. Tomonlarning javobgarligi</h4>
-              <p>
-                Sanatoriya o'z navbatida tasdiqlangan bron bo'yicha mijozga xonani o'z vaqtida taqdim etishga to'liq javobgardir.
-              </p>
-            </div>
-            <div className="legal-modal-footer">
-              <button
-                type="button"
-                onClick={() => setActiveModal(null)}
-                className="partner-portal-btn"
-              >
-                Tushunarli
-              </button>
+              <p>Sihhat.uz orqali sanatoriylarni bron qilish bo'yicha ommaviy kelishuv shartlari.</p>
+              <p>Mijoz va Sanatoriya o'rtasidagi munosabatlar O'zbekiston Respublikasi qonunchiligi asosida tartibga solinadi.</p>
             </div>
           </div>
         </div>
       )}
 
-      {/* Maxfiylik Siyosati Modal */}
+      {/* 6.8 MAXFIYLIK MODAL */}
       {activeModal === "maxfiylik" && (
         <div className="legal-modal-backdrop" onClick={() => setActiveModal(null)}>
           <div className="legal-modal-card" onClick={(e) => e.stopPropagation()}>
             <div className="legal-modal-header">
-              <h3 className="legal-modal-title">Maxfiylik Siyosati (Privacy Policy)</h3>
-              <button
-                type="button"
-                onClick={() => setActiveModal(null)}
-                style={{ background: "none", border: "none", cursor: "pointer", color: "#94a3b8" }}
-              >
+              <h3 className="legal-modal-title">Maxfiylik Siyosati</h3>
+              <button type="button" onClick={() => setActiveModal(null)} style={{ background: "none", border: "none", cursor: "pointer" }}>
                 <X size={22} />
               </button>
             </div>
             <div className="legal-modal-body">
-              <p>
-                Ushbu Maxfiylik siyosati O'zbekiston Respublikasining 2019-yil 2-iyuldagi «Shaxsga doir ma'lumotlar to'g'risida»gi O'RQ-547-son Qonuni talablariga muvofiq ishlab chiqilgan.
-              </p>
-
-              <h4>1. Yig'iladigan ma'lumotlar</h4>
-              <p>
-                Telefon raqami (avtorizatsiya uchun), F.I.Sh., tanlangan sanatoriya va tashrif sanalari.
-              </p>
-
-              <h4>2. Ma'lumotlardan foydalanish maqsadi</h4>
-              <p>
-                Shaxsiy ma'lumotlar faqat Sanatoriyada xonani bron qilish va mijoz bilan bog'lanish maqsadida qo'llaniladi.
-              </p>
-
-              <h4>3. Ma'lumotlar xavfsizligi</h4>
-              <p>
-                Ilg'or shifrlash (HTTPS, TLS, tokenlashtirish) vositalari bilan himoyalangan.
-              </p>
-            </div>
-            <div className="legal-modal-footer">
-              <button
-                type="button"
-                onClick={() => setActiveModal(null)}
-                className="partner-portal-btn"
-              >
-                Yopish
-              </button>
+              <p>Foydalanuvchilarning shaxsiy ma'lumotlari xavfsiz saqlanadi va uchinchi shaxslarga berilmaydi.</p>
             </div>
           </div>
         </div>
       )}
 
-      {/* Pulni Qaytarish Qoidalari Modal */}
+      {/* 6.9 QAYTARISH MODAL */}
       {activeModal === "qaytarish" && (
         <div className="legal-modal-backdrop" onClick={() => setActiveModal(null)}>
           <div className="legal-modal-card" onClick={(e) => e.stopPropagation()}>
             <div className="legal-modal-header">
-              <h3 className="legal-modal-title">Pulni Qaytarish va Bronni Bekor Qilish Qoidalari</h3>
-              <button
-                type="button"
-                onClick={() => setActiveModal(null)}
-                style={{ background: "none", border: "none", cursor: "pointer", color: "#94a3b8" }}
-              >
+              <h3 className="legal-modal-title">Pulni qaytarish shartlari</h3>
+              <button type="button" onClick={() => setActiveModal(null)} style={{ background: "none", border: "none", cursor: "pointer" }}>
                 <X size={22} />
               </button>
             </div>
             <div className="legal-modal-body">
-              <h4>1. 72 soatlik bepul bekor qilish</h4>
-              <p>
-                Kelish sanasidan kamida 72 soat oldin bekor qilinganda, to'langan mablag' mijozga <strong>100% to'liq hajmda</strong> jarimalarsiz qaytariladi.
-              </p>
-
-              <h4>2. 24–48 soat qolganda bekor qilish</h4>
-              <p>
-                Kelish vaqtiga 24-48 soat qolganda bekor qilinsa, Sanatoriya qoidalariga muvofiq qaytariladi.
-              </p>
-
-              <h4>3. Qaytarish muddati</h4>
-              <p>
-                Pul mablag'lari mijoz to'lov qilgan bank kartasiga 1 dan 5 ish kunigacha bo'lgan muddatda qaytariladi.
-              </p>
-            </div>
-            <div className="legal-modal-footer">
-              <button
-                type="button"
-                onClick={() => setActiveModal(null)}
-                className="partner-portal-btn"
-              >
-                Tushunarli
-              </button>
+              <p>Bron bekor qilinganda mablag' belgilangan muddat ichida to'liq qaytariladi.</p>
             </div>
           </div>
         </div>
