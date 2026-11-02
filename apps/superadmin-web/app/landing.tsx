@@ -14,6 +14,7 @@ import {
   ChevronLeft,
   ChevronRight,
   CreditCard,
+  Download,
   ExternalLink,
   Headphones,
   HeartPulse,
@@ -140,117 +141,6 @@ const FALLBACK_SANATORIUMS: SanatoriumCardData[] = [
       },
     ],
   },
-  {
-    id: "soglom-hayot-markazi-ref",
-    name: "Sog'lom Hayot Markazi",
-    region: "Toshkent viloyati, Chirchiq",
-    address: "Chirchiq shahri, Bo'stonliq yo'li",
-    category: "Reabilitatsiya",
-    tag: "🏥 Reabilitatsiya va Fizioterapiya",
-    meals: "3 mahal parhez va vitaminlashtirilgan taomlar",
-    description:
-      "Zamonaviy tibbiy texnologiyalar, reabilitatsiya muolajalari, umurtqa va bo'g'im kasalliklarini jarrohliksiz tiklash bo'yicha yetakchi markaz.",
-    directions:
-      "Umurtqa pog'onasi churrasi (grija), insultdan keyingi tiklanish, artroz, osteoxondroz va bo'g'im harakatini tiklash.",
-    services: [
-      "Kinezoterapiya",
-      "Lazeroterapiya",
-      "Manual terapiya",
-      "Gidromassaj",
-      "Magnitoterapiya",
-    ],
-    amenities: ["Wi-Fi", "Basseyn", "Gidromassaj", "Sport zali", "Avtoturargoh"],
-    from_amount: "250 000",
-    price_label: "Davolash, yashash va 3 mahal ovqatlanish bilan",
-    map_url: "https://maps.google.com/?q=Chirchiq+sanatoriyasi",
-    check_in_time: "08:00",
-    check_out_time: "18:00",
-    required_documents: "Pasport va tibbiy tashxis xulosasi",
-    child_rules: "7 yoshdan katta bolalar qabul qilinadi",
-    rating: 4.7,
-    photos: [
-      "https://images.unsplash.com/photo-1586611292717-f828b167408c?auto=format&fit=crop&w=800&q=80",
-      "https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?auto=format&fit=crop&w=800&q=80",
-    ],
-    room_types: [{ id: "rt-sh-1", name: "Standart 1 kishilik", maxGuests: 1 }],
-    rate_plans: [
-      { id: "rp-sh-1", name: "Standart reabilitatsiya", baseAmount: "25000000" },
-    ],
-  },
-  {
-    id: "bahor-sihatgohi-ref",
-    name: "Bahor Sihatgohi",
-    region: "Samarqand viloyati, Samarqand",
-    address: "Samarqand shahri, Bog'i Shamol mavzesi",
-    category: "Dam olish va wellness",
-    tag: "🌿 Qadimiy shahar va Wellness",
-    meals: "3 mahal milliy va yevropa taomlari",
-    description:
-      "Samarqandning xushmanzara tabiatida joylashgan ko'p tarmoqli dam olish va sog'lomlashtirish majmuasi. Spa, toza havo va tinch muhit.",
-    directions:
-      "Asab tizimi xastaliklari, surunkali charchoq, uyqusizlik, metabolizm buzilishi va umumiy immunitetni kuchaytirish.",
-    services: [
-      "Spa muolajalar",
-      "Aromaterapiya",
-      "Fin saunasi",
-      "Tuzli basseyn",
-      "Fitobar",
-    ],
-    amenities: ["Wi-Fi", "Ochiq va yopiq basseyn", "Sauna", "Bilyard", "Kutubxona"],
-    from_amount: "180 000",
-    price_label: "Dam olish, spa va barcha qulayliklar bilan",
-    map_url: "https://maps.google.com/?q=Samarqand+Bahor+Sihatgohi",
-    check_in_time: "09:00",
-    check_out_time: "19:00",
-    required_documents: "Pasport",
-    child_rules: "Barcha yoshdagi bolalar uchun mos",
-    rating: 4.9,
-    photos: [
-      "https://images.unsplash.com/photo-1564501049412-61c2a3083791?auto=format&fit=crop&w=800&q=80",
-      "https://images.unsplash.com/photo-1584132967334-10e028bd69f7?auto=format&fit=crop&w=800&q=80",
-    ],
-    room_types: [{ id: "rt-bs-1", name: "Standart qulay xona", maxGuests: 2 }],
-    rate_plans: [
-      { id: "rp-bs-1", name: "Wellness paket", baseAmount: "18000000" },
-    ],
-  },
-  {
-    id: "tomaris-soglomlik-saroyi-ref",
-    name: "To'maris Sog'lomlik Saroyi",
-    region: "Buxoro viloyati, Buxoro",
-    address: "Buxoro viloyati, Kogon tumani",
-    category: "Davolash maskanlari",
-    tag: "💧 Mineral Balneologiya",
-    meals: "3 mahal shifobaxsh parhez taomlar",
-    description:
-      "Buxoroning noyob issiq mineral buloqlari va shifobaxsh suvlari asosida tayanch-harakat, ginekologiya va buyrak xastaliklarini samarali davolovchi kurort.",
-    directions:
-      "Bo'g'im og'riqlari (revmatizm, poliartrit), buyrak va siydik yo'llari, teri kasalliklari va ginekologik muammolar.",
-    services: [
-      "Termal mineral vannalar",
-      "Loyiha balchiq muolajalari",
-      "Parafino-ozokerit",
-      "Dush Sharko",
-      "Ingalyatsiya",
-    ],
-    amenities: ["Wi-Fi", "Yashil bog'", "Choyxona", "Kinoteatr", "Avtoturargoh"],
-    from_amount: "220 000",
-    price_label: "Davolash kursi, mineral vannalar va 3 mahal ovqat bilan",
-    map_url: "https://maps.google.com/?q=Tomaris+Buxoro",
-    check_in_time: "08:00",
-    check_out_time: "18:00",
-    required_documents: "Pasport, ambulator karta",
-    child_rules: "4 yoshdan yuqori bolalar qabul qilinadi",
-    rating: 4.8,
-    photos: [
-      "https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?auto=format&fit=crop&w=800&q=80",
-      "https://images.unsplash.com/photo-1582719508461-905c673771fd?auto=format&fit=crop&w=800&q=80",
-    ],
-    room_types: [{ id: "rt-tm-1", name: "Standart 2 o'rinli", maxGuests: 2 }],
-    rate_plans: [
-      { id: "rp-tm-1", name: "Balneologik davolash", baseAmount: "22000000" },
-    ],
-  },
 ];
 
 // Categories definition
@@ -372,19 +262,16 @@ export function LandingPage() {
               check_out_time: item.check_out_time || "18:00",
               required_documents: item.required_documents || "Pasport va sanatoriya kartasi",
               rating: item.rating || 4.8,
+              category: item.category || "Davolash maskanlari",
               tag: item.tag || "Tavsiya etiladi",
               room_types: item.room_types || [],
               rate_plans: item.rate_plans || [],
             }));
 
-            // Merge with fallbacks so users always see all 4 items
-            const merged = [...apiItems];
-            for (const fb of FALLBACK_SANATORIUMS) {
-              if (!merged.some((m) => m.id === fb.id || m.name.toLowerCase() === fb.name.toLowerCase())) {
-                merged.push(fb);
-              }
+            // Only display real sanatoriums from database/API
+            if (apiItems.length > 0) {
+              setSanatoriums(apiItems);
             }
-            setSanatoriums(merged);
           }
         }
       } catch (e) {
@@ -555,9 +442,18 @@ export function LandingPage() {
         <div className="landing-nav-container">
           {/* Logo */}
           <div className="landing-brand" onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}>
-            <div className="brand-icon-box">
-              <HeartPulse size={24} />
-            </div>
+            <img
+              src="/branding/sihhat-logo.png"
+              alt="Sihhat uz logosi"
+              style={{
+                width: 44,
+                height: 44,
+                borderRadius: 12,
+                objectFit: "contain",
+                boxShadow: "0 2px 8px rgba(0, 89, 68, 0.2)",
+                flexShrink: 0,
+              }}
+            />
             <div className="brand-text-wrap">
               <span className="brand-title">SIHHAT UZ</span>
               <span className="brand-tagline">Sog'lomlik sari</span>
@@ -650,6 +546,28 @@ export function LandingPage() {
 
           {/* Nav Actions */}
           <div className="landing-nav-actions">
+            <a
+              href="tel:+998882952028"
+              className="nav-phone-link"
+              title="Qo'ng'iroq qilish: +998 88 295 20 28"
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 6,
+                padding: "8px 12px",
+                borderRadius: 10,
+                fontSize: "0.85rem",
+                fontWeight: 700,
+                color: "#005944",
+                background: "rgba(0, 89, 68, 0.08)",
+                textDecoration: "none",
+                whiteSpace: "nowrap",
+              }}
+            >
+              <Phone size={15} />
+              <span>+998 88 295 20 28</span>
+            </a>
+
             <button
               type="button"
               onClick={toggleTheme}
@@ -680,6 +598,29 @@ export function LandingPage() {
               <Calendar size={16} />
               <span>Bronlarim</span>
             </button>
+
+            <a
+              href="/api/download/apk"
+              download="sihhat-uz.apk"
+              className="btn-nav-download"
+              title="Android ilovasini yuklab olish"
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 6,
+                padding: "8px 14px",
+                borderRadius: 10,
+                fontSize: "0.85rem",
+                fontWeight: 600,
+                color: "#fff",
+                background: "linear-gradient(135deg, #005944 0%, #008f6b 100%)",
+                textDecoration: "none",
+                boxShadow: "0 2px 6px rgba(0,89,68,0.25)",
+              }}
+            >
+              <Smartphone size={16} />
+              <span>APK yuklab olish</span>
+            </a>
           </div>
         </div>
       </header>
@@ -738,6 +679,45 @@ export function LandingPage() {
                 <Headphones size={18} className="trust-icon-green" />
                 <span>24/7 qo'llab-quvvatlash</span>
               </div>
+            </div>
+
+            {/* Quick APK Download Action */}
+            <div style={{ marginTop: "1.25rem", display: "flex", alignItems: "center", gap: "1rem", flexWrap: "wrap" }}>
+              <a
+                href="/api/download/apk"
+                download="sihhat-uz.apk"
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 8,
+                  padding: "11px 20px",
+                  borderRadius: 12,
+                  fontSize: "0.92rem",
+                  fontWeight: 700,
+                  color: "#fff",
+                  background: "linear-gradient(135deg, #005944 0%, #008f6b 100%)",
+                  textDecoration: "none",
+                  boxShadow: "0 4px 14px rgba(0, 89, 68, 0.25)",
+                }}
+              >
+                <Smartphone size={18} />
+                <span>Sihhat uz ilovasini yuklab olish (.APK)</span>
+              </a>
+              <a
+                href="tel:+998882952028"
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 6,
+                  fontSize: "0.88rem",
+                  fontWeight: 600,
+                  color: "var(--text-muted)",
+                  textDecoration: "none",
+                }}
+              >
+                <Phone size={15} style={{ color: "#005944" }} />
+                <span>Aloqa: <strong style={{ color: "#005944" }}>+998 88 295 20 28</strong></span>
+              </a>
             </div>
           </div>
 
@@ -959,8 +939,22 @@ export function LandingPage() {
           {/* Right Brand Badge */}
           <div className="how-banner-right">
             <div className="how-brand-badge">
-              <div className="how-brand-logo-circle">
-                <HeartPulse size={24} />
+              <div
+                className="how-brand-logo-circle"
+                style={{
+                  overflow: "hidden",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  background: "#fff",
+                  padding: 4,
+                }}
+              >
+                <img
+                  src="/branding/sihhat-logo.png"
+                  alt="Sihhat uz"
+                  style={{ width: "100%", height: "100%", objectFit: "contain", borderRadius: "50%" }}
+                />
               </div>
               <span className="how-brand-name">SIHHAT UZ</span>
             </div>
@@ -969,17 +963,154 @@ export function LandingPage() {
         </div>
       </section>
 
+      {/* ========================================================
+          5.5 APP DOWNLOAD SECTION
+          ======================================================== */}
+      <section id="ilovani-yuklash" className="section-container" style={{ paddingTop: "1rem", paddingBottom: "2rem" }}>
+        <div
+          style={{
+            background: "linear-gradient(135deg, #003d2f 0%, #005944 50%, #047857 100%)",
+            borderRadius: 24,
+            padding: "2.5rem 2rem",
+            color: "#fff",
+            display: "flex",
+            flexWrap: "wrap",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: "2rem",
+            boxShadow: "0 12px 32px rgba(0, 89, 68, 0.25)",
+            position: "relative",
+            overflow: "hidden",
+          }}
+        >
+          {/* Left info */}
+          <div style={{ flex: "1 1 480px", maxWidth: 640 }}>
+            <div
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 8,
+                background: "rgba(255, 255, 255, 0.15)",
+                padding: "6px 14px",
+                borderRadius: 999,
+                fontSize: "0.85rem",
+                fontWeight: 600,
+                marginBottom: "1rem",
+                backdropFilter: "blur(4px)",
+              }}
+            >
+              <Smartphone size={16} />
+              <span>Sihhat uz rasmiy Android ilovasi</span>
+            </div>
+
+            <h2 style={{ fontSize: "1.9rem", fontWeight: 800, margin: "0 0 0.75rem 0", lineHeight: 1.25 }}>
+              Sog'lomlashtirish maskanlari endi cho'ntagingizda!
+            </h2>
+            <p style={{ margin: "0 0 1.5rem 0", fontSize: "1rem", lineHeight: 1.5, opacity: 0.9 }}>
+              Ilovani o'rnating va O'zbekistonning barcha sanatoriylari, xonalar, narxlar hamda qulay sanalarni telefoningizda ko'ring. Bir klik orqali bron qiling va TezCheck orqali xavfsiz to'lovni amalga oshiring.
+            </p>
+
+            <div style={{ display: "flex", flexWrap: "wrap", gap: "1rem", alignItems: "center" }}>
+              <a
+                href="/api/download/apk"
+                download="sihhat-uz.apk"
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 10,
+                  background: "#fff",
+                  color: "#005944",
+                  fontWeight: 700,
+                  fontSize: "1rem",
+                  padding: "12px 24px",
+                  borderRadius: 14,
+                  textDecoration: "none",
+                  boxShadow: "0 4px 14px rgba(0, 0, 0, 0.15)",
+                }}
+              >
+                <Download size={20} />
+                <span>APK Yuklab Olish (59.6 MB)</span>
+              </a>
+
+              <a
+                href="tel:+998882952028"
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 8,
+                  background: "rgba(255, 255, 255, 0.15)",
+                  color: "#fff",
+                  fontWeight: 600,
+                  fontSize: "0.95rem",
+                  padding: "12px 18px",
+                  borderRadius: 14,
+                  textDecoration: "none",
+                  backdropFilter: "blur(4px)",
+                }}
+              >
+                <Phone size={18} />
+                <span>+998 88 295 20 28</span>
+              </a>
+            </div>
+          </div>
+
+          {/* Right visual: App Icon + Features */}
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "1.5rem",
+              background: "rgba(255, 255, 255, 0.1)",
+              padding: "1.25rem 1.75rem",
+              borderRadius: 20,
+              backdropFilter: "blur(8px)",
+              border: "1px solid rgba(255, 255, 255, 0.2)",
+            }}
+          >
+            <img
+              src="/branding/sihhat-logo.png"
+              alt="Sihhat uz APK"
+              style={{
+                width: 96,
+                height: 96,
+                borderRadius: 20,
+                objectFit: "cover",
+                boxShadow: "0 8px 24px rgba(0, 0, 0, 0.3)",
+              }}
+            />
+            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              <span style={{ fontSize: "1.15rem", fontWeight: 700 }}>Sihhat.uz Mobile</span>
+              <span style={{ fontSize: "0.85rem", opacity: 0.85 }}>Versiya 0.1.1 (Android)</span>
+              <span style={{ fontSize: "0.85rem", color: "#a7f3d0" }}>✓ Tezkor va qulay bron</span>
+              <span style={{ fontSize: "0.85rem", color: "#a7f3d0" }}>✓ TezCheck to'lov integratsiyasi</span>
+              <span style={{ fontSize: "0.85rem", color: "#a7f3d0" }}>✓ 24/7 call-markaz</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* Footer Legal and Info */}
       <footer style={{ borderTop: "1px solid var(--border)", background: "var(--surface)", padding: "2.5rem 1.25rem 3rem" }}>
         <div style={{ maxWidth: 1240, margin: "0 auto", display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "center", gap: "1.5rem" }}>
           <div>
-            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
-              <HeartPulse size={20} style={{ color: "#005944" }} />
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
+              <img
+                src="/branding/sihhat-logo.png"
+                alt="Sihhat uz"
+                style={{ width: 28, height: 28, borderRadius: 6, objectFit: "contain" }}
+              />
               <strong style={{ fontSize: "1.1rem", color: "var(--text-main)" }}>SIHHAT UZ</strong>
             </div>
-            <p style={{ margin: 0, fontSize: "0.85rem", color: "var(--text-muted)" }}>
+            <p style={{ margin: "0 0 6px 0", fontSize: "0.85rem", color: "var(--text-muted)" }}>
               © 2026 Sihhat.uz · O'zbekiston milliy sog'lomlashtirish va sanatoriylar platformasi.
             </p>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "0.85rem", color: "var(--text-muted)" }}>
+              <Phone size={14} style={{ color: "#005944" }} />
+              <span>Call-markaz (24/7):</span>
+              <a href="tel:+998882952028" style={{ fontWeight: 700, color: "#005944", textDecoration: "none" }}>
+                +998 88 295 20 28
+              </a>
+            </div>
           </div>
 
           <div style={{ display: "flex", gap: "1.25rem", flexWrap: "wrap", fontSize: "0.85rem" }}>
@@ -1004,6 +1135,21 @@ export function LandingPage() {
             >
               Qaytarish shartlari
             </button>
+            <a
+              href="/api/download/apk"
+              download="sihhat-uz.apk"
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 4,
+                color: "#005944",
+                fontWeight: 700,
+                textDecoration: "none",
+              }}
+            >
+              <Smartphone size={14} />
+              <span>Android APK</span>
+            </a>
             <button
               type="button"
               onClick={() => setActiveModal("contact")}
@@ -1708,7 +1854,12 @@ export function LandingPage() {
                 </div>
                 <div>
                   <div style={{ fontSize: "0.8rem", color: "var(--text-muted)" }}>Yagona call-markaz (24/7):</div>
-                  <strong style={{ fontSize: "1.05rem" }}>+998 71 200 00 00</strong>
+                  <a
+                    href="tel:+998882952028"
+                    style={{ fontSize: "1.05rem", fontWeight: 700, color: "#005944", textDecoration: "none" }}
+                  >
+                    +998 88 295 20 28
+                  </a>
                 </div>
               </div>
 

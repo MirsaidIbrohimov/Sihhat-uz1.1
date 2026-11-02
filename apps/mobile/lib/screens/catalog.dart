@@ -460,9 +460,12 @@ class SanatoriumScreen extends StatelessWidget {
       clearWhenMissing: true,
       builder: (v) {
         final s = asJson(v),
-            photos = (s['photo_ids'] as List? ?? [])
-                .map((p) => p.toString())
-                .toList(),
+            photos =
+                ((s['photos'] as List?)?.isNotEmpty == true
+                        ? (s['photos'] as List)
+                        : (s['photo_ids'] as List? ?? []))
+                    .map((p) => p.toString())
+                    .toList(),
             rates = rows(s['rate_plans']);
         final available =
             rates.isNotEmpty && s['online_booking_available'] != false;

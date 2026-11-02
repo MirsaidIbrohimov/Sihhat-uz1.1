@@ -291,7 +291,9 @@ class SanatoriumCard extends StatelessWidget {
   });
   @override
   Widget build(BuildContext context) {
-    final photos = item['photo_ids'] as List?;
+    final photos = ((item['photos'] as List?)?.isNotEmpty == true
+        ? (item['photos'] as List)
+        : (item['photo_ids'] as List? ?? []));
     return GlassCard(
       padding: EdgeInsets.zero,
       margin: const EdgeInsets.only(bottom: 16),
@@ -321,10 +323,10 @@ class SanatoriumCard extends StatelessWidget {
                       ),
                     ),
                   ),
-                  if (photos?.isNotEmpty == true)
+                  if (photos.isNotEmpty)
                     SanatoriumPhoto(
                       api: api,
-                      id: photos!.first.toString(),
+                      id: photos.first.toString(),
                       fit: BoxFit.cover,
                     ),
                   Positioned(

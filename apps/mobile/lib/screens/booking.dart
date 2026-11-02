@@ -1300,10 +1300,17 @@ class BookingDocumentScreen extends StatelessWidget {
                   onPressed: () {
                     final ref = booking['reference'] ?? '';
                     final guest = booking['guest']?['name'] ?? '';
-                    final checkIn = booking['checkIn'].toString().substring(0, 10);
-                    final checkOut = booking['checkOut'].toString().substring(0, 10);
+                    final checkIn = booking['checkIn'].toString().substring(
+                      0,
+                      10,
+                    );
+                    final checkOut = booking['checkOut'].toString().substring(
+                      0,
+                      10,
+                    );
                     final cost = money(booking['amount']);
-                    final text = '🌿 SIHHAT.UZ — ELEKTRON VAUCHER\n'
+                    final text =
+                        '🌿 SIHHAT.UZ — ELEKTRON VAUCHER\n'
                         '━━━━━━━━━━━━━━━━━━━━━\n'
                         '📋 Bron kodi: $ref\n'
                         '👤 Mehmon: $guest\n'

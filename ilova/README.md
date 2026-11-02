@@ -10,10 +10,11 @@ Joriy versiya: **0.1.1 (build 2)**, 2026-10-22.
 Lokal fayl shu papkada: `Sihhat-uz-demo-0.1.1.apk` (~59.6 MB).
 
 ### 🚀 Yangilanishlar:
-1. **Onlayn API integratsiyasi:** Ilova to'g'ridan-to'g'ri `https://sihhat.uz/api` ga ulanadi.
-2. **Karta orqali to'lov (P2P):** Bron qilishda karta raqami (`5614 6873 0490 4270`) ko'rsatiladi va bir bosishda nusxalash imkoniyati mavjud.
-3. **To'lovni tasdiqlash:** Foydalanuvchi kartaga o'tkazma qilgach, "To'lovni tasdiqlash" tugmasini bosishi bilan bron tasdiqlanadi va rasmiy QR-kod hamda vaucher beriladi.
-4. **Vaucher va QR-kod:** Tasdiqlangan bron ma'lumotlari va qabulxonaga ko'rsatish uchun vaucher hujjati to'liq ishlaydi.
+1. **Onlayn API integratsiyasi:** Ilova to'g'ridan-to'g'ri `https://sihhat-api.onrender.com` va `https://sihhat.uz/api` ga ulanadi.
+2. **TezCheck to'lov integratsiyasi:** To'lov qilishda xavfsiz TezCheck to'lov tizimi ochiladi.
+3. **Zomin sanatoriyasi va yangi maskanlar:** Zomin sanatoriyasi to'liq suratlari, arzon tarifi va xonalari bilan katalogda aks etadi.
+4. **Rasmiy aloqa call-markaz:** +998 88 295 20 28.
+5. **Vaucher va QR-kod:** Tasdiqlangan bron ma'lumotlari va qabulxonaga ko'rsatish uchun vaucher hujjati to'liq ishlaydi.
 
 ### 🛠 Faylni tekshirish:
 
@@ -22,4 +23,4 @@ Get-FileHash -Algorithm SHA256 -LiteralPath ilova/Sihhat-uz-demo-0.1.1.apk
 ```
 
 Natija `ilova/SHA256SUMS.txt`dagi qiymat bilan bir xil bo‘lishi kerak:
-`9d48b4629aa1de5ef8631cca98fc3788adf43c043b9e7de3e1d06bd5510f96f3`
+`57df153f5e830414984dcd5757c56f44a9ae2b3d3d295414c6731aa9a7380133`

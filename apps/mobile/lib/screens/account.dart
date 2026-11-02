@@ -826,19 +826,32 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     style: conceptHeading(context, size: 25),
                   ),
                   const SizedBox(height: 6),
-                  Builder(builder: (_) {
-                    final email = p['email'] ?? (p['login']?.toString().contains('@') == true ? p['login'] : '');
-                    final phone = p['phone'] ?? '';
-                    final list = [
-                      if (email != null && email.toString().isNotEmpty) email.toString(),
-                      if (phone != null && phone.toString().isNotEmpty) phone.toString(),
-                    ];
-                    return Text(
-                      list.isNotEmpty ? list.join(' · ') : 'Email orqali tasdiqlangan',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(color: context.colors.muted, fontSize: 13),
-                    );
-                  }),
+                  Builder(
+                    builder: (_) {
+                      final email =
+                          p['email'] ??
+                          (p['login']?.toString().contains('@') == true
+                              ? p['login']
+                              : '');
+                      final phone = p['phone'] ?? '';
+                      final list = [
+                        if (email != null && email.toString().isNotEmpty)
+                          email.toString(),
+                        if (phone != null && phone.toString().isNotEmpty)
+                          phone.toString(),
+                      ];
+                      return Text(
+                        list.isNotEmpty
+                            ? list.join(' · ')
+                            : 'Email orqali tasdiqlangan',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: context.colors.muted,
+                          fontSize: 13,
+                        ),
+                      );
+                    },
+                  ),
                 ],
               ),
             ),

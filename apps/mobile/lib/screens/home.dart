@@ -397,7 +397,9 @@ class FeaturedSanatoriumCard extends StatelessWidget {
   });
   @override
   Widget build(BuildContext context) {
-    final photos = item['photo_ids'] as List? ?? [];
+    final photos = ((item['photos'] as List?)?.isNotEmpty == true
+        ? (item['photos'] as List)
+        : (item['photo_ids'] as List? ?? []));
     final rating = item['rating'] is Map ? asJson(item['rating']) : null;
     return Material(
       color: context.colors.surface,

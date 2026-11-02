@@ -308,9 +308,11 @@ export function LandingPage() {
       <header className="landing-header">
         <div className="landing-nav-container">
           <a href="/" className="landing-brand">
-            <div className="brand-icon-wrap">
-              <HeartPulse size={24} />
-            </div>
+            <img
+              src="/branding/sihhat-logo.png"
+              alt="Sihhat.uz logosi"
+              style={{ width: 36, height: 36, borderRadius: 10, objectFit: "contain" }}
+            />
             <span className="brand-name">Sihhat.uz</span>
           </a>
 
@@ -703,9 +705,11 @@ export function LandingPage() {
         <div className="footer-container">
           <div>
             <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
-              <div className="brand-icon-wrap" style={{ width: 34, height: 34 }}>
-                <HeartPulse size={20} />
-              </div>
+              <img
+                src="/branding/sihhat-logo.png"
+                alt="Sihhat.uz logosi"
+                style={{ width: 34, height: 34, borderRadius: 8, objectFit: "contain" }}
+              />
               <span style={{ fontSize: "1.3rem", fontWeight: 800, color: "#fff" }}>Sihhat.uz</span>
             </div>
             <p className="footer-brand-desc">
@@ -756,7 +760,7 @@ export function LandingPage() {
           </div>
           <div style={{ display: "flex", gap: "1.5rem" }}>
             <span>O'zbekiston, Toshkent</span>
-            <span>Texnik qo'llab-quvvatlash: 24/7</span>
+            <span>Texnik qo'llab-quvvatlash: +998 88 295 20 28</span>
           </div>
         </div>
       </footer>

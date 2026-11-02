@@ -29,7 +29,9 @@ class PlacePhoto extends StatelessWidget {
   const PlacePhoto(this.api, this.place, {this.height = 160, super.key});
   @override
   Widget build(BuildContext context) {
-    final ids = place?['photo_ids'] as List? ?? [];
+    final ids = ((place?['photos'] as List?)?.isNotEmpty == true
+        ? (place!['photos'] as List)
+        : (place?['photo_ids'] as List? ?? []));
     final fallback = ColoredBox(
       color: context.colors.soft,
       child: Center(

@@ -107,7 +107,10 @@ class CatalogCache extends ChangeNotifier {
           final id = queue[next++];
           try {
             final detail = await refreshDetail(id);
-            for (final photo in (detail['photo_ids'] as List? ?? [])) {
+            final photoList = ((detail['photos'] as List?)?.isNotEmpty == true
+                ? (detail['photos'] as List)
+                : (detail['photo_ids'] as List? ?? []));
+            for (final photo in photoList) {
               await photos.file(photo.toString());
             }
           } on ApiException catch (e) {
@@ -254,18 +257,31 @@ class CatalogPhotos {
     }),
   );
   Future<File?> _file(String id) async {
-    if (!RegExp(r'^[a-zA-Z0-9_-]+$').hasMatch(id)) return null;
+    final isUrl = id.startsWith('http://') || id.startsWith('https://');
+    if (!isUrl && !RegExp(r'^[a-zA-Z0-9_-]+$').hasMatch(id)) return null;
     try {
       final folder = await _directory();
-      final saved = File('${folder.path}/$id');
+      final filename = isUrl
+          ? base64Url.encode(utf8.encode(id)).replaceAll('=', '')
+          : id;
+      final saved = File('${folder.path}/$filename');
       if (await saved.exists() && await saved.length() > 0) return saved;
+      final targetUrl = isUrl ? id : api.image(id);
       final response = await api.client
-          .get(Uri.parse(api.image(id)))
-          .timeout(const Duration(seconds: 12));
+          .get(Uri.parse(targetUrl))
+          .timeout(const Duration(seconds: 15));
+      final cType = response.headers['content-type'] ?? '';
+      final isImage =
+          cType.startsWith('image/') ||
+          (isUrl &&
+              RegExp(
+                r'\.(jpg|jpeg|png|webp|gif)(\?.*)?$',
+                caseSensitive: false,
+              ).hasMatch(id));
       if (response.statusCode != 200 ||
-          !(response.headers['content-type'] ?? '').startsWith('image/') ||
+          !isImage ||
           response.bodyBytes.isEmpty ||
-          response.bodyBytes.length > 8 * 1024 * 1024) {
+          response.bodyBytes.length > 20 * 1024 * 1024) {
         return null;
       }
       final temporary = File('${saved.path}.part');

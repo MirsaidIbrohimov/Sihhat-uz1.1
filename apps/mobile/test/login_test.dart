@@ -36,7 +36,9 @@ void main() {
         await tester.tap(find.text('Tasdiqlash kodini yuborish'));
         await tester.pumpAndSettle();
         expect(
-          find.text('To‘g‘ri elektron pochta manzilini kiriting (masalan, foydalanuvchi@mail.uz).'),
+          find.text(
+            'To‘g‘ri elektron pochta manzilini kiriting (masalan, foydalanuvchi@mail.uz).',
+          ),
           findsOneWidget,
         );
         expect(requests, 0);
