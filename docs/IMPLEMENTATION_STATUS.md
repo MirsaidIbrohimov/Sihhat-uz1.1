@@ -1,6 +1,17 @@
 # Sihhat uz — amalga oshirish holati
 
-Yangilangan: 2026-10-15. Asos: ISHLAB_CHIQISH_REJASI.md va SIHHAT_UZ_ARXITEKTURA.md.
+Yangilangan: 2026-11-03. Asos: ISHLAB_CHIQISH_REJASI.md va SIHHAT_UZ_ARXITEKTURA.md.
+
+## 2026-11-03 Render backend va TezCheck integratsiyasi
+
+- **Render Backend (`https://sihhat-api.onrender.com`)**:
+  - `apps/api/src/common/config.ts` da TezCheck sozlamalari yo'qligi sababli Render bootstrap vaqtida sodir bo'lgan crash bartaraf etildi.
+  - API jonli va `https://sihhat-api.onrender.com/catalog/sanatoriums` 200 OK qaytarmoqda.
+- **TezCheck to'lov integratsiyasi**:
+  - Vercel/Next.js API yo'li (`apps/superadmin-web/app/api/payments/quick-checkout/route.ts`) ishga tushirildi.
+  - Test kassa orqali hisob yaratish va TezCheck checkout havolasini generatsiya qilish muvaffaqiyatli sinovdan o'tdi.
+- **Android APK v0.1.1**:
+  - Yangi versiya yig'ilib jismoniy qurilmaga o'rnatildi hamda veb-saytga joylashtirildi.
 
 | Bosqich | Holat | Dalil |
 | --- | --- | --- |

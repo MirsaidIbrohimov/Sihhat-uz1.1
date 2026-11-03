@@ -2,6 +2,18 @@
 
 Buyruqlar loyiha ildizidan bajariladi. Tekshiruvlarning haqiqiy natijasi [IMPLEMENTATION_STATUS.md](IMPLEMENTATION_STATUS.md)da, talablar [arxitektura](SIHHAT_UZ_ARXITEKTURA.md)da.
 
+## Tezcheck to'lov sozlamalari (Render va Vercel)
+
+Render backend yoki Vercel veb-saytida TezCheck to'lovlarini faollashtirish uchun:
+1. Render Dashboard (`dashboard.render.com`) -> `sihhat-api` -> **Environment** bo'limiga kiring.
+2. Quyidagi kalitlarni qo'shing:
+   - `PAYMENT_MODE=tezcheck`
+   - `TEZCHECK_API_KEY=<kassa_api_kaliti>`
+   - `TEZCHECK_CASH_DESK_CODE=<kassa_kodi>` (masalan `688f407c-9b88-4395-8854-f7e91dbe4383`)
+   - `TEZCHECK_HOLD_MINUTES=5`
+3. Vercel loyihasida ham xuddi shu tarzda `TEZCHECK_API_KEY` va `TEZCHECK_CASH_DESK_CODE` kiritiladi.
+4. Eslatma: kalitlar kiritilmagan taqdirda ham Render backend bootstrapda crash bo'lmaydi, qolgan barcha APIlar (katalog, bron, avtorizatsiya) odatdagidek ishlayveradi.
+
 ## Web panellar yangi UI
 
 Amaldagi ikkala Next.js panel umumiy `packages/ui/src` dizaynini ishlatadi.
