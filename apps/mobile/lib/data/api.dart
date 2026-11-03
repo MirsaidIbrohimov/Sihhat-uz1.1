@@ -197,7 +197,24 @@ class Api {
       response = await client
           .send(request)
           .then(http.Response.fromStream)
-          .timeout(const Duration(seconds: 25));
+          .timeout(const Duration(seconds: 40));
+      if ([301, 302, 307, 308].contains(response.statusCode)) {
+        final location = response.headers['location'];
+        if (location != null && retry) {
+          final redirectedUri = Uri.parse(location);
+          final redirectReq = http.Request(method, redirectedUri);
+          redirectReq.headers.addAll({
+            'Content-Type': 'application/json',
+            if (accessToken != null) 'Authorization': 'Bearer $accessToken',
+            'Idempotency-Key': ?key,
+          });
+          if (body != null) redirectReq.body = jsonEncode(body);
+          response = await client
+              .send(redirectReq)
+              .then(http.Response.fromStream)
+              .timeout(const Duration(seconds: 40));
+        }
+      }
     } on TimeoutException {
       throw const ApiException(
         'NETWORK_TIMEOUT',
