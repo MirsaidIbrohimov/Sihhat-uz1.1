@@ -23,4 +23,4 @@ Get-FileHash -Algorithm SHA256 -LiteralPath ilova/Sihhat-uz-demo-0.1.1.apk
 ```
 
 Natija `ilova/SHA256SUMS.txt`dagi qiymat bilan bir xil bo‘lishi kerak:
-`57df153f5e830414984dcd5757c56f44a9ae2b3d3d295414c6731aa9a7380133`
+`d37fd43d6516506a1aba8d6c05409ff00f8921ad36dcfd2e05b321d8300a7b1f`
