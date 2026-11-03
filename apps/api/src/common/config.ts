@@ -100,7 +100,7 @@ export function productionIssues(c: Config): string[] {
   if (!productionDatabase(c)) issues.push('Production: tashqi PostgreSQL yoki Hostra private socket DATABASE_URL kerak');
   if (c.BOOKING_SETTLEMENT_MODE !== 'direct') issues.push('Production: yangi bronlar sanatoriyaning o‘z merchant hisobiga yo‘naltirilishi kerak');
 
-  const isCloud = c.DEPLOYMENT_PLATFORM === 'render' || c.DEPLOYMENT_PLATFORM === 'cloud' || c.DEPLOYMENT_PLATFORM === 'generic';
+  const isCloud = c.DEPLOYMENT_PLATFORM === 'render' || c.DEPLOYMENT_PLATFORM === 'cloud' || c.DEPLOYMENT_PLATFORM === 'generic' || Boolean(process.env.RENDER);
 
   if (!c.RESEND_API_KEY && !c.SMTP_HOST) {
     if (c.SMS_ADAPTER === 'eskiz' && !c.ESKIZ_OTP_APPROVED) issues.push('Production: Eskiz OTP hisobini va shablonini tasdiqlash kerak');
@@ -108,7 +108,7 @@ export function productionIssues(c: Config): string[] {
   }
 
   if ((c.PAYMENT_MODE === 'payme' && (!c.PAYME_KEY || !c.PAYME_MERCHANT_ID))) issues.push('Production: merchant rekvizitlari kerak');
-  if (c.PAYMENT_MODE === 'tezcheck' && !c.TEZCHECK_CASH_DESK_CODE) issues.push('Production: TEZCHECK_CASH_DESK_CODE kerak');
+  if (c.PAYMENT_MODE === 'tezcheck' && !c.TEZCHECK_CASH_DESK_CODE && !isCloud) issues.push('Production: TEZCHECK_CASH_DESK_CODE kerak');
 
   if (!isCloud) {
     const hostraStorage = c.DEPLOYMENT_PLATFORM === 'hostra' && c.STORAGE_ADAPTER === 'local'
@@ -155,7 +155,9 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     }
   }
   if (c.DEMO_OTP_ENABLED && (c.NODE_ENV === 'production' || c.SMS_ADAPTER !== 'local')) throw new Error('Demo OTP faqat lokal development/test SMS adapteri bilan ishlaydi');
-  if (c.PAYMENT_MODE === 'tezcheck' && !c.TEZCHECK_API_KEY) throw new Error('Tezcheck: server API kaliti kerak');
+  if (c.PAYMENT_MODE === 'tezcheck' && !c.TEZCHECK_API_KEY) {
+    console.warn('Ogohlantirish: TEZCHECK_API_KEY sozlanmagan; Tezcheck to‘lovlari so‘rov vaqtida rad etiladi.');
+  }
   if (c.TELEGRAM_MODE !== 'disabled' && !c.TELEGRAM_BOT_TOKEN) throw new Error('Telegram: server bot tokeni kerak');
   if (c.TELEGRAM_MODE === 'webhook' && !/^[A-Za-z0-9_-]{32,256}$/.test(c.TELEGRAM_WEBHOOK_SECRET)) throw new Error('Telegram: webhook uchun tasodifiy maxfiy kalit kerak');
   if (c.AI_ADAPTER === 'gemini' && !c.GEMINI_API_KEY) throw new Error('Gemini: server API kaliti kerak');
