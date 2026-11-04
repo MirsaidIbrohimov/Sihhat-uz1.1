@@ -936,6 +936,11 @@ export function Notifications() {
     "task.assigned": "Yangi vazifa",
     "survey.created": "Yangi anketa",
     "booking.created": "Yangi bron",
+    "payment.succeeded": "Bron to‘lovi tasdiqlandi",
+    "ad.requested": "Yangi reklama arizasi",
+    "ad.moderated": "Reklama moderatsiyasi",
+    "support.opened": "Yangi murojaat",
+    "support.replied": "Murojaatga javob",
     "sanatorium.moderated": "Profil tekshirildi",
     "staff.invited": "Yangi xodim taklifi",
     "refund.succeeded": "Pul qaytarildi",
@@ -945,7 +950,23 @@ export function Notifications() {
       <PageHeading
         title="Bildirishnomalar"
         subtitle="Sizga tegishli platforma hodisalari."
-      />
+      >
+        <button
+          className="button secondary"
+          onClick={() =>
+            action(
+              "Barchasini o‘qilgan deb belgilash",
+              "/notifications/read-all",
+              {},
+              [],
+              "POST",
+            )
+          }
+        >
+          <CheckCheck size={17} style={{ marginRight: 6 }} />
+          Barchasini o‘qish
+        </button>
+      </PageHeading>
       <DataPanel
         path="/notifications"
         title="Bildirishnomalar lentasi"

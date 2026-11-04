@@ -340,13 +340,17 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   String title(dynamic topic) =>
       {
         'booking.created': 'Bron yaratildi',
+        'payment.succeeded': 'Bron to‘lovi tasdiqlandi',
         'booking.confirmed': 'Bron tasdiqlandi',
         'booking.checked_in': 'Joylashish qayd etildi',
         'booking.checked_out': 'Yashash yakunlandi',
         'refund.succeeded': 'Qaytarish tasdiqlandi',
         'support.replied': 'Yordam xizmatidan javob',
+        'ad.requested': 'Yangi reklama arizasi',
+        'ad.moderated': 'Reklama moderatsiyasi',
       }[topic] ??
       'Platforma yangilanishi';
+  int refreshKey = 0;
   Future<void> mark(Json item) async {
     final id = item['id'] as String;
     if (pending.contains(id) || read.contains(id) || item['readAt'] != null) {
@@ -370,10 +374,39 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     }
   }
 
+  Future<void> markAll() async {
+    try {
+      await widget.api.send(
+        '/notifications/read-all',
+        method: 'POST',
+        body: {},
+      );
+      if (mounted) {
+        setState(() => refreshKey++);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Barcha bildirishnomalar o‘qildi')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(e.toString())));
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) => ConceptPage(
     title: 'Bildirishnomalar',
+    actions: [
+      TextButton.icon(
+        onPressed: markAll,
+        icon: const SihhatIcon('check-check'),
+        label: const Text('Barchasi'),
+      ),
+    ],
     body: AsyncContent(
+      key: ValueKey(refreshKey),
       load: () => widget.api.send('/notifications'),
       builder: (v) => ListView(
         padding: const EdgeInsets.all(20),

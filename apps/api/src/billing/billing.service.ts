@@ -282,6 +282,17 @@ export class BillingService {
         },
       });
       await audit(tx, actor.id, "ad.requested", ad.id, i.sanatorium_id);
+      const admins = await tx.user.findMany({
+        where: { kind: "SUPERADMIN", status: "ACTIVE" },
+        select: { id: true },
+      });
+      await emit(tx, "ad.requested", {
+        ad_id: ad.id,
+        sanatorium_id: i.sanatorium_id,
+        title: ad.title,
+        placement: ad.placement,
+        recipient_ids: admins.map((a) => a.id),
+      });
       return { ...ad, version: adVersion(ad) };
     };
     return key

@@ -289,7 +289,20 @@ export class TelegramService {
       if (!bookingId) return null;
       const booking = await this.bookings.get(ctx.actor, bookingId);
       if (paymentCategory) scope(ctx.actor, booking.sanatoriumId, 'payments.read');
-      const labels: Record<string, string> = { 'booking.created': 'Yangi bron', 'payment.succeeded': 'Bron to‘lovi tasdiqlandi', 'payment.exception': 'Pul tushdi, bronni tekshirish kerak', 'refund.requested': 'Qaytarish so‘rovi', 'refund.succeeded': 'Pul qaytarildi', 'booking.checked_in': 'Mehmon kelishi qayd qilindi', 'booking.checked_out': 'Mehmon ketishi qayd qilindi' };
+      if (topic === 'payment.succeeded') {
+        const guestName = (booking.guest as any)?.full_name || (booking.guest as any)?.name || 'Mijoz';
+        const guestPhone = (booking.guest as any)?.phone || '';
+        const nights = Math.max(1, Math.round((booking.checkOut.getTime() - booking.checkIn.getTime()) / 86400000));
+        const amountStr = (Number(booking.amount) / 100).toLocaleString('ru-RU') + ' so‘m';
+        const text = `💰 Yangi to‘langan bron!\n` +
+          `Bron: ${booking.reference}\n` +
+          `Mehmon: ${guestName}${guestPhone ? ' (' + guestPhone + ')' : ''}\n` +
+          `Sanalar: ${booking.checkIn.toISOString().slice(0, 10)} → ${booking.checkOut.toISOString().slice(0, 10)} (${nights} kecha)\n` +
+          `Summa: ${amountStr}\n` +
+          `Holat: To‘langan`;
+        return this.views.page(text, [[b('📖 Bronni ochish', `booking:${booking.id}`)]]);
+      }
+      const labels: Record<string, string> = { 'booking.created': 'Yangi bron', 'payment.exception': 'Pul tushdi, bronni tekshirish kerak', 'refund.requested': 'Qaytarish so‘rovi', 'refund.succeeded': 'Pul qaytarildi', 'booking.checked_in': 'Mehmon kelishi qayd qilindi', 'booking.checked_out': 'Mehmon ketishi qayd qilindi' };
       return this.views.page(`🔔 ${labels[topic] || 'Bron holati yangilandi'}\n${booking.reference}\n${booking.checkIn.toISOString().slice(0, 10)} → ${booking.checkOut.toISOString().slice(0, 10)}\n${statusText[booking.status] || booking.status}`, [[b('📖 Bronni ochish', `booking:${booking.id}`)]]);
     }
     if (topic === 'task.assigned') {
@@ -322,6 +335,11 @@ export class TelegramService {
       const revision = await this.db.sanatoriumRevision.findUnique({ where: { id: payload.revision_id } });
       if (!revision) return null; scope(ctx.actor, revision.sanatoriumId, 'sanatorium.profile.edit');
       return this.views.page(`🏥 Sanatoriya anketasi: ${statusText[revision.status] || revision.status}`, [[this.views.site(ctx, 'profile')]]);
+    }
+    if (topic === 'ad.requested') {
+      if (ctx.actor.kind !== 'SUPERADMIN') return null;
+      const placementText = payload.placement === 'POPUP' ? 'Qalqib chiquvchi (POPUP)' : 'Asosiy sahifada';
+      return this.views.page(`📢 Yangi reklama arizasi!\nSarlavha: ${payload.title}\nJoylashuv: ${placementText}`, [[this.views.site(ctx, 'billing', '🖥 E‘lonlarni saytda ko‘rish')]]);
     }
     return null;
   }

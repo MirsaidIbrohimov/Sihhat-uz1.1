@@ -25,5 +25,6 @@ export class EngagementController{
   @Get('support/tickets/:id') ticketGet(@CurrentActor() a:Actor,@Param('id') id:string){return this.s.ticketGet(a,id);}
   @Post('support/tickets/:id/messages') ticketReply(@CurrentActor() a:Actor,@Param('id') id:string,@Body() b:unknown,@Headers('idempotency-key') key?:string){return this.s.ticketReply(a,id,b,key);}
   @Get('notifications') notifications(@CurrentActor() a:Actor){return this.s.notifications(a);}
+  @Post('notifications/read-all') notificationReadAll(@CurrentActor() a:Actor){return this.s.notificationReadAll(a);}
   @Post('notifications/:id/read') notificationRead(@CurrentActor() a:Actor,@Param('id') id:string){return this.s.notificationRead(a,id);}
 }

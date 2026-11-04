@@ -64,5 +64,6 @@ export class EngagementService{
     return key?this.db.idempotent(actor.id,'support.reply',key,{id,...i},run):this.db.atomic(run);
   }
   async notifications(actor:Actor){return this.db.notificationDelivery.findMany({where:{userId:actor.id,channel:'IN_APP'},take:100,orderBy:{id:'desc'}});}
+  async notificationReadAll(actor:Actor){await this.db.notificationDelivery.updateMany({where:{userId:actor.id,channel:'IN_APP',readAt:null},data:{readAt:new Date()}});return {success:true};}
   async notificationRead(actor:Actor,id:string){parse(uuid,id);const r=await this.db.notificationDelivery.updateMany({where:{id,userId:actor.id},data:{readAt:new Date()}});if(!r.count)fail('NOT_FOUND','Bildirishnoma topilmadi',404);return {success:true};}
 }
