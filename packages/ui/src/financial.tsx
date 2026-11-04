@@ -622,8 +622,8 @@ export function Billing({ kind }: { kind: "billing" | "ads" }) {
                 label: "Joylashuv",
                 render: (r) =>
                   r.placement === "POPUP"
-                    ? "Kirishda qalqib chiqadi"
-                    : "Bosh sahifa",
+                    ? "Qalqib chiquvchi (ilovaga kirganda)"
+                    : "Asosiy sahifada",
               },
               {
                 label: "Davr",
@@ -726,6 +726,22 @@ export function Billing({ kind }: { kind: "billing" | "ads" }) {
                       To‘xtatish
                     </Act>
                   )}
+                {ctx.admin && (
+                  <Act
+                    danger
+                    onClick={() =>
+                      action(
+                        "E‘lonni o‘chirish",
+                        `/superadmin/ad-campaigns/${r.id}`,
+                        {},
+                        [],
+                        "DELETE",
+                      )
+                    }
+                  >
+                    O‘chirish
+                  </Act>
+                )}
               </>
             )}
           />

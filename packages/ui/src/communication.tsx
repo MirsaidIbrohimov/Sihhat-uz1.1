@@ -608,11 +608,38 @@ export function Support() {
     [id, setId] = useState<string | null>(null),
     tickets = useRemote("/support/tickets", ctx.epoch),
     detail = useRemote(id ? `/support/tickets/${id}` : null, ctx.epoch),
-    t = detail.data;
+    [thread, setThread] = useState<Row | null>(null);
+
   useEffect(() => {
     if (window.matchMedia("(min-width: 900px)").matches)
       setId((selected) => selected ?? list(tickets.data)[0]?.id ?? null);
   }, [tickets.data]);
+
+  useEffect(() => {
+    if (detail.data) setThread(detail.data);
+  }, [detail.data]);
+
+  useEffect(() => {
+    if (!id) {
+      setThread(null);
+      return;
+    }
+    const timer = setInterval(() => {
+      api<Row>(`/support/tickets/${id}`)
+        .then((fresh) => {
+          if (fresh) setThread(fresh);
+        })
+        .catch(() => {});
+    }, 10000);
+    return () => clearInterval(timer);
+  }, [id]);
+
+  const selectTicket = (ticketId: string | null) => {
+    setId(ticketId);
+    setThread(null);
+  };
+
+  const t = thread ?? detail.data;
   return (
     <>
       <PageHeading
@@ -658,7 +685,7 @@ export function Support() {
                   { label: "Yaratilgan", render: (row) => date(row.createdAt) },
                 ]}
                 actions={(row) => (
-                  <Act onClick={() => setId(row.id)}>
+                  <Act onClick={() => selectTicket(row.id)}>
                     {row.id === id ? "Tanlangan suhbat" : "Ochish"}
                   </Act>
                 )}
@@ -671,13 +698,13 @@ export function Support() {
             <>
               <button
                 className="button secondary support-back"
-                onClick={() => setId(null)}
+                onClick={() => selectTicket(null)}
               >
                 ← Murojaatlarga qaytish
               </button>
-              {detail.loading ? (
+              {!t && detail.loading ? (
                 <Loading />
-              ) : detail.error ? (
+              ) : !t && detail.error ? (
                 <ErrorBox message={detail.error} retry={detail.reload} />
               ) : (
                 t && (
@@ -723,6 +750,16 @@ export function Support() {
                                   ]
                                 : []),
                             ],
+                            "POST",
+                            () => {
+                              if (id) {
+                                api<Row>(`/support/tickets/${id}`)
+                                  .then((fresh) => {
+                                    if (fresh) setThread(fresh);
+                                  })
+                                  .catch(() => {});
+                              }
+                            },
                           )
                         }
                       >

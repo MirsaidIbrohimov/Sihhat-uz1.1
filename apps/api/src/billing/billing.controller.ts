@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Headers,
   Inject,
@@ -115,5 +116,11 @@ export class BillingController {
     @Body() b: unknown,
   ) {
     return this.s.adDecision(a, id, false, b);
+  }
+  @Delete("superadmin/ad-campaigns/:id") @Roles("SUPERADMIN") deleteAd(
+    @CurrentActor() a: Actor,
+    @Param("id") id: string,
+  ) {
+    return this.s.deleteAd(a, id);
   }
 }

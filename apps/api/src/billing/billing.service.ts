@@ -592,4 +592,16 @@ export class BillingService {
           );
       });
   }
+  async deleteAd(actor: Actor, id: string) {
+    requirePlatform(actor, "billing.manage");
+    parse(uuid, id);
+    return this.db.atomic(async (tx) => {
+      const ad = await tx.adCampaign.findUnique({ where: { id } });
+      if (!ad) fail("NOT_FOUND", "Reklama topilmadi", 404);
+      await tx.adEvent.deleteMany({ where: { campaignId: id } });
+      await tx.adCampaign.delete({ where: { id } });
+      await audit(tx, actor.id, "ad.deleted", id, ad.sanatoriumId);
+      return { id, deleted: true };
+    });
+  }
 }

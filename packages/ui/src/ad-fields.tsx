@@ -91,8 +91,8 @@ export function AdvertisementFields({
           name="placement"
           defaultValue={initial?.placement === "POPUP" ? "POPUP" : "HOME"}
         >
-          <option value="HOME">Bosh sahifada</option>
-          <option value="POPUP">Ilovaga kirganda qalqib chiqadi</option>
+          <option value="HOME">Asosiy sahifada</option>
+          <option value="POPUP">Qalqib chiquvchi (ilovaga kirganda)</option>
         </select>
       </label>
       <label className="field">

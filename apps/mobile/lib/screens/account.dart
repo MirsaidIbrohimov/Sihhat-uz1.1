@@ -626,7 +626,7 @@ class _SupportThreadState extends State<SupportThread>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    timer = Timer.periodic(const Duration(seconds: 5), (_) {
+    timer = Timer.periodic(const Duration(seconds: 10), (_) {
       if (active) refreshThread().catchError((_) => <String, dynamic>{});
     });
   }

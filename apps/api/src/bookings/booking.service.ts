@@ -23,7 +23,14 @@ export class BookingService {
     if(q.expiresAt<=new Date()||s.pricingVersion!==q.pricingVersion)fail('PRICE_CHANGED','Narx taklifi eskirgan. Yangisini oling');
     const accepted=[...new Set(i.accepted_policy_versions)].sort();const expected=snapshot.policies.map((p:any)=>p.id).sort();if(JSON.stringify(accepted)!==JSON.stringify(expected))fail('POLICY_NOT_ACCEPTED','Barcha qaytarish shartlarini qabul qiling',422);
     if(await tx.booking.findUnique({where:{quoteId:q.id}}))fail('QUOTE_ALREADY_USED','Bu taklif asosida bron yaratilgan');
-    if(!manual&&await tx.booking.count({where:{userId:actor.id,status:{in:['HOLD','PAYMENT_PENDING']}}})>=3)fail('HOLD_LIMIT','Avval mavjud to‘lovsiz bronlarni yakunlang',429);
+    if(!manual){
+      const oldUnpaid=await tx.booking.findMany({where:{userId:actor.id,status:{in:['HOLD','PAYMENT_PENDING']}},select:{id:true,sanatoriumId:true}});
+      for(const old of oldUnpaid){
+        await tx.roomAllocation.updateMany({where:{bookingId:old.id,active:true},data:{active:false}});
+        await tx.booking.update({where:{id:old.id},data:{status:'CANCELLED',version:{increment:1}}});
+        await tx.bookingEvent.create({data:{bookingId:old.id,actorId:actor.id,status:'CANCELLED',reason:'Yangi bron yaratilganda eski to‘lanmagan bron bekor qilindi'}});
+      }
+    }
     const req=parse(quoteInput,snapshot.request);const picked:any[]=[];const used=new Set<string>();
     for(const item of req.items){const rooms=await availableRooms(tx,s.id,item.room_type_id,new Date(req.check_in),new Date(req.check_out));const room=rooms.find(r=>!used.has(r.id));if(!room)fail('AVAILABILITY_CHANGED','Tanlangan xonalardan biri butun davr uchun band');used.add(room.id);picked.push(room);}
     const booking=await tx.booking.create({data:{reference:`SH-${randomBytes(6).toString('hex').toUpperCase()}`,sanatoriumId:s.id,userId:manual?null:actor.id,quoteId:q.id,status:manual?'CONFIRMED':'HOLD',source,checkIn:new Date(req.check_in),checkOut:new Date(req.check_out),amount:q.amount,snapshot:json(q.data),guest:i.guest,holdExpiresAt:manual?null:new Date(Date.now()+Math.min(5,this.config.HOLD_MINUTES)*60000)}});

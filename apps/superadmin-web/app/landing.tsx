@@ -283,6 +283,73 @@ export function LandingPage() {
     fetchCatalog();
   }, []);
 
+  // Load published advertisements (HOME & POPUP)
+  const [ads, setAds] = useState<any[]>([]);
+  const [activePopupAd, setActivePopupAd] = useState<any | null>(null);
+
+  useEffect(() => {
+    async function fetchAds() {
+      try {
+        const res = await fetch("/api/catalog/ads");
+        if (res.ok) {
+          const list = await res.json();
+          if (Array.isArray(list)) {
+            setAds(list);
+            const popup = list.find((a: any) => a.placement === "POPUP");
+            if (popup && typeof window !== "undefined") {
+              const dismissed = sessionStorage.getItem(`ad_popup_${popup.id}`);
+              if (!dismissed) {
+                setActivePopupAd(popup);
+                fetch(`/api/catalog/ads/${popup.id}/events`, {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ kind: "IMPRESSION" }),
+                }).catch(() => {});
+              }
+            }
+          }
+        }
+      } catch (e) {
+        // ignore
+      }
+    }
+    fetchAds();
+  }, []);
+
+  const homeAds = useMemo(() => ads.filter((a: any) => a.placement === "HOME"), [ads]);
+
+  async function handleAdClick(ad: any) {
+    try {
+      await fetch(`/api/catalog/ads/${ad.id}/events`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ kind: "CLICK" }),
+      });
+    } catch (_) {}
+    if (ad.target?.kind === "URL" && ad.target?.url) {
+      window.open(ad.target.url, "_blank", "noopener,noreferrer");
+    } else if (ad.target_url) {
+      window.open(ad.target_url, "_blank", "noopener,noreferrer");
+    } else if (ad.target?.kind === "SANATORIUM" || ad.target_sanatorium_id) {
+      const targetId = ad.target?.sanatorium_id || ad.target_sanatorium_id || ad.sanatorium_id;
+      const found = sanatoriums.find((s) => s.id === targetId);
+      if (found) {
+        setActiveModal({ type: "details", item: found });
+      } else {
+        document.getElementById("muassasalar")?.scrollIntoView({ behavior: "smooth" });
+      }
+    }
+  }
+
+  function closePopupAd() {
+    if (activePopupAd) {
+      try {
+        sessionStorage.setItem(`ad_popup_${activePopupAd.id}`, "dismissed");
+      } catch (_) {}
+      setActivePopupAd(null);
+    }
+  }
+
   // Filter sanatoriums by Category & Search query
   const filteredSanatoriums = useMemo(() => {
     return sanatoriums.filter((item) => {
@@ -787,6 +854,68 @@ export function LandingPage() {
           })}
         </div>
       </section>
+
+      {/* HOME ADS BANNER */}
+      {homeAds.length > 0 && (
+        <section className="section-container" style={{ paddingTop: "1rem", paddingBottom: "1.5rem" }}>
+          {homeAds.map((ad) => (
+            <div
+              key={ad.id}
+              onClick={() => handleAdClick(ad)}
+              style={{
+                background: "linear-gradient(135deg, rgba(8, 125, 102, 0.08) 0%, rgba(16, 185, 129, 0.12) 100%)",
+                border: "1px solid rgba(8, 125, 102, 0.2)",
+                borderRadius: 18,
+                padding: "1.25rem 1.5rem",
+                display: "flex",
+                flexWrap: "wrap",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: "1rem",
+                cursor: "pointer",
+                marginBottom: "1rem",
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: "1.25rem", flex: 1, minWidth: 280 }}>
+                {ad.image_asset_id && (
+                  <img
+                    src={`/api/media/${ad.image_asset_id}`}
+                    alt={ad.title}
+                    style={{ width: 80, height: 60, objectFit: "cover", borderRadius: 10, flexShrink: 0 }}
+                  />
+                )}
+                <div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                    <span style={{ fontSize: "0.72rem", background: "#087d66", color: "#fff", padding: "2px 8px", borderRadius: 6, fontWeight: 700 }}>
+                      E'LON
+                    </span>
+                    {ad.has_discount && (
+                      <span style={{ fontSize: "0.72rem", background: "#059669", color: "#fff", padding: "2px 8px", borderRadius: 6, fontWeight: 700 }}>
+                        -{ad.discount_percent}%
+                      </span>
+                    )}
+                  </div>
+                  <h4 style={{ margin: 0, fontSize: "1.05rem", fontWeight: 800, color: "var(--text-main)" }}>
+                    {ad.title}
+                  </h4>
+                  {ad.text && (
+                    <p style={{ margin: "4px 0 0", fontSize: "0.85rem", color: "var(--text-muted)", lineHeight: 1.4 }}>
+                      {ad.text}
+                    </p>
+                  )}
+                </div>
+              </div>
+              <button
+                type="button"
+                className="btn-pay-now-solid"
+                style={{ padding: "0.6rem 1.25rem", fontSize: "0.88rem", borderRadius: 10, pointerEvents: "none" }}
+              >
+                Ko‘rish
+              </button>
+            </div>
+          ))}
+        </section>
+      )}
 
       {/* ========================================================
           4. POPULAR SANATORIUMS (Mashhur muassasalar)
@@ -1987,6 +2116,72 @@ export function LandingPage() {
             </div>
             <div className="legal-modal-body">
               <p>Bron bekor qilinganda mablag' belgilangan muddat ichida to'liq qaytariladi.</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 6.10 QALQIB CHIQUVCHI E'LON (POPUP AD) */}
+      {activePopupAd && (
+        <div className="legal-modal-backdrop" onClick={closePopupAd} style={{ zIndex: 10000 }}>
+          <div
+            className="legal-modal-card"
+            onClick={(e) => e.stopPropagation()}
+            style={{ maxWidth: 480, padding: "1.5rem", borderRadius: 20, overflow: "hidden" }}
+          >
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.75rem" }}>
+              <span style={{ fontSize: "0.75rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", color: "#059669" }}>
+                Maxsus taklif
+              </span>
+              <button
+                type="button"
+                onClick={closePopupAd}
+                style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-muted)" }}
+              >
+                <X size={20} />
+              </button>
+            </div>
+            {activePopupAd.image_asset_id && (
+              <div style={{ width: "100%", maxHeight: 220, overflow: "hidden", borderRadius: 12, marginBottom: "1rem" }}>
+                <img
+                  src={`/api/media/${activePopupAd.image_asset_id}`}
+                  alt={activePopupAd.title}
+                  style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                />
+              </div>
+            )}
+            <h3 style={{ fontSize: "1.25rem", fontWeight: 800, marginBottom: "0.5rem" }}>
+              {activePopupAd.title}
+            </h3>
+            {activePopupAd.text && (
+              <p style={{ color: "var(--text-muted)", fontSize: "0.95rem", lineHeight: 1.5, marginBottom: "1rem" }}>
+                {activePopupAd.text}
+              </p>
+            )}
+            {activePopupAd.has_discount && (
+              <div style={{ display: "inline-block", background: "rgba(16, 185, 129, 0.15)", color: "#059669", padding: "0.35rem 0.75rem", borderRadius: 8, fontSize: "0.85rem", fontWeight: 700, marginBottom: "1rem" }}>
+                Chegirma: {activePopupAd.discount_percent}% {activePopupAd.discount_text ? `· ${activePopupAd.discount_text}` : ""}
+              </div>
+            )}
+            <div style={{ display: "flex", gap: "0.75rem", marginTop: "0.5rem" }}>
+              <button
+                type="button"
+                onClick={() => {
+                  handleAdClick(activePopupAd);
+                  closePopupAd();
+                }}
+                className="btn-pay-now-solid"
+                style={{ flex: 1, padding: "0.75rem 1rem", fontSize: "0.95rem", borderRadius: 12, cursor: "pointer" }}
+              >
+                Batafsil ko‘rish
+              </button>
+              <button
+                type="button"
+                onClick={closePopupAd}
+                style={{ padding: "0.75rem 1rem", background: "var(--surface-soft)", border: "1px solid var(--border)", borderRadius: 12, cursor: "pointer", fontWeight: 600, color: "var(--text-main)" }}
+              >
+                Yopish
+              </button>
             </div>
           </div>
         </div>
