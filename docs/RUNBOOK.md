@@ -12,7 +12,15 @@ Render backend yoki Vercel veb-saytida TezCheck to'lovlarini faollashtirish uchu
    - `TEZCHECK_CASH_DESK_CODE=<kassa_kodi>` (masalan `688f407c-9b88-4395-8854-f7e91dbe4383`)
    - `TEZCHECK_HOLD_MINUTES=5`
 3. Vercel loyihasida ham xuddi shu tarzda `TEZCHECK_API_KEY` va `TEZCHECK_CASH_DESK_CODE` kiritiladi.
-4. Eslatma: kalitlar kiritilmagan taqdirda ham Render backend bootstrapda crash bo'lmaydi, qolgan barcha APIlar (katalog, bron, avtorizatsiya) odatdagidek ishlayveradi.
+4. Webhook: Tezcheck kabineti -> Webhooks -> endpoint qo‘shish ->
+   `https://<render-api-domen>/payments/tezcheck`. Endpoint qo‘shilgan paytda
+   imzo siri **bir marta** ko‘rsatiladi; uni darhol Render’dagi
+   `TEZCHECK_WEBHOOK_SECRET`ga yozing (yo‘qolsa endpointni o‘chirib qayta qo‘shing
+   yoki sirni almashtiring). Webhook bo‘lmasa ham worker polling to‘lovni tasdiqlaydi.
+5. Superadmin-web `SIHHAT_API_URL` orqali `/payments/quick-checkout`ni backendga
+   yuboradi; backend javob bermasa to‘g‘ridan-to‘g‘ri Tezcheck hisobi yaratiladi.
+   Kalit nomi sifatida `TEZCHECK_API_TOKEN` ham qabul qilinadi.
+6. Eslatma: kalitlar kiritilmagan taqdirda ham Render backend bootstrapda crash bo'lmaydi, qolgan barcha APIlar (katalog, bron, avtorizatsiya) odatdagidek ishlayveradi.
 
 ## Web panellar yangi UI
 

@@ -44,6 +44,8 @@ const schema = z.object({
   PAYMENT_MODE: z.enum(['local', 'payme', 'tezcheck']).default('tezcheck'),
   BOOKING_SETTLEMENT_MODE: z.enum(['direct', 'legacy_platform']).default('legacy_platform'),
   TEZCHECK_API_KEY: z.string().default(''),
+  // Alias used by the root .env template; TEZCHECK_API_KEY wins when both are set.
+  TEZCHECK_API_TOKEN: z.string().default(''),
   TEZCHECK_CASH_DESK_CODE: z.string().max(128).default(''),
   TEZCHECK_WEBHOOK_SECRET: z.string().default(''),
   TEZCHECK_HOLD_MINUTES: z.coerce.number().int().min(5).max(30).default(5),
@@ -139,10 +141,15 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     if (existsSync(full)) candidates.push(full);
   }
   const secretsPath = candidates[0];
-  const secrets = env === process.env && env.NODE_ENV !== 'test' && secretsPath ? parseEnv(readFileSync(secretsPath)) : {};
-  const result = schema.safeParse({ ...secrets, ...env });
+  const useFiles = env === process.env && env.NODE_ENV !== 'test';
+  // The repository-root .env (git-ignored) is the lowest-priority source; the API usually runs from apps/api.
+  const rootEnv = resolve('../../.env');
+  const rootSecrets = useFiles && existsSync(rootEnv) && rootEnv !== resolve('.env') ? parseEnv(readFileSync(rootEnv)) : {};
+  const secrets = useFiles && secretsPath ? parseEnv(readFileSync(secretsPath)) : {};
+  const result = schema.safeParse({ ...rootSecrets, ...secrets, ...env });
   if (!result.success) throw new Error(`Konfiguratsiya xatosi: ${result.error.issues.map(i => `${i.path.join('.')}: ${i.message}`).join('; ')}`);
   const c = result.data;
+  if (!c.TEZCHECK_API_KEY && c.TEZCHECK_API_TOKEN) c.TEZCHECK_API_KEY = c.TEZCHECK_API_TOKEN;
   if (c.PUBLIC_DEMO_ENABLED) {
     const isolated = (() => { try { return /\/[a-z0-9_]+_demo$/.test(new URL(c.DATABASE_URL).pathname); } catch { return false; } })();
     const providerKeys = [c.SMS_HTTP_TOKEN, c.ESKIZ_TOKEN, c.ESKIZ_EMAIL, c.ESKIZ_PASSWORD, c.TEZCHECK_API_KEY, c.TEZCHECK_WEBHOOK_SECRET, c.PAYME_KEY, c.PAYME_MERCHANT_ID, c.GEMINI_API_KEY, c.AI_HTTP_TOKEN, c.PUSH_HTTP_TOKEN, c.TELEGRAM_BOT_TOKEN, c.S3_ACCESS_KEY, c.S3_SECRET_KEY];

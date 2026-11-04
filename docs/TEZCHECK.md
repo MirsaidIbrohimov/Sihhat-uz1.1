@@ -5,7 +5,16 @@ Backend `https://api.tezcheck.uz/api/merchant/v1`ga Bearer kalit va
 HMAC-SHA256 imzosi bilan murojaat qiladi. Kalit brauzer, Flutter yoki
 Telegram tugmasiga berilmaydi.
 
-## Joriy diagnostika — 2026-10-08
+## Joriy diagnostika — 2026-11-04
+
+Root `.env`dagi kalit bilan signed `/me` va `/cash-desks` o‘qildi: imzo
+ishladi, bitta UZS kassa `active`, `accepts_payments=true`. Hisob yoki to‘lov
+yaratilmagan. Backend endi `TEZCHECK_API_TOKEN`ni `TEZCHECK_API_KEY` aliasi
+sifatida va repo ildizidagi `.env`ni eng past ustuvorlikda o‘qiydi. Web
+quick-checkout xatoda soxta havola qaytarmaydi, xato kodini qaytaradi.
+Webhook siri hali sozlanmagan; haqiqiy to‘lov sinovi bajarilmagan.
+
+## Diagnostika — 2026-10-08
 
 20:40 (Asia/Tashkent)dagi `npm run tezcheck:check` rasmiy signed o‘qish
 so‘rovlarini muvaffaqiyatli bajardi. Tanlangan bitta UZS kassada
