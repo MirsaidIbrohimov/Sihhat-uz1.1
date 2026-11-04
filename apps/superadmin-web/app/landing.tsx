@@ -261,7 +261,9 @@ export function LandingPage() {
               check_in_time: item.check_in_time || "08:00",
               check_out_time: item.check_out_time || "18:00",
               required_documents: item.required_documents || "Pasport va sanatoriya kartasi",
-              rating: item.rating || 4.8,
+              rating: typeof item.rating === "object" && item.rating !== null
+                ? (Number(item.rating.average) || 4.8)
+                : (Number(item.rating) || 4.8),
               category: item.category || "Davolash maskanlari",
               tag: item.tag || "Tavsiya etiladi",
               room_types: item.room_types || [],
@@ -852,7 +854,7 @@ export function LandingPage() {
                     <img src={photo} alt={item.name} className="card-thumb-img" />
                     <div className="card-rating-pill">
                       <Star size={14} className="rating-star-icon" />
-                      <span>{item.rating || 4.8}</span>
+                      <span>{typeof item.rating === "number" ? item.rating.toFixed(1) : (typeof item.rating === "object" && item.rating ? Number((item.rating as any).average || 4.8).toFixed(1) : "4.8")}</span>
                     </div>
                   </div>
 
