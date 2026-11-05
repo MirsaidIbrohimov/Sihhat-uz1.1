@@ -781,10 +781,12 @@ export function Support() {
   );
 }
 const auditLabels: Record<string, string> = {
+  "staff.password_reset": "Xodim paroli tiklandi",
+  "auth.password_changed": "Parol yangilandi",
+  "staff.invited": "Resepsion qo‘shildi",
+  "staff.approved": "Resepsion tasdiqlandi",
   "auth.bootstrap": "Admin hisobi yaratildi",
   "auth.staff_login": "Xodim kirdi",
-  "staff.invited": "Xodim taklif qilindi",
-  "staff.approved": "Xodim tasdiqlandi",
   "staff.permissions_updated": "Xodim ruxsatlari yangilandi",
   "sanatorium.created": "Sanatoriya yaratildi",
   "sanatorium.featured_updated": "Mashhur sanatoriyalar tanlovi yangilandi",
@@ -804,7 +806,7 @@ export function Audit() {
     <>
       <PageHeading
         title="Amallar tarixi"
-        subtitle="Muhim o‘zgarishlar o‘chirilmaydigan audit yozuvlarida saqlanadi."
+        subtitle="Parollar yangilanishi va resepsion qo‘shilishi tarixi."
       />
       <DataPanel
         path={ctx.admin ? "/superadmin/audit" : "/partner/audit"}
@@ -813,10 +815,21 @@ export function Audit() {
           { label: "Vaqt", render: (r) => dateTime(r.createdAt) },
           {
             label: "Amal",
-            render: (r) =>
-              (r.action === "staff.password_reset"
-                ? "Xodim paroli tiklandi"
-                : auditLabels[r.action]) ?? r.action.replace(/[._]/g, " "),
+            render: (r) => {
+              if (r.action === "staff.password_reset") return "Xodim paroli tiklandi";
+              if (r.action === "auth.password_changed") return "Parol yangilandi";
+              if (r.action === "staff.invited") {
+                return (r.after as any)?.role === "ACCOUNTANT"
+                  ? "Hisobchi qo‘shildi"
+                  : "Resepsion qo‘shildi";
+              }
+              if (r.action === "staff.approved") {
+                return (r.after as any)?.role === "ACCOUNTANT"
+                  ? "Hisobchi tasdiqlandi"
+                  : "Resepsion tasdiqlandi";
+              }
+              return auditLabels[r.action] ?? r.action.replace(/[._]/g, " ");
+            },
           },
           {
             label: "Sanatoriya",

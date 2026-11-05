@@ -253,7 +253,8 @@ export class AuthService {
       const changed = await tx.user.updateMany({ where: { id: actor.id, passwordHash: user.passwordHash }, data: { passwordHash: next, mustChangePassword: false } });
       if (!changed.count) fail('VERSION_CONFLICT', 'Hisob o‘zgargan. Qayta kiring');
       await tx.session.updateMany({ where: { userId: actor.id, id: { not: actor.sessionId }, revokedAt: null }, data: { revokedAt: new Date() } });
-      await audit(tx, actor.id, 'auth.password_changed', actor.id);
+      const sanatoriumId = actor.memberships?.find(m => m.status === 'ACTIVE')?.sanatoriumId;
+      await audit(tx, actor.id, 'auth.password_changed', actor.id, sanatoriumId);
       return { success: true };
     });
   }
