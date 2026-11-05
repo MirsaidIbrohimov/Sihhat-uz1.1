@@ -24,11 +24,61 @@ export class InventoryService {
   constructor(@Inject(Db) readonly db:Db) {}
   async list(actor:Actor,id:string) {
     parse(uuid,id);scope(actor,id,'bookings.read');
-    const [types,rooms,rates,daily_rates,discounts,allocations,policies]=await Promise.all([
+    await this.db.atomic(async tx => {
+      await expireInitialHolds(tx, id);
+      const stale = await tx.booking.findMany({
+        where: {
+          sanatoriumId: id,
+          status: { in: ['CANCELLED', 'EXPIRED', 'NO_SHOW', 'PAYMENT_EXCEPTION'] },
+        },
+        select: { id: true },
+      });
+      if (stale.length > 0) {
+        await tx.roomAllocation.updateMany({
+          where: {
+            sanatoriumId: id,
+            active: true,
+            bookingId: { in: stale.map(b => b.id) },
+          },
+          data: { active: false },
+        });
+      }
+    });
+    const [types,rooms,rates,daily_rates,discounts,rawAllocs,policies]=await Promise.all([
       this.db.roomType.findMany({where:{sanatoriumId:id}}),this.db.room.findMany({where:{sanatoriumId:id},orderBy:{code:'asc'}}),
       this.db.ratePlan.findMany({where:{sanatoriumId:id}}),this.db.dailyRate.findMany({where:{sanatoriumId:id},orderBy:{date:'asc'},take:500}),
       this.db.discount.findMany({where:{sanatoriumId:id}}),this.db.roomAllocation.findMany({where:{sanatoriumId:id,active:true},take:500}),this.db.refundPolicy.findMany({where:{active:true}}),
-    ]);return {types,rooms,rates,daily_rates,discounts,allocations,policies};
+    ]);
+    const bookingIds = [...new Set(rawAllocs.map(a => a.bookingId).filter(Boolean) as string[])];
+    const bookings = bookingIds.length > 0
+      ? await this.db.booking.findMany({
+          where: { id: { in: bookingIds } },
+          select: { id: true, status: true, reference: true, holdExpiresAt: true, providerExpiresAt: true, guest: true },
+        })
+      : [];
+    const bookingMap = new Map(bookings.map(b => [b.id, b]));
+    const now = new Date();
+    const allocations = rawAllocs
+      .filter(a => {
+        if (a.kind === 'MAINTENANCE') return true;
+        if (!a.bookingId) return false;
+        const b = bookingMap.get(a.bookingId);
+        if (!b) return false;
+        if (['CANCELLED', 'EXPIRED', 'NO_SHOW', 'PAYMENT_EXCEPTION'].includes(b.status)) return false;
+        if (b.status === 'HOLD' && b.holdExpiresAt && b.holdExpiresAt <= now) return false;
+        if (b.status === 'PAYMENT_PENDING' && b.providerExpiresAt && b.providerExpiresAt <= now) return false;
+        return true;
+      })
+      .map(a => {
+        const b = a.bookingId ? bookingMap.get(a.bookingId) : null;
+        return {
+          ...a,
+          bookingStatus: b?.status ?? null,
+          bookingReference: b?.reference ?? null,
+          guestName: (b?.guest as any)?.full_name || (b?.guest as any)?.name || null,
+        };
+      });
+    return {types,rooms,rates,daily_rates,discounts,allocations,policies};
   }
   async roomType(actor:Actor,body:unknown) {
     const i=parse(roomTypeInput,body);scope(actor,i.sanatorium_id,'inventory.manage');

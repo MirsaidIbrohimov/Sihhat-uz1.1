@@ -265,7 +265,7 @@ export class TelegramViews {
     return this.page(lines.join('\n'), t.status === 'OPEN' ? [[b('✍️ Javob yozish', `ticketreply:${id}`)]] : [], 'tickets:0');
   }
   async messages(ctx: BotContext, page = 0) {
-    const x = await this.engagement.messages(ctx.actor, { page: page + 1, limit: pageSize });
+    const x = await this.engagement.messages(ctx.actor, { page: page + 1, limit: pageSize, box: 'inbox' });
     const rows = x.data.filter(r => r.message).map(r => [b(short(`${r.readAt ? '📨' : '🆕'} ${r.message!.title}`), `message:${r.messageId}`)]);
     this.pager(rows, page, x.total, 'messages');
     return this.page(`📨 Xabarlar · ${x.total} ta`, rows, 'communication');

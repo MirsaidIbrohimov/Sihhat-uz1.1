@@ -44,6 +44,9 @@ export function Communications({
 }) {
   const ctx = usePortal(),
     action = useAction(),
+    [messageTab, setMessageTab] = useState<"sent" | "inbox">(
+      ctx.admin ? "sent" : "inbox",
+    ),
     [selectedSurvey, setSelectedSurvey] = useState<Row | null>(null),
     staff = useRemote(
       ctx.tenant && (ctx.admin || ctx.allowed("staff.invite"))
@@ -95,6 +98,11 @@ export function Communications({
                 options: recipients,
               },
         ],
+        "POST",
+        () => {
+          setMessageTab("sent");
+          ctx.refresh();
+        },
       );
     if (kind === "tasks")
       action("Vazifa berish", "/tasks", { sanatorium_id: ctx.tenant }, [
@@ -254,74 +262,134 @@ export function Communications({
           </AddButton>
         )}
       </PageHeading>
+      {kind === "messages" && (
+        <div className="tabs" style={{ marginBottom: "16px" }}>
+          <button
+            type="button"
+            className={`tab ${messageTab === "sent" ? "active" : ""}`}
+            onClick={() => setMessageTab("sent")}
+          >
+            Yuborilgan e’lonlar va xabarlar
+          </button>
+          <button
+            type="button"
+            className={`tab ${messageTab === "inbox" ? "active" : ""}`}
+            onClick={() => setMessageTab("inbox")}
+          >
+            Kiruvchi xabarlar
+          </button>
+        </div>
+      )}
       {kind === "messages" ? (
         <DataPanel
-          path="/messages"
-          title="Sizga yuborilgan xabarlar"
-          renderRow={(r) => (
-            <FeedItem
-              icon={<Mail size={21} />}
-              title={r.message?.title}
-              status={
-                <span
-                  className={`badge ${r.acceptedAt ? "green" : r.message?.kind === "WARNING" ? "amber" : "blue"}`}
-                >
-                  {r.acceptedAt
-                    ? "Qabul qilingan"
-                    : r.message?.kind === "WARNING"
-                      ? "Ogohlantirish"
-                      : r.readAt
-                        ? "O‘qilgan"
-                        : "Yangi"}
-                </span>
-              }
-              meta={
-                <>
-                  {r.readAt
-                    ? `Ko‘rilgan: ${date(r.readAt)}`
-                    : "Hali o‘qilmagan"}{" "}
-                  ·{" "}
-                  {r.acceptedAt
-                    ? `Qabul qilingan: ${date(r.acceptedAt)}`
-                    : "Qabul qilinmagan"}
-                </>
-              }
-              actions={
-                !r.acceptedAt && (
-                  <button
-                    className="button soft"
-                    onClick={() =>
-                      action(
-                        "Xabarni qabul qilish",
-                        `/messages/${r.messageId}/receipt`,
-                        { accepted: true },
-                      )
-                    }
-                  >
-                    <Check size={17} />
-                    Qabul qildim
-                  </button>
-                )
-              }
-            >
-              <p>{r.message?.body}</p>
-              {!!r.message?.assetIds?.length && (
-                <div className="feed-attachments">
-                  {r.message.assetIds.map((id: string, n: number) => (
-                    <a
-                      key={id}
-                      href={`/api/media/${id}`}
-                      target="_blank"
-                      rel="noreferrer"
+          key={messageTab}
+          path={`/messages?box=${messageTab}`}
+          title={
+            messageTab === "sent"
+              ? "Yuborilgan e’lonlar va xabarlar"
+              : "Sizga yuborilgan xabarlar"
+          }
+          renderRow={(r) => {
+            const isSent = messageTab === "sent" || r.direction === "sent";
+            const m = r.message ?? r;
+            return (
+              <FeedItem
+                icon={<Mail size={21} />}
+                title={m?.title}
+                status={
+                  isSent ? (
+                    <span
+                      className={`badge ${m?.kind === "WARNING" ? "amber" : "green"}`}
                     >
-                      <FileText size={15} />
-                      Fayl {n + 1}
-                    </a>
-                  ))}
-                </div>
-              )}
-            </FeedItem>
-          )}
+                      {m?.kind === "WARNING" ? "Ogohlantirish" : "Yuborilgan"}
+                    </span>
+                  ) : (
+                    <span
+                      className={`badge ${r.acceptedAt ? "green" : m?.kind === "WARNING" ? "amber" : "blue"}`}
+                    >
+                      {r.acceptedAt
+                        ? "Qabul qilingan"
+                        : m?.kind === "WARNING"
+                          ? "Ogohlantirish"
+                          : r.readAt
+                            ? "O‘qilgan"
+                            : "Yangi"}
+                    </span>
+                  )
+                }
+                meta={
+                  isSent ? (
+                    <>
+                      <span>{date(r.createdAt || m?.createdAt)}</span>
+                      <span> · </span>
+                      <span>
+                        {r.recipientCount != null
+                          ? `${r.recipientCount} ta qabul qiluvchi`
+                          : "Barcha xodimlar"}
+                      </span>
+                      {r.readCount != null && (
+                        <>
+                          <span> · </span>
+                          <span>{r.readCount} ta o‘qildi</span>
+                        </>
+                      )}
+                      {r.acceptedCount != null && r.acceptedCount > 0 && (
+                        <>
+                          <span> · </span>
+                          <span>{r.acceptedCount} ta qabul qildi</span>
+                        </>
+                      )}
+                    </>
+                  ) : (
+                    <>
+                      {r.readAt
+                        ? `Ko‘rilgan: ${date(r.readAt)}`
+                        : "Hali o‘qilmagan"}{" "}
+                      ·{" "}
+                      {r.acceptedAt
+                        ? `Qabul qilingan: ${date(r.acceptedAt)}`
+                        : "Qabul qilinmagan"}
+                    </>
+                  )
+                }
+                actions={
+                  !isSent &&
+                  !r.acceptedAt && (
+                    <button
+                      className="button soft"
+                      onClick={() =>
+                        action(
+                          "Xabarni qabul qilish",
+                          `/messages/${r.messageId}/receipt`,
+                          { accepted: true },
+                        )
+                      }
+                    >
+                      <Check size={17} />
+                      Qabul qildim
+                    </button>
+                  )
+                }
+              >
+                <p>{m?.body}</p>
+                {!!m?.assetIds?.length && (
+                  <div className="feed-attachments">
+                    {m.assetIds.map((id: string, n: number) => (
+                      <a
+                        key={id}
+                        href={`/api/media/${id}`}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        <FileText size={15} />
+                        Fayl {n + 1}
+                      </a>
+                    ))}
+                  </div>
+                )}
+              </FeedItem>
+            );
+          }}
         />
       ) : kind === "tasks" ? (
         <DataPanel

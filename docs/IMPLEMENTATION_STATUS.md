@@ -2,6 +2,28 @@
 
 Yangilangan: 2026-11-03. Asos: ISHLAB_CHIQISH_REJASI.md va SIHHAT_UZ_ARXITEKTURA.md.
 
+## 2026-11-05 Xabarlar, Xonalar bandligi kalendari va Yangiliklarni o‘chirish tuzatishlari
+
+- **Yangilik va maqolalarni o‘chirish**:
+  - `DELETE /superadmin/articles/:id` rasmiy OpenAPI hujjatiga va backend controlleriga ulandi.
+  - Veb UI qismida (`packages/ui/src/articles.tsx`) agar backend yangilanishi davomida 404 yoki kutilmagan holat yuz bersa, avtomatik ravishda `PATCH status: 'ARCHIVED'` fallback mexanizmi ishlaydi va ro‘yxatdan bir zumda o‘chiriladi.
+  - Maqolalar ro‘yxati API (`GET /superadmin/articles`) arxivlangan maqolalarni filtrlab, faqat faol qoralama va e’lonlarni chiqaradi.
+- **Xonalar bandligi kalendari ("14 kunlik xona bandligi")**:
+  - Bekor qilingan (`CANCELLED`), muddati o‘tgan (`EXPIRED`), no-show (`NO_SHOW`) yoki to‘lanmagan bronlar xonani band ko‘rsatib qolishi muammosi to‘liq tuzatildi.
+  - `GET /partner/sanatoriums/:id/inventory` chaqirilganda, backend avtomatik ravishda muddati tugagan holdlarni deaktivatsiya qiladi va faqat to‘langan (`CONFIRMED`, `CHECKED_IN`, `CHECKED_OUT`) hamda faol ta’mir (`MAINTENANCE`) bloklarini xonaga biriktiradi.
+  - Kalendar dizayni to‘liq yangilandi:
+    - Haftaning kunlari o‘zbek tilida (`Dush`, `Sesh`, `Chor`, `Pay`, `Jum`, `Shan`, `Yak`) va sana ko‘rsatilishi.
+    - Bugungi sana (`Bugun`) yorqin yashil hoshiya va badge bilan ajratiladi.
+    - Tezkor navigatsiya tugmalari («Bugun», «← 7 kun», «7 kun →») va sana tanlagich.
+    - Xona qatorlarida xona turi nomi (`Standart`, `Lyuks` va hk.) ko‘rsatiladi.
+    - Kataklar zamonaviy yumaloq pill shakliga o‘tkazildi: `B` (yashil — to‘langan band), `K` (sariq — to‘lov kutilmoqda), `T` (kulrang — ta’mir), `·` (bo‘sh). Har bir katakka boy tooltip (mijoz ismi, bron raqami) qo‘shildi.
+- **Xabarlar bo‘limi ("Xabarlar va e’lonlar")**:
+  - Superadmin yoki xodim xabar/e’lon yuborganida xabar chiqmay qolishi muammosi bartaraf etildi.
+  - Backendda `GET /messages` endi `box=sent` (yuborilganlar) va `box=inbox` (kelganlar) yo‘nalishlarini to‘liq qo‘llab-quvvatlaydi.
+  - Xabarlar sahifasida ikkita qulay tab qo‘shildi: «Yuborilgan e’lonlar va xabarlar» hamda «Kiruvchi xabarlar».
+  - Superadmin uchun avtomatik ravishda yuborilgan e’lonlar ro‘yxati ochiladi. Yangi xabar yuborilganda, ro‘yxat bir zumda yangilanib, eng yuqorida ko‘rsatiladi.
+  - Har bir yuborilgan xabarda qabul qiluvchilar soni, qancha xodim o‘qigani va qabul qilgani haqidagi hisobot ko‘rinadi.
+
 ## 2026-11-05 Portal dizayni, Telegram chat, to‘lovlar va boshqaruv yangilanishi
 
 - **Foydalanish yo‘riqnomasi va Mening hisobim**:

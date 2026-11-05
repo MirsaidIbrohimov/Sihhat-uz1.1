@@ -130,6 +130,7 @@ export function enrichOpenApi(document:OpenAPIObject){
     if(path==='/superadmin/ai/usage')addParameters([query('from',date,true),query('to',date,true)]);
     if(method==='get'){
       if(path==='/superadmin/articles')addParameters(pagination);
+      if(path==='/messages')addParameters([query('box',{...str,enum:['inbox','sent'],default:'inbox'})]);
       if(pagedPaths.includes(path))addParameters(pagination);
       if(tenantFilteredPaths.includes(path))addParameters([query('sanatorium_id',id)]);
       if(['/partner/bookings','/customer/bookings','/superadmin/bookings'].includes(path))addParameters([query('status',{...str,maxLength:30})]);

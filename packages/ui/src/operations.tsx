@@ -55,6 +55,15 @@ export function Inventory() {
     policies = data?.policies ?? [];
   const day = (n: number) =>
     new Date(Date.parse(start) + n * 86400000).toISOString().slice(0, 10);
+  const shiftDays = (delta: number) => {
+    const next = new Date(Date.parse(start) + delta * 86400000).toISOString().slice(0, 10);
+    setStart(next);
+  };
+  const getDayLabel = (dStr: string) => {
+    const days = ["Yak", "Dush", "Sesh", "Chor", "Pay", "Jum", "Shan"];
+    const d = new Date(`${dStr}T00:00:00`);
+    return days[d.getDay()] ?? "";
+  };
   function create(kind: string) {
     if (kind === "types")
       action(
@@ -319,65 +328,201 @@ export function Inventory() {
           <>
             {tab === "calendar" && (
               <>
-                <div className="filters">
-                  <label className="field">
-                    <span>Kalendar boshi</span>
-                    <input
-                      type="date"
-                      value={start}
-                      onChange={(e) => setStart(e.target.value || localDate())}
-                    />
-                  </label>
-                </div>
                 <Card title="14 kunlik xona bandligi">
+                  <div className="calendar-toolbar">
+                    <div className="calendar-nav-group">
+                      <button
+                        type="button"
+                        className="calendar-nav-btn"
+                        onClick={() => shiftDays(-7)}
+                        title="Oldingi 7 kun"
+                      >
+                        ← 7 kun
+                      </button>
+                      <button
+                        type="button"
+                        className={`calendar-nav-btn ${start === localDate() ? "active" : ""}`}
+                        onClick={() => setStart(localDate())}
+                      >
+                        Bugun
+                      </button>
+                      <button
+                        type="button"
+                        className="calendar-nav-btn"
+                        onClick={() => shiftDays(7)}
+                        title="Keyingi 7 kun"
+                      >
+                        7 kun →
+                      </button>
+                    </div>
+                    <label
+                      className="field"
+                      style={{
+                        margin: 0,
+                        flexDirection: "row",
+                        alignItems: "center",
+                        gap: "8px",
+                      }}
+                    >
+                      <span style={{ fontWeight: 600, fontSize: "13px" }}>
+                        Boshlanish sanasi:
+                      </span>
+                      <input
+                        type="date"
+                        value={start}
+                        onChange={(e) => setStart(e.target.value || localDate())}
+                        style={{ padding: "6px 10px", fontSize: "13px" }}
+                      />
+                    </label>
+                  </div>
                   <div className="calendar">
                     <div className="calendar-row">
-                      <div className="calendar-cell header">Xona</div>
-                      {Array.from({ length: 14 }, (_, n) => (
-                        <div className="calendar-cell header" key={n}>
-                          {day(n).slice(8)}.{day(n).slice(5, 7)}
-                        </div>
-                      ))}
-                    </div>
-                    {rooms.map((r: Row) => (
-                      <div className="calendar-row" key={r.id}>
-                        <div className="calendar-cell header">{r.code}</div>
-                        {Array.from({ length: 14 }, (_, n) => {
-                          const a = data.allocations.find(
-                            (a: Row) =>
-                              a.roomId === r.id &&
-                              a.checkIn.slice(0, 10) <= day(n) &&
-                              a.checkOut.slice(0, 10) > day(n),
-                          );
-                          return (
-                            <div
-                              key={n}
-                              className={`calendar-cell ${a ? (a.kind === "MAINTENANCE" ? "maintenance" : a.kind === "HOLD" ? "held" : "booked") : ""}`}
-                              title={
-                                a?.kind === "MAINTENANCE"
-                                  ? a.reason
-                                  : a
-                                    ? "Band"
-                                    : "Bo‘sh"
-                              }
+                      <div className="calendar-cell header room-header">Xona</div>
+                      {Array.from({ length: 14 }, (_, n) => {
+                        const isToday = day(n) === localDate();
+                        return (
+                          <div
+                            className={`calendar-cell header ${isToday ? "today" : ""}`}
+                            key={n}
+                            title={isToday ? "Bugun" : undefined}
+                          >
+                            <span
+                              style={{
+                                fontSize: "10px",
+                                textTransform: "uppercase",
+                                opacity: 0.75,
+                              }}
                             >
-                              {a
-                                ? a.kind === "MAINTENANCE"
-                                  ? "T"
-                                  : a.kind === "HOLD"
-                                    ? "K"
-                                    : "B"
-                                : "·"}
-                            </div>
-                          );
-                        })}
-                      </div>
-                    ))}
+                              {getDayLabel(day(n))}
+                            </span>
+                            <span style={{ fontWeight: 700 }}>
+                              {day(n).slice(8)}.{day(n).slice(5, 7)}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    {rooms.map((r: Row) => {
+                      const roomTypeName = types.find(
+                        (t: Row) => t.id === r.roomTypeId,
+                      )?.name;
+                      return (
+                        <div className="calendar-row" key={r.id}>
+                          <div
+                            className="calendar-cell header room-header"
+                            title={roomTypeName ? `${r.code} — ${roomTypeName}` : r.code}
+                          >
+                            <span>{r.code}</span>
+                            {roomTypeName && (
+                              <span
+                                style={{
+                                  fontSize: "10px",
+                                  color: "var(--muted)",
+                                  fontWeight: 400,
+                                  overflow: "hidden",
+                                  textOverflow: "ellipsis",
+                                  whiteSpace: "nowrap",
+                                  maxWidth: "80px",
+                                }}
+                              >
+                                {roomTypeName}
+                              </span>
+                            )}
+                          </div>
+                          {Array.from({ length: 14 }, (_, n) => {
+                            const curDay = day(n);
+                            const a = data.allocations.find(
+                              (a: Row) =>
+                                a.roomId === r.id &&
+                                a.checkIn.slice(0, 10) <= curDay &&
+                                a.checkOut.slice(0, 10) > curDay,
+                            );
+
+                            const isMaintenance = a?.kind === "MAINTENANCE";
+                            const isPending =
+                              a &&
+                              !isMaintenance &&
+                              (a.bookingStatus === "HOLD" ||
+                                a.bookingStatus === "PAYMENT_PENDING" ||
+                                a.kind === "HOLD" ||
+                                a.kind === "PAYMENT_PENDING");
+                            const isBooked =
+                              a &&
+                              !isMaintenance &&
+                              !isPending &&
+                              (a.bookingStatus === "CONFIRMED" ||
+                                a.bookingStatus === "CHECKED_IN" ||
+                                a.bookingStatus === "CHECKED_OUT" ||
+                                a.kind === "BOOKING");
+
+                            const state = isMaintenance
+                              ? "maintenance"
+                              : isBooked
+                                ? "booked"
+                                : isPending
+                                  ? "held"
+                                  : "empty";
+
+                            const symbol = isMaintenance
+                              ? "T"
+                              : isBooked
+                                ? "B"
+                                : isPending
+                                  ? "K"
+                                  : "·";
+
+                            const tooltip = isMaintenance
+                              ? `Ta’mir: ${a.reason || "Profilaktika"} (${r.code}-xona)`
+                              : isBooked
+                                ? `Band · ${r.code}-xona${a.bookingReference ? " · #" + a.bookingReference : ""}${a.guestName ? " · " + a.guestName : ""}`
+                                : isPending
+                                  ? `To‘lov kutilmoqda · ${r.code}-xona${a.bookingReference ? " · #" + a.bookingReference : ""}`
+                                  : `Bo‘sh · ${r.code}-xona (${curDay})`;
+
+                            return (
+                              <div
+                                key={n}
+                                className={`calendar-cell ${state !== "empty" ? state : ""}`}
+                                title={tooltip}
+                              >
+                                <span className={`calendar-pill ${state}`}>
+                                  {symbol}
+                                </span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      );
+                    })}
                   </div>
-                  <div className="card-body">
-                    <span className="badge green">B — band</span>{" "}
-                    <span className="badge amber">K — to‘lov kutilmoqda</span>{" "}
-                    <span className="badge gray">T — ta’mir</span>
+                  <div
+                    className="card-body"
+                    style={{
+                      display: "flex",
+                      flexWrap: "wrap",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      gap: "12px",
+                      paddingTop: "14px",
+                      borderTop: "1px solid var(--line)",
+                    }}
+                  >
+                    <div
+                      style={{
+                        display: "flex",
+                        flexWrap: "wrap",
+                        gap: "10px",
+                        alignItems: "center",
+                      }}
+                    >
+                      <span className="badge green">B — band (to‘langan)</span>
+                      <span className="badge amber">K — to‘lov kutilmoqda</span>
+                      <span className="badge gray">T — ta’mir</span>
+                      <span className="badge soft">· — bo‘sh xona</span>
+                    </div>
+                    <span style={{ fontSize: "12px", color: "var(--muted)" }}>
+                      Jami xonalar: {rooms.length} ta
+                    </span>
                   </div>
                 </Card>
                 <Card title="Faol ta’mir bloklari">

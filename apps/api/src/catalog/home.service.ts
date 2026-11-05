@@ -40,7 +40,8 @@ export class HomeService {
   }
   async list(actor: Actor, query: unknown) {
     requirePlatform(actor, 'catalog.manage'); const i = parse(pageQuery.strict(), query);
-    const [data, total] = await Promise.all([this.db.publicArticle.findMany({ orderBy: { updatedAt: 'desc' }, skip: (i.page - 1) * i.limit, take: i.limit }), this.db.publicArticle.count()]);
+    const where = { status: { not: 'ARCHIVED' } };
+    const [data, total] = await Promise.all([this.db.publicArticle.findMany({ where, orderBy: { updatedAt: 'desc' }, skip: (i.page - 1) * i.limit, take: i.limit }), this.db.publicArticle.count({ where })]);
     return paged(data, total, i.page, i.limit);
   }
   async create(actor: Actor, body: unknown) {

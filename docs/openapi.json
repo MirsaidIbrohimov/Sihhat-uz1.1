@@ -189,6 +189,111 @@
         "x-roles": []
       }
     },
+    "/": {
+      "get": {
+        "operationId": "RootController_root",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Muvaffaqiyatli natija",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sessiya yaroqsiz",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Ruxsat yo‘q",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Topilmadi",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Holat yoki version konflikti",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validatsiya xatosi",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Urinishlar limiti",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Tashqi xizmat mavjud emas",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Root"
+        ],
+        "security": [
+          {
+            "cookie": []
+          },
+          {
+            "bearer": []
+          }
+        ],
+        "x-roles": [
+          "SUPERADMIN",
+          "STAFF",
+          "CUSTOMER"
+        ]
+      }
+    },
     "/auth/staff/login": {
       "post": {
         "operationId": "AuthController_login",
@@ -204,7 +309,7 @@
                     "type": "string",
                     "minLength": 3,
                     "maxLength": 64,
-                    "pattern": "^[a-z0-9._-]+$"
+                    "pattern": "^[a-z0-9._@-]+$"
                   },
                   "password": {
                     "type": "string",
@@ -212,15 +317,14 @@
                     "maxLength": 128
                   },
                   "mfa_code": {
-                    "type": "string",
-                    "pattern": "^\\d{6}$"
+                    "type": "string"
                   }
                 },
                 "required": [
                   "login",
                   "password"
                 ],
-                "additionalProperties": false
+                "additionalProperties": {}
               }
             }
           }
@@ -326,13 +430,16 @@
               "schema": {
                 "type": "object",
                 "properties": {
+                  "email": {
+                    "type": "string",
+                    "maxLength": 120,
+                    "format": "email",
+                    "pattern": "^(?:[A-Za-z0-9_'+\\-]+\\.)*[A-Za-z0-9_'+\\-]*[A-Za-z0-9_+-]@(?:[A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$"
+                  },
                   "phone": {
                     "type": "string"
                   }
                 },
-                "required": [
-                  "phone"
-                ],
                 "additionalProperties": false
               }
             }
@@ -1047,7 +1154,7 @@
                   },
                   "new_password": {
                     "type": "string",
-                    "minLength": 12,
+                    "minLength": 8,
                     "maxLength": 128
                   }
                 },
@@ -3031,7 +3138,7 @@
                 "properties": {
                   "new_password": {
                     "type": "string",
-                    "minLength": 12,
+                    "minLength": 8,
                     "maxLength": 128
                   },
                   "confirm_password": {
@@ -3177,7 +3284,7 @@
                 "properties": {
                   "new_password": {
                     "type": "string",
-                    "minLength": 12,
+                    "minLength": 8,
                     "maxLength": 128
                   },
                   "confirm_password": {
@@ -9940,6 +10047,122 @@
         }
       }
     },
+    "/payments/quick-checkout": {
+      "post": {
+        "operationId": "PaymentController_quickCheckout",
+        "parameters": [
+          {
+            "name": "Origin",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Allowed WEB origin; required with cookie authentication."
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Muvaffaqiyatli natija",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sessiya yaroqsiz",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Ruxsat yo‘q",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Topilmadi",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Holat yoki version konflikti",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validatsiya xatosi",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Urinishlar limiti",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Tashqi xizmat mavjud emas",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "To‘lov"
+        ],
+        "security": [
+          {
+            "cookie": [],
+            "CSRF": []
+          },
+          {
+            "bearer": []
+          }
+        ],
+        "x-roles": [
+          "SUPERADMIN",
+          "STAFF",
+          "CUSTOMER"
+        ]
+      }
+    },
     "/payments/{id}/local-confirm": {
       "post": {
         "operationId": "PaymentController_local",
@@ -14339,6 +14562,221 @@
             }
           }
         }
+      },
+      "delete": {
+        "operationId": "BillingController_deleteAd",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "Origin",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Allowed WEB origin; required with cookie authentication."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Muvaffaqiyatli natija",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sessiya yaroqsiz",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Ruxsat yo‘q",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Topilmadi",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Holat yoki version konflikti",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validatsiya xatosi",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Urinishlar limiti",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Tashqi xizmat mavjud emas",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Abonent va reklama"
+        ],
+        "security": [
+          {
+            "cookie": [],
+            "CSRF": []
+          }
+        ],
+        "x-roles": [
+          "SUPERADMIN"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "sanatorium_id": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                  },
+                  "title": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 120
+                  },
+                  "placement": {
+                    "type": "string",
+                    "enum": [
+                      "HOME",
+                      "POPUP"
+                    ]
+                  },
+                  "starts_at": {
+                    "type": "string",
+                    "format": "date-time",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                  },
+                  "ends_at": {
+                    "type": "string",
+                    "format": "date-time",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                  },
+                  "image_asset_id": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                  },
+                  "text": {
+                    "default": "",
+                    "type": "string",
+                    "maxLength": 500
+                  },
+                  "target_kind": {
+                    "default": "SANATORIUM",
+                    "type": "string",
+                    "enum": [
+                      "SANATORIUM",
+                      "URL"
+                    ]
+                  },
+                  "target_sanatorium_id": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                  },
+                  "target_url": {
+                    "type": "string",
+                    "maxLength": 2048,
+                    "format": "uri"
+                  },
+                  "has_discount": {
+                    "default": false,
+                    "type": "boolean"
+                  },
+                  "discount_percent": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 100
+                  },
+                  "discount_text": {
+                    "type": "string",
+                    "minLength": 3,
+                    "maxLength": 120
+                  },
+                  "version": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "exclusiveMinimum": true,
+                    "maximum": 9007199254740991
+                  }
+                },
+                "required": [
+                  "sanatorium_id",
+                  "title",
+                  "placement",
+                  "starts_at",
+                  "ends_at",
+                  "image_asset_id",
+                  "version"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        }
       }
     },
     "/superadmin/ad-campaigns/{id}/approve": {
@@ -14629,6 +15067,19 @@
       "get": {
         "operationId": "EngagementController_messages",
         "parameters": [
+          {
+            "name": "box",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "inbox",
+                "sent"
+              ],
+              "default": "inbox"
+            }
+          },
           {
             "name": "page",
             "in": "query",
@@ -17232,6 +17683,122 @@
         ]
       }
     },
+    "/notifications/read-all": {
+      "post": {
+        "operationId": "EngagementController_notificationReadAll",
+        "parameters": [
+          {
+            "name": "Origin",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Allowed WEB origin; required with cookie authentication."
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Muvaffaqiyatli natija",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sessiya yaroqsiz",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Ruxsat yo‘q",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Topilmadi",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Holat yoki version konflikti",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validatsiya xatosi",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Urinishlar limiti",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Tashqi xizmat mavjud emas",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Xabar, vazifa, anketa va yordam"
+        ],
+        "security": [
+          {
+            "cookie": [],
+            "CSRF": []
+          },
+          {
+            "bearer": []
+          }
+        ],
+        "x-roles": [
+          "SUPERADMIN",
+          "STAFF",
+          "CUSTOMER"
+        ]
+      }
+    },
     "/notifications/{id}/read": {
       "post": {
         "operationId": "EngagementController_notificationRead",
@@ -19309,6 +19876,181 @@
             }
           }
         }
+      },
+      "delete": {
+        "operationId": "HomeController_remove",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "Origin",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Allowed WEB origin; required with cookie authentication."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Muvaffaqiyatli natija",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sessiya yaroqsiz",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Ruxsat yo‘q",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Topilmadi",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Holat yoki version konflikti",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validatsiya xatosi",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Urinishlar limiti",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Tashqi xizmat mavjud emas",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Bosh sahifa va yangiliklar"
+        ],
+        "security": [
+          {
+            "cookie": [],
+            "CSRF": []
+          }
+        ],
+        "x-roles": [
+          "SUPERADMIN"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "title": {
+                    "type": "string",
+                    "minLength": 3,
+                    "maxLength": 160
+                  },
+                  "summary": {
+                    "type": "string",
+                    "minLength": 10,
+                    "maxLength": 500
+                  },
+                  "body": {
+                    "type": "string",
+                    "minLength": 20,
+                    "maxLength": 12000
+                  },
+                  "kind": {
+                    "default": "NEWS",
+                    "type": "string",
+                    "enum": [
+                      "NEWS",
+                      "TIP"
+                    ]
+                  },
+                  "status": {
+                    "default": "DRAFT",
+                    "type": "string",
+                    "enum": [
+                      "DRAFT",
+                      "PUBLISHED",
+                      "ARCHIVED"
+                    ]
+                  },
+                  "version": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "exclusiveMinimum": true,
+                    "maximum": 9007199254740991
+                  }
+                },
+                "required": [
+                  "title",
+                  "summary",
+                  "body",
+                  "version"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        }
       }
     },
     "/superadmin/ai/usage": {
@@ -20018,15 +20760,70 @@
     "/partner/reports/export.xlsx": {
       "get": {
         "operationId": "ReportsController_xlsx",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "sanatorium_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "booking_basis",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "CREATED",
+                "PAYMENT",
+                "SERVICE"
+              ],
+              "default": "SERVICE"
+            }
+          },
+          {
+            "name": "financial",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "true",
+                "false"
+              ],
+              "default": "false"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "Muvaffaqiyatli natija",
             "content": {
-              "application/json": {
+              "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true
+                  "type": "string",
+                  "format": "binary"
                 }
               }
             }
@@ -21491,14 +22288,14 @@
             "type": "string",
             "minLength": 3,
             "maxLength": 64,
-            "pattern": "^[a-z0-9._-]+$"
+            "pattern": "^[a-z0-9._@-]+$"
           },
           "phone": {
             "type": "string"
           },
           "temporary_password": {
             "type": "string",
-            "minLength": 12,
+            "minLength": 8,
             "maxLength": 128
           },
           "grants": {
@@ -21562,14 +22359,14 @@
             "type": "string",
             "minLength": 3,
             "maxLength": 64,
-            "pattern": "^[a-z0-9._-]+$"
+            "pattern": "^[a-z0-9._@-]+$"
           },
           "phone": {
             "type": "string"
           },
           "temporary_password": {
             "type": "string",
-            "minLength": 12,
+            "minLength": 8,
             "maxLength": 128
           },
           "grants": {
@@ -23787,6 +24584,13 @@
             "type": "object",
             "additionalProperties": {
               "type": "integer"
+            }
+          },
+          "paid_bookings": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": true
             }
           },
           "room_nights": {

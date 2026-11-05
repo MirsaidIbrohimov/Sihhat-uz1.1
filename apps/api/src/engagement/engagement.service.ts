@@ -15,7 +15,44 @@ export class EngagementService{
   async send(actor:Actor,body:unknown){const i=parse(z.object({title:z.string().min(2).max(150),body:z.string().min(1).max(10000),kind:z.enum(['MESSAGE','WARNING']).default('MESSAGE'),asset_ids:z.array(uuid).max(10).default([]),recipient_ids:z.array(uuid).max(1000)}).strict(),body);const ids=await this.recipients(actor,i.recipient_ids);
     for(const id of i.asset_ids){const file=await this.db.mediaAsset.findUnique({where:{id}});if(!file)fail('NOT_FOUND','Fayl topilmadi',404);scope(actor,file.sanatoriumId,'sanatorium.profile.edit');}
     return this.db.atomic(async tx=>{const m=await tx.message.create({data:{senderId:actor.id,title:i.title,body:i.body,kind:i.kind,assetIds:i.asset_ids}});await tx.messageRecipient.createMany({data:ids.map(userId=>({messageId:m.id,userId}))});await emit(tx,'message.created',{message_id:m.id,recipient_ids:ids});await audit(tx,actor.id,'message.sent',m.id,undefined,undefined,{recipient_count:ids.length});return m;});}
-  async messages(actor:Actor,query:unknown){const i=parse(pageQuery,query);const receipts=await this.db.messageRecipient.findMany({where:{userId:actor.id},skip:(i.page-1)*i.limit,take:i.limit,orderBy:{id:'desc'}});const messages=await this.db.message.findMany({where:{id:{in:receipts.map(r=>r.messageId)}}});return paged(receipts.map(r=>({...r,message:messages.find(m=>m.id===r.messageId)})),await this.db.messageRecipient.count({where:{userId:actor.id}}),i.page,i.limit);}
+  async messages(actor:Actor,query:unknown){
+    const i=parse(pageQuery.extend({ box: z.enum(['inbox', 'sent']).optional() }).strict(), query);
+    const box = i.box ?? (actor.kind === 'SUPERADMIN' ? 'sent' : 'inbox');
+    if (box === 'sent') {
+      const [messages, total] = await Promise.all([
+        this.db.message.findMany({
+          where: { senderId: actor.id },
+          skip: (i.page - 1) * i.limit,
+          take: i.limit,
+          orderBy: { createdAt: 'desc' },
+        }),
+        this.db.message.count({ where: { senderId: actor.id } }),
+      ]);
+      const msgIds = messages.map(m => m.id);
+      const receipts = msgIds.length > 0
+        ? await this.db.messageRecipient.findMany({ where: { messageId: { in: msgIds } } })
+        : [];
+      const data = messages.map(m => {
+        const recs = receipts.filter(r => r.messageId === m.id);
+        return {
+          id: m.id,
+          messageId: m.id,
+          direction: 'sent',
+          message: m,
+          recipientCount: recs.length,
+          readCount: recs.filter(r => r.readAt).length,
+          acceptedCount: recs.filter(r => r.acceptedAt).length,
+          readAt: null as Date | null,
+          acceptedAt: null as Date | null,
+          createdAt: m.createdAt,
+        };
+      });
+      return paged(data, total, i.page, i.limit);
+    }
+    const receipts=await this.db.messageRecipient.findMany({where:{userId:actor.id},skip:(i.page-1)*i.limit,take:i.limit,orderBy:{id:'desc'}});
+    const messages=await this.db.message.findMany({where:{id:{in:receipts.map(r=>r.messageId)}}});
+    return paged(receipts.map(r=>({...r,direction:'inbox',message:messages.find(m=>m.id===r.messageId)})),await this.db.messageRecipient.count({where:{userId:actor.id}}),i.page,i.limit);
+  }
   async receipt(actor:Actor,id:string,body:unknown){parse(uuid,id);const i=parse(z.object({accepted:z.boolean().default(false)}).strict(),body);const r=await this.db.messageRecipient.findUnique({where:{messageId_userId:{messageId:id,userId:actor.id}}});if(!r)fail('NOT_FOUND','Xabar topilmadi',404);return this.db.messageRecipient.update({where:{id:r.id},data:{readAt:r.readAt??new Date(),acceptedAt:i.accepted?(r.acceptedAt??new Date()):r.acceptedAt}});}
   async task(actor:Actor,body:unknown,key?:string){
     const i=parse(z.object({sanatorium_id:uuid,assigned_to:uuid,title:z.string().min(2).max(150),body:z.string().min(1).max(5000),due_at:z.iso.datetime()}).strict(),body);scope(actor,i.sanatorium_id,'tasks.manage');
