@@ -61,7 +61,10 @@ export async function buildReport(
       paidAt: { gte: from, lt: to },
     },
   });
-  const countWhere: any = { ...where };
+  const countWhere: any = {
+    ...where,
+    status: { in: ["CONFIRMED", "CHECKED_IN", "CHECKED_OUT"] },
+  };
   if (i.booking_basis === "CREATED")
     countWhere.createdAt = { gte: from, lt: to };
   else if (i.booking_basis === "PAYMENT")
@@ -71,7 +74,7 @@ export async function buildReport(
     countWhere.checkOut = { gt: checkIn };
   }
   const [bookings, service, rooms, maintenance] = await Promise.all([
-    db.booking.findMany({ where: countWhere }),
+    db.booking.findMany({ where: countWhere, orderBy: { checkIn: "asc" } }),
     db.booking.findMany({
       where: {
         ...where,
@@ -144,6 +147,14 @@ export async function buildReport(
       }),
       {},
     ),
+    paid_bookings: bookings.map((b) => ({
+      reference: b.reference,
+      checkIn: b.checkIn.toISOString().slice(0, 10),
+      checkOut: b.checkOut.toISOString().slice(0, 10),
+      amount: b.amount.toString(),
+      status: b.status,
+      guest: b.guest,
+    })),
     room_nights: roomNights,
     guest_nights: guestNights,
     sellable_room_nights: Math.max(0, denominator),
@@ -334,6 +345,25 @@ export function reportRows(report: any) {
       String(count),
       "son",
     ]);
+  if (report.paid_bookings?.length) {
+    rows.push(["", "", ""]);
+    rows.push([
+      "TO‘LANGAN BRONLAR RO‘YXATI",
+      `${report.paid_bookings.length} ta bron`,
+      "son",
+    ]);
+    for (const b of report.paid_bookings) {
+      const g = (b.guest as any) || {};
+      const guestName = g.full_name || g.name || "Mijoz";
+      const phone = g.phone ? ` (${g.phone})` : "";
+      const amount = (Number(b.amount) / 100).toLocaleString("ru-RU") + " UZS";
+      rows.push([
+        `Bron ${b.reference}`,
+        `${guestName}${phone} | ${b.checkIn} — ${b.checkOut} | ${amount}`,
+        statusLabels[b.status] ?? b.status,
+      ]);
+    }
+  }
   return rows;
 }
 

@@ -178,7 +178,7 @@ export function Dashboard() {
             <div className="stats">
               {[
                 {
-                  title: "Bronlar",
+                  title: "To‘langan bronlar",
                   value: r.bookings,
                   detail:
                     label[basis] ??
@@ -247,7 +247,7 @@ export function Dashboard() {
             </details>
             <div className="two-cols dashboard-main-grid">
               <Card
-                title="Bronlar holati"
+                title="To‘langan bronlar holati"
                 className="dashboard-chart"
                 aside={
                   <span className="period-pill">
@@ -256,7 +256,7 @@ export function Dashboard() {
                 }
               >
                 <p className="card-description">
-                  Tanlangan davrga tegishli bronlar
+                  Tanlangan davrga tegishli to‘langan bronlar
                 </p>
                 <div className="chart-wrap">
                   {Object.keys(r.booking_statuses).length ? (
@@ -284,7 +284,7 @@ export function Dashboard() {
                       ))}
                     </div>
                   ) : (
-                    <Empty text="Bu davrda bronlar yo‘q" />
+                    <Empty text="Bu davrda to‘langan bronlar yo‘q" />
                   )}
                   <div className="chart-legend">
                     <span>
@@ -295,7 +295,7 @@ export function Dashboard() {
                           ? "to‘lov sanasi"
                           : "yaratilgan sana"}
                     </span>
-                    <strong>Jami {r.bookings} ta bron</strong>
+                    <strong>Jami {r.bookings} ta to‘langan bron</strong>
                   </div>
                 </div>
               </Card>

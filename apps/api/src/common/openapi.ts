@@ -67,7 +67,7 @@ export function enrichOpenApi(document:OpenAPIObject){
   schemas.Report=obj({
     sanatorium:{...obj({id,name:str}),nullable:true},generated_at:timestamp,
     period:obj({from:date,to:{...date,description:'Exclusive end date in Asia/Tashkent.'},to_exclusive:{...boolean,enum:[true]},timezone:{...str,enum:['Asia/Tashkent']},booking_basis:{...str,enum:['CREATED','PAYMENT','SERVICE']},payment_basis:str,refund_basis:str,payout_basis:str,service_basis:str,offline_basis:str}),
-    bookings:integer,booking_statuses:{type:'object',additionalProperties:integer},room_nights:integer,guest_nights:integer,sellable_room_nights:integer,occupancy:{type:'number'},
+    bookings:integer,booking_statuses:{type:'object',additionalProperties:integer},paid_bookings:array({type:'object',additionalProperties:true}),room_nights:integer,guest_nights:integer,sellable_room_nights:integer,occupancy:{type:'number'},
     gmv:signedMoney,refunds:signedMoney,net_online_receipts:signedMoney,verified_offline_receipts:signedMoney,offline_cash_receipts:signedMoney,offline_terminal_receipts:signedMoney,unverified_offline_receipts:signedMoney,paid_payouts:signedMoney,
     sanatorium_payable:signedMoney,refund_payable:signedMoney,payout_in_transit:signedMoney,receivable:signedMoney,deferred_service_revenue:signedMoney,platform_revenue:signedMoney,currency:{...str,enum:['UZS']},minor_unit:{...str,enum:['tiyin']},
   },['sanatorium','generated_at','period','bookings','booking_statuses','room_nights','guest_nights','sellable_room_nights','occupancy']);

@@ -266,9 +266,9 @@ export function AccountantReports() {
                 </Card>
               </div>
             )}
-            <Card title="Bronlar va bandlik">
+            <Card title="To‘langan bronlar va bandlik">
               <p>
-                {r.bookings} ta bron · {r.room_nights} xona-tun ·{" "}
+                {r.bookings} ta to‘langan bron · {r.room_nights} xona-tun ·{" "}
                 {r.guest_nights} mehmon-tun · {(r.occupancy * 100).toFixed(1)}%
                 bandlik
               </p>
