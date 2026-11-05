@@ -61,4 +61,14 @@ export class HomeService {
       await audit(tx, actor.id, 'article.updated', id, undefined, before, after); return after;
     });
   }
+  async delete(actor: Actor, id: string) {
+    requirePlatform(actor, 'catalog.manage'); parse(uuid, id);
+    return this.db.atomic(async tx => {
+      const before = await tx.publicArticle.findUnique({ where: { id } });
+      if (!before) fail('NOT_FOUND', 'Yangilik topilmadi', 404);
+      await tx.publicArticle.delete({ where: { id } });
+      await audit(tx, actor.id, 'article.deleted', id, undefined, before);
+      return { success: true };
+    });
+  }
 }

@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Bell,
   Check,
@@ -7,6 +7,8 @@ import {
   ClipboardList,
   FileText,
   Mail,
+  MessageSquare,
+  Send,
   Star,
 } from "lucide-react";
 import { api, toMinor } from "@sihhat/api-client";
@@ -606,6 +608,10 @@ export function Support() {
   const ctx = usePortal(),
     action = useAction(),
     [id, setId] = useState<string | null>(null),
+    [searchQuery, setSearchQuery] = useState(""),
+    [replyText, setReplyText] = useState(""),
+    [sending, setSending] = useState(false),
+    messagesEndRef = useRef<HTMLDivElement>(null),
     tickets = useRemote("/support/tickets", ctx.epoch),
     detail = useRemote(id ? `/support/tickets/${id}` : null, ctx.epoch),
     [thread, setThread] = useState<Row | null>(null);
@@ -634,17 +640,45 @@ export function Support() {
     return () => clearInterval(timer);
   }, [id]);
 
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [thread?.messages?.length]);
+
   const selectTicket = (ticketId: string | null) => {
     setId(ticketId);
     setThread(null);
   };
+
+  const handleSend = async (e?: React.FormEvent) => {
+    e?.preventDefault();
+    const text = replyText.trim();
+    if (!text || !id || sending) return;
+    setSending(true);
+    try {
+      await api(`/support/tickets/${id}/messages`, "POST", { text });
+      setReplyText("");
+      const fresh = await api<Row>(`/support/tickets/${id}`);
+      if (fresh) setThread(fresh);
+    } catch (err: any) {
+      ctx.notice(err.message || "Xabar yuborishda xatolik");
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const allTickets = list(tickets.data);
+  const filteredTickets = searchQuery.trim()
+    ? allTickets.filter((row: Row) =>
+        (row.title ?? "").toLowerCase().includes(searchQuery.toLowerCase()),
+      )
+    : allTickets;
 
   const t = thread ?? detail.data;
   return (
     <>
       <PageHeading
         title="Yordam xizmati"
-        subtitle="Bron va platforma bo‘yicha murojaatlar."
+        subtitle="Mijozlar va sanatoriyalar bilan Telegram uslubidagi qulay chat."
       >
         <AddButton
           onClick={() =>
@@ -668,112 +702,204 @@ export function Support() {
           Murojaat yaratish
         </AddButton>
       </PageHeading>
-      <div className={`support-layout ${id ? "has-selection" : ""}`}>
-        <div className="support-ticket-list">
-          <Card title="Murojaatlar">
-            {tickets.loading ? (
-              <Loading />
-            ) : tickets.error ? (
-              <ErrorBox message={tickets.error} retry={tickets.reload} />
-            ) : (
-              <Table
-                layout="cards"
-                rows={list(tickets.data)}
-                columns={[
-                  { label: "Mavzu", key: "title" },
-                  statusColumn,
-                  { label: "Yaratilgan", render: (row) => date(row.createdAt) },
-                ]}
-                actions={(row) => (
-                  <Act onClick={() => selectTicket(row.id)}>
-                    {row.id === id ? "Tanlangan suhbat" : "Ochish"}
-                  </Act>
-                )}
-              />
-            )}
-          </Card>
+
+      <div className={`tg-messenger ${id ? "has-selection" : ""}`}>
+        <div className="tg-sidebar">
+          <div className="tg-sidebar-header">
+            <h3>Murojaatlar ({filteredTickets.length})</h3>
+            <button
+              className="button secondary"
+              style={{ padding: "4px 10px", fontSize: "12px", minHeight: "32px" }}
+              onClick={() =>
+                action(
+                  "Yangi murojaat",
+                  "/support/tickets",
+                  { sanatorium_id: ctx.tenant },
+                  [
+                    { key: "title", label: "Mavzu", required: true },
+                    {
+                      key: "text",
+                      label: "Murojaat matni",
+                      type: "textarea",
+                      required: true,
+                      minLength: 3,
+                    },
+                  ],
+                )
+              }
+            >
+              + Yangi
+            </button>
+          </div>
+          <div className="tg-search-bar">
+            <input
+              type="text"
+              placeholder="Qidirish..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </div>
+          {tickets.loading ? (
+            <Loading />
+          ) : tickets.error ? (
+            <ErrorBox message={tickets.error} retry={tickets.reload} />
+          ) : (
+            <ul className="tg-chat-list">
+              {!filteredTickets.length && (
+                <li style={{ padding: "24px 16px", textAlign: "center", color: "#8ea69d", fontSize: "13px" }}>
+                  Murojaat topilmadi
+                </li>
+              )}
+              {filteredTickets.map((row: Row) => {
+                const isSelected = row.id === id;
+                const initial = (row.title || "M").slice(0, 1).toUpperCase();
+                return (
+                  <li
+                    key={row.id}
+                    className={`tg-chat-item ${isSelected ? "active" : ""}`}
+                    onClick={() => selectTicket(row.id)}
+                  >
+                    <div className="tg-avatar">{initial}</div>
+                    <div className="tg-chat-info">
+                      <div className="tg-chat-top">
+                        <span className="tg-chat-title">{row.title || "Murojaat"}</span>
+                        <span className="tg-chat-time">{date(row.createdAt)}</span>
+                      </div>
+                      <div className="tg-chat-bottom">
+                        <span className="tg-chat-preview">
+                          {row.lastMessage ?? (row.status === "RESOLVED" ? "Yakunlangan" : "Ochiq suhbat")}
+                        </span>
+                        <Badge value={row.status} />
+                      </div>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
         </div>
-        <div className="support-conversation">
+        <div className="tg-room">
           {id ? (
             <>
-              <button
-                className="button secondary support-back"
-                onClick={() => selectTicket(null)}
-              >
-                ← Murojaatlarga qaytish
-              </button>
-              {!t && detail.loading ? (
-                <Loading />
-              ) : !t && detail.error ? (
-                <ErrorBox message={detail.error} retry={detail.reload} />
-              ) : (
-                t && (
-                  <Card
-                    title={t.title ?? "Suhbat"}
-                    aside={<Badge value={t.status} />}
+              <div className="tg-room-header">
+                <div className="tg-room-user">
+                  <button
+                    className="button secondary support-back"
+                    style={{ marginRight: "8px", minHeight: "32px", padding: "4px 8px" }}
+                    onClick={() => selectTicket(null)}
                   >
-                    <div className="message-list">
-                      {t.messages.map((m: Row) => (
-                        <div
-                          className={`message ${m.userId === ctx.actor.id ? "own" : ""}`}
-                          key={m.id}
-                        >
-                          <strong>
-                            {m.userId === ctx.actor.id ? "Siz" : "Suhbatdosh"}
-                          </strong>
-                          <p className="message-body">{m.text}</p>
-                          <div className="message-meta">
-                            {date(m.createdAt)}
-                          </div>
-                        </div>
-                      ))}
-                      <Act
-                        onClick={() =>
-                          action(
-                            "Murojaatga javob",
-                            `/support/tickets/${id}/messages`,
-                            {},
-                            [
-                              {
-                                key: "text",
-                                label: "Javob",
-                                type: "textarea",
-                                required: true,
-                              },
-                              ...(ctx.admin
-                                ? [
-                                    {
-                                      key: "close",
-                                      label: "Murojaatni yopish",
-                                      type: "checkbox" as const,
-                                    },
-                                  ]
-                                : []),
-                            ],
-                            "POST",
-                            () => {
-                              if (id) {
-                                api<Row>(`/support/tickets/${id}`)
-                                  .then((fresh) => {
-                                    if (fresh) setThread(fresh);
-                                  })
-                                  .catch(() => {});
-                              }
-                            },
-                          )
-                        }
-                      >
-                        Javob yozish
-                      </Act>
+                    ←
+                  </button>
+                  <div className="tg-room-avatar">
+                    {(t?.title || "M").slice(0, 1).toUpperCase()}
+                  </div>
+                  <div>
+                    <div className="tg-room-name">{t?.title ?? "Suhbat"}</div>
+                    <div className="tg-room-sub">
+                      {t?.status === "RESOLVED" ? "Murojaat yopilgan" : "Faol muloqot"}
                     </div>
-                  </Card>
-                )
-              )}
+                  </div>
+                </div>
+                <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+                  <Badge value={t?.status} />
+                  {ctx.admin && t?.status !== "RESOLVED" && (
+                    <Act
+                      onClick={() =>
+                        action(
+                          "Murojaatni yopish",
+                          `/support/tickets/${id}/messages`,
+                          {},
+                          [
+                            {
+                              key: "text",
+                              label: "Xulosa yoki yakuniy javob",
+                              type: "textarea",
+                              required: true,
+                              value: "Murojaat ko‘rib chiqildi va yakunlandi.",
+                            },
+                            {
+                              key: "close",
+                              label: "Murojaatni yopish",
+                              type: "checkbox" as const,
+                              value: true,
+                            },
+                          ],
+                          "POST",
+                          () => {
+                            if (id) {
+                              api<Row>(`/support/tickets/${id}`)
+                                .then((fresh) => {
+                                  if (fresh) setThread(fresh);
+                                })
+                                .catch(() => {});
+                            }
+                          },
+                        )
+                      }
+                    >
+                      Yopish
+                    </Act>
+                  )}
+                </div>
+              </div>
+              <div className="tg-viewport">
+                {!t && detail.loading ? (
+                  <Loading />
+                ) : !t && detail.error ? (
+                  <ErrorBox message={detail.error} retry={detail.reload} />
+                ) : (
+                  t && (
+                    <>
+                      {t.messages.map((m: Row) => {
+                        const isOwn = m.userId === ctx.actor.id;
+                        return (
+                          <div
+                            key={m.id}
+                            className={`tg-bubble-row ${isOwn ? "own" : "incoming"}`}
+                          >
+                            <div className={`tg-bubble ${isOwn ? "own" : "incoming"}`}>
+                              {!isOwn && (
+                                <div className="tg-bubble-sender">
+                                  {m.userName ?? "Suhbatdosh"}
+                                </div>
+                              )}
+                              <p className="tg-bubble-text">{m.text}</p>
+                              <div className="tg-bubble-meta">
+                                <span>{dateTime(m.createdAt).slice(11, 16)}</span>
+                                {isOwn && <CheckCheck size={13} />}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                      <div ref={messagesEndRef} />
+                    </>
+                  )
+                )}
+              </div>
+              <form className="tg-composer" onSubmit={handleSend}>
+                <input
+                  type="text"
+                  className="tg-composer-input"
+                  placeholder="Xabar yozing..."
+                  value={replyText}
+                  disabled={sending || t?.status === "RESOLVED"}
+                  onChange={(e) => setReplyText(e.target.value)}
+                />
+                <button
+                  type="submit"
+                  className="tg-composer-send"
+                  disabled={!replyText.trim() || sending || t?.status === "RESOLVED"}
+                  aria-label="Xabar yuborish"
+                >
+                  <Send size={18} />
+                </button>
+              </form>
             </>
           ) : (
-            <Card>
-              <Empty text="Suhbatni tanlang" />
-            </Card>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%", color: "#8ea69d" }}>
+              <Empty text="Muloqotni ko‘rish uchun chap tarafdan suhbatni tanlang" />
+            </div>
           )}
         </div>
       </div>

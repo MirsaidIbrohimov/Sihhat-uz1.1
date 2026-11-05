@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
+import { RefreshCw } from "lucide-react";
 import { ListFilters, useSavedFilters } from "./list-filters";
 import { api, formatMoney, query, toMinor } from "@sihhat/api-client";
 import {
@@ -1187,7 +1188,18 @@ export function Payments() {
         subtitle="Holat to‘lov provayderi tasdig‘i bilan belgilanadi."
       />
       {ctx.admin && (
-        <Card title="Tezcheck ulanishi">
+        <Card
+          title="Tezcheck to‘lov tizimi holati"
+          aside={
+            <button
+              className="button secondary"
+              style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}
+              onClick={() => tez.reload()}
+            >
+              <RefreshCw size={13} /> Ulanishni yangilash
+            </button>
+          }
+        >
           {tez.loading ? (
             <Loading />
           ) : tez.error ? (
@@ -1195,28 +1207,41 @@ export function Payments() {
           ) : !tez.data?.configured ? (
             <p>Tezcheck ulanishi hali sozlanmagan.</p>
           ) : (
-            <>
-              <p>
-                {tez.data.authenticated
-                  ? "API bilan ulanish ishlayapti."
-                  : "API bilan ulanishni tekshirish kerak."}
-              </p>
-              <p>
-                {tez.data.accepts_payments
-                  ? "Kassa to‘lov qabul qilishga tayyor."
-                  : "Kassa hali to‘lov qabul qilmayapti. Tezcheck kabinetida kassani faollashtirish kerak."}
-              </p>
-              <p>
-                Holat: <strong>{tez.data.state ?? "Tekshirilmoqda"}</strong> ·
-                Valyuta: {tez.data.currency ?? "UZS"}
-              </p>
-              <p>
-                Usullar:{" "}
-                {(tez.data.methods ?? []).map((m: Row) => m.name).join(", ") ||
-                  "Hozircha mavjud emas"}
-              </p>
-              <Act onClick={() => tez.reload()}>Ulanishni yangilash</Act>
-            </>
+            <div className="gateway-status-grid">
+              <div className="gateway-status-card">
+                <span className="gateway-status-label">API Ulanishi</span>
+                <span className={`status-pill ${tez.data.authenticated ? "online" : "offline"}`}>
+                  <span className="status-dot" />
+                  {tez.data.authenticated ? "API Faol" : "Aloqa yo‘q"}
+                </span>
+              </div>
+              <div className="gateway-status-card">
+                <span className="gateway-status-label">Kassa Holati</span>
+                <span className={`status-pill ${tez.data.accepts_payments ? "online" : "offline"}`}>
+                  <span className="status-dot" />
+                  {tez.data.accepts_payments ? "To‘lov qabul qilmoqda" : "Nofaol"}
+                </span>
+              </div>
+              <div className="gateway-status-card">
+                <span className="gateway-status-label">Valyuta</span>
+                <div style={{ fontWeight: 600, fontSize: "14px", marginTop: "4px" }}>
+                  {tez.data.currency ?? "UZS"}
+                </div>
+              </div>
+              <div className="gateway-status-card">
+                <span className="gateway-status-label">Qabul qilinadigan usullar</span>
+                <div className="gateway-methods">
+                  {(tez.data.methods ?? []).map((m: Row) => (
+                    <span className="method-tag" key={m.code ?? m.name}>
+                      {m.name}
+                    </span>
+                  ))}
+                  {!(tez.data.methods ?? []).length && (
+                    <span className="method-tag">Click, Payme, Uzcard, Humo, WLCM</span>
+                  )}
+                </div>
+              </div>
+            </div>
           )}
         </Card>
       )}
@@ -1233,11 +1258,9 @@ export function Payments() {
         setFilter={filters.set}
         dates
         statuses={[
-          "CREATED",
-          "PENDING",
           "SUCCEEDED",
-          "CANCELLED",
           "REFUNDED",
+          "CANCELLED",
           "FAILED",
         ]}
       />

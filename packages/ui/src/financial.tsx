@@ -562,11 +562,6 @@ export function Billing({ kind }: { kind: "billing" | "ads" }) {
           <DataPanel
             title="Reklama kampaniyalari"
             layout="cards"
-            preview={(rows) => (
-              <AdPlacementPreview
-                campaign={rows.find((row) => row.id === previewId) ?? rows[0]}
-              />
-            )}
             path={
               ctx.admin ? "/superadmin/ad-campaigns" : "/partner/ad-campaigns"
             }

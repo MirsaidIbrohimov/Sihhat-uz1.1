@@ -2,6 +2,25 @@
 
 Yangilangan: 2026-11-03. Asos: ISHLAB_CHIQISH_REJASI.md va SIHHAT_UZ_ARXITEKTURA.md.
 
+## 2026-11-05 Portal dizayni, Telegram chat, to‘lovlar va boshqaruv yangilanishi
+
+- **Foydalanish yo‘riqnomasi va Mening hisobim**:
+  - «Mening hisobim» bo‘limi zamonaviy Profile Hero banner, rollar va faol qurilmalar kartalari bilan yangilandi.
+  - «Foydalanish yo‘riqnomasi» kengaytirildi: qidiruv, toifalar (Xavfsizlik, Bronlar, Moliya, Jamoa, Aloqa) va bosqichma-bosqich amaliy ko‘rsatmalar qo‘shildi.
+- **Telegram uslubidagi Yordam xizmati (Chat)**:
+  - Yordam xizmati va murojaatlar to‘liq Telegram Web dizayniga o‘tkazildi: chapda chatlar ro‘yxati, suhbatdosh avatari, kiruvchi/chiquvchi xabar pufakchalari, vaqt va o‘qilganlik belgilari, hamda to‘g‘ridan-to‘g‘ri inline javob yozish maydoni.
+- **Yangiliklar bo‘limi**:
+  - Yangilik yoki maqolani butunlay o‘chirish uchun «O‘chirish» tugmasi va backend API (`DELETE /superadmin/articles/:id`) qo‘shildi.
+- **To‘lovlar va sana filtrlari**:
+  - To‘lovlar ro‘yxatida to‘lov kutilayotgan (`CREATED`, `PENDING`) holatlar olib tashlandi, faqat muvaffaqiyatli yakunlangan to‘lovlar chiqariladi.
+  - Sanani belgilash uchun zamonaviy dizayn va tezkor sana tugmalari («Bugun», «7 kun», «30 kun», «Bu oy») joriy etildi.
+  - TezCheck to‘lov shlyuzi holati zamonaviy dashboard indikatorlari bilan qayta ishlandi.
+- **Reklama oynasi**:
+  - Reklama bo‘limidagi ortiqcha telefon maketi («Ilovadagi ko‘rinish») olib tashlandi.
+- **Sanatoriyalar selektori**:
+  - Yuqori qatordagi sanatoriya tanlash menyusi faqat kerakli bo‘limlarda (`bronlar`, `xonalar`, `jamoa`, `bugungi ishlar`) ko‘rinadigan qilindi.
+  - «Barchasi» opsiyasi qo‘shildi. «Barchasi» tanlanganda «Jamoa» bo‘limida barcha sanatoriyalarning direktor, resepshn va hisobchilari umumiy ro‘yxatda chiqadi.
+
 ## 2026-11-05 Dashboard, Hisobot va Amallar tarixi yangilanishi
 
 - **Dashboard va hisobotlar filtri**:

@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
+import { Calendar } from "lucide-react";
 import { label, usePortal } from "./components";
 
 export function useSavedFilters(
@@ -176,25 +177,88 @@ export function ListFilters({
         </label>
       )}
       {dates && (
-        <>
-          <label className="field">
-            <span>Davr boshi</span>
-            <input
-              type="date"
-              value={filters.from}
-              onChange={(event) => setFilter("from", event.target.value)}
-            />
-          </label>
-          <label className="field">
-            <span>Davr oxiri</span>
-            <input
-              type="date"
-              value={filters.to}
-              min={filters.from || undefined}
-              onChange={(event) => setFilter("to", event.target.value)}
-            />
-          </label>
-        </>
+        <div className="date-filter-group">
+          <div className="date-inputs">
+            <label className="field date-field">
+              <span className="field-label-flex">
+                <Calendar size={13} /> Davr boshi
+              </span>
+              <div className="modern-date-input">
+                <input
+                  type="date"
+                  value={filters.from}
+                  onChange={(event) => setFilter("from", event.target.value)}
+                />
+              </div>
+            </label>
+            <label className="field date-field">
+              <span className="field-label-flex">
+                <Calendar size={13} /> Davr oxiri
+              </span>
+              <div className="modern-date-input">
+                <input
+                  type="date"
+                  value={filters.to}
+                  min={filters.from || undefined}
+                  onChange={(event) => setFilter("to", event.target.value)}
+                />
+              </div>
+            </label>
+          </div>
+          <div className="date-chips">
+            <button
+              type="button"
+              className="chip-btn"
+              onClick={() => {
+                const now = new Date();
+                const d = now.toISOString().slice(0, 10);
+                setFilter("from", d);
+                setFilter("to", d);
+              }}
+            >
+              Bugun
+            </button>
+            <button
+              type="button"
+              className="chip-btn"
+              onClick={() => {
+                const now = new Date();
+                const to = now.toISOString().slice(0, 10);
+                const from = new Date(now.getTime() - 7 * 86400000).toISOString().slice(0, 10);
+                setFilter("from", from);
+                setFilter("to", to);
+              }}
+            >
+              7 kun
+            </button>
+            <button
+              type="button"
+              className="chip-btn"
+              onClick={() => {
+                const now = new Date();
+                const to = now.toISOString().slice(0, 10);
+                const from = new Date(now.getTime() - 30 * 86400000).toISOString().slice(0, 10);
+                setFilter("from", from);
+                setFilter("to", to);
+              }}
+            >
+              30 kun
+            </button>
+            <button
+              type="button"
+              className="chip-btn"
+              onClick={() => {
+                const now = new Date();
+                const to = now.toISOString().slice(0, 10);
+                const from = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`;
+                setFilter("from", from);
+                setFilter("to", to);
+              }}
+            >
+              Bu oy
+            </button>
+          </div>
+        </div>
       )}
       <button type="submit" className="button primary">
         Qidirish

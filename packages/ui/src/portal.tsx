@@ -531,7 +531,7 @@ export function Portal({
       .then((r) => {
         setTenants(r.data);
         setTenant((id) =>
-          r.data.some((s: Row) => s.id === id) ? id : (r.data[0]?.id ?? ""),
+          id === "" || r.data.some((s: Row) => s.id === id) ? id : (r.data[0]?.id ?? ""),
         );
         setTenantError("");
       })
@@ -801,32 +801,32 @@ export function Portal({
               >
                 <Menu size={18} />
               </button>
-              <div className="tenant-context">
-                <Building2 size={19} />
-                <div>
-                  <span className="context-label">
-                    {admin ? "Platforma boshqaruvi" : "Sanatoriya"}
-                  </span>
-                  <select
-                    className="tenant-select"
-                    aria-label="Sanatoriyani tanlash"
-                    value={tenant}
-                    onChange={(e) => {
-                      setTenant(e.target.value);
-                      refresh();
-                    }}
-                  >
-                    {!tenants.length && (
-                      <option value="">Sanatoriya yo‘q</option>
-                    )}
-                    {tenants.map((s) => (
-                      <option key={s.id} value={s.id}>
-                        {s.name}
-                      </option>
-                    ))}
-                  </select>
+              {["bookings", "inventory", "staff", "today"].includes(section) && (
+                <div className="tenant-context">
+                  <Building2 size={19} />
+                  <div>
+                    <span className="context-label">
+                      {admin ? "Platforma boshqaruvi" : "Sanatoriya"}
+                    </span>
+                    <select
+                      className="tenant-select"
+                      aria-label="Sanatoriyani tanlash"
+                      value={tenant}
+                      onChange={(e) => {
+                        setTenant(e.target.value);
+                        refresh();
+                      }}
+                    >
+                      <option value="">Barchasi</option>
+                      {tenants.map((s) => (
+                        <option key={s.id} value={s.id}>
+                          {s.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
             <div className="topbar-right">
               <ThemeToggle />

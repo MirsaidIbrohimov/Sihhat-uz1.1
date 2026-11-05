@@ -1,5 +1,6 @@
 "use client";
-import { FileText, Lightbulb } from "lucide-react";
+import { FileText, Lightbulb, Trash2 } from "lucide-react";
+import { api } from "@sihhat/api-client";
 import {
   Act,
   AddButton,
@@ -9,12 +10,24 @@ import {
   PageHeading,
   date,
   useAction,
+  usePortal,
   type Field,
   type Row,
 } from "./components";
 
 export function PublicArticles() {
+  const ctx = usePortal();
   const action = useAction();
+  function remove(article: Row) {
+    ctx.form({
+      title: "Yangilikni o‘chirish",
+      description: `«${article.title}» sarlavhali maqolani butunlay o‘chirib tashlamoqchimisiz?`,
+      fields: [],
+      button: "Ha, o‘chirilsin",
+      submit: () => api(`/superadmin/articles/${article.id}`, "DELETE", {}),
+      done: ctx.refresh,
+    });
+  }
   function edit(article?: Row) {
     const fields: Field[] = [
       {
@@ -104,7 +117,12 @@ export function PublicArticles() {
                 </span>
               </>
             }
-            actions={<Act onClick={() => edit(r)}>Tahrirlash</Act>}
+            actions={
+              <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
+                <Act onClick={() => edit(r)}>Tahrirlash</Act>
+                <Act danger onClick={() => remove(r)}>O‘chirish</Act>
+              </div>
+            }
           >
             <p>{r.summary}</p>
           </FeedItem>
