@@ -2,6 +2,15 @@
 
 Yangilangan: 2026-11-03. Asos: ISHLAB_CHIQISH_REJASI.md va SIHHAT_UZ_ARXITEKTURA.md.
 
+## 2026-11-05 Dashboard, Hisobot va Amallar tarixi yangilanishi
+
+- **Dashboard va hisobotlar filtri**:
+  - Dashboard statistikasida va "Bronlar holati" grafigida muddati o‘tgan (`EXPIRED`), bekor qilingan (`CANCELLED`) yoki to‘lov kutilayotgan bronlar chiqarilmaydi; faqat to‘langan (`CONFIRMED`, `CHECKED_IN`, `CHECKED_OUT`) bronlar ko‘rsatiladi.
+  - Excel (`.xlsx`) va CSV hisobot eksportlarida to‘langan bronlar ro‘yxati (mijoz ismi, telefon, sanalar, summa) aniq va o‘qish oson shaklda taqdim etiladi.
+- **Amallar tarixi (Audit log) filtri**:
+  - Amallar tarixi sahifasidagi ortiqcha yozuvlar olib tashlandi; endi faqat parollar yangilanishi/tiklanishi (`auth.password_changed`, `staff.password_reset`) hamda resepsion qo‘shilishi va tasdiqlanishi (`staff.invited`, `staff.approved`) ko‘rsatiladi.
+  - Amal nomlari o‘zbek tilida aniq ifodalandi ("Xodim paroli tiklandi", "Parol yangilandi", "Resepsion qo‘shildi", "Resepsion tasdiqlandi").
+
 ## 2026-11-03 Render backend va TezCheck integratsiyasi
 
 - **Render Backend (`https://sihhat-api.onrender.com`)**:
