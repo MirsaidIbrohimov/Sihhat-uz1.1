@@ -3,6 +3,8 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 
 import 'concept_ui.dart' show SihhatIcon;
+import 'motion.dart';
+import 'neon.dart' show LightStreaks;
 
 import 'package:flutter/services.dart';
 
@@ -10,7 +12,11 @@ const forest = Color(0xff00866c);
 const midnight = Color(0xff083f38);
 const mint = Color(0xffe6f5f0);
 const canvasColor = Color(0xfff6faf9);
-const masthead = Color(0xff043b33);
+const masthead = Color(0xff03241f);
+
+/// 2026-11 neon glass design accents (yangi_dizayn/yangi_UI.jpg).
+const neon = Color(0xff3ee6bf);
+const abyss = Color(0xff021a17);
 const muted = Color(0xff657b72);
 
 @immutable
@@ -30,14 +36,14 @@ class SihhatColors extends ThemeExtension<SihhatColors> {
   factory SihhatColors.forBrightness(Brightness brightness) {
     final dark = brightness == Brightness.dark;
     return SihhatColors(
-      primary: dark ? const Color(0xff97d4b9) : forest,
-      ink: dark ? const Color(0xffe3efe7) : midnight,
-      muted: dark ? const Color(0xffabc2b3) : const Color(0xff657b72),
-      soft: dark ? const Color(0xff203e31) : mint,
-      canvas: dark ? const Color(0xff101d18) : canvasColor,
-      surface: dark ? const Color(0xff1b2c24) : Colors.white,
-      border: dark ? const Color(0xff3c5548) : const Color(0xffdcece6),
-      warning: dark ? const Color(0xff45371e) : const Color(0xfffff2dc),
+      primary: dark ? neon : forest,
+      ink: dark ? const Color(0xffeefaf6) : midnight,
+      muted: dark ? const Color(0xff9dc4ba) : const Color(0xff657b72),
+      soft: dark ? const Color(0xff0e3d36) : mint,
+      canvas: dark ? const Color(0xff03201c) : canvasColor,
+      surface: dark ? const Color(0xff0a2e29) : Colors.white,
+      border: dark ? const Color(0xff1c574d) : const Color(0xffdcece6),
+      warning: dark ? const Color(0xff3d3216) : const Color(0xfffff2dc),
     );
   }
 
@@ -91,7 +97,7 @@ ThemeData sihhatTheme({Brightness brightness = Brightness.light}) {
     seedColor: forest,
     brightness: brightness,
     primary: colors.primary,
-    onPrimary: dark ? const Color(0xff103d2d) : Colors.white,
+    onPrimary: dark ? const Color(0xff032a23) : Colors.white,
     secondary: const Color(0xffd9b577),
     surface: colors.surface,
     onSurface: colors.ink,
@@ -111,6 +117,16 @@ ThemeData sihhatTheme({Brightness brightness = Brightness.light}) {
     colorScheme: scheme,
     extensions: [colors],
     scaffoldBackgroundColor: colors.canvas,
+    pageTransitionsTheme: const PageTransitionsTheme(
+      builders: {
+        TargetPlatform.android: NeonPageTransitions(),
+        TargetPlatform.iOS: NeonPageTransitions(),
+        TargetPlatform.windows: NeonPageTransitions(),
+        TargetPlatform.linux: NeonPageTransitions(),
+        TargetPlatform.macOS: NeonPageTransitions(),
+        TargetPlatform.fuchsia: NeonPageTransitions(),
+      },
+    ),
     textTheme: (dark ? ThemeData.dark() : ThemeData.light()).textTheme.apply(
       bodyColor: colors.ink,
       displayColor: colors.ink,
@@ -183,11 +199,11 @@ ThemeData sihhatTheme({Brightness brightness = Brightness.light}) {
       height: 76,
       backgroundColor: masthead,
       surfaceTintColor: Colors.transparent,
-      indicatorColor: const Color(0xff087d63),
+      indicatorColor: neon,
       iconTheme: WidgetStateProperty.resolveWith(
         (states) => IconThemeData(
           color: states.contains(WidgetState.selected)
-              ? const Color(0xff66e1b9)
+              ? masthead
               : const Color(0xffbbd6d0),
         ),
       ),
@@ -198,17 +214,27 @@ ThemeData sihhatTheme({Brightness brightness = Brightness.light}) {
               ? FontWeight.w800
               : FontWeight.w500,
           color: states.contains(WidgetState.selected)
-              ? const Color(0xff66e1b9)
+              ? neon
               : const Color(0xffbbd6d0),
         ),
       ),
     ),
     chipTheme: ChipThemeData(
-      backgroundColor: colors.surface,
-      selectedColor: colors.soft,
-      side: BorderSide(color: colors.border),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      backgroundColor: dark
+          ? colors.surface.withValues(alpha: .7)
+          : colors.surface,
+      selectedColor: dark ? neon : colors.soft,
+      side: BorderSide(
+        color: dark ? neon.withValues(alpha: .35) : colors.border,
+      ),
+      shape: const StadiumBorder(),
+      showCheckmark: false,
       labelStyle: TextStyle(fontSize: 12, color: colors.ink),
+      secondaryLabelStyle: TextStyle(
+        fontSize: 12,
+        fontWeight: FontWeight.w700,
+        color: dark ? const Color(0xff032a23) : colors.ink,
+      ),
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
     ),
     bottomSheetTheme: BottomSheetThemeData(
@@ -231,20 +257,57 @@ class GlassBackdrop extends StatelessWidget {
   final Widget child;
   const GlassBackdrop({required this.child, super.key});
   @override
-  Widget build(BuildContext context) => DecoratedBox(
-    decoration: BoxDecoration(
+  Widget build(BuildContext context) {
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final gradient = BoxDecoration(
       gradient: LinearGradient(
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
-        colors: [
-          context.colors.soft,
-          context.colors.canvas,
-          context.colors.soft.withValues(alpha: .45),
-        ],
+        colors: dark
+            ? [const Color(0xff06302a), context.colors.canvas, abyss]
+            : [
+                context.colors.soft,
+                context.colors.canvas,
+                context.colors.soft.withValues(alpha: .45),
+              ],
         stops: const [0, .6, 1],
       ),
+    );
+    // Same tree in both modes so toggling keeps page state; glows are dark-only.
+    return Stack(
+      fit: StackFit.passthrough,
+      children: [
+        Positioned.fill(child: DecoratedBox(decoration: gradient)),
+        Positioned.fill(
+          child: _Glow(const Alignment(1.1, -.9), dark ? 0x332ad6ab : 0),
+        ),
+        Positioned.fill(
+          child: _Glow(const Alignment(-1.2, .9), dark ? 0x2216a88a : 0),
+        ),
+        Positioned.fill(
+          child: IgnorePointer(child: CustomPaint(painter: LightStreaks(dark))),
+        ),
+        child,
+      ],
+    );
+  }
+}
+
+class _Glow extends StatelessWidget {
+  final Alignment center;
+  final int argb;
+  const _Glow(this.center, this.argb);
+  @override
+  Widget build(BuildContext context) => IgnorePointer(
+    child: DecoratedBox(
+      decoration: BoxDecoration(
+        gradient: RadialGradient(
+          center: center,
+          radius: 1.1,
+          colors: [Color(argb), Color(argb).withValues(alpha: 0)],
+        ),
+      ),
     ),
-    child: child,
   );
 }
 

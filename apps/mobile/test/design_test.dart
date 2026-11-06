@@ -45,7 +45,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.byType(NavigationDestination), findsNWidgets(5));
       expect(tester.takeException(), isNull);
-      expect(find.text('Sihhat uz'), findsOneWidget);
+      expect(find.text('Sihhat.uz'), findsOneWidget);
       await tester.tap(find.text('Sanatoriyalar'));
       await tester.pumpAndSettle();
       await tester.tap(find.byType(TextField).first);
@@ -150,7 +150,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.byType(TariffScreen), findsOneWidget);
       expect(find.text('Kelishgacha qaytarish'), findsOneWidget);
-      await tester.tap(find.text('Shu tarifni tanlash'));
+      await tester.tap(find.text('Tanlash'));
       await tester.pumpAndSettle();
       expect(find.text('Standart xona'), findsOneWidget);
       expect(find.text('To‘lovga o‘tish'), findsOneWidget);

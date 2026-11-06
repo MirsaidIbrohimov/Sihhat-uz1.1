@@ -432,6 +432,31 @@ APK GitHub Releases ilovasi sifatida tarqatiladi; Git tarixiga build,
 signing kaliti yoki private konfiguratsiya kiritilmaydi. `ilova` papkasida
 foydalanish yo‘riqnomasi va `SHA256SUMS.txt` saqlanadi.
 
+### Yangi dizayn V2 — 0.2.1 debug (2026-11-06)
+
+Yakunlangan neon dizayn: QR vaucher/chipta, yordam chati, skeleton yuklanish,
+offline/xatolik va bo‘sh holatlar, shishasimon dialoglar. **Debug** nusxa:
+`ilova/yangiV2.apk` (~170 MB, Android Debug kaliti bilan imzolangan, Gitga
+kiritilmaydi). API: `https://sihhat-api.onrender.com` (standart). O‘rnatish:
+`adb install -r ilova/yangiV2.apk`. Release uchun `key.properties` kerak.
+
+```powershell
+cd apps/mobile
+flutter build apk --debug --target=lib/main.dart
+```
+
+### Yangi dizayn — 0.2.0 debug (2026-11-06)
+
+`yangi_dizayn/yangi_UI.jpg` maketidagi neon dizayn va animatsiyalar bilan
+yig‘ilgan **debug** nusxa: `ilova/yangi versiya.apk`. Fayl lokal saqlanadi
+va Gitga kiritilmaydi (~170 MB). Uni emulyator yoki telefonga `adb install -r`
+bilan o‘rnatish mumkin. Imzolangan release uchun `key.properties` kerak.
+
+```powershell
+cd apps/mobile
+flutter build apk --debug --dart-define=DEMO_OTP_ENABLED=true
+```
+
 ### Oldingi USB preview
 
 Oldingi fayl: **[apk/sihhat-uz-preview.apk](apk/sihhat-uz-preview.apk)**.

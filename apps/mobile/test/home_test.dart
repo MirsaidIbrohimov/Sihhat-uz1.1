@@ -327,7 +327,9 @@ void main() {
       await tester.tap(find.text('Bosh sahifa'));
       await tester.pumpAndSettle();
       expectNavigationIcons();
-      await tester.tap(find.text('Hudud va\nsharoitlar'));
+      await tester.ensureVisible(find.text('Hudud va\nshaharlar'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Hudud va\nshaharlar'));
       await tester.pumpAndSettle();
       expect(find.text('Natijalarni ko‘rish'), findsOneWidget);
       Navigator.of(tester.element(find.text('Natijalarni ko‘rish'))).pop();

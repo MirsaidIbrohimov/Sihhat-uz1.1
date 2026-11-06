@@ -5,8 +5,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:sihhat_mobile/data/api.dart';
+import 'package:sihhat_mobile/neon.dart';
 import 'package:sihhat_mobile/screens/login.dart';
-import 'package:sihhat_mobile/branding.dart';
 
 import 'api_test.dart' show MemoryStore;
 
@@ -29,7 +29,7 @@ void main() {
       );
       await tester.pumpWidget(MaterialApp(home: LoginScreen(api)));
       await tester.pumpAndSettle();
-      expect(find.byType(SihhatLogo), findsOneWidget);
+      expect(find.byType(NeonHeartLogo), findsOneWidget);
       final input = find.byType(TextField);
       for (final value in ['', 'notanemail', 'test@', '@domain.com']) {
         await tester.enterText(input, value);

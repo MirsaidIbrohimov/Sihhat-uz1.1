@@ -4,6 +4,7 @@ import 'concept_ui.dart';
 import 'data/api.dart';
 import 'data/catalog_cache.dart';
 import 'design.dart';
+import 'neon.dart';
 import 'widgets.dart';
 
 String amenityIcon(String value) {
@@ -71,7 +72,7 @@ class CatalogueCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final amenities = (item['amenities'] as List? ?? [])
         .map((a) => a.toString())
-        .take(2)
+        .take(3)
         .toList();
     final rawRating = item['rating'] is Map
         ? item['rating']['average']
@@ -85,9 +86,33 @@ class CatalogueCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          PlacePhoto(api, item, height: compact ? 135 : 170),
+          Stack(
+            fit: StackFit.passthrough,
+            children: [
+              PlacePhoto(api, item, height: compact ? 135 : 175),
+              const Positioned.fill(
+                child: IgnorePointer(
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [Colors.transparent, Color(0x99021a17)],
+                        stops: [.55, 1],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              Positioned(
+                right: 12,
+                top: 12,
+                child: FavoriteButton(api, item['id']?.toString()),
+              ),
+            ],
+          ),
           Padding(
-            padding: const EdgeInsets.fromLTRB(14, 12, 14, 10),
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -104,16 +129,15 @@ class CatalogueCard extends StatelessWidget {
                     ),
                     if (rating != null && rating > 0) ...[
                       const SizedBox(width: 8),
-                      const SihhatIcon(
-                        'star',
-                        filled: true,
-                        size: 17,
-                        color: Color(0xffffbb28),
+                      const Icon(
+                        Icons.star_rounded,
+                        size: 20,
+                        color: Color(0xffffc83d),
                       ),
-                      const SizedBox(width: 4),
+                      const SizedBox(width: 2),
                       Text(
                         rating.toStringAsFixed(1),
-                        style: const TextStyle(fontWeight: FontWeight.w700),
+                        style: const TextStyle(fontWeight: FontWeight.w800),
                       ),
                     ],
                   ],
@@ -126,34 +150,44 @@ class CatalogueCard extends StatelessWidget {
                 ),
                 if (amenities.isNotEmpty)
                   Padding(
-                    padding: const EdgeInsets.only(top: 4, bottom: 8),
+                    padding: const EdgeInsets.only(top: 6, bottom: 4),
                     child: Wrap(
-                      spacing: 16,
-                      runSpacing: 5,
+                      spacing: 8,
+                      runSpacing: 6,
                       children: [
                         for (final a in amenities)
-                          Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              SihhatIcon(
-                                amenityIcon(a),
-                                size: 17,
-                                color: context.colors.muted,
-                              ),
-                              const SizedBox(width: 6),
-                              Text(
-                                a,
-                                style: TextStyle(
-                                  color: context.colors.muted,
-                                  fontSize: 12,
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 9,
+                              vertical: 5,
+                            ),
+                            decoration: BoxDecoration(
+                              color: context.colors.soft.withValues(alpha: .6),
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                SihhatIcon(
+                                  amenityIcon(a),
+                                  size: 14,
+                                  color: context.colors.primary,
                                 ),
-                              ),
-                            ],
+                                const SizedBox(width: 5),
+                                Text(
+                                  a,
+                                  style: TextStyle(
+                                    color: context.colors.ink,
+                                    fontSize: 11,
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
                       ],
                     ),
                   ),
-                const Divider(height: 12),
+                const Divider(height: 22),
                 Row(
                   children: [
                     Expanded(
@@ -161,10 +195,10 @@ class CatalogueCard extends StatelessWidget {
                         item['from_amount'] == null
                             ? 'Tarifni ko‘ring'
                             : '${money(item['from_amount'])} / tun',
-                        style: conceptHeading(context, size: 17),
+                        style: conceptHeading(context, size: 18),
                       ),
                     ),
-                    const SihhatIcon('chevron-right', size: 21),
+                    const NeonArrow(size: 36),
                   ],
                 ),
               ],

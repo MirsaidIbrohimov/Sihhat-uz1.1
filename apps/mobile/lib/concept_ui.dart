@@ -3,6 +3,8 @@ import 'package:flutter/services.dart';
 
 import 'design.dart';
 import 'icon_nodes.dart';
+import 'motion.dart';
+import 'neon.dart' show GlowBorderPainter, GlyphTile;
 
 /// The approved UI is scoped to inner pages; the existing home theme stays intact.
 ThemeData conceptTheme(ThemeData base) {
@@ -12,6 +14,7 @@ ThemeData conceptTheme(ThemeData base) {
     borderRadius: BorderRadius.circular(12),
     borderSide: BorderSide(color: c.border),
   );
+  final dark = base.brightness == Brightness.dark;
   return base.copyWith(
     scaffoldBackgroundColor: c.canvas,
     textTheme: text.copyWith(
@@ -61,7 +64,7 @@ ThemeData conceptTheme(ThemeData base) {
     ),
     inputDecorationTheme: InputDecorationTheme(
       filled: true,
-      fillColor: c.surface,
+      fillColor: dark ? c.surface.withValues(alpha: .7) : c.surface,
       border: outline,
       enabledBorder: outline,
       focusedBorder: outline.copyWith(
@@ -71,11 +74,14 @@ ThemeData conceptTheme(ThemeData base) {
       labelStyle: TextStyle(color: c.muted, fontSize: 14),
       hintStyle: TextStyle(color: c.muted, fontSize: 14),
     ),
+    chipTheme: base.chipTheme,
     filledButtonTheme: FilledButtonThemeData(
       style: FilledButton.styleFrom(
+        elevation: dark ? 8 : 0,
+        shadowColor: dark ? neon.withValues(alpha: .55) : null,
         minimumSize: const Size(48, 52),
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
         textStyle: const TextStyle(
           fontFamily: 'DMSans',
           fontSize: 15,
@@ -96,21 +102,63 @@ ThemeData conceptTheme(ThemeData base) {
       ),
     ),
     dialogTheme: DialogThemeData(
-      backgroundColor: c.surface,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+      backgroundColor: dark ? const Color(0xf20a2e29) : c.surface,
+      surfaceTintColor: Colors.transparent,
+      elevation: dark ? 18 : 6,
+      shadowColor: dark ? neon.withValues(alpha: .35) : null,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(28),
+        side: BorderSide(color: dark ? neon.withValues(alpha: .4) : c.border),
+      ),
+      titleTextStyle: TextStyle(
+        fontFamily: 'Manrope',
+        fontSize: 20,
+        fontWeight: FontWeight.w800,
+        color: c.ink,
+      ),
+      contentTextStyle: TextStyle(
+        fontFamily: 'DMSans',
+        fontSize: 15,
+        height: 1.5,
+        color: c.muted,
+      ),
     ),
     bottomSheetTheme: BottomSheetThemeData(
-      backgroundColor: c.surface,
+      backgroundColor: dark ? const Color(0xfa082925) : c.surface,
+      surfaceTintColor: Colors.transparent,
       showDragHandle: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      dragHandleColor: dark ? neon.withValues(alpha: .6) : c.border,
+      dragHandleSize: const Size(44, 5),
+      shape: RoundedRectangleBorder(
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(30)),
+        side: BorderSide(color: dark ? neon.withValues(alpha: .35) : c.border),
+      ),
+    ),
+    snackBarTheme: SnackBarThemeData(
+      behavior: SnackBarBehavior.floating,
+      backgroundColor: dark ? const Color(0xff0e3d36) : midnight,
+      contentTextStyle: TextStyle(
+        fontFamily: 'DMSans',
+        fontSize: 14,
+        fontWeight: FontWeight.w600,
+        color: dark ? c.ink : Colors.white,
+      ),
+      actionTextColor: neon,
+      elevation: 8,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(18),
+        side: BorderSide(color: neon.withValues(alpha: dark ? .45 : 0)),
       ),
     ),
     navigationBarTheme: NavigationBarThemeData(
-      height: 76,
-      backgroundColor: masthead,
+      height: 70,
+      labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
+      indicatorShape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(14),
+      ),
+      backgroundColor: Colors.transparent,
       surfaceTintColor: Colors.transparent,
-      indicatorColor: const Color(0xff9bf2da),
+      indicatorColor: neon,
       iconTheme: WidgetStateProperty.resolveWith(
         (states) => IconThemeData(
           color: states.contains(WidgetState.selected)
@@ -126,7 +174,9 @@ ThemeData conceptTheme(ThemeData base) {
           fontWeight: states.contains(WidgetState.selected)
               ? FontWeight.w700
               : FontWeight.w500,
-          color: Colors.white,
+          color: states.contains(WidgetState.selected)
+              ? Colors.white
+              : const Color(0xff9fbfb6),
         ),
       ),
     ),
@@ -148,14 +198,54 @@ class ConceptScope extends StatelessWidget {
       Theme(data: conceptTheme(Theme.of(context)), child: child);
 }
 
+bool _dark(BuildContext context) =>
+    Theme.of(context).brightness == Brightness.dark;
+
+/// Title with an optional muted subtitle, as in the 2026-11 design headers.
+class ConceptTitle extends StatelessWidget {
+  final String title;
+  final String? subtitle;
+  final Color? color;
+  const ConceptTitle(this.title, {this.subtitle, this.color, super.key});
+  @override
+  Widget build(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      FittedBox(
+        fit: BoxFit.scaleDown,
+        alignment: Alignment.centerLeft,
+        child: Text(
+          title,
+          style: conceptHeading(context, size: 22, color: color),
+        ),
+      ),
+      if (subtitle != null)
+        Text(
+          subtitle!,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(
+            fontFamily: 'DMSans',
+            fontSize: 13,
+            fontWeight: FontWeight.w500,
+            color: context.colors.muted,
+          ),
+        ),
+    ],
+  );
+}
+
 class ConceptPage extends StatelessWidget {
   final String title;
+  final String? subtitle;
   final Widget body;
   final Widget? bottom;
   final List<Widget>? actions;
   const ConceptPage({
     required this.title,
     required this.body,
+    this.subtitle,
     this.bottom,
     this.actions,
     super.key,
@@ -163,76 +253,124 @@ class ConceptPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) => ConceptScope(
     child: Builder(
-      builder: (c) => Scaffold(
-        appBar: AppBar(
-          title: Text(title),
-          actions: actions,
-          leading: Navigator.canPop(c)
-              ? IconButton(
-                  tooltip: 'Orqaga',
-                  onPressed: () => Navigator.maybePop(c),
-                  icon: const SihhatIcon('chevron-left'),
-                )
-              : null,
-        ),
-        body: SafeArea(
-          top: false,
-          child: Align(
-            alignment: Alignment.topCenter,
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 720),
-              child: body,
+      builder: (c) => GlassBackdrop(
+        child: Scaffold(
+          backgroundColor: Colors.transparent,
+          appBar: AppBar(
+            backgroundColor: Colors.transparent,
+            centerTitle: subtitle == null,
+            title: subtitle == null
+                ? Text(title)
+                : ConceptTitle(title, subtitle: subtitle),
+            actions: actions,
+            leading: Navigator.canPop(c)
+                ? IconButton(
+                    tooltip: 'Orqaga',
+                    onPressed: () => Navigator.maybePop(c),
+                    icon: const SihhatIcon('chevron-left'),
+                  )
+                : null,
+          ),
+          body: SafeArea(
+            top: false,
+            child: Align(
+              alignment: Alignment.topCenter,
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 720),
+                child: body,
+              ),
             ),
           ),
+          bottomNavigationBar: bottom,
         ),
-        bottomNavigationBar: bottom,
       ),
     ),
   );
 }
 
+/// Glass card with a neon edge; tappable cards get springy press feedback.
 class ConceptCard extends StatelessWidget {
   final Widget child;
   final EdgeInsetsGeometry padding, margin;
   final Color? color;
   final VoidCallback? onTap;
+  final bool selected;
   const ConceptCard({
     required this.child,
     this.padding = const EdgeInsets.all(18),
     this.margin = const EdgeInsets.only(bottom: 14),
     this.color,
     this.onTap,
+    this.selected = false,
     super.key,
   });
   @override
-  Widget build(BuildContext context) => Padding(
-    padding: margin,
-    child: DecoratedBox(
+  Widget build(BuildContext context) {
+    final dark = _dark(context);
+    final radius = BorderRadius.circular(22);
+    final card = AnimatedContainer(
+      duration: const Duration(milliseconds: 260),
+      curve: Curves.easeOutCubic,
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: radius,
         boxShadow: [
-          if (Theme.of(context).brightness == Brightness.light)
-            const BoxShadow(
-              color: Color(0x08043b33),
-              blurRadius: 16,
-              offset: Offset(0, 4),
-            ),
+          dark
+              ? BoxShadow(
+                  color: neon.withValues(alpha: selected ? .32 : .12),
+                  blurRadius: selected ? 26 : 22,
+                  spreadRadius: selected ? 0 : -6,
+                )
+              : const BoxShadow(
+                  color: Color(0x0c043b33),
+                  blurRadius: 18,
+                  offset: Offset(0, 6),
+                ),
         ],
       ),
       child: Material(
-        color: color ?? context.colors.surface,
+        color:
+            color ?? context.colors.surface.withValues(alpha: dark ? .78 : 1),
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-          side: BorderSide(color: context.colors.border),
+          borderRadius: radius,
+          side: selected
+              ? BorderSide(width: 1.6, color: context.colors.primary)
+              : dark
+              ? BorderSide.none
+              : BorderSide(color: context.colors.border),
         ),
         clipBehavior: Clip.antiAlias,
-        child: InkWell(
-          onTap: onTap,
-          child: Padding(padding: padding, child: child),
+        child: CustomPaint(
+          foregroundPainter: dark && !selected
+              ? const GlowBorderPainter(radius: 22)
+              : null,
+          child: DecoratedBox(
+            // A faint diagonal sheen sells the glass look.
+            decoration: BoxDecoration(
+              gradient: dark
+                  ? LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [
+                        Colors.white.withValues(alpha: .06),
+                        Colors.white.withValues(alpha: 0),
+                      ],
+                    )
+                  : null,
+            ),
+            child: InkWell(
+              onTap: onTap,
+              splashColor: neon.withValues(alpha: .12),
+              child: Padding(padding: padding, child: child),
+            ),
+          ),
         ),
       ),
-    ),
-  );
+    );
+    return Padding(
+      padding: margin,
+      child: onTap == null ? card : Pressable(scale: .98, child: card),
+    );
+  }
 }
 
 TextStyle conceptHeading(
@@ -248,21 +386,38 @@ TextStyle conceptHeading(
   color: color ?? context.colors.ink,
 );
 
+/// Rounded neon icon tile used across menus, shortcuts and info rows.
 class IconTile extends StatelessWidget {
   final String icon;
   final double size;
-  const IconTile(this.icon, {this.size = 44, super.key});
+  final bool glow;
+  const IconTile(this.icon, {this.size = 44, this.glow = false, super.key});
   @override
-  Widget build(BuildContext context) => Container(
-    width: size,
-    height: size,
-    decoration: BoxDecoration(
-      color: context.colors.soft,
-      borderRadius: BorderRadius.circular(size * .28),
-    ),
-    alignment: Alignment.center,
-    child: SihhatIcon(icon, size: size * .5, color: context.colors.primary),
-  );
+  Widget build(BuildContext context) {
+    final dark = _dark(context);
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        color: dark ? null : context.colors.soft,
+        gradient: dark
+            ? const LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [Color(0xff17604f), Color(0xff0a3731)],
+              )
+            : null,
+        borderRadius: BorderRadius.circular(size * .3),
+        border: dark ? Border.all(color: neon.withValues(alpha: .4)) : null,
+        boxShadow: [
+          if (dark && glow)
+            BoxShadow(color: neon.withValues(alpha: .35), blurRadius: 16),
+        ],
+      ),
+      alignment: Alignment.center,
+      child: SihhatIcon(icon, size: size * .5, color: context.colors.primary),
+    );
+  }
 }
 
 class ConceptInfo extends StatelessWidget {
@@ -277,43 +432,52 @@ class ConceptInfo extends StatelessWidget {
     super.key,
   });
   @override
-  Widget build(BuildContext context) => Container(
-    margin: const EdgeInsets.only(bottom: 14),
-    padding: const EdgeInsets.all(16),
-    decoration: BoxDecoration(
-      color: warning ? context.colors.warning : context.colors.soft,
-      borderRadius: BorderRadius.circular(16),
-    ),
-    child: Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        SihhatIcon(
-          icon,
-          color: warning ? const Color(0xffa34a09) : context.colors.primary,
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(title, style: const TextStyle(fontWeight: FontWeight.w700)),
-              if (text != null) ...[
-                const SizedBox(height: 4),
+  Widget build(BuildContext context) {
+    final dark = _dark(context);
+    final amber = dark ? const Color(0xffffc46b) : const Color(0xffa34a09);
+    return Container(
+      margin: const EdgeInsets.only(bottom: 14),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: warning
+            ? context.colors.warning
+            : context.colors.soft.withValues(alpha: dark ? .6 : 1),
+        borderRadius: BorderRadius.circular(18),
+        border: dark
+            ? Border.all(color: (warning ? amber : neon).withValues(alpha: .3))
+            : null,
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SihhatIcon(icon, color: warning ? amber : context.colors.primary),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
                 Text(
-                  text!,
-                  style: TextStyle(
-                    color: context.colors.muted,
-                    fontSize: 13,
-                    height: 1.5,
-                  ),
+                  title,
+                  style: const TextStyle(fontWeight: FontWeight.w700),
                 ),
+                if (text != null) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    text!,
+                    style: TextStyle(
+                      color: context.colors.muted,
+                      fontSize: 13,
+                      height: 1.5,
+                    ),
+                  ),
+                ],
               ],
-            ],
+            ),
           ),
-        ),
-      ],
-    ),
-  );
+        ],
+      ),
+    );
+  }
 }
 
 class ConceptRow extends StatelessWidget {
@@ -344,14 +508,29 @@ class ConceptRow extends StatelessWidget {
 class ConceptMenuRow extends StatelessWidget {
   final String icon, title;
   final VoidCallback? onTap;
-  const ConceptMenuRow(this.icon, this.title, {this.onTap, super.key});
+  final Widget? trailing;
+
+  /// Optional filled neon glyph used instead of the outline icon.
+  final IconData? glyph;
+  const ConceptMenuRow(
+    this.icon,
+    this.title, {
+    this.onTap,
+    this.trailing,
+    this.glyph,
+    super.key,
+  });
   @override
   Widget build(BuildContext context) => ListTile(
     minVerticalPadding: 12,
-    contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 4),
-    leading: SihhatIcon(icon),
-    title: Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
-    trailing: const SihhatIcon('chevron-right', size: 20),
+    contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
+    leading: glyph == null
+        ? IconTile(icon, size: 40)
+        : GlyphTile(glyph!, size: 40),
+    title: Text(title, style: const TextStyle(fontWeight: FontWeight.w700)),
+    trailing:
+        trailing ??
+        SihhatIcon('chevron-right', size: 20, color: context.colors.primary),
     onTap: onTap,
   );
 }
@@ -366,31 +545,64 @@ class ConceptBadge extends StatelessWidget {
     super.key,
   });
   @override
-  Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-    decoration: BoxDecoration(
-      color: warning
-          ? context.colors.warning
-          : subdued
-          ? context.colors.canvas
-          : context.colors.soft,
-      borderRadius: BorderRadius.circular(10),
-    ),
-    child: Text(
-      label,
-      style: TextStyle(
-        fontSize: 12,
-        fontWeight: FontWeight.w600,
+  Widget build(BuildContext context) {
+    final dark = _dark(context);
+    final accent = warning
+        ? (dark ? const Color(0xffffc46b) : const Color(0xff9b4708))
+        : dark
+        ? neon
+        : context.colors.ink;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
         color: warning
-            ? (Theme.of(context).brightness == Brightness.dark
-                  ? const Color(0xffffd593)
-                  : const Color(0xff9b4708))
-            : context.colors.ink,
+            ? context.colors.warning
+            : subdued
+            ? context.colors.canvas
+            : dark
+            ? neon.withValues(alpha: .14)
+            : context.colors.soft,
+        borderRadius: BorderRadius.circular(20),
+        border: dark ? Border.all(color: accent.withValues(alpha: .45)) : null,
       ),
+      child: Text(
+        label,
+        style: TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.w700,
+          color: accent,
+        ),
+      ),
+    );
+  }
+}
+
+/// Round neon "go" button used at the end of price rows.
+class NeonArrow extends StatelessWidget {
+  final double size;
+  const NeonArrow({this.size = 38, super.key});
+  @override
+  Widget build(BuildContext context) => Container(
+    width: size,
+    height: size,
+    decoration: BoxDecoration(
+      shape: BoxShape.circle,
+      color: context.colors.primary,
+      boxShadow: [
+        if (_dark(context))
+          BoxShadow(color: neon.withValues(alpha: .45), blurRadius: 14),
+      ],
+    ),
+    alignment: Alignment.center,
+    child: SihhatIcon(
+      'arrow-right',
+      size: size * .5,
+      color: Theme.of(context).colorScheme.onPrimary,
     ),
   );
 }
 
+/// Bottom action panel: glass sheet with a glowing primary button.
 class ConceptDock extends StatelessWidget {
   final String label;
   final String? amount, caption;
@@ -405,56 +617,75 @@ class ConceptDock extends StatelessWidget {
     super.key,
   });
   @override
-  Widget build(BuildContext context) => Container(
-    decoration: BoxDecoration(
-      color: context.colors.surface,
-      border: Border(top: BorderSide(color: context.colors.border)),
-    ),
-    child: SafeArea(
-      top: false,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            if (amount != null) ...[
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  Expanded(
-                    child: Text(
-                      caption ?? 'Jami',
-                      style: TextStyle(
-                        color: context.colors.muted,
-                        fontSize: 13,
+  Widget build(BuildContext context) {
+    final dark = _dark(context);
+    return Container(
+      decoration: BoxDecoration(
+        color: dark ? const Color(0xf00a2e29) : context.colors.surface,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(26)),
+        border: Border(
+          top: BorderSide(
+            color: dark ? neon.withValues(alpha: .35) : context.colors.border,
+          ),
+        ),
+        boxShadow: [
+          if (dark)
+            BoxShadow(
+              color: neon.withValues(alpha: .10),
+              blurRadius: 24,
+              offset: const Offset(0, -6),
+            ),
+        ],
+      ),
+      child: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 14, 20, 12),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              if (amount != null) ...[
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Expanded(
+                      child: Text(
+                        caption ?? 'Jami',
+                        style: TextStyle(
+                          color: context.colors.muted,
+                          fontSize: 13,
+                        ),
                       ),
                     ),
-                  ),
-                  Flexible(
-                    flex: 2,
-                    child: Text(
-                      amount!,
-                      style: conceptHeading(context, size: 20),
-                      textAlign: TextAlign.right,
+                    Flexible(
+                      flex: 2,
+                      child: Text(
+                        amount!,
+                        style: conceptHeading(context, size: 21),
+                        textAlign: TextAlign.right,
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
+                const SizedBox(height: 12),
+              ],
+              Pressable(
+                child: FilledButton(
+                  onPressed: onPressed,
+                  child: Text(label, textAlign: TextAlign.center),
+                ),
               ),
-              const SizedBox(height: 10),
+              if (secondary != null) ...[const SizedBox(height: 8), secondary!],
             ],
-            FilledButton(
-              onPressed: onPressed,
-              child: Text(label, textAlign: TextAlign.center),
-            ),
-            if (secondary != null) ...[const SizedBox(height: 8), secondary!],
-          ],
+          ),
         ),
       ),
-    ),
-  );
+    );
+  }
 }
 
+/// Pill message composer with a round neon send button.
 class ConceptComposer extends StatelessWidget {
   final TextEditingController controller;
   final String hint;
@@ -468,46 +699,74 @@ class ConceptComposer extends StatelessWidget {
     super.key,
   });
   @override
-  Widget build(BuildContext context) => SafeArea(
-    top: false,
-    child: Padding(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.end,
-        children: [
-          Expanded(
-            child: TextField(
-              controller: controller,
-              enabled: !busy,
-              minLines: 1,
-              maxLines: 4,
-              maxLength: 1000,
-              textInputAction: TextInputAction.send,
-              onSubmitted: (_) => send?.call(),
-              decoration: InputDecoration(
-                hintText: hint,
-                counterText: '',
-                contentPadding: const EdgeInsets.all(14),
+  Widget build(BuildContext context) {
+    final pill = OutlineInputBorder(
+      borderRadius: BorderRadius.circular(28),
+      borderSide: BorderSide(
+        color: _dark(context)
+            ? neon.withValues(alpha: .3)
+            : context.colors.border,
+      ),
+    );
+    return SafeArea(
+      top: false,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            Expanded(
+              child: TextField(
+                controller: controller,
+                enabled: !busy,
+                minLines: 1,
+                maxLines: 4,
+                maxLength: 1000,
+                textInputAction: TextInputAction.send,
+                onSubmitted: (_) => send?.call(),
+                decoration: InputDecoration(
+                  hintText: hint,
+                  counterText: '',
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 15,
+                  ),
+                  border: pill,
+                  enabledBorder: pill,
+                  disabledBorder: pill,
+                  focusedBorder: pill.copyWith(
+                    borderSide: BorderSide(
+                      color: context.colors.primary,
+                      width: 1.5,
+                    ),
+                  ),
+                ),
               ),
             ),
-          ),
-          const SizedBox(width: 8),
-          SizedBox(
-            width: 52,
-            height: 52,
-            child: IconButton.filled(
-              tooltip: 'Yuborish',
-              onPressed: busy ? null : send,
-              icon: const SihhatIcon('send'),
+            const SizedBox(width: 10),
+            Pressable(
+              scale: .9,
+              child: PulseGlow(
+                strength: busy ? 0 : .8,
+                child: SizedBox(
+                  width: 52,
+                  height: 52,
+                  child: IconButton.filled(
+                    tooltip: 'Yuborish',
+                    onPressed: busy ? null : send,
+                    icon: const SihhatIcon('send'),
+                  ),
+                ),
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
-    ),
-  );
+    );
+  }
 }
 
-/// One accessible editable field, six visible cells; supports paste and OS OTP autofill.
+// One accessible editable field, six visible cells; supports paste and OS OTP autofill.
 class OtpField extends StatelessWidget {
   final TextEditingController controller;
   final String label;

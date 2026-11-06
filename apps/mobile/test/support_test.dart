@@ -118,7 +118,7 @@ void main() {
       addTearDown(tester.view.resetViewInsets);
       await tester.pumpWidget(MaterialApp(home: SupportScreen(api)));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Yangi murojaat'));
+      await tester.tap(find.text('Yangi murojaat').last);
       await tester.pumpAndSettle();
       await tester.enterText(find.byType(TextField), 'Birinchi xabar');
       await tester.tap(find.text('Murojaat yuborish'));

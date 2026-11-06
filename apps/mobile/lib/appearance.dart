@@ -75,7 +75,7 @@ class ConceptAppearanceSettings extends StatelessWidget {
 
 class AppearanceController extends ChangeNotifier {
   final TokenStore store;
-  ThemeMode mode = ThemeMode.light;
+  ThemeMode mode = ThemeMode.dark;
   bool loaded = false, saving = false, _disposed = false;
   AppearanceController(this.store);
 
@@ -85,11 +85,11 @@ class AppearanceController extends ChangeNotifier {
   Future<void> load() async {
     try {
       final saved = await store.read('appearance');
-      // Old system preferences and missing/invalid values become day mode.
-      mode = saved == ThemeMode.dark.name ? ThemeMode.dark : ThemeMode.light;
+      // The 2026-11 design is dark-first: only an explicit day choice is light.
+      mode = saved == ThemeMode.light.name ? ThemeMode.light : ThemeMode.dark;
     } catch (_) {
       // A storage failure must not prevent browsing or booking.
-      mode = ThemeMode.light;
+      mode = ThemeMode.dark;
     }
     loaded = true;
     if (!_disposed) notifyListeners();

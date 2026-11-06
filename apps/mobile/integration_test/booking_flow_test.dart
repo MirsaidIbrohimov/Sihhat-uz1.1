@@ -6,6 +6,7 @@ import 'package:integration_test/integration_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:sihhat_mobile/app.dart';
 import 'package:sihhat_mobile/data/api.dart';
+import 'package:sihhat_mobile/motion.dart';
 import 'package:sihhat_mobile/screens/booking.dart';
 
 class ObservedApi extends Api {
@@ -33,6 +34,8 @@ class ObservedApi extends Api {
 
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
+  // Looping neon animations would keep pumpAndSettle from finishing.
+  Motion.ambient = false;
   testWidgets(
     'Android: OTP, two-room quote, hold, secure restart recovery and provider-confirmed local payment',
     (tester) async {
@@ -99,7 +102,7 @@ void main() {
       await tapText('Sanatoriyalar');
       await waitFor(find.text(fixture['sanatorium_name']));
       await tapText(fixture['sanatorium_name']);
-      await tapText('Shu tarifni tanlash');
+      await tapText('Tanlash');
       await waitFor(find.byType(BookingComposer));
       debugPrint('Android test: booking composer opened');
       await tapText('Qo‘shimcha xona');

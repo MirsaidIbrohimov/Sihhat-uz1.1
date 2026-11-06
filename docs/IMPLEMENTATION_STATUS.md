@@ -1,6 +1,41 @@
 # Sihhat uz — amalga oshirish holati
 
-Yangilangan: 2026-11-03. Asos: ISHLAB_CHIQISH_REJASI.md va SIHHAT_UZ_ARXITEKTURA.md.
+Yangilangan: 2026-11-06. Asos: ISHLAB_CHIQISH_REJASI.md va SIHHAT_UZ_ARXITEKTURA.md.
+
+## 2026-11-06 Android: dizayn V2 yakunlandi (0.2.1, build 4)
+
+- Bron tafsiloti va vaucher `BookingTicket` chiptasiga o‘tdi: rasm, joy, sanalar, perforatsiya chizig‘i, bron raqami, mehmon/xonalar, jami summa, neon ramkali QR. Tasdiqlanmagan bronlarda holat belgisi ikki marta chiqishi tuzatildi.
+- Yordam chati: halqali agent avatari, holat, yangi xabarga silliq aylanish, yopilgan murojaat kartasi. AI javobini kutishda “yozmoqda” nuqtalari.
+- Yuklanish: skeleton kartalar va shimmer. Xatolik: tarmoq xatosi uchun “Internet aloqasi yo‘q”, boshqa xatolar uchun alohida karta va “Qayta urinish”; forma xatolari ixcham banner bo‘lib qoladi. Bo‘sh holatlar ikonka, sarlavha va ishlaydigan tugma oladi (Bronlar → “Sanatoriya tanlash” katalogni ochadi).
+- Dialoglar blur fonda scale/fade bilan ochiladi; dialog, bottom sheet va snackbar neon shisha mavzusida. Tab sarlavhasi ostida kontent yumshoq so‘nadi. `copy`, `ticket`, `circle-alert` Lucide ikonkalari qo‘shildi.
+- “Animatsiyalarni kamaytirish” yoqilsa shimmer, nuqtalar va dialog scale o‘chadi.
+- Tekshiruv: analyzer xatosiz; 68 testdan 64 tasi o‘tadi. Yiqilgan 4 tasi (`demo_otp`, `login_gate` ×2, `support`) HEAD’da ham yiqiladi: ular Email OTP, `/api` yo‘li va 10 soniyalik chat yangilanishiga o‘tishdan oldingi kutishlarni tekshiradi.
+- Emulyatorda (`medium_phone`) haqiqiy `sihhat-api.onrender.com` bilan bosh sahifa, katalog, bronlar, profil, yordam xizmati; QR chipta, chat, skeleton, offline va dialog vaqtinchalik mock entrypoint bilan ko‘rildi (u o‘chirildi). Bu provider yoki production qabul natijasi emas.
+- APK: `ilova/yangiV2.apk`, debug, Android Debug sertifikati (APK Signature v2), `uz.sihhat.sihhat_mobile` 0.2.1/4, minSdk 24. `check-apk-secrets.py` va `npm run check:secrets`: moslik 0. Release uchun `key.properties` va release kaliti hali yo‘q.
+
+## 2026-11-06 Android: yangi neon dizayn (yangi_dizayn/yangi_UI.jpg) va animatsiyalar
+
+- Ilova `yangi_dizayn/yangi_UI.jpg` maketiga o‘tkazildi: to‘q yashil-moviy fon, neon-yalpiz aksent (`#3EE6BF`), shishasimon kartalar, suzib turuvchi shisha pastki menyu.
+- Yangi o‘rnatishda ilova tungi rejimda ochiladi. Kunduzgi rejim tugma orqali yoqiladi; avval saqlangan tanlov saqlanib qoladi.
+- Qayta ishlangan ekranlar: kirish, bosh sahifa (salomlashuv, qidiruv, “Yangilik” banneri, tezkor plitkalar, “Top tanlov”, yangiliklar), katalog, sanatoriya, tariflar, bronlar, AI yordamchi, profil, bildirishnomalar va yordam xizmati.
+- Animatsiyalar `apps/mobile/lib/motion.dart`da: kirishda ketma-ket paydo bo‘lish, bosilganda prujinali kichrayish, neon puls, suzish, qo‘ng‘iroq tebranishi, aylanuvchi neon halqa, bannerdagi Ken Burns va yorug‘lik o‘tishi, galereya parallaksi, sahifa o‘tishlari, bo‘limlar orasida fade-through. Telefonda “animatsiyalarni kamaytirish” yoqilsa, ular o‘chadi.
+- Lucide 0.468.0 dan yangi ikonkalar qo‘shildi: bot, mail, megaphone, lightbulb, bell-ring, flame va boshqalar.
+- Versiya **0.2.0 (build 3)**. Lokal debug APK: `ilova/yangi versiya.apk` (Gitga kirmaydi). U `medium_phone` emulyatorida ishga tushirib ko‘rildi.
+- Tekshiruv: analyzer xatosiz. 63 ta testdan 59 tasi o‘tadi; `demo_otp`, `login_gate` (2 ta) va `support` testlari bu o‘zgarishdan oldin ham yiqilgan.
+- 2-bosqich: maketdagi 12 ekran emulyator suratlari bilan bittalab solishtirildi. Natijada:
+  - bosh sahifa sarlavhasi kontent bilan birga aylanadi;
+  - neon yurak logotip, qo‘ng‘iroqda o‘qilmagan xabar nuqtasi;
+  - to‘ldirilgan neon ikonkali plitkalar;
+  - “Yangiliklar · Barchasi” va alohida sahifa; “Foydali tavsiyalar” ham alohida sahifada;
+  - kartalarda va sanatoriya sahifasida sevimlilar (yurak) tugmasi — faqat qurilmada saqlanadi;
+  - tariflar sahifasi “Xonalar & Tariflar”, tugma “Tanlash”;
+  - “Faol · Bronlarim” sarlavhasi;
+  - quloqchinli neon robot, neon to‘lqinli bildirishnomalar fonida neon qo‘ng‘iroq;
+  - yordam xizmatida “Yangi murojaat” kartasi;
+  - ekran pastiga yopishgan pastki menyu;
+  - fonda diagonal nur chiziqlari, kartalarda yuqori qirrasi yorug‘ shisha chegara.
+- Hali qayta qurilmagan va emulyatorda tekshirilmagan ekranlar: QR vaucher, bron tafsilotlari, yordam chati. Ular uchun haqiqiy bron yoki murojaat ma’lumoti kerak.
+- Imzolangan release APK hali yig‘ilmagan: buning uchun `key.properties` va release kaliti kerak.
 
 ## 2026-11-05 Xabarlar, Xonalar bandligi kalendari va Yangiliklarni o‘chirish tuzatishlari
 

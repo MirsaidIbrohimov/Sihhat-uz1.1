@@ -7,6 +7,8 @@ import '../widgets.dart';
 import '../design.dart';
 import '../appearance.dart';
 import '../concept_ui.dart';
+import '../motion.dart';
+import '../neon.dart';
 import '../catalog_card.dart';
 import 'catalog.dart';
 import 'login.dart';
@@ -38,7 +40,7 @@ class _AiScreenState extends State<AiScreen> {
       return share = true;
     }
     if (!mounted) return false;
-    final agreed = await showDialog<bool>(
+    final agreed = await showGlassDialog<bool>(
       context: context,
       builder: (c) => AlertDialog(
         title: Column(
@@ -140,13 +142,34 @@ class _AiScreenState extends State<AiScreen> {
             padding: const EdgeInsets.all(20),
             children: [
               if (messages.isEmpty) ...[
-                const SizedBox(height: 36),
-                const Center(child: IconTile('sparkles', size: 88)),
+                Reveal(
+                  child: Text.rich(
+                    TextSpan(
+                      children: [
+                        TextSpan(
+                          text: 'Sihhat.uz\n',
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: context.colors.muted,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        const TextSpan(text: 'AI yordamchi'),
+                      ],
+                    ),
+                    style: conceptHeading(context, size: 24),
+                  ),
+                ),
+                const SizedBox(height: 22),
+                const Center(child: AiAvatar()),
                 const SizedBox(height: 24),
-                Text(
-                  'Sizga mos dam olishni topamiz',
-                  textAlign: TextAlign.center,
-                  style: conceptHeading(context, size: 26),
+                Reveal(
+                  index: 1,
+                  child: Text(
+                    'Sizga mos dam olishni topamiz',
+                    textAlign: TextAlign.center,
+                    style: conceptHeading(context, size: 26),
+                  ),
                 ),
                 const SizedBox(height: 14),
                 Text(
@@ -154,10 +177,13 @@ class _AiScreenState extends State<AiScreen> {
                   textAlign: TextAlign.center,
                   style: TextStyle(color: context.colors.muted, fontSize: 16),
                 ),
-                const Divider(height: 40),
-                const ConceptRow(
-                  'shield-check',
-                  'Tibbiy moslikni sanatoriya mutaxassisi bilan aniqlang.',
+                const SizedBox(height: 20),
+                const Reveal(
+                  index: 2,
+                  child: ConceptInfo(
+                    icon: 'shield-check',
+                    title: 'Tibbiy moslikni sanatoriya mutaxassisi bilan aniqlang.',
+                  ),
                 ),
                 const SizedBox(height: 20),
                 Wrap(
@@ -170,14 +196,21 @@ class _AiScreenState extends State<AiScreen> {
                       'Oilaviy safar',
                       '500 minggacha',
                     ])
-                      ActionChip(
-                        label: Text(suggestion),
-                        onPressed: busy || askingConsent
-                            ? null
-                            : () {
-                                input.text = suggestion;
-                                send();
-                              },
+                      Pressable(
+                        child: ActionChip(
+                          avatar: SihhatIcon(
+                            'sparkles',
+                            size: 15,
+                            color: context.colors.primary,
+                          ),
+                          label: Text(suggestion),
+                          onPressed: busy || askingConsent
+                              ? null
+                              : () {
+                                  input.text = suggestion;
+                                  send();
+                                },
+                        ),
                       ),
                   ],
                 ),
@@ -188,6 +221,7 @@ class _AiScreenState extends State<AiScreen> {
                 ),
                 for (final m in messages) ...[
                   ChatBubble(
+                    key: ObjectKey(m),
                     text: m['message'] ?? '',
                     own: m['user'] == true,
                     error: m['error'] == true,
@@ -223,13 +257,38 @@ class _AiScreenState extends State<AiScreen> {
                     ),
                 ],
               ],
-              if (busy) const Busy(),
+              if (busy)
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Semantics(
+                    label: 'AI javob yozmoqda',
+                    liveRegion: true,
+                    child: Container(
+                      margin: const EdgeInsets.only(bottom: 14),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 18,
+                        vertical: 16,
+                      ),
+                      decoration: BoxDecoration(
+                        color: context.colors.surface.withValues(alpha: .85),
+                        border: Border.all(color: neon.withValues(alpha: .25)),
+                        borderRadius: const BorderRadius.only(
+                          topLeft: Radius.circular(18),
+                          topRight: Radius.circular(18),
+                          bottomRight: Radius.circular(18),
+                          bottomLeft: Radius.circular(4),
+                        ),
+                      ),
+                      child: const TypingDots(),
+                    ),
+                  ),
+                ),
             ],
           ),
         ),
         ConceptComposer(
           controller: input,
-          hint: 'Qanday dam olishni xohlaysiz?',
+          hint: 'Savol yozing…',
           busy: busy || askingConsent,
           send: send,
         ),
@@ -262,70 +321,92 @@ class ChatBubble extends StatelessWidget {
     super.key,
   });
   @override
-  Widget build(BuildContext context) => Align(
-    alignment: own ? Alignment.centerRight : Alignment.centerLeft,
-    child: FractionallySizedBox(
-      widthFactor: .88,
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 14),
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: own ? masthead : context.colors.surface,
-          border: Border.all(color: own ? masthead : context.colors.border),
-          borderRadius: BorderRadius.only(
-            topLeft: const Radius.circular(18),
-            topRight: const Radius.circular(18),
-            bottomLeft: Radius.circular(own ? 18 : 4),
-            bottomRight: Radius.circular(own ? 4 : 18),
+  Widget build(BuildContext context) => Reveal(
+    offset: Offset(own ? .15 : -.15, .05),
+    child: Align(
+      alignment: own ? Alignment.centerRight : Alignment.centerLeft,
+      child: FractionallySizedBox(
+        widthFactor: .88,
+        child: Container(
+          margin: const EdgeInsets.only(bottom: 14),
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: own ? null : context.colors.surface.withValues(alpha: .85),
+            gradient: own
+                ? const LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [Color(0xff5ff0cf), neon],
+                  )
+                : null,
+            boxShadow: [
+              if (own)
+                BoxShadow(color: neon.withValues(alpha: .3), blurRadius: 16),
+            ],
+            border: Border.all(color: own ? neon : neon.withValues(alpha: .25)),
+            borderRadius: BorderRadius.only(
+              topLeft: const Radius.circular(18),
+              topRight: const Radius.circular(18),
+              bottomLeft: Radius.circular(own ? 18 : 4),
+              bottomRight: Radius.circular(own ? 4 : 18),
+            ),
           ),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (author != null) ...[
-              Text(
-                author!,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (author != null) ...[
+                Text(
+                  author!,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: own ? abyss : context.colors.primary,
+                  ),
+                ),
+                const SizedBox(height: 6),
+              ],
+              SelectableText(
+                text,
                 style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: own ? const Color(0xffb5e4d5) : context.colors.muted,
+                  color: own
+                      ? abyss
+                      : error
+                      ? Theme.of(context).colorScheme.error
+                      : context.colors.ink,
+                  fontSize: 15,
+                  height: 1.5,
                 ),
               ),
-              const SizedBox(height: 6),
-            ],
-            SelectableText(
-              text,
-              style: TextStyle(
-                color: own
-                    ? Colors.white
-                    : error
-                    ? Theme.of(context).colorScheme.error
-                    : context.colors.ink,
-                fontSize: 15,
-                height: 1.5,
-              ),
-            ),
-            if (time != null && time!.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.only(top: 8),
-                child: Align(
-                  alignment: Alignment.centerRight,
-                  child: Text(
-                    time!,
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: own
-                          ? const Color(0xffb5e4d5)
-                          : context.colors.muted,
+              if (time != null && time!.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: Align(
+                    alignment: Alignment.centerRight,
+                    child: Text(
+                      time!,
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: own
+                            ? abyss.withValues(alpha: .7)
+                            : context.colors.muted,
+                      ),
                     ),
                   ),
                 ),
-              ),
-          ],
+            ],
+          ),
         ),
       ),
     ),
   );
+}
+
+/// Floating, glowing assistant avatar for the AI screen.
+class AiAvatar extends StatelessWidget {
+  final double size;
+  const AiAvatar({this.size = 140, super.key});
+  @override
+  Widget build(BuildContext context) => FloatY(child: RobotFace(size: size));
 }
 
 class NotificationsScreen extends StatefulWidget {
@@ -398,6 +479,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   @override
   Widget build(BuildContext context) => ConceptPage(
     title: 'Bildirishnomalar',
+    subtitle: 'Barcha bildirishnomalar',
     actions: [
       TextButton.icon(
         onPressed: markAll,
@@ -408,47 +490,86 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     body: AsyncContent(
       key: ValueKey(refreshKey),
       load: () => widget.api.send('/notifications'),
-      builder: (v) => ListView(
-        padding: const EdgeInsets.all(20),
+      builder: (v) => Stack(
         children: [
-          if (rows(v).isEmpty) const EmptyView('Yangi bildirishnomalar yo‘q.'),
-          for (final n in rows(v))
-            ConceptCard(
-              onTap: pending.contains(n['id']) ? null : () => mark(n),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const IconTile('bell'),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Column(
+          if (rows(v).isEmpty) const Positioned.fill(child: NeonWaves()),
+          ListView(
+            padding: const EdgeInsets.all(20),
+            children: [
+              if (rows(v).isEmpty) ...[
+                const SizedBox(height: 70),
+                const Center(child: FloatY(child: NeonBell())),
+                const SizedBox(height: 28),
+                Reveal(
+                  child: Text(
+                    'Sizda yangi bildirishnoma yo‘q',
+                    textAlign: TextAlign.center,
+                    style: conceptHeading(context, size: 18),
+                  ),
+                ),
+                const SizedBox(height: 22),
+                Reveal(
+                  index: 1,
+                  child: Center(
+                    child: Pressable(
+                      child: OutlinedButton(
+                        onPressed: () => Navigator.maybePop(context),
+                        style: OutlinedButton.styleFrom(
+                          minimumSize: const Size(200, 52),
+                          shape: const StadiumBorder(),
+                          backgroundColor: context.colors.surface,
+                          side: BorderSide(color: neon.withValues(alpha: .45)),
+                          elevation: 8,
+                          shadowColor: neon.withValues(alpha: .4),
+                        ),
+                        child: const Text('Orqaga qaytish'),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+              for (final (i, n) in rows(v).indexed)
+                Reveal(
+                  index: i,
+                  child: ConceptCard(
+                    onTap: pending.contains(n['id']) ? null : () => mark(n),
+                    child: Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          title(n['payload']?['topic']),
-                          style: conceptHeading(context, size: 17),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          eventTime(n['createdAt']),
-                          style: TextStyle(
-                            color: context.colors.muted,
-                            fontSize: 12,
+                        const IconTile('bell', glow: true),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                title(n['payload']?['topic']),
+                                style: conceptHeading(context, size: 17),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                eventTime(n['createdAt']),
+                                style: TextStyle(
+                                  color: context.colors.muted,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
+                        if (n['readAt'] == null && !read.contains(n['id']))
+                          Padding(
+                            padding: const EdgeInsets.only(left: 8),
+                            child: ConceptBadge(
+                              pending.contains(n['id']) ? '…' : 'Yangi',
+                            ),
+                          ),
                       ],
                     ),
                   ),
-                  if (n['readAt'] == null && !read.contains(n['id']))
-                    Padding(
-                      padding: const EdgeInsets.only(left: 8),
-                      child: ConceptBadge(
-                        pending.contains(n['id']) ? '…' : 'Yangi',
-                      ),
-                    ),
-                ],
-              ),
-            ),
+                ),
+            ],
+          ),
         ],
       ),
     ),
@@ -483,7 +604,8 @@ class _SupportScreenState extends State<SupportScreen> {
 
   @override
   Widget build(BuildContext context) => ConceptPage(
-    title: 'Yordam xizmati',
+    title: 'Yordam xizmati (Murojaatlar)',
+    subtitle: 'Murojaatlaringizni boshqaring',
     bottom: ConceptScope(
       child: ConceptDock(label: 'Yangi murojaat', onPressed: () => open()),
     ),
@@ -493,40 +615,90 @@ class _SupportScreenState extends State<SupportScreen> {
       builder: (v) => ListView(
         padding: const EdgeInsets.all(20),
         children: [
-          const ConceptInfo(
-            icon: 'headphones',
-            title: 'Sizga yordam beramiz',
-            text: 'Savolingizni murojaat orqali yuboring.',
-          ),
-          const SizedBox(height: 12),
-          Text('Murojaatlarim', style: conceptHeading(context, size: 24)),
-          const SizedBox(height: 18),
-          if (rows(v).isEmpty) const EmptyView('Hozircha murojaatlar yo‘q.'),
-          for (final t in rows(v))
-            ConceptCard(
-              onTap: () => open(t['id']),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+          Reveal(
+            child: ConceptCard(
+              onTap: () => open(),
+              selected: true,
+              child: Row(
                 children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          t['title'],
-                          style: conceptHeading(context, size: 19),
+                  const PulseGlow(
+                    borderRadius: BorderRadius.all(Radius.circular(16)),
+                    child: GlyphTile(
+                      Icons.support_agent_rounded,
+                      size: 52,
+                      solid: true,
+                    ),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Yangi murojaat',
+                          style: conceptHeading(context, size: 17),
                         ),
-                      ),
-                      const SihhatIcon('chevron-right'),
-                    ],
+                        Text(
+                          'Savollaringizni yuboring',
+                          style: TextStyle(
+                            color: context.colors.muted,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                  const SizedBox(height: 10),
-                  Pill(t['status']),
-                  const SizedBox(height: 10),
-                  Text(
-                    eventTime(t['createdAt']),
-                    style: TextStyle(color: context.colors.muted, fontSize: 12),
-                  ),
+                  const NeonArrow(size: 36),
                 ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text('Murojaatlarim', style: conceptHeading(context, size: 22)),
+          const SizedBox(height: 14),
+          if (rows(v).isEmpty)
+            const EmptyView(
+              'Hozircha murojaatlar yo‘q.',
+              icon: 'message-circle',
+            ),
+          for (final (i, t) in rows(v).indexed)
+            Reveal(
+              index: i + 1,
+              child: ConceptCard(
+                onTap: () => open(t['id']),
+                child: Row(
+                  children: [
+                    GlyphTile(
+                      t['status'] == 'CLOSED'
+                          ? Icons.task_alt_rounded
+                          : Icons.support_agent_rounded,
+                      size: 48,
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            t['title'],
+                            style: conceptHeading(context, size: 16),
+                          ),
+                          const SizedBox(height: 6),
+                          Pill(t['status']),
+                          const SizedBox(height: 6),
+                          Text(
+                            eventTime(t['createdAt']),
+                            style: TextStyle(
+                              color: context.colors.muted,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    SihhatIcon('chevron-right', color: context.colors.primary),
+                  ],
+                ),
               ),
             ),
         ],
@@ -654,7 +826,30 @@ class _SupportThreadState extends State<SupportThread>
   final revision = ValueNotifier(0);
   bool active = true, sending = false;
   final reply = TextEditingController();
+  final scroll = ScrollController();
+  int shown = 0;
   String? sendError;
+
+  /// Keeps the newest message in view when replies arrive.
+  void followNewMessages(int count) {
+    if (count <= shown) return;
+    final first = shown == 0;
+    shown = count;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!scroll.hasClients) return;
+      final end = scroll.position.maxScrollExtent;
+      if (first || reducedMotion(context)) {
+        scroll.jumpTo(end);
+      } else {
+        scroll.animateTo(
+          end,
+          duration: const Duration(milliseconds: 380),
+          curve: Curves.easeOutCubic,
+        );
+      }
+    });
+  }
+
   @override
   void initState() {
     super.initState();
@@ -686,6 +881,7 @@ class _SupportThreadState extends State<SupportThread>
     WidgetsBinding.instance.removeObserver(this);
     revision.dispose();
     reply.dispose();
+    scroll.dispose();
     super.dispose();
   }
 
@@ -713,34 +909,70 @@ class _SupportThreadState extends State<SupportThread>
 
   @override
   Widget build(BuildContext context) => ConceptPage(
-    title: 'Murojaat',
+    title: 'Yordam xizmati (Chat)',
+    subtitle: 'Resepshn bilan onlayn suhbat',
     body: CachedContent(
       cached: () async => thread,
       refresh: refreshThread,
       changes: revision,
       builder: (v) {
         final t = asJson(v);
+        final messages = rows(t['messages']);
+        followNewMessages(messages.length);
         return Column(
           children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 4, 20, 8),
+              child: Reveal(
+                child: ConceptCard(
+                  margin: EdgeInsets.zero,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 12,
+                  ),
+                  child: Row(
+                    children: [
+                      NeonRing(
+                        size: 50,
+                        width: 2.5,
+                        child: ClipOval(
+                          child: Container(
+                            color: abyss,
+                            alignment: Alignment.center,
+                            child: const NeonGlyph(
+                              Icons.support_agent_rounded,
+                              size: 26,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              t['title'],
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: conceptHeading(context, size: 16),
+                            ),
+                            const SizedBox(height: 6),
+                            Pill(t['status']),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
             Expanded(
               child: ListView(
-                padding: const EdgeInsets.all(20),
+                controller: scroll,
+                padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
                 children: [
-                  ConceptCard(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Pill(t['status']),
-                        const SizedBox(height: 16),
-                        Text(
-                          t['title'],
-                          style: conceptHeading(context, size: 24),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  for (final m in rows(t['messages']))
+                  for (final m in messages)
                     ChatBubble(
                       text: m['text'] ?? '',
                       own: m['userId'] == t['userId'],
@@ -756,15 +988,20 @@ class _SupportThreadState extends State<SupportThread>
             if (t['status'] != 'CLOSED')
               ConceptComposer(
                 controller: reply,
-                hint: 'Javob yozish',
+                hint: 'Javob yozish…',
                 busy: sending,
                 send: sendReply,
               )
             else
-              const Padding(
-                padding: EdgeInsets.all(16),
-                child: Text(
-                  'Murojaat yopilgan. Yangi savol uchun yangi murojaat yuboring.',
+              const SafeArea(
+                top: false,
+                child: Padding(
+                  padding: EdgeInsets.fromLTRB(20, 4, 20, 12),
+                  child: ConceptInfo(
+                    icon: 'check-check',
+                    title: 'Murojaat yopilgan',
+                    text: 'Yangi savol uchun yangi murojaat yuboring.',
+                  ),
                 ),
               ),
           ],
@@ -804,7 +1041,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
           const SizedBox(height: 20),
           const Center(child: IconTile('user-round', size: 80)),
           const SizedBox(height: 18),
-          const EmptyView('Profilingizni ko‘rish uchun kiring.'),
+          const EmptyView(
+            'Profilingizni ko‘rish uchun kiring.',
+            icon: 'user-round',
+          ),
           const SizedBox(height: 20),
           FilledButton(
             onPressed: () async {
@@ -834,29 +1074,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
               padding: const EdgeInsets.only(top: 4, bottom: 24),
               child: Column(
                 children: [
-                  Container(
-                    width: 92,
-                    height: 92,
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: context.colors.soft,
-                      border: Border.all(
-                        color: context.colors.surface,
-                        width: 5,
-                      ),
-                    ),
-                    child: SihhatIcon(
-                      'user-round',
-                      size: 44,
-                      color: context.colors.primary,
+                  const PulseGlow(
+                    child: CircleAvatar(
+                      radius: 52,
+                      backgroundColor: neon,
+                      child: Icon(Icons.person_rounded, size: 62, color: abyss),
                     ),
                   ),
                   const SizedBox(height: 18),
-                  Text(
-                    p['name'] ?? 'Mijoz',
-                    textAlign: TextAlign.center,
-                    style: conceptHeading(context, size: 25),
+                  Reveal(
+                    child: Text(
+                      (p['name'] ?? 'Mijoz').toString(),
+                      textAlign: TextAlign.center,
+                      style: conceptHeading(context, size: 25),
+                    ),
                   ),
                   const SizedBox(height: 6),
                   Builder(
@@ -888,55 +1119,62 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ],
               ),
             ),
-            ConceptCard(
-              padding: EdgeInsets.zero,
-              child: Column(
-                children: [
-                  ConceptMenuRow(
-                    'user-round',
-                    'Ism-familiyani o‘zgartirish',
-                    onTap: () => edit(p),
-                  ),
-                  const Divider(height: 1, indent: 18, endIndent: 18),
-                  ConceptMenuRow(
-                    'phone',
-                    'Telefonni o‘zgartirish',
-                    onTap: () async {
-                      await Navigator.push(
+            Reveal(
+              index: 1,
+              child: ConceptCard(
+                padding: EdgeInsets.zero,
+                child: Column(
+                  children: [
+                    ConceptMenuRow(
+                      'user-round',
+                      'Ism-familiyani o‘zgartirish',
+                      glyph: Icons.person_rounded,
+                      onTap: () => edit(p),
+                    ),
+                    const Divider(height: 1, indent: 18, endIndent: 18),
+                    ConceptMenuRow(
+                      'phone',
+                      'Telefonni o‘zgartirish',
+                      glyph: Icons.phone_in_talk_rounded,
+                      onTap: () async {
+                        await Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => PhoneChangeScreen(widget.api),
+                          ),
+                        );
+                        if (mounted) setState(() => epoch++);
+                      },
+                    ),
+                    const Divider(height: 1, indent: 18, endIndent: 18),
+                    ConceptMenuRow(
+                      'bell',
+                      'Bildirishnomalar',
+                      glyph: Icons.notifications_rounded,
+                      onTap: () => Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (_) => PhoneChangeScreen(widget.api),
+                          builder: (_) => NotificationsScreen(widget.api),
                         ),
-                      );
-                      if (mounted) setState(() => epoch++);
-                    },
-                  ),
-                  const Divider(height: 1, indent: 18, endIndent: 18),
-                  ConceptMenuRow(
-                    'bell',
-                    'Bildirishnomalar',
-                    onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => NotificationsScreen(widget.api),
                       ),
                     ),
-                  ),
-                  const Divider(height: 1, indent: 18, endIndent: 18),
-                  ConceptMenuRow(
-                    'headphones',
-                    'Yordam xizmati',
-                    onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => SupportScreen(widget.api),
+                    const Divider(height: 1, indent: 18, endIndent: 18),
+                    ConceptMenuRow(
+                      'headphones',
+                      'Yordam xizmati',
+                      glyph: Icons.support_agent_rounded,
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => SupportScreen(widget.api),
+                        ),
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
-            const ConceptAppearanceSettings(),
+            const Reveal(index: 2, child: ConceptAppearanceSettings()),
             const SizedBox(height: 10),
             OutlinedButton.icon(
               onPressed: () async {

@@ -7,6 +7,7 @@ import 'package:sihhat_mobile/app.dart';
 import 'package:sihhat_mobile/data/api.dart';
 import 'package:sihhat_mobile/screens/advertisements.dart';
 import 'package:sihhat_mobile/screens/catalog.dart';
+import 'package:sihhat_mobile/screens/home.dart';
 
 import 'api_test.dart' show MemoryStore;
 import 'home_test.dart' show home, jsonResponse, item;
@@ -137,7 +138,12 @@ void main() {
     await tester.scrollUntilVisible(
       find.text('Kirish uchun maxsus taklif'),
       250,
-      scrollable: find.byType(Scrollable).first,
+      scrollable: find
+          .descendant(
+            of: find.byType(HomeScreen),
+            matching: find.byType(Scrollable),
+          )
+          .first,
     );
     expect(find.text('Kirish uchun maxsus taklif'), findsOneWidget);
     expect(tester.takeException(), isNull);

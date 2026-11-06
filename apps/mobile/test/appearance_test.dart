@@ -46,7 +46,11 @@ void main() {
     'night mode survives app restart and logout while profile navigation stays open',
     (tester) async {
       final store = MemoryStore()
-        ..data.addAll({'access': 'saved-access', 'refresh': 'saved-refresh'});
+        ..data.addAll({
+          'access': 'saved-access',
+          'refresh': 'saved-refresh',
+          'appearance': 'light',
+        });
       final appApi = publicApi(store);
       await tester.pumpWidget(SihhatApp(api: appApi));
       await tester.pumpAndSettle();
@@ -76,7 +80,7 @@ void main() {
     (tester) async {
       tester.platformDispatcher.platformBrightnessTestValue = Brightness.dark;
       addTearDown(tester.platformDispatcher.clearPlatformBrightnessTestValue);
-      final store = MemoryStore();
+      final store = MemoryStore()..data['appearance'] = 'light';
       final api = publicApi(store);
       await tester.pumpWidget(SihhatApp(api: api));
       await tester.pumpAndSettle();
@@ -133,21 +137,30 @@ void main() {
     },
   );
 
-  test('old system preference, invalid values and storage errors fall back to day; failed toggle preserves the mode', () async {
+  testWidgets('a fresh install opens in the dark neon design', (tester) async {
+    final api = publicApi(MemoryStore());
+    await tester.pumpWidget(SihhatApp(api: api));
+    await tester.pumpAndSettle();
+    expect(brightness(tester), Brightness.dark);
+    await tester.pumpWidget(const SizedBox.shrink());
+    api.client.close();
+  });
+
+  test('old system preference, invalid values and storage errors fall back to the dark-first design; failed toggle preserves the mode', () async {
     for (final saved in ['system', 'unknown']) {
       final invalid = AppearanceController(
         MemoryStore()..data['appearance'] = saved,
       );
       await invalid.load();
       expect(invalid.loaded, true);
-      expect(invalid.mode, ThemeMode.light);
+      expect(invalid.mode, ThemeMode.dark);
       invalid.dispose();
     }
     final controller = AppearanceController(FailingStore());
     await controller.load();
     expect(controller.loaded, true);
     await expectLater(controller.toggle(), throwsStateError);
-    expect(controller.mode, ThemeMode.light);
+    expect(controller.mode, ThemeMode.dark);
     expect(controller.saving, false);
     controller.dispose();
   });

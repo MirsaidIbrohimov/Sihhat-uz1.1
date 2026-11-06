@@ -26,3 +26,6 @@ apps/mobile/android/local.properties
 *.keystore
 *.p12
 key.properties
+# Lokal debug APK (katta hajm, imzolanmagan release emas)
+/ilova/yangi versiya.apk
+/ilova/yangiV2.apk

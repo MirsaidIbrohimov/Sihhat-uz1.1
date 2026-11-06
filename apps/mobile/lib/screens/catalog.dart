@@ -9,6 +9,8 @@ import '../widgets.dart';
 import '../sanatorium_gallery.dart';
 import '../design.dart';
 import '../concept_ui.dart';
+import '../motion.dart';
+import '../neon.dart';
 import '../catalog_card.dart';
 import 'booking.dart';
 
@@ -299,21 +301,23 @@ class _CatalogScreenState extends State<CatalogScreen> {
         child: ListView(
           physics: const AlwaysScrollableScrollPhysics(),
           children: [
-            ColoredBox(
-              color: masthead,
+            Reveal(
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(20, 0, 20, 18),
+                padding: const EdgeInsets.fromLTRB(16, 4, 16, 6),
                 child: Row(
                   children: [
                     Expanded(
                       child: TextField(
                         controller: search,
-                        decoration: const InputDecoration(
-                          hintText: 'Sanatoriya yoki hudud',
+                        decoration: InputDecoration(
+                          hintText: 'Sanatoriyalar qidirish…',
                           prefixIcon: Padding(
-                            padding: EdgeInsets.all(14),
-                            child: SihhatIcon('search'),
+                            padding: const EdgeInsets.all(14),
+                            child: SihhatIcon('search', color: c.colors.muted),
                           ),
+                          border: _pill(c),
+                          enabledBorder: _pill(c),
+                          focusedBorder: _pill(c, focused: true),
                         ),
                         onChanged: (_) {
                           debounce?.cancel();
@@ -344,9 +348,13 @@ class _CatalogScreenState extends State<CatalogScreen> {
                         style: IconButton.styleFrom(
                           minimumSize: const Size(52, 52),
                           shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(14),
+                            borderRadius: BorderRadius.circular(18),
                           ),
-                          backgroundColor: c.colors.surface,
+                          side: BorderSide(color: neon.withValues(alpha: .35)),
+                          backgroundColor: c.colors.surface.withValues(
+                            alpha: .8,
+                          ),
+                          foregroundColor: c.colors.primary,
                         ),
                         onPressed: filters,
                         tooltip: 'Filtrlar',
@@ -358,7 +366,7 @@ class _CatalogScreenState extends State<CatalogScreen> {
               ),
             ),
             Padding(
-              padding: const EdgeInsets.all(20),
+              padding: const EdgeInsets.fromLTRB(16, 10, 16, 20),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
@@ -403,12 +411,20 @@ class _CatalogScreenState extends State<CatalogScreen> {
                     ),
                     const SizedBox(height: 14),
                     if (rows(load()).isEmpty)
-                      const EmptyView('Mos sanatoriya topilmadi.'),
-                    for (final s in rows(load()))
-                      CatalogueCard(
-                        item: s,
-                        api: widget.api,
-                        open: () => open(s['id']),
+                      const EmptyView(
+                        'Filtr yoki qidiruv so‘zini o‘zgartirib ko‘ring.',
+                        title: 'Mos sanatoriya topilmadi',
+                        icon: 'search',
+                      ),
+                    for (final (i, s) in rows(load()).indexed)
+                      Reveal(
+                        key: ValueKey('reveal-${s['id']}'),
+                        index: i,
+                        child: CatalogueCard(
+                          item: s,
+                          api: widget.api,
+                          open: () => open(s['id']),
+                        ),
                       ),
                     if ((load()['pages'] ?? 1) > 1)
                       Row(
@@ -453,6 +469,12 @@ class SanatoriumScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) => ConceptPage(
     title: 'Sanatoriya',
+    actions: [
+      Padding(
+        padding: const EdgeInsets.only(right: 12),
+        child: FavoriteButton(api, id, size: 40),
+      ),
+    ],
     body: CachedContent(
       cached: () => CatalogCache(api).cachedDetail(id),
       refresh: () => CatalogCache(api).refreshDetail(id),
@@ -495,28 +517,39 @@ class SanatoriumScreen extends StatelessWidget {
                       child: PlacePhoto(api, s, height: 210),
                     ),
                   const SizedBox(height: 18),
-                  Text(
-                    s['name'] ?? '',
-                    style: conceptHeading(context, size: 27),
+                  Reveal(
+                    child: Text(
+                      s['name'] ?? '',
+                      style: conceptHeading(context, size: 27),
+                    ),
                   ),
-                  ConceptRow(
-                    'map-pin',
-                    [s['region'], s['address']]
-                        .where((x) => x != null && x.toString().isNotEmpty)
-                        .join(' · '),
+                  Reveal(
+                    index: 1,
+                    child: ConceptRow(
+                      'map-pin',
+                      [s['region'], s['address']]
+                          .where((x) => x != null && x.toString().isNotEmpty)
+                          .join(' · '),
+                    ),
                   ),
                   const SizedBox(height: 12),
                   Wrap(
                     spacing: 8,
                     runSpacing: 8,
                     children: [
-                      for (final a in s['amenities'] as List? ?? [])
-                        Chip(
-                          avatar: SihhatIcon(
-                            amenityIcon(a.toString()),
-                            size: 18,
+                      for (final (i, a)
+                          in (s['amenities'] as List? ?? []).indexed)
+                        Reveal(
+                          index: 2 + i,
+                          offset: const Offset(0, .4),
+                          child: Chip(
+                            avatar: SihhatIcon(
+                              amenityIcon(a.toString()),
+                              size: 17,
+                              color: context.colors.primary,
+                            ),
+                            label: Text(a.toString()),
                           ),
-                          label: Text(a.toString()),
                         ),
                     ],
                   ),
@@ -694,10 +727,11 @@ class _TariffScreenState extends State<TariffScreen> {
 
   @override
   Widget build(BuildContext context) => ConceptPage(
-    title: 'Xonalar va tariflar',
+    title: 'Xonalar & Tariflar',
+    subtitle: 'Sizga mos tarifni tanlang',
     bottom: ConceptScope(
       child: ConceptDock(
-        label: 'Shu tarifni tanlash',
+        label: 'Tanlash',
         onPressed:
             selected == null ||
                 widget.sanatorium['online_booking_available'] == false
@@ -717,85 +751,144 @@ class _TariffScreenState extends State<TariffScreen> {
     body: ListView(
       padding: const EdgeInsets.all(20),
       children: [
-        Text(
-          'Sizga mos tarifni tanlang',
-          style: conceptHeading(context, size: 24),
+        Reveal(
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(22),
+            child: Stack(
+              fit: StackFit.passthrough,
+              children: [
+                PlacePhoto(widget.api, widget.sanatorium, height: 140),
+                const Positioned.fill(
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [Colors.transparent, Color(0xcc021a17)],
+                      ),
+                    ),
+                  ),
+                ),
+                Positioned(
+                  left: 16,
+                  right: 16,
+                  bottom: 12,
+                  child: Text(
+                    widget.sanatorium['name'] ?? '',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: conceptHeading(
+                      context,
+                      size: 18,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 18),
+        Text('Xonalar va tariflar', style: conceptHeading(context, size: 20)),
+        const SizedBox(height: 6),
         Text(
           'Narx va bekor qilish shartlari tarifga bog‘liq.',
           style: TextStyle(color: context.colors.muted),
         ),
         const SizedBox(height: 20),
-        for (final r in rates)
-          ConceptCard(
-            key: ValueKey('select-rate-${r['id']}'),
-            onTap: () => setState(() => selected = r['id']),
-            color: selected == r['id'] ? context.colors.soft : null,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    const IconTile('bed-double'),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            r['name'] ?? '',
-                            style: conceptHeading(context, size: 18),
-                          ),
-                          Text(
-                            rows(widget.sanatorium['room_types']).firstWhere(
-                                  (t) => t['id'] == r['roomTypeId'],
-                                  orElse: () => {},
-                                )['name'] ??
-                                '',
-                            style: TextStyle(color: context.colors.muted),
-                          ),
-                        ],
+        for (final (i, r) in rates.indexed)
+          Reveal(
+            index: i + 1,
+            child: ConceptCard(
+              key: ValueKey('select-rate-${r['id']}'),
+              onTap: () => setState(() => selected = r['id']),
+              selected: selected == r['id'],
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const GlyphTile(
+                        Icons.king_bed_rounded,
+                        size: 46,
+                        solid: true,
                       ),
-                    ),
-                    SihhatIcon(
-                      selected == r['id'] ? 'circle-check' : 'plus',
-                      color: context.colors.primary,
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 14),
-                Text(
-                  '${money(r['baseAmount'])} / tun',
-                  style: conceptHeading(context, size: 22),
-                ),
-                Text(
-                  r['mode'] == 'PERSON'
-                      ? 'Har bir kishi uchun'
-                      : 'Butun xona uchun',
-                  style: TextStyle(color: context.colors.muted, fontSize: 13),
-                ),
-                const Divider(height: 28),
-                for (final item
-                    in r['packageDetails']?['included'] as List? ?? [])
-                  ConceptRow('check', item.toString()),
-                if (r['policy']?['name'] != null)
-                  ConceptRow('shield-check', r['policy']['name']),
-                if (r['policy']?['text'] != null)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 8),
-                    child: Text(
-                      r['policy']['text'],
-                      style: TextStyle(
-                        color: context.colors.muted,
-                        fontSize: 13,
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              r['name'] ?? '',
+                              style: conceptHeading(context, size: 18),
+                            ),
+                            Text(
+                              rows(widget.sanatorium['room_types']).firstWhere(
+                                    (t) => t['id'] == r['roomTypeId'],
+                                    orElse: () => {},
+                                  )['name'] ??
+                                  '',
+                              style: TextStyle(color: context.colors.muted),
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
+                      AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 260),
+                        transitionBuilder: (child, animation) =>
+                            ScaleTransition(
+                              scale: CurvedAnimation(
+                                parent: animation,
+                                curve: Curves.elasticOut,
+                              ),
+                              child: child,
+                            ),
+                        child: SihhatIcon(
+                          selected == r['id'] ? 'circle-check' : 'plus',
+                          key: ValueKey(selected == r['id']),
+                          color: context.colors.primary,
+                        ),
+                      ),
+                    ],
                   ),
-              ],
+                  const SizedBox(height: 14),
+                  Text(
+                    '${money(r['baseAmount'])} / tun',
+                    style: conceptHeading(context, size: 22),
+                  ),
+                  Text(
+                    r['mode'] == 'PERSON'
+                        ? 'Har bir kishi uchun'
+                        : 'Butun xona uchun',
+                    style: TextStyle(color: context.colors.muted, fontSize: 13),
+                  ),
+                  const Divider(height: 28),
+                  for (final item
+                      in r['packageDetails']?['included'] as List? ?? [])
+                    ConceptRow(
+                      'check',
+                      item.toString(),
+                      color: context.colors.ink,
+                    ),
+                  if (r['policy']?['name'] != null)
+                    ConceptRow('shield-check', r['policy']['name']),
+                  if (r['policy']?['text'] != null)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 8),
+                      child: Text(
+                        r['policy']['text'],
+                        style: TextStyle(
+                          color: context.colors.muted,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
             ),
           ),
-        if (rates.isEmpty) const EmptyView('Tariflar hozircha mavjud emas.'),
+        if (rates.isEmpty)
+          const EmptyView('Tariflar hozircha mavjud emas.', icon: 'bed-double'),
       ],
     ),
   );
@@ -869,3 +962,16 @@ class ConditionsScreen extends StatelessWidget {
     ),
   );
 }
+
+OutlineInputBorder _pill(BuildContext context, {bool focused = false}) =>
+    OutlineInputBorder(
+      borderRadius: BorderRadius.circular(28),
+      borderSide: BorderSide(
+        color: focused
+            ? context.colors.primary
+            : Theme.of(context).brightness == Brightness.dark
+            ? neon.withValues(alpha: .35)
+            : context.colors.border,
+        width: focused ? 1.5 : 1,
+      ),
+    );

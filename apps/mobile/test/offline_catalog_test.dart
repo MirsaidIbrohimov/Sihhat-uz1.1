@@ -270,7 +270,7 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(choose);
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Shu tarifni tanlash'));
+      await tester.tap(find.text('Tanlash'));
       await tester.pumpAndSettle();
       expect(find.byType(BookingComposer), findsOneWidget);
       expect(find.text('Standart xona'), findsOneWidget);

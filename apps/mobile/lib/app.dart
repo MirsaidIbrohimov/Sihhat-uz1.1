@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:ui' show ImageFilter;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -9,9 +10,10 @@ import 'data/api.dart';
 import 'data/booking_cache.dart';
 import 'data/catalog_cache.dart';
 import 'appearance.dart';
-import 'branding.dart';
 import 'design.dart';
 import 'concept_ui.dart';
+import 'motion.dart';
+import 'neon.dart';
 import 'screens/account.dart';
 import 'screens/booking.dart';
 import 'screens/catalog.dart';
@@ -159,15 +161,35 @@ class _EntryState extends State<_Entry> {
   @override
   Widget build(BuildContext context) {
     if (!AppearanceScope.maybeOf(context)!.loaded || checking) {
-      return const Scaffold(
-        body: Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              SihhatLogo(size: 112),
-              SizedBox(height: 24),
-              CircularProgressIndicator(),
-            ],
+      return const GlassBackdrop(
+        child: Scaffold(
+          backgroundColor: Colors.transparent,
+          body: Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                PulseGlow(child: NeonHeartLogo(size: 96)),
+                SizedBox(height: 18),
+                Text.rich(
+                  TextSpan(
+                    children: [
+                      TextSpan(text: 'Sihhat'),
+                      TextSpan(
+                        text: '.uz',
+                        style: TextStyle(color: neon),
+                      ),
+                    ],
+                  ),
+                  style: TextStyle(
+                    fontFamily: 'Manrope',
+                    fontSize: 32,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                SizedBox(height: 24),
+                CircularProgressIndicator(),
+              ],
+            ),
           ),
         ),
       );
@@ -210,7 +232,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
   String catalogQuery = '';
   Timer? catalogTimer;
   StreamSubscription<dynamic>? connection;
-  bool active = true;
+  bool active = true, unread = false;
   @override
   void initState() {
     super.initState();
@@ -301,6 +323,18 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
     if (widget.api.signedIn) {
       BookingCache(widget.api).sync();
       widget.api.refreshProfile().catchError((_) => <String, dynamic>{});
+      refreshUnread();
+    }
+  }
+
+  /// Red dot on the bell, as in the design, only for unread notifications.
+  Future<void> refreshUnread() async {
+    try {
+      final items = rows(await widget.api.send('/notifications'));
+      final value = items.any((n) => n['readAt'] == null);
+      if (mounted && value != unread) setState(() => unread = value);
+    } catch (_) {
+      // The dot is a hint only; offline keeps the last known state.
     }
   }
 
@@ -319,11 +353,177 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
     if (mounted) setState(() => tab = n);
   }
 
+  static const _titles = [
+    ('', ''),
+    ('Sanatoriyalar katalogi', 'Eng yaxshi sanatoriyalar'),
+    ('Mening bronlarim', 'Barcha bronlaringiz ro‘yxati'),
+    ('AI Salomatlik Maslahatchi', 'AI yordamchi va tavsiyalar'),
+    ('Foydalanuvchi profili', 'Shaxsiy ma’lumot va sozlamalar'),
+  ];
+
+  Future<void> openNotifications(BuildContext context) async {
+    if (await ensureLogin(context, widget.api) && context.mounted) {
+      await Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => NotificationsScreen(widget.api)),
+      );
+      refreshUnread();
+    }
+  }
+
+  Widget header(BuildContext c) {
+    final bell = _HeaderButton(
+      tooltip: 'Bildirishnomalar',
+      icon: 'bell',
+      dot: unread,
+      onPressed: !ready ? null : () => openNotifications(c),
+    );
+    if (tab != 0) {
+      return Padding(
+        key: ValueKey('header-$tab'),
+        padding: const EdgeInsets.fromLTRB(20, 10, 12, 10),
+        child: Row(
+          children: [
+            Expanded(
+              child: ConceptTitle(_titles[tab].$1, subtitle: _titles[tab].$2),
+            ),
+            bell,
+          ],
+        ),
+      );
+    }
+    final pill = OutlineInputBorder(
+      borderRadius: BorderRadius.circular(28),
+      borderSide: BorderSide(color: neon.withValues(alpha: .35)),
+    );
+    return Padding(
+      key: const ValueKey('header-0'),
+      padding: const EdgeInsets.fromLTRB(4, 4, 0, 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Reveal(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          SihhatIcon(
+                            'map-pin',
+                            size: 14,
+                            color: c.colors.primary,
+                          ),
+                          const SizedBox(width: 4),
+                          Flexible(
+                            child: Text(
+                              'Assalomu alaykum!',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                color: c.colors.muted,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                      Row(
+                        children: [
+                          const NeonHeartLogo(size: 40),
+                          const SizedBox(width: 10),
+                          Flexible(
+                            child: FittedBox(
+                              fit: BoxFit.scaleDown,
+                              alignment: Alignment.centerLeft,
+                              child: Text.rich(
+                                TextSpan(
+                                  children: [
+                                    const TextSpan(text: 'Sihhat'),
+                                    TextSpan(
+                                      text: '.uz',
+                                      style: TextStyle(color: c.colors.primary),
+                                    ),
+                                  ],
+                                ),
+                                style: conceptHeading(c, size: 28),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Sizning sog‘lig‘ingiz biz uchun muhim',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(color: c.colors.muted, fontSize: 12),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              bell,
+            ],
+          ),
+          const SizedBox(height: 14),
+          Reveal(
+            index: 1,
+            child: Padding(
+              padding: EdgeInsets.zero,
+              child: TextField(
+                controller: homeSearch,
+                textInputAction: TextInputAction.search,
+                maxLength: 100,
+                style: TextStyle(color: c.colors.ink, fontSize: 14),
+                onSubmitted: openCatalog,
+                decoration: InputDecoration(
+                  counterText: '',
+                  hintText: 'Sanatoriya yoki hudud qidiring…',
+                  prefixIcon: Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: SihhatIcon('search', color: c.colors.muted),
+                  ),
+                  suffixIcon: Padding(
+                    padding: const EdgeInsets.all(5),
+                    child: IconButton.filled(
+                      tooltip: 'Qidirish',
+                      onPressed: () => openCatalog(homeSearch.text),
+                      icon: SihhatIcon(
+                        'arrow-right',
+                        size: 20,
+                        color: Theme.of(c).colorScheme.onPrimary,
+                      ),
+                    ),
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 14,
+                  ),
+                  border: pill,
+                  enabledBorder: pill,
+                  focusedBorder: pill.copyWith(
+                    borderSide: BorderSide(color: c.colors.primary, width: 1.5),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final bodies = [
       HomeScreen(
         widget.api,
+        header: Builder(builder: header),
         key: ValueKey('home-$epoch'),
         onNavigate: navigate,
         onCatalog: () => openCatalog(),
@@ -333,326 +533,214 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
         initialQuery: catalogQuery,
         key: ValueKey('catalog-$epoch'),
       ),
-      BookingsScreen(widget.api, key: ValueKey('bookings-$epoch')),
+      BookingsScreen(
+        widget.api,
+        onCatalog: () => openCatalog(),
+        key: ValueKey('bookings-$epoch'),
+      ),
       AiScreen(widget.api, key: ValueKey('ai-$epoch')),
       ProfileScreen(widget.api, changed, key: ValueKey('profile-$epoch')),
     ];
-    if (tab != 0) {
-      return ConceptScope(
-        child: Builder(
-          builder: (c) => Scaffold(
-            backgroundColor: masthead,
-            appBar: AppBar(
-              toolbarHeight: 80,
-              backgroundColor: masthead,
-              foregroundColor: Colors.white,
-              systemOverlayStyle: SystemUiOverlayStyle.light.copyWith(
-                statusBarColor: Colors.transparent,
-                systemNavigationBarColor: masthead,
-              ),
-              centerTitle: false,
-              title: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Sihhat uz',
-                    style: TextStyle(
-                      fontFamily: 'DMSans',
-                      fontSize: 14,
-                      color: Colors.white,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  FittedBox(
-                    fit: BoxFit.scaleDown,
-                    alignment: Alignment.centerLeft,
-                    child: Text(
-                      [
-                        '',
-                        'Sanatoriyalar',
-                        'Bronlarim',
-                        'AI yordamchi',
-                        'Profil',
-                      ][tab],
-                      style: conceptHeading(c, size: 28, color: Colors.white),
-                    ),
-                  ),
-                ],
-              ),
-              actions: [
-                const ConceptAppearanceToggle(onMasthead: true),
-                IconButton(
-                  tooltip: 'Bildirishnomalar',
-                  onPressed: !ready
-                      ? null
-                      : () async {
-                          if (await ensureLogin(c, widget.api) && c.mounted) {
-                            Navigator.push(
-                              c,
-                              MaterialPageRoute(
-                                builder: (_) => NotificationsScreen(widget.api),
-                              ),
-                            );
-                          }
-                        },
-                  icon: const SihhatIcon('bell', color: Colors.white),
-                ),
-                const SizedBox(width: 8),
-              ],
-            ),
-            body: SafeArea(
-              top: false,
-              bottom: false,
-              child: Column(
-                children: [
-                  if (error != null)
-                    MaterialBanner(
-                      content: Text(error!),
-                      actions: [
-                        TextButton(
-                          onPressed:
-                              widget.retrySession ??
-                              () {
-                                setState(() {
-                                  error = null;
-                                  ready = false;
-                                });
-                                restore();
-                              },
-                          child: const Text('Qayta urinish'),
-                        ),
-                      ],
-                    ),
-                  Expanded(
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.vertical(
-                        top: Radius.circular(tab == 1 ? 0 : 20),
-                      ),
-                      child: ColoredBox(
-                        color: c.colors.canvas,
-                        child: Align(
-                          alignment: Alignment.topCenter,
-                          child: ConstrainedBox(
-                            constraints: const BoxConstraints(maxWidth: 720),
-                            child: bodies[tab],
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            bottomNavigationBar: NavigationBar(
-              selectedIndex: tab,
-              onDestinationSelected: navigate,
-              destinations: _mainNavigationDestinations,
-            ),
-          ),
-        ),
-      );
-    }
+    final dark = Theme.of(context).brightness == Brightness.dark;
     return ConceptScope(
-      child: Scaffold(
-        appBar: AppBar(
-          toolbarHeight: tab == 0 ? 82 : 64,
-          backgroundColor: tab == 0 ? masthead : null,
-          foregroundColor: tab == 0 ? Colors.white : null,
-          systemOverlayStyle: tab == 0
-              ? SystemUiOverlayStyle.light.copyWith(
-                  statusBarColor: Colors.transparent,
-                )
-              : null,
-          shape: tab == 0
-              ? const RoundedRectangleBorder(
-                  borderRadius: BorderRadius.vertical(
-                    bottom: Radius.circular(22),
-                  ),
-                )
-              : null,
-          bottom: tab == 0
-              ? PreferredSize(
-                  preferredSize: const Size.fromHeight(66),
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
-                    child: TextField(
-                      controller: homeSearch,
-                      textInputAction: TextInputAction.search,
-                      maxLength: 100,
-                      style: const TextStyle(color: Colors.white, fontSize: 13),
-                      onSubmitted: openCatalog,
-                      decoration: InputDecoration(
-                        counterText: '',
-                        hintText: 'Sanatoriya yoki hudud qidiring…',
-                        hintStyle: const TextStyle(
-                          color: Color(0xffbbd6d0),
-                          fontSize: 13,
-                        ),
-                        prefixIcon: const Padding(
-                          padding: EdgeInsets.all(12),
-                          child: SihhatIcon('search', color: Color(0xffbbd6d0)),
-                        ),
-                        suffixIcon: IconButton(
-                          tooltip: 'Qidirish',
-                          onPressed: () => openCatalog(homeSearch.text),
-                          icon: const SihhatIcon(
-                            'arrow-right',
-                            color: Color(0xff66e1b9),
-                          ),
-                        ),
-                        fillColor: const Color(0xff124b42),
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 13,
-                        ),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(28),
-                          borderSide: const BorderSide(
-                            color: Color(0xff3f7f70),
-                          ),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(28),
-                          borderSide: const BorderSide(
-                            color: Color(0xff66e1b9),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                )
-              : null,
-          title: tab == 0
-              ? Row(
-                  children: [
-                    const SihhatLogo(),
-                    const SizedBox(width: 11),
-                    const Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text.rich(
-                            TextSpan(
-                              children: [
-                                TextSpan(text: 'Sihhat '),
-                                TextSpan(
-                                  text: 'uz',
-                                  style: TextStyle(color: Color(0xff4dd5aa)),
-                                ),
-                              ],
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 23,
-                              fontWeight: FontWeight.w800,
-                              letterSpacing: -.7,
-                            ),
-                          ),
-                          SizedBox(height: 3),
-                          Text(
-                            'Sog‘lom dam olish hamrohingiz',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              color: Color(0xffbbd6d0),
-                              fontSize: 9,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                )
-              : Text(
-                  [
-                    'Sihhat uz',
-                    'Sanatoriyalar',
-                    'Mening bronlarim',
-                    'Sihhat yordamchisi',
-                    'Profil',
-                  ][tab],
-                  style: const TextStyle(fontWeight: FontWeight.w800),
-                ),
-          actions: [
-            ConceptAppearanceToggle(onMasthead: tab == 0),
-            IconButton(
-              tooltip: 'Bildirishnomalar',
-              onPressed: !ready
-                  ? null
-                  : () async {
-                      if (await ensureLogin(context, widget.api) &&
-                          context.mounted) {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => NotificationsScreen(widget.api),
-                          ),
-                        );
-                      }
-                    },
-              style: IconButton.styleFrom(
-                backgroundColor: tab == 0
-                    ? const Color(0xff124b42)
-                    : context.colors.surface,
-                foregroundColor: tab == 0
-                    ? Colors.white
-                    : context.colors.primary,
+      child: Builder(
+        builder: (c) => AnnotatedRegion<SystemUiOverlayStyle>(
+          value: (dark ? SystemUiOverlayStyle.light : SystemUiOverlayStyle.dark)
+              .copyWith(
+                statusBarColor: Colors.transparent,
+                systemNavigationBarColor: dark ? abyss : c.colors.canvas,
               ),
-              icon: const SihhatIcon('bell', color: Colors.white),
-            ),
-            const SizedBox(width: 12),
-          ],
-        ),
-        body: SafeArea(
-          child: Column(
-            children: [
-              if (error != null)
-                MaterialBanner(
-                  content: Text(error!),
-                  actions: [
-                    TextButton(
-                      onPressed:
-                          widget.retrySession ??
-                          () {
-                            setState(() {
-                              error = null;
-                              ready = false;
-                            });
-                            restore();
-                          },
-                      child: const Text('Qayta urinish'),
-                    ),
-                  ],
-                ),
-              Expanded(
+          child: GlassBackdrop(
+            child: Scaffold(
+              backgroundColor: Colors.transparent,
+              body: SafeArea(
+                bottom: false,
                 child: Align(
                   alignment: Alignment.topCenter,
                   child: ConstrainedBox(
                     constraints: const BoxConstraints(maxWidth: 720),
-                    child: tab == 0
-                        ? bodies[tab]
-                        : GlassBackdrop(child: bodies[tab]),
+                    child: Column(
+                      children: [
+                        AnimatedSwitcher(
+                          duration: const Duration(milliseconds: 280),
+                          child: tab == 0
+                              ? const SizedBox(key: ValueKey('no-header'))
+                              : header(c),
+                        ),
+                        if (error != null)
+                          MaterialBanner(
+                            backgroundColor: c.colors.warning,
+                            leading: SihhatIcon(
+                              'wifi-off',
+                              color: c.colors.primary,
+                            ),
+                            dividerColor: Colors.transparent,
+                            content: Text(error!),
+                            actions: [
+                              TextButton(
+                                onPressed:
+                                    widget.retrySession ??
+                                    () {
+                                      setState(() {
+                                        error = null;
+                                        ready = false;
+                                      });
+                                      restore();
+                                    },
+                                child: const Text('Qayta urinish'),
+                              ),
+                            ],
+                          ),
+                        Expanded(
+                          // Content fades out under the fixed tab header.
+                          child: ShaderMask(
+                            blendMode: BlendMode.dstIn,
+                            shaderCallback: (rect) => LinearGradient(
+                              begin: Alignment.topCenter,
+                              end: Alignment.bottomCenter,
+                              colors: const [Color(0x00000000), Colors.black],
+                              stops: [
+                                0,
+                                tab == 0 || rect.height == 0
+                                    ? 0
+                                    : (18 / rect.height).clamp(0.0, 1.0),
+                              ],
+                            ).createShader(rect),
+                            child: AnimatedSwitcher(
+                              duration: reducedMotion(c)
+                                  ? Duration.zero
+                                  : const Duration(milliseconds: 320),
+                              switchInCurve: Curves.easeOutCubic,
+                              switchOutCurve: Curves.easeInCubic,
+                              // Fade-through: the old tab is gone before the new one appears.
+                              transitionBuilder: (child, animation) {
+                                final t = CurvedAnimation(
+                                  parent: animation,
+                                  curve: const Interval(.4, 1),
+                                );
+                                return FadeTransition(
+                                  opacity: t,
+                                  child: SlideTransition(
+                                    position: Tween(
+                                      begin: const Offset(0, .03),
+                                      end: Offset.zero,
+                                    ).animate(t),
+                                    child: child,
+                                  ),
+                                );
+                              },
+                              layoutBuilder: (current, previous) => Stack(
+                                alignment: Alignment.topCenter,
+                                children: [...previous, ?current],
+                              ),
+                              child: KeyedSubtree(
+                                key: ValueKey('tab-$tab'),
+                                child: bodies[tab],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),
-            ],
+              bottomNavigationBar: _FloatingNavigation(
+                selected: tab,
+                onSelected: navigate,
+              ),
+            ),
           ),
         ),
-        bottomNavigationBar: DecoratedBox(
-          decoration: BoxDecoration(
-            color: masthead,
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+    );
+  }
+}
+
+class _HeaderButton extends StatelessWidget {
+  final String tooltip, icon;
+  final VoidCallback? onPressed;
+  final bool dot;
+  const _HeaderButton({
+    required this.tooltip,
+    required this.icon,
+    this.onPressed,
+    this.dot = false,
+  });
+  @override
+  Widget build(BuildContext context) => Pressable(
+    scale: .9,
+    child: IconButton(
+      tooltip: tooltip,
+      onPressed: onPressed,
+      style: IconButton.styleFrom(
+        backgroundColor: context.colors.surface.withValues(alpha: .8),
+        side: BorderSide(color: neon.withValues(alpha: .3)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      ),
+      icon: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          dot
+              ? Swing(child: SihhatIcon(icon, color: context.colors.primary))
+              : SihhatIcon(icon, color: context.colors.primary),
+          if (dot)
+            Positioned(
+              right: -1,
+              top: -1,
+              child: Container(
+                width: 9,
+                height: 9,
+                decoration: BoxDecoration(
+                  color: const Color(0xffff4d5e),
+                  shape: BoxShape.circle,
+                  border: Border.all(color: abyss, width: 1.5),
+                ),
+              ),
+            ),
+        ],
+      ),
+    ),
+  );
+}
+
+/// Floating glass navigation bar with a sliding neon indicator.
+class _FloatingNavigation extends StatelessWidget {
+  final int selected;
+  final ValueChanged<int> onSelected;
+  const _FloatingNavigation({required this.selected, required this.onSelected});
+  @override
+  Widget build(BuildContext context) {
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    const radius = BorderRadius.vertical(top: Radius.circular(26));
+    // Docked glass bar with a lit neon top edge, as in the design.
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        borderRadius: radius,
+        boxShadow: [
+          BoxShadow(
+            color: dark ? neon.withValues(alpha: .14) : const Color(0x22043b33),
+            blurRadius: 24,
+            offset: const Offset(0, -4),
           ),
-          child: ClipRRect(
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-            child: NavigationBar(
-              selectedIndex: tab,
-              onDestinationSelected: navigate,
-              destinations: _mainNavigationDestinations,
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: radius,
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
+          child: CustomPaint(
+            foregroundPainter: dark
+                ? const GlowBorderPainter(radius: 26, strength: .9)
+                : null,
+            child: ColoredBox(
+              color: dark ? const Color(0xe6061f1b) : masthead,
+              child: NavigationBar(
+                selectedIndex: selected,
+                onDestinationSelected: onSelected,
+                animationDuration: const Duration(milliseconds: 420),
+                destinations: _mainNavigationDestinations,
+              ),
             ),
           ),
         ),

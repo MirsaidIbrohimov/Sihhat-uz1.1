@@ -6,6 +6,7 @@ import 'package:http/http.dart' as http;
 import 'package:integration_test/integration_test.dart';
 import 'package:sihhat_mobile/app.dart';
 import 'package:sihhat_mobile/data/api.dart';
+import 'package:sihhat_mobile/motion.dart';
 import 'package:sihhat_mobile/data/booking_cache.dart';
 import 'package:sihhat_mobile/data/catalog_cache.dart';
 import 'package:sihhat_mobile/screens/booking.dart';
@@ -35,6 +36,8 @@ Future<Json> bridge(String path, [Json? body]) async {
 
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
+  // Looping neon animations would keep pumpAndSettle from finishing.
+  Motion.ambient = false;
   testWidgets('Android OS force-stop and payment-return recovery', (
     tester,
   ) async {

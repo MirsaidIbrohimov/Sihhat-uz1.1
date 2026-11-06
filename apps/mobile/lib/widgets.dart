@@ -1,57 +1,281 @@
 import 'dart:io';
+import 'dart:ui' show ImageFilter;
 
 import 'package:flutter/material.dart';
 
 import 'data/api.dart';
 import 'data/catalog_cache.dart';
 import 'design.dart';
-import 'concept_ui.dart' show SihhatIcon;
+import 'concept_ui.dart' show ConceptCard, IconTile, SihhatIcon, conceptHeading;
+import 'motion.dart';
 
+/// Loading state: glass skeleton cards with a light sweep.
 class Busy extends StatelessWidget {
-  const Busy({super.key});
+  final int cards;
+  const Busy({this.cards = 2, super.key});
   @override
-  Widget build(BuildContext context) => const Center(
-    child: Padding(
-      padding: EdgeInsets.all(32),
-      child: CircularProgressIndicator(),
+  Widget build(BuildContext context) => Semantics(
+    label: 'Yuklanmoqda',
+    liveRegion: true,
+    child: ExcludeSemantics(
+      child: LayoutBuilder(
+        builder: (context, box) {
+          final column = Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              for (var i = 0; i < cards; i++)
+                Reveal(index: i, child: const SkeletonCard()),
+            ],
+          );
+          // Standalone (page body) placeholders need their own page margins.
+          return box.hasBoundedHeight
+              ? SingleChildScrollView(
+                  physics: const NeverScrollableScrollPhysics(),
+                  padding: const EdgeInsets.fromLTRB(20, 8, 20, 8),
+                  child: column,
+                )
+              : column;
+        },
+      ),
     ),
   );
 }
 
+/// Placeholder shaped like a catalogue card.
+class SkeletonCard extends StatelessWidget {
+  const SkeletonCard({super.key});
+  @override
+  Widget build(BuildContext context) {
+    final block = isDarkTheme(context)
+        ? neon.withValues(alpha: .10)
+        : context.colors.soft;
+    Widget bar(double width, double height) => FractionallySizedBox(
+      widthFactor: width,
+      alignment: Alignment.centerLeft,
+      child: Container(
+        height: height,
+        decoration: BoxDecoration(
+          color: block,
+          borderRadius: BorderRadius.circular(height / 2),
+        ),
+      ),
+    );
+    return ConceptCard(
+      padding: const EdgeInsets.all(14),
+      child: Shimmer(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              height: 132,
+              decoration: BoxDecoration(
+                color: block,
+                borderRadius: BorderRadius.circular(16),
+              ),
+            ),
+            const SizedBox(height: 16),
+            bar(.62, 18),
+            const SizedBox(height: 10),
+            bar(.38, 12),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                for (final w in [64.0, 88.0, 72.0])
+                  Container(
+                    width: w,
+                    height: 22,
+                    margin: const EdgeInsets.only(right: 8),
+                    decoration: BoxDecoration(
+                      color: block,
+                      borderRadius: BorderRadius.circular(11),
+                    ),
+                  ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+bool isDarkTheme(BuildContext context) =>
+    Theme.of(context).brightness == Brightness.dark;
+
+bool isOfflineError(Object error) =>
+    error is ApiException &&
+        ['NETWORK_ERROR', 'NETWORK_TIMEOUT'].contains(error.code) ||
+    error.toString().toLowerCase().contains('internet');
+
+/// Errors: a compact inline banner, or a full state card when retry exists.
 class ErrorView extends StatelessWidget {
   final Object error;
   final VoidCallback? retry;
   const ErrorView(this.error, {this.retry, super.key});
   @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.all(24),
-    child: Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        SihhatIcon('wifi-off', color: context.colors.primary, size: 30),
-        const SizedBox(height: 16),
-        Text(error.toString(), textAlign: TextAlign.center),
-        if (retry != null)
-          TextButton(onPressed: retry, child: const Text('Qayta urinish')),
-      ],
-    ),
-  );
+  Widget build(BuildContext context) {
+    final offline = isOfflineError(error);
+    final accent = offline
+        ? context.colors.primary
+        : isDarkTheme(context)
+        ? const Color(0xffff8a80)
+        : Theme.of(context).colorScheme.error;
+    final icon = offline ? 'wifi-off' : 'circle-alert';
+    if (retry == null) {
+      return Semantics(
+        liveRegion: true,
+        child: Container(
+          margin: const EdgeInsets.symmetric(vertical: 8),
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: accent.withValues(alpha: .10),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: accent.withValues(alpha: .45)),
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SihhatIcon(icon, color: accent, size: 20),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  error.toString(),
+                  style: TextStyle(
+                    color: context.colors.ink,
+                    fontSize: 14,
+                    height: 1.4,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 420),
+          child: Reveal(
+            child: ConceptCard(
+              padding: const EdgeInsets.fromLTRB(22, 26, 22, 22),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  FloatY(
+                    child: PulseGlow(
+                      color: accent,
+                      strength: .7,
+                      borderRadius: const BorderRadius.all(Radius.circular(22)),
+                      child: Container(
+                        width: 76,
+                        height: 76,
+                        decoration: BoxDecoration(
+                          color: accent.withValues(alpha: .12),
+                          borderRadius: BorderRadius.circular(22),
+                          border: Border.all(
+                            color: accent.withValues(alpha: .5),
+                          ),
+                        ),
+                        alignment: Alignment.center,
+                        child: SihhatIcon(icon, color: accent, size: 36),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 18),
+                  Text(
+                    offline ? 'Internet aloqasi yo‘q' : 'Nimadir xato ketdi',
+                    textAlign: TextAlign.center,
+                    style: conceptHeading(context, size: 20),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    error.toString(),
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: context.colors.muted,
+                      fontSize: 14,
+                      height: 1.45,
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  Pressable(
+                    child: FilledButton.icon(
+                      onPressed: retry,
+                      icon: const SihhatIcon('refresh-cw', size: 18),
+                      label: const Text('Qayta urinish'),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }
 
+/// Empty lists: floating neon illustration, message and an optional action.
 class EmptyView extends StatelessWidget {
   final String text;
-  const EmptyView(this.text, {super.key});
+  final String icon;
+  final String? title, actionLabel;
+  final VoidCallback? onAction;
+  const EmptyView(
+    this.text, {
+    this.icon = 'leaf',
+    this.title,
+    this.actionLabel,
+    this.onAction,
+    super.key,
+  });
   @override
   Widget build(BuildContext context) => Center(
     child: Padding(
-      padding: const EdgeInsets.all(35),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          SihhatIcon('leaf', color: context.colors.primary, size: 36),
-          const SizedBox(height: 14),
-          Text(text, textAlign: TextAlign.center),
-        ],
+      padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 32),
+      child: Reveal(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            FloatY(
+              child: PulseGlow(
+                borderRadius: const BorderRadius.all(Radius.circular(24)),
+                strength: .7,
+                child: IconTile(icon, size: 80),
+              ),
+            ),
+            const SizedBox(height: 22),
+            if (title != null) ...[
+              Text(
+                title!,
+                textAlign: TextAlign.center,
+                style: conceptHeading(context, size: 20),
+              ),
+              const SizedBox(height: 8),
+            ],
+            Text(
+              text,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: context.colors.muted,
+                fontSize: 15,
+                height: 1.45,
+              ),
+            ),
+            if (actionLabel != null && onAction != null) ...[
+              const SizedBox(height: 22),
+              Pressable(
+                child: FilledButton.icon(
+                  onPressed: onAction,
+                  icon: const SihhatIcon('arrow-right', size: 18),
+                  label: Text(actionLabel!),
+                ),
+              ),
+            ],
+          ],
+        ),
       ),
     ),
   );
@@ -256,23 +480,44 @@ class Pill extends StatelessWidget {
   final String value;
   const Pill(this.value, {super.key});
   @override
-  Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
-    decoration: BoxDecoration(
-      color: ['CONFIRMED', 'SUCCEEDED', 'CHECKED_OUT'].contains(value)
-          ? context.colors.soft
-          : context.colors.warning,
-      borderRadius: BorderRadius.circular(8),
-    ),
-    child: Text(
-      states[value] ?? value,
-      style: TextStyle(
-        fontSize: 11,
-        color: context.colors.ink,
-        fontWeight: FontWeight.w600,
+  Widget build(BuildContext context) {
+    final good = ['CONFIRMED', 'SUCCEEDED', 'CHECKED_OUT'].contains(value);
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final accent = good
+        ? (dark ? neon : forest)
+        : (dark ? const Color(0xffffc46b) : const Color(0xff9b4708));
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: dark
+            ? abyss.withValues(alpha: .8)
+            : good
+            ? context.colors.soft
+            : context.colors.warning,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: accent.withValues(alpha: .6)),
       ),
-    ),
-  );
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 7,
+            height: 7,
+            decoration: BoxDecoration(color: accent, shape: BoxShape.circle),
+          ),
+          const SizedBox(width: 6),
+          Text(
+            states[value] ?? value,
+            style: TextStyle(
+              fontSize: 11,
+              color: dark ? accent : context.colors.ink,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class SanatoriumCard extends StatelessWidget {
@@ -459,7 +704,7 @@ Future<bool> messageDialog(
   Future<void> Function(String) submit, {
   String button = 'Yuborish',
 }) async {
-  final sent = await showDialog<bool>(
+  final sent = await showGlassDialog<bool>(
     context: context,
     barrierDismissible: false,
     builder: (_) =>
@@ -551,5 +796,51 @@ class _MessageDialogState extends State<_MessageDialog> {
         ),
       ],
     ),
+  );
+}
+
+/// Dialog with a blurred backdrop and a soft scale/fade entrance.
+Future<T?> showGlassDialog<T>({
+  required BuildContext context,
+  required WidgetBuilder builder,
+  bool barrierDismissible = true,
+}) {
+  final navigator = Navigator.of(context, rootNavigator: true);
+  final themes = InheritedTheme.capture(from: context, to: navigator.context);
+  return showGeneralDialog<T>(
+    context: context,
+    barrierDismissible: barrierDismissible,
+    barrierLabel: MaterialLocalizations.of(context).modalBarrierDismissLabel,
+    barrierColor: abyss.withValues(alpha: .55),
+    transitionDuration: const Duration(milliseconds: 320),
+    pageBuilder: (c, _, _) =>
+        themes.wrap(SafeArea(child: Builder(builder: builder))),
+    transitionBuilder: (c, animation, _, child) {
+      final curve = CurvedAnimation(
+        parent: animation,
+        curve: Curves.easeOutBack,
+        reverseCurve: Curves.easeInCubic,
+      );
+      final reduced = reducedMotion(c);
+      return AnimatedBuilder(
+        animation: animation,
+        builder: (c, child) => BackdropFilter(
+          filter: ImageFilter.blur(
+            sigmaX: 6 * animation.value,
+            sigmaY: 6 * animation.value,
+          ),
+          child: child,
+        ),
+        child: FadeTransition(
+          opacity: CurvedAnimation(parent: animation, curve: Curves.easeOut),
+          child: reduced
+              ? child
+              : ScaleTransition(
+                  scale: Tween(begin: .9, end: 1.0).animate(curve),
+                  child: child,
+                ),
+        ),
+      );
+    },
   );
 }

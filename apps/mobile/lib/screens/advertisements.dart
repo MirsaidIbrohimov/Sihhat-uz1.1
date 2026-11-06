@@ -4,6 +4,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../data/api.dart';
 import '../design.dart';
 import '../concept_ui.dart' show SihhatIcon;
+import '../widgets.dart' show showGlassDialog;
 import 'catalog.dart';
 
 void advertisementEvent(Api api, Json ad, String kind) {
@@ -226,7 +227,7 @@ Future<void> showEntranceAdvertisement(BuildContext context, Api api) async {
       return;
     }
     final ad = list.first;
-    final open = await showDialog<bool>(
+    final open = await showGlassDialog<bool>(
       context: context,
       builder: (dialogContext) => Dialog(
         insetPadding: const EdgeInsets.all(20),

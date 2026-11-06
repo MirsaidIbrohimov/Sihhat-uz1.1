@@ -10,6 +10,8 @@ import '../data/booking_cache.dart';
 import '../widgets.dart';
 import '../design.dart';
 import '../concept_ui.dart';
+import '../motion.dart';
+import '../neon.dart';
 import '../catalog_card.dart';
 import '../booking_dates.dart';
 import 'login.dart';
@@ -594,7 +596,8 @@ class _BookingComposerState extends State<BookingComposer> {
 
 class BookingsScreen extends StatefulWidget {
   final Api api;
-  const BookingsScreen(this.api, {super.key});
+  final VoidCallback? onCatalog;
+  const BookingsScreen(this.api, {this.onCatalog, super.key});
   @override
   State<BookingsScreen> createState() => _BookingsScreenState();
 }
@@ -641,100 +644,153 @@ class _BookingsScreenState extends State<BookingsScreen>
     },
     builder: (v) {
       final r = asJson(v), bookings = rows(r);
+      final active = bookings.where(
+        (b) => [
+          'CONFIRMED',
+          'CHECKED_IN',
+          'PAYMENT_PENDING',
+          'HOLD',
+        ].contains(b['status']),
+      );
       return ListView(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.fromLTRB(20, 4, 20, 20),
         children: [
+          if (bookings.isNotEmpty)
+            Reveal(
+              child: Padding(
+                padding: const EdgeInsets.only(bottom: 4),
+                child: Row(
+                  children: [
+                    ConceptBadge(
+                      active.isEmpty ? 'Tarix' : 'Faol · ${active.length}',
+                    ),
+                    const Spacer(),
+                    Text(
+                      '${r['total'] ?? bookings.length} ta bron',
+                      style: TextStyle(
+                        color: context.colors.muted,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          if (bookings.isNotEmpty)
+            const Reveal(
+              index: 1,
+              child: NeonSectionHeader('Bronlarim', size: 26),
+            ),
           if (BookingCache(widget.api).error != null &&
               BookingCache(widget.api).hasSnapshot)
-            const Padding(
-              padding: EdgeInsets.only(bottom: 12),
-              child: Text(
-                'Saqlangan bronlar · Internet qaytganda yangilanadi.',
-              ),
+            const ConceptInfo(
+              icon: 'wifi-off',
+              title: 'Saqlangan bronlar',
+              text: 'Internet qaytganda yangilanadi.',
             ),
-          if (bookings.isEmpty) const EmptyView('Hozircha bronlaringiz yo‘q.'),
-          for (final b in bookings)
-            ConceptCard(
-              padding: EdgeInsets.zero,
-              onTap: () async {
-                await Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => BookingScreen(widget.api, b['id']),
-                  ),
-                );
-                if (mounted) BookingCache(widget.api).sync();
-              },
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  PlacePhoto(
-                    widget.api,
-                    catalogueItem(widget.api, b['sanatoriumId']),
-                    height: 160,
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+          if (bookings.isEmpty)
+            EmptyView(
+              'Hozircha bronlaringiz yo‘q.',
+              icon: 'calendar-check',
+              title: 'Dam olishni rejalashtiring',
+              actionLabel: 'Sanatoriya tanlash',
+              onAction: widget.onCatalog,
+            ),
+          for (final (i, b) in bookings.indexed)
+            Reveal(
+              key: ValueKey('reveal-${b['id']}'),
+              index: i,
+              child: ConceptCard(
+                padding: EdgeInsets.zero,
+                onTap: () async {
+                  await Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => BookingScreen(widget.api, b['id']),
+                    ),
+                  );
+                  if (mounted) BookingCache(widget.api).sync();
+                },
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Stack(
+                      fit: StackFit.passthrough,
                       children: [
-                        Text(
-                          b['sanatorium_name'] ?? 'Sanatoriya',
-                          style: conceptHeading(context, size: 20),
+                        PlacePhoto(
+                          widget.api,
+                          catalogueItem(widget.api, b['sanatoriumId']),
+                          height: 160,
                         ),
-                        const SizedBox(height: 8),
-                        Pill(b['status']),
-                        const SizedBox(height: 8),
-                        ConceptRow(
-                          'calendar-days',
-                          '${b['checkIn'].toString().substring(0, 10)} — ${b['checkOut'].toString().substring(0, 10)}',
-                        ),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    money(b['amount']),
-                                    style: conceptHeading(context, size: 19),
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    b['reference'],
-                                    style: TextStyle(
-                                      color: context.colors.muted,
-                                      fontSize: 12,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            const SihhatIcon('chevron-right'),
-                          ],
-                        ),
+                        Positioned(left: 12, top: 12, child: Pill(b['status'])),
                       ],
                     ),
-                  ),
-                ],
+                    Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            b['sanatorium_name'] ?? 'Sanatoriya',
+                            style: conceptHeading(context, size: 20),
+                          ),
+                          const SizedBox(height: 6),
+                          ConceptRow(
+                            'calendar-days',
+                            '${b['checkIn'].toString().substring(0, 10)} — ${b['checkOut'].toString().substring(0, 10)}',
+                          ),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      money(b['amount']),
+                                      style: conceptHeading(
+                                        context,
+                                        size: 19,
+                                        color: context.colors.primary,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      b['reference'],
+                                      style: TextStyle(
+                                        color: context.colors.muted,
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const NeonArrow(size: 36),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              TextButton(
-                onPressed: page > 1 ? () => setState(() => page--) : null,
-                child: const Text('← Oldingi'),
-              ),
-              Text('$page / ${r['pages'] == 0 ? 1 : r['pages']}'),
-              TextButton(
-                onPressed: page < r['pages']
-                    ? () => setState(() => page++)
-                    : null,
-                child: const Text('Keyingi →'),
-              ),
-            ],
-          ),
+          if ((r['pages'] ?? 1) > 1 || page > 1)
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                TextButton(
+                  onPressed: page > 1 ? () => setState(() => page--) : null,
+                  child: const Text('← Oldingi'),
+                ),
+                Text('$page / ${r['pages'] == 0 ? 1 : r['pages']}'),
+                TextButton(
+                  onPressed: page < r['pages']
+                      ? () => setState(() => page++)
+                      : null,
+                  child: const Text('Keyingi →'),
+                ),
+              ],
+            ),
         ],
       );
     },
@@ -924,6 +980,11 @@ class _BookingScreenState extends State<BookingScreen>
         b != null && ['HOLD', 'PAYMENT_PENDING'].contains(b['status']);
     final checking =
         b?['status'] == 'PAYMENT_PENDING' || checkout != null && pending;
+    final confirmed = [
+      'CONFIRMED',
+      'CHECKED_IN',
+      'CHECKED_OUT',
+    ].contains(b?['status']);
     final place = b == null
         ? <String, dynamic>{}
         : <String, dynamic>{
@@ -995,82 +1056,69 @@ class _BookingScreenState extends State<BookingScreen>
                       text: 'Internet qaytganda holati yangilanadi.',
                     ),
                   if (b['status'] == 'CONFIRMED')
-                    const ConceptInfo(
-                      icon: 'circle-check',
-                      title: 'Broningiz tasdiqlandi!',
-                      text: 'Yaxshi dam oling! Safaringiz yoqimli va xotirjam o‘tsin.',
+                    const Reveal(
+                      child: ConceptInfo(
+                        icon: 'circle-check',
+                        title: 'Broningiz tasdiqlandi!',
+                        text: 'Yaxshi dam oling! Safaringiz yoqimli va xotirjam o‘tsin.',
+                      ),
                     )
                   else if (checking) ...[
-                    const SizedBox(height: 20),
-                    const Center(child: IconTile('clock', size: 100)),
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 12),
+                    const Center(
+                      child: FloatY(
+                        child: PulseGlow(
+                          borderRadius: BorderRadius.all(Radius.circular(30)),
+                          child: IconTile('clock', size: 96),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 22),
                     Text(
                       'To‘lov tekshirilmoqda',
                       textAlign: TextAlign.center,
-                      style: conceptHeading(context, size: 26),
+                      style: conceptHeading(context, size: 24),
                     ),
-                    const SizedBox(height: 10),
+                    const SizedBox(height: 8),
                     Text(
                       'Natija kelgach bron holati yangilanadi.',
                       textAlign: TextAlign.center,
                       style: TextStyle(
                         color: context.colors.muted,
-                        fontSize: 16,
+                        fontSize: 15,
                       ),
                     ),
-                    const SizedBox(height: 24),
-                  ] else
+                    const SizedBox(height: 22),
+                  ],
+                  Reveal(
+                    index: 1,
+                    child: BookingTicket(
+                      api: widget.api,
+                      booking: b,
+                      place: place,
+                      qr: confirmed,
+                    ),
+                  ),
+                  if (confirmed)
                     Padding(
                       padding: const EdgeInsets.only(bottom: 14),
-                      child: Align(
-                        alignment: Alignment.centerLeft,
-                        child: Pill(b['status']),
+                      child: Pressable(
+                        child: OutlinedButton.icon(
+                          icon: const SihhatIcon('file-text', size: 20),
+                          label: const Text('Bron hujjatini ko‘rish'),
+                          onPressed: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => BookingDocumentScreen(
+                                b,
+                                place: place,
+                                api: widget.api,
+                              ),
+                            ),
+                          ),
+                        ),
                       ),
                     ),
-                  PlaceSummary(
-                    widget.api,
-                    place,
-                    subtitle:
-                        '${b['checkIn'].toString().substring(0, 10)} — ${b['checkOut'].toString().substring(0, 10)}',
-                    details: b['reference'],
-                  ),
-                  ConceptCard(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Bron raqami',
-                          style: TextStyle(
-                            color: context.colors.muted,
-                            fontSize: 12,
-                          ),
-                        ),
-                        Text(
-                          b['reference'],
-                          style: conceptHeading(context, size: 22),
-                        ),
-                        const SizedBox(height: 12),
-                        ConceptRow(
-                          'user-round',
-                          'Mehmon: ${b['guest']?['name'] ?? ''}',
-                        ),
-                        for (final i in rows(b['items']))
-                          ConceptRow(
-                            'bed-double',
-                            '${i['adults']} katta · ${(i['childrenAges'] as List? ?? []).length} bola · ${money(i['amount'])}',
-                          ),
-                        const Divider(height: 26),
-                        Text(
-                          'Jami to‘lov',
-                          style: TextStyle(color: context.colors.muted),
-                        ),
-                        Text(
-                          money(b['amount']),
-                          style: conceptHeading(context, size: 27),
-                        ),
-                      ],
-                    ),
-                  ),
                   if (b['holdExpiresAt'] != null && b['status'] == 'HOLD')
                     Builder(
                       builder: (c) {
@@ -1094,43 +1142,6 @@ class _BookingScreenState extends State<BookingScreen>
                       title: 'To‘lov himoyalangan sahifada davom etadi.',
                     ),
                   if (error != null) ErrorView(error!, retry: refresh),
-                  if ([
-                    'CONFIRMED',
-                    'CHECKED_IN',
-                    'CHECKED_OUT',
-                  ].contains(b['status']))
-                    ConceptCard(
-                      child: Column(
-                        children: [
-                          QrImageView(
-                            data: 'sihhat://booking/${b['id']}',
-                            version: QrVersions.auto,
-                            size: 180,
-                            backgroundColor: Colors.white,
-                          ),
-                          const SizedBox(height: 12),
-                          Text(
-                            'Bronni topish uchun QR. Qabulxonada shaxsingiz ham tekshiriladi.',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              color: context.colors.muted,
-                              fontSize: 12,
-                            ),
-                          ),
-                          const SizedBox(height: 14),
-                          OutlinedButton.icon(
-                            icon: const SihhatIcon('file-text', size: 20),
-                            label: const Text('Bron hujjatini ko‘rish'),
-                            onPressed: () => Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => BookingDocumentScreen(b),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
                   if (pending)
                     ConceptCard(
                       child: Column(
@@ -1248,94 +1259,287 @@ class _BookingScreenState extends State<BookingScreen>
   }
 }
 
+/// Booking as a glass ticket: place, dates, reference, guests, total and QR.
+class BookingTicket extends StatelessWidget {
+  final Api? api;
+  final Json booking;
+  final Json place;
+  final bool qr;
+  const BookingTicket({
+    required this.booking,
+    this.api,
+    this.place = const {},
+    this.qr = false,
+    super.key,
+  });
+  @override
+  Widget build(BuildContext context) {
+    final b = booking;
+    final dates =
+        '${b['checkIn'].toString().substring(0, 10)} — ${b['checkOut'].toString().substring(0, 10)}';
+    final label = TextStyle(color: context.colors.muted, fontSize: 12);
+    return ConceptCard(
+      padding: EdgeInsets.zero,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (api != null) ...[
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(14),
+                    child: SizedBox(
+                      width: 84,
+                      child: PlacePhoto(api!, place, height: 84),
+                    ),
+                  ),
+                  const SizedBox(width: 14),
+                ] else ...[
+                  const IconTile('ticket', size: 52, glow: true),
+                  const SizedBox(width: 14),
+                ],
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        place['name'] ?? b['sanatorium_name'] ?? 'Sanatoriya',
+                        style: conceptHeading(context, size: 17),
+                      ),
+                      if (place['region'] != null)
+                        ConceptRow('map-pin', place['region']),
+                      ConceptRow('calendar-days', dates),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const _TicketPerforation(),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(18, 12, 18, 18),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Bron raqami', style: label),
+                const SizedBox(height: 2),
+                SelectableText(
+                  b['reference'] ?? '',
+                  style: conceptHeading(
+                    context,
+                    size: 22,
+                    color: context.colors.primary,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                ConceptRow(
+                  'user-round',
+                  'Mehmon: ${b['guest']?['name'] ?? ''}',
+                ),
+                for (final i in rows(b['items']))
+                  ConceptRow(
+                    'bed-double',
+                    '${i['adults']} katta · ${(i['childrenAges'] as List? ?? []).length} bola · ${money(i['amount'])}',
+                  ),
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 12,
+                  ),
+                  decoration: BoxDecoration(
+                    color: context.colors.soft.withValues(alpha: .7),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: neon.withValues(alpha: .25)),
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(child: Text('Jami to‘lov', style: label)),
+                      Flexible(
+                        flex: 2,
+                        child: Text(
+                          money(b['amount']),
+                          textAlign: TextAlign.right,
+                          style: conceptHeading(context, size: 22),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                if (qr) ...[
+                  const SizedBox(height: 20),
+                  Center(
+                    child: PulseGlow(
+                      strength: .8,
+                      borderRadius: const BorderRadius.all(Radius.circular(20)),
+                      child: Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(color: neon, width: 2),
+                        ),
+                        child: QrImageView(
+                          data: 'sihhat://booking/${b['id']}',
+                          version: QrVersions.auto,
+                          size: 176,
+                          backgroundColor: Colors.white,
+                          eyeStyle: const QrEyeStyle(
+                            eyeShape: QrEyeShape.square,
+                            color: abyss,
+                          ),
+                          dataModuleStyle: const QrDataModuleStyle(
+                            dataModuleShape: QrDataModuleShape.square,
+                            color: abyss,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    'Bronni topish uchun QR. Qabulxonada shaxsingiz ham tekshiriladi.',
+                    textAlign: TextAlign.center,
+                    style: label,
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Dashed tear line with side notches between the ticket halves.
+class _TicketPerforation extends StatelessWidget {
+  const _TicketPerforation();
+  @override
+  Widget build(BuildContext context) => SizedBox(
+    height: 22,
+    child: CustomPaint(
+      painter: _PerforationPainter(
+        notch: Theme.of(context).scaffoldBackgroundColor,
+        line: neon.withValues(alpha: .4),
+      ),
+    ),
+  );
+}
+
+class _PerforationPainter extends CustomPainter {
+  final Color notch, line;
+  const _PerforationPainter({required this.notch, required this.line});
+  @override
+  void paint(Canvas canvas, Size size) {
+    final y = size.height / 2;
+    final fill = Paint()..color = notch;
+    final edge = Paint()
+      ..color = line
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.2;
+    for (final x in [0.0, size.width]) {
+      canvas.drawCircle(Offset(x, y), 11, fill);
+      canvas.drawCircle(Offset(x, y), 11, edge);
+    }
+    final dash = Paint()
+      ..color = line
+      ..strokeWidth = 1.4
+      ..strokeCap = StrokeCap.round;
+    for (var x = 20.0; x < size.width - 20; x += 12) {
+      canvas.drawLine(Offset(x, y), Offset(x + 6, y), dash);
+    }
+  }
+
+  @override
+  bool shouldRepaint(_PerforationPainter old) =>
+      old.notch != notch || old.line != line;
+}
+
 class BookingDocumentScreen extends StatelessWidget {
   final Json booking;
-  const BookingDocumentScreen(this.booking, {super.key});
+  final Json place;
+  final Api? api;
+  const BookingDocumentScreen(
+    this.booking, {
+    this.place = const {},
+    this.api,
+    super.key,
+  });
+
+  void copy(BuildContext context) {
+    final ref = booking['reference'] ?? '';
+    final guest = booking['guest']?['name'] ?? '';
+    final checkIn = booking['checkIn'].toString().substring(0, 10);
+    final checkOut = booking['checkOut'].toString().substring(0, 10);
+    final cost = money(booking['amount']);
+    final text =
+        '🌿 SIHHAT.UZ — ELEKTRON VAUCHER\n'
+        '━━━━━━━━━━━━━━━━━━━━━\n'
+        '📋 Bron kodi: $ref\n'
+        '👤 Mehmon: $guest\n'
+        '📅 Muddat: $checkIn — $checkOut\n'
+        '💰 Summa: $cost\n'
+        '✅ Holati: Rasmiy tasdiqlangan\n'
+        '━━━━━━━━━━━━━━━━━━━━━\n'
+        'Sanatoriya qabulxonasida ushbu kod yoki ilovadagi QR-kodni ko‘rsating.';
+    Clipboard.setData(ClipboardData(text: text));
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Vaucher ma’lumotlari nusxalandi!')),
+    );
+  }
+
   @override
   Widget build(BuildContext context) => ConceptPage(
-    title: 'Rasmiy vaucher',
+    title: 'QR vaucher / Chipta',
+    subtitle: 'Resepshn uchun ma’lumot',
     body: ListView(
       padding: const EdgeInsets.all(20),
       children: [
-        ConceptCard(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+        Reveal(
+          child: Row(
             children: [
-              Center(
-                child: Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: context.colors.border),
-                  ),
-                  child: QrImageView(
-                    data: 'sihhat://booking/${booking['id']}',
-                    version: QrVersions.auto,
-                    size: 150,
-                    backgroundColor: Colors.white,
-                  ),
+              Expanded(
+                child: Text(
+                  'Bron ma’lumotlari',
+                  style: conceptHeading(context, size: 18),
                 ),
               ),
-              const SizedBox(height: 20),
-              SelectableText(
-                booking['reference'] ?? 'SH-XXXXXX',
-                style: conceptHeading(context, size: 26),
-              ),
-              const Divider(height: 28),
-              ConceptRow('user-round', booking['guest']?['name'] ?? ''),
-              ConceptRow(
-                'calendar-days',
-                '${booking['checkIn'].toString().substring(0, 10)} — ${booking['checkOut'].toString().substring(0, 10)}',
-              ),
-              ConceptRow('coins', money(booking['amount'])),
-              const SizedBox(height: 12),
               Pill(booking['status']),
-              const SizedBox(height: 20),
-              SizedBox(
-                width: double.infinity,
-                child: FilledButton.icon(
-                  icon: const SihhatIcon('copy', size: 18),
-                  label: const Text('Vaucher ma’lumotlarini nusxalash'),
-                  onPressed: () {
-                    final ref = booking['reference'] ?? '';
-                    final guest = booking['guest']?['name'] ?? '';
-                    final checkIn = booking['checkIn'].toString().substring(
-                      0,
-                      10,
-                    );
-                    final checkOut = booking['checkOut'].toString().substring(
-                      0,
-                      10,
-                    );
-                    final cost = money(booking['amount']);
-                    final text =
-                        '🌿 SIHHAT.UZ — ELEKTRON VAUCHER\n'
-                        '━━━━━━━━━━━━━━━━━━━━━\n'
-                        '📋 Bron kodi: $ref\n'
-                        '👤 Mehmon: $guest\n'
-                        '📅 Muddat: $checkIn — $checkOut\n'
-                        '💰 Summa: $cost\n'
-                        '✅ Holati: Rasmiy tasdiqlangan\n'
-                        '━━━━━━━━━━━━━━━━━━━━━\n'
-                        'Sanatoriya qabulxonasida ushbu kod yoki ilovadagi QR-kodni ko‘rsating.';
-                    Clipboard.setData(ClipboardData(text: text));
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Vaucher ma’lumotlari nusxalandi!'),
-                        backgroundColor: Color(0xFF059669),
-                      ),
-                    );
-                  },
-                ),
-              ),
             ],
           ),
         ),
-        const ConceptInfo(
-          icon: 'shield-check',
-          title: 'Qabulxonada ko‘rsating',
-          text: 'Ushbu vaucher va QR-kod sanatoriyaga yetib borganingizda shaxsingizni tasdiqlash va xonaga joylashish (Check-in) uchun xizmat qiladi.',
+        const SizedBox(height: 14),
+        Reveal(
+          index: 1,
+          child: BookingTicket(
+            api: api,
+            booking: booking,
+            place: place,
+            qr: true,
+          ),
+        ),
+        Reveal(
+          index: 2,
+          child: Pressable(
+            child: FilledButton.icon(
+              icon: const SihhatIcon('copy', size: 18),
+              label: const Text('Vaucher ma’lumotlarini nusxalash'),
+              onPressed: () => copy(context),
+            ),
+          ),
+        ),
+        const SizedBox(height: 16),
+        const Reveal(
+          index: 3,
+          child: ConceptInfo(
+            icon: 'shield-check',
+            title: 'Qabulxonada ko‘rsating',
+            text: 'Ushbu vaucher va QR-kod sanatoriyaga yetib borganingizda shaxsingizni tasdiqlash va xonaga joylashish (Check-in) uchun xizmat qiladi.',
+          ),
         ),
       ],
     ),

@@ -4,6 +4,19 @@ Flutter mijoz ilovasi: SMS orqali kirish, sanatoriya qidirish va filtrlar,
 tafsilotlar, bir nechta xonali bron, to‘lov holati, QR, qaytarish so‘rovi,
 profil, bildirishnomalar, yordam xizmati va serverdan ishlaydigan AI.
 
+2026-11-06: **0.2.1 (build 4)** — dizayn yakunlandi: bron tafsiloti va
+vaucher yagona QR chipta (`BookingTicket`), yordam chati sarlavhasi va yangi
+xabarga avtomatik aylanish, AI “yozmoqda” indikatori, skeleton + shimmer
+yuklanish (`Busy`), offline/xatolik kartasi (`ErrorView`), harakat tugmali bo‘sh
+holat (`EmptyView`), blur fonli dialoglar (`showGlassDialog`), bottom sheet va
+snackbar mavzusi. Testlar: `test/states_test.dart`.
+
+2026-11-06: **0.2.0 (build 3)** — `yangi_dizayn/yangi_UI.jpg` asosidagi
+neon dizayn va animatsiyalar (`lib/motion.dart`). Ilova tungi rejimda ochiladi.
+Telefonda “animatsiyalarni kamaytirish” yoqilsa, harakatlar o‘chadi.
+Widget/integratsiya testlarida cheksiz animatsiyalar `Motion.ambient = false`
+orqali o‘chiriladi (`FLUTTER_TEST` muhitida avtomatik).
+
 2026-10-15: **0.1.1 (build 2)** imzolangan demo APK
 [`ilova` papkasida](../../ilova/README.md) va
 [GitHub Releases](https://github.com/MirsaidIbrohimov/Sihhat-uz1.1/releases/tag/v0.1.1-demo)da.

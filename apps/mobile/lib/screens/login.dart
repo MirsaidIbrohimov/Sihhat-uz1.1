@@ -3,11 +3,12 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../concept_ui.dart';
+import '../motion.dart';
+import '../neon.dart';
 import '../data/api.dart';
 import '../widgets.dart';
 import '../design.dart';
 import '../appearance.dart';
-import '../branding.dart';
 import '../demo_otp.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -127,206 +128,297 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) => ConceptScope(
     child: Builder(
-      builder: (c) => Scaffold(
-        appBar: AppBar(
-          centerTitle: challenge != null,
-          title: Text(
-            challenge == null ? 'Sihhat uz' : 'Tasdiqlash',
-            style: conceptHeading(c, size: challenge == null ? 26 : 20),
-          ),
-          leading: Navigator.canPop(context)
-              ? IconButton(
-                  icon: const Icon(Icons.arrow_back),
-                  tooltip: 'Orqaga',
-                  onPressed: () => Navigator.pop(context, false),
-                )
-              : null,
-          actions: const [ConceptAppearanceToggle(), SizedBox(width: 12)],
-        ),
-        bottomNavigationBar: Padding(
-          padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(c).bottom),
-          child: ConceptDock(
-            label: busy
-                ? 'Tekshirilmoqda…'
-                : challenge == null
-                ? 'Tasdiqlash kodini yuborish'
-                : 'Tasdiqlash',
-            onPressed: busy
+      builder: (c) => GlassBackdrop(
+        child: Scaffold(
+          backgroundColor: Colors.transparent,
+          appBar: AppBar(
+            backgroundColor: Colors.transparent,
+            centerTitle: challenge != null,
+            title: challenge == null
                 ? null
-                : challenge == null
-                ? request
-                : verify,
+                : Text('Tasdiqlash', style: conceptHeading(c, size: 20)),
+            leading: Navigator.canPop(context)
+                ? IconButton(
+                    icon: const Icon(Icons.arrow_back),
+                    tooltip: 'Orqaga',
+                    onPressed: () => Navigator.pop(context, false),
+                  )
+                : null,
+            actions: const [ConceptAppearanceToggle(), SizedBox(width: 12)],
           ),
-        ),
-        body: SafeArea(
-          top: false,
-          child: Align(
-            alignment: Alignment.topCenter,
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 520),
-              child: ListView(
-                padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
-                children: [
-                  if (error != null) ErrorView(error!),
-                  if (challenge == null) ...[
-                    const Center(child: SihhatLogo(size: 172)),
-                    const SizedBox(height: 20),
-                    Text(
-                      'Xush kelibsiz',
-                      textAlign: TextAlign.center,
-                      style: conceptHeading(c, size: 34),
-                    ),
-                    const SizedBox(height: 10),
-                    Text(
-                      'Dam olish va sihatgohlarni rejalashtirish shu yerdan boshlanadi.',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        color: c.colors.muted,
-                        fontSize: 17,
-                        height: 1.5,
-                      ),
-                    ),
-                    const SizedBox(height: 28),
-                  ] else ...[
-                    const SizedBox(height: 22),
-                    const Center(child: IconTile('mail', size: 100)),
-                    const SizedBox(height: 24),
-                    Text(
-                      demoCode == null
-                          ? 'Tasdiqlash kodi'
-                          : 'Demo kodni kiriting',
-                      textAlign: TextAlign.center,
-                      style: conceptHeading(c, size: 28),
-                    ),
-                    const SizedBox(height: 12),
-                    Text(
-                      demoCode == null
-                          ? '6 xonali tasdiqlash kodi elektron pochtangizga yuborildi:'
-                          : 'Elektron pochtangizni demo kod bilan tasdiqlang:',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(color: c.colors.muted, fontSize: 16),
-                    ),
-                    const SizedBox(height: 10),
-                    Text(
-                      email.text.trim().toLowerCase(),
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w700,
-                        fontSize: 17,
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-                  ],
-                  if (challenge == null)
-                    TextField(
-                      controller: email,
-                      enabled: !busy,
-                      keyboardType: TextInputType.emailAddress,
-                      autofillHints: const [AutofillHints.email],
-                      textInputAction: TextInputAction.done,
-                      decoration: InputDecoration(
-                        labelText: 'Elektron pochta (Email)',
-                        hintText: 'foydalanuvchi@mail.uz',
-                        helperText: 'Tasdiqlash kodi shu pochtaga yuboriladi',
-                        errorText: emailError,
-                        errorMaxLines: 2,
-                        prefixIcon: const Padding(
-                          padding: EdgeInsets.all(14),
-                          child: Icon(Icons.email_outlined),
-                        ),
-                      ),
-                      onChanged: (value) => setState(() {
-                        emailError = _isValidEmail(value) ? null : emailError;
-                      }),
-                      onSubmitted: (_) {
-                        if (!busy) request();
-                      },
-                    )
-                  else
-                    OtpField(
-                      controller: code,
-                      enabled: !busy,
-                      submitted: () {
-                        if (!busy) verify();
-                      },
-                    ),
-                  if (challenge == null &&
-                      demoOtpAllowed(
-                        widget.api.baseUrl,
-                        enabled: widget.showDemoOtp,
-                      )) ...[
-                    const SizedBox(height: 16),
-                    const ConceptCard(
-                      child: Text(
-                        'Demo rejim. Xat pochtaga yuborilmaydi; tasdiqlash kodi shu oynada ko‘rsatiladi.',
-                      ),
-                    ),
-                  ],
-                  if (demoCode != null) ...[
-                    const SizedBox(height: 18),
-                    ConceptCard(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          SelectableText(
-                            'Demo tasdiqlash kodi: $demoCode',
-                            style: const TextStyle(
-                              fontWeight: FontWeight.w700,
-                              fontSize: 20,
+          bottomNavigationBar: Padding(
+            padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(c).bottom),
+            child: ConceptDock(
+              label: busy
+                  ? 'Tekshirilmoqda…'
+                  : challenge == null
+                  ? 'Tasdiqlash kodini yuborish'
+                  : 'Tasdiqlash',
+              onPressed: busy
+                  ? null
+                  : challenge == null
+                  ? request
+                  : verify,
+            ),
+          ),
+          body: SafeArea(
+            top: false,
+            child: Align(
+              alignment: Alignment.topCenter,
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 520),
+                child: ListView(
+                  padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
+                  children: [
+                    if (error != null) ErrorView(error!),
+                    if (challenge == null) ...[
+                      const SizedBox(height: 8),
+                      const Center(
+                        child: FloatY(
+                          child: PulseGlow(
+                            child: NeonRing(
+                              size: 92,
+                              child: DecoratedBox(
+                                decoration: BoxDecoration(
+                                  color: abyss,
+                                  shape: BoxShape.circle,
+                                ),
+                                child: Center(child: NeonHeartLogo(size: 50)),
+                              ),
                             ),
                           ),
-                          const SizedBox(height: 8),
-                          const Text(
-                            'Sinov rejimi. Pochtangizga xat yuborilmadi.',
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+                      Reveal(
+                        child: Text.rich(
+                          TextSpan(
+                            children: [
+                              const TextSpan(text: 'Sihhat'),
+                              TextSpan(
+                                text: '.uz',
+                                style: TextStyle(color: c.colors.primary),
+                              ),
+                            ],
                           ),
-                          TextButton(
-                            onPressed: busy
+                          textAlign: TextAlign.center,
+                          style: conceptHeading(c, size: 32),
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Reveal(
+                        index: 1,
+                        child: Text(
+                          'Sog‘lom jamiyat — baxtli kelajak',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            color: c.colors.primary,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      Reveal(
+                        index: 2,
+                        child: Row(
+                          children: [
+                            for (final (icon, label) in const [
+                              (Icons.travel_explore_rounded, 'Sanatoriyalar'),
+                              (Icons.auto_awesome_rounded, 'AI maslahat'),
+                              (Icons.event_available_rounded, 'Onlayn bron'),
+                            ])
+                              Expanded(
+                                child: Column(
+                                  children: [
+                                    GlyphTile(icon, size: 44),
+                                    const SizedBox(height: 8),
+                                    Text(
+                                      label,
+                                      textAlign: TextAlign.center,
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w700,
+                                        color: c.colors.ink,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 18),
+                      Reveal(
+                        index: 3,
+                        child: Text(
+                          'Xush kelibsiz',
+                          style: conceptHeading(c, size: 22),
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Davom etish uchun elektron pochtangizni kiriting.',
+                        style: TextStyle(color: c.colors.muted, fontSize: 13),
+                      ),
+                      const SizedBox(height: 16),
+                    ] else ...[
+                      const SizedBox(height: 22),
+                      const Center(
+                        child: FloatY(
+                          child: PulseGlow(
+                            borderRadius: BorderRadius.all(Radius.circular(30)),
+                            child: IconTile('mail', size: 100),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                      Text(
+                        demoCode == null
+                            ? 'Tasdiqlash kodi'
+                            : 'Demo kodni kiriting',
+                        textAlign: TextAlign.center,
+                        style: conceptHeading(c, size: 28),
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        demoCode == null
+                            ? '6 xonali tasdiqlash kodi elektron pochtangizga yuborildi:'
+                            : 'Elektron pochtangizni demo kod bilan tasdiqlang:',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(color: c.colors.muted, fontSize: 16),
+                      ),
+                      const SizedBox(height: 10),
+                      Text(
+                        email.text.trim().toLowerCase(),
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w700,
+                          fontSize: 17,
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                    ],
+                    if (challenge == null)
+                      Reveal(
+                        index: 2,
+                        child: TextField(
+                          controller: email,
+                          enabled: !busy,
+                          keyboardType: TextInputType.emailAddress,
+                          autofillHints: const [AutofillHints.email],
+                          textInputAction: TextInputAction.done,
+                          decoration: InputDecoration(
+                            labelText: 'Elektron pochta (Email)',
+                            hintText: 'foydalanuvchi@mail.uz',
+                            helperText:
+                                'Tasdiqlash kodi shu pochtaga yuboriladi',
+                            errorText: emailError,
+                            errorMaxLines: 2,
+                            prefixIcon: Padding(
+                              padding: const EdgeInsets.all(14),
+                              child: SihhatIcon(
+                                'mail',
+                                color: c.colors.primary,
+                              ),
+                            ),
+                          ),
+                          onChanged: (value) => setState(() {
+                            emailError = _isValidEmail(value)
                                 ? null
-                                : () => code.text = demoCode!,
-                            child: const Text('Demo koddan foydalanish'),
-                          ),
-                        ],
+                                : emailError;
+                          }),
+                          onSubmitted: (_) {
+                            if (!busy) request();
+                          },
+                        ),
+                      )
+                    else
+                      OtpField(
+                        controller: code,
+                        enabled: !busy,
+                        submitted: () {
+                          if (!busy) verify();
+                        },
                       ),
+                    if (challenge == null &&
+                        demoOtpAllowed(
+                          widget.api.baseUrl,
+                          enabled: widget.showDemoOtp,
+                        )) ...[
+                      const SizedBox(height: 16),
+                      const ConceptCard(
+                        child: Text(
+                          'Demo rejim. Xat pochtaga yuborilmaydi; tasdiqlash kodi shu oynada ko‘rsatiladi.',
+                        ),
+                      ),
+                    ],
+                    if (demoCode != null) ...[
+                      const SizedBox(height: 18),
+                      ConceptCard(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            SelectableText(
+                              'Demo tasdiqlash kodi: $demoCode',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w700,
+                                fontSize: 20,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            const Text(
+                              'Sinov rejimi. Pochtangizga xat yuborilmadi.',
+                            ),
+                            TextButton(
+                              onPressed: busy
+                                  ? null
+                                  : () => code.text = demoCode!,
+                              child: const Text('Demo koddan foydalanish'),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                    if (challenge != null) ...[
+                      const SizedBox(height: 22),
+                      TextButton(
+                        onPressed: busy || wait > 0 ? null : request,
+                        child: Text(
+                          wait > 0
+                              ? 'Qayta yuborish: $wait soniya'
+                              : 'Kodni qayta yuborish',
+                        ),
+                      ),
+                      TextButton(
+                        onPressed: busy
+                            ? null
+                            : () {
+                                timer?.cancel();
+                                setState(() {
+                                  challenge = null;
+                                  code.clear();
+                                  error = null;
+                                  emailError = null;
+                                  demoCode = null;
+                                  wait = 0;
+                                });
+                              },
+                        child: const Text('Email manzilini tuzatish'),
+                      ),
+                    ],
+                    const SizedBox(height: 24),
+                    const SizedBox(height: 20),
+                    ConceptRow(
+                      challenge == null ? 'shield-check' : 'info',
+                      challenge == null
+                          ? 'Elektron pochtangiz hisobga xavfsiz kirish va bron tafsilotlari uchun ishlatiladi.'
+                          : demoCode == null
+                          ? 'Kod kelishi 1-2 daqiqa olishi mumkin. Spam papkasini ham tekshirib ko‘ring.'
+                          : 'Demo koddan faqat sinov uchun foydalaning.',
                     ),
                   ],
-                  if (challenge != null) ...[
-                    const SizedBox(height: 22),
-                    TextButton(
-                      onPressed: busy || wait > 0 ? null : request,
-                      child: Text(
-                        wait > 0
-                            ? 'Qayta yuborish: $wait soniya'
-                            : 'Kodni qayta yuborish',
-                      ),
-                    ),
-                    TextButton(
-                      onPressed: busy
-                          ? null
-                          : () {
-                              timer?.cancel();
-                              setState(() {
-                                challenge = null;
-                                code.clear();
-                                error = null;
-                                emailError = null;
-                                demoCode = null;
-                                wait = 0;
-                              });
-                            },
-                      child: const Text('Email manzilini tuzatish'),
-                    ),
-                  ],
-                  const SizedBox(height: 24),
-                  const SizedBox(height: 20),
-                  ConceptRow(
-                    challenge == null ? 'shield-check' : 'info',
-                    challenge == null
-                        ? 'Elektron pochtangiz hisobga xavfsiz kirish va bron tafsilotlari uchun ishlatiladi.'
-                        : demoCode == null
-                        ? 'Kod kelishi 1-2 daqiqa olishi mumkin. Spam papkasini ham tekshirib ko‘ring.'
-                        : 'Demo koddan faqat sinov uchun foydalaning.',
-                  ),
-                ],
+                ),
               ),
             ),
           ),
