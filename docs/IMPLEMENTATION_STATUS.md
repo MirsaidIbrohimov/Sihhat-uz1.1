@@ -2,6 +2,10 @@
 
 Yangilangan: 2026-11-06. Asos: ISHLAB_CHIQISH_REJASI.md va SIHHAT_UZ_ARXITEKTURA.md.
 
+## 2026-11-06 APK motion UI — uchta HTML taklif
+
+`UI/motion-lab/index.html`da Sokin premium, Aurora va Fresh interaktiv variantlari qo‘shildi. Birga/alohida ko‘rish, qidiruv/filtr, sevimlilar, tafsilot → sanalar → namunaviy tasdiq, hisob va kamaytiriladigan animatsiyalar mavjud. Barcha ma’lumotlar demo; Flutter va haqiqiy xizmatlar o‘zgartirilmagan. Sintaksis/lokal asset tekshiruvlari bajarildi. Brauzer vositasi `file:` protokolini bloklagani sabab vizual va interaktiv brauzer QA bajarilmadi. Ishga tushirish va cheklovlar: `UI/motion-lab/README.md`.
+
 ## 2026-11-06 Android: dizayn V2 yakunlandi (0.2.1, build 4)
 
 - Bron tafsiloti va vaucher `BookingTicket` chiptasiga o‘tdi: rasm, joy, sanalar, perforatsiya chizig‘i, bron raqami, mehmon/xonalar, jami summa, neon ramkali QR. Tasdiqlanmagan bronlarda holat belgisi ikki marta chiqishi tuzatildi.

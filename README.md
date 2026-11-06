@@ -1,5 +1,9 @@
 # Sihhat uz
 
+## APK uchun yangi motion dizayn takliflari — 2026-11-06
+
+[Interaktiv HTML studiya](UI/motion-lab/index.html): **Sokin premium**, **Aurora** va **Fresh** uslublarini birga yoki alohida solishtirish. Katalog, sevimlilar, sanatoriya tafsiloti, sana tanlash va namunaviy bron tasdig‘i mavjud; motion tugmasi va reduced-motion qo‘llanadi. Lokal faylni brauzerda ochish kifoya. Bu tavsiya prototipi; amaldagi Flutter APK o‘zgarmagan. [Tafsilot va tekshiruv chegaralari](UI/motion-lab/README.md).
+
 Sanatoriyalar uchun bron platformasi: NestJS/PostgreSQL backend, superadmin sayti, direktor/resepsion/hisobchi sayti, xodimlar Telegram boti va Flutter Android ilovasi.
 
 Kanonik repozitoriya: [MirsaidIbrohimov/Sihhat-uz1.1](https://github.com/MirsaidIbrohimov/Sihhat-uz1.1). Yangilangan: **2026-10-15**. O‘zgarishlar lokal saqlanadi; GitHubga foydalanuvchining aniq topshirig‘i bilan yuklanadi.
