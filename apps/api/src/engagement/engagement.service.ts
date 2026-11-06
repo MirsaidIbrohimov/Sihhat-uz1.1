@@ -93,8 +93,106 @@ export class EngagementService{
     const run=async(tx:Tx)=>{const t=await tx.supportTicket.create({data:{userId:actor.id,sanatoriumId:tenant,bookingId:i.booking_id,title:i.title}});await tx.supportMessage.create({data:{ticketId:t.id,userId:actor.id,text:i.text}});await audit(tx,actor.id,'support.opened',t.id,tenant);const admins=await tx.user.findMany({where:{kind:'SUPERADMIN',status:'ACTIVE'},select:{id:true}});await emit(tx,'support.opened',{ticket_id:t.id,recipient_ids:admins.map(a=>a.id)});return t;};
     return key?this.db.idempotent(actor.id,'support.open',key,i,run):this.db.atomic(run);
   }
-  async tickets(actor:Actor){const ids=tenantIds(actor,'support.read');return this.db.supportTicket.findMany({where:actor.kind==='SUPERADMIN'?{}:actor.kind==='CUSTOMER'?{userId:actor.id}:{OR:[{userId:actor.id},{sanatoriumId:{in:ids??[]}}]},take:200,orderBy:{createdAt:'desc'}});}
-  async ticketGet(actor:Actor,id:string){parse(uuid,id);const t=await this.db.supportTicket.findUnique({where:{id}});if(!t)fail('NOT_FOUND','Murojaat topilmadi',404);if(actor.kind==='CUSTOMER'){if(t.userId!==actor.id)fail('NOT_FOUND','Murojaat topilmadi',404);}else if(t.userId!==actor.id&&actor.kind!=='SUPERADMIN'){if(!t.sanatoriumId)fail('NOT_FOUND','Murojaat topilmadi',404);scope(actor,t.sanatoriumId,'support.read');}return {...t,messages:await this.db.supportMessage.findMany({where:{ticketId:id},orderBy:{createdAt:'asc'}})};}
+  async tickets(actor:Actor){
+    const ids=tenantIds(actor,'support.read');
+    const tickets = await this.db.supportTicket.findMany({
+      where:actor.kind==='SUPERADMIN'?{}:actor.kind==='CUSTOMER'?{userId:actor.id}:{OR:[{userId:actor.id},{sanatoriumId:{in:ids??[]}}]},
+      take:200,
+      orderBy:{createdAt:'desc'}
+    });
+    if(!tickets.length) return [];
+    const userIds = [...new Set(tickets.map(t => t.userId))];
+    const sanatoriumIds = [...new Set(tickets.map(t => t.sanatoriumId).filter(Boolean) as string[])];
+    const bookingIds = [...new Set(tickets.map(t => t.bookingId).filter(Boolean) as string[])];
+    const ticketIds = tickets.map(t => t.id);
+
+    const [users, sanatoriums, bookings, messages] = await Promise.all([
+      this.db.user.findMany({
+        where: { id: { in: userIds } },
+        select: { id: true, name: true, phone: true, login: true, kind: true, status: true }
+      }),
+      sanatoriumIds.length ? this.db.sanatorium.findMany({
+        where: { id: { in: sanatoriumIds } },
+        select: { id: true, name: true }
+      }) : [],
+      bookingIds.length ? this.db.booking.findMany({
+        where: { id: { in: bookingIds } },
+        select: { id: true, reference: true, checkIn: true, checkOut: true, status: true }
+      }) : [],
+      this.db.supportMessage.findMany({
+        where: { ticketId: { in: ticketIds } },
+        orderBy: { createdAt: 'desc' },
+      })
+    ]);
+
+    const userMap = new Map(users.map(u => [u.id, u]));
+    const sanatoriumMap = new Map(sanatoriums.map(s => [s.id, s.name]));
+    const bookingMap = new Map(bookings.map(b => [b.id, b]));
+    const lastMsgMap = new Map<string, string>();
+    for (const m of messages) {
+      if (!lastMsgMap.has(m.ticketId)) {
+        lastMsgMap.set(m.ticketId, m.text);
+      }
+    }
+
+    return tickets.map(t => {
+      const u = userMap.get(t.userId);
+      return {
+        ...t,
+        sender: u ? {
+          id: u.id,
+          name: u.name,
+          phone: u.phone,
+          login: u.login,
+          kind: u.kind,
+          status: u.status,
+        } : null,
+        sanatoriumName: t.sanatoriumId ? sanatoriumMap.get(t.sanatoriumId) ?? null : null,
+        booking: t.bookingId ? bookingMap.get(t.bookingId) ?? null : null,
+        lastMessage: lastMsgMap.get(t.id) ?? null,
+      };
+    });
+  }
+  async ticketGet(actor:Actor,id:string){
+    parse(uuid,id);
+    const t=await this.db.supportTicket.findUnique({where:{id}});
+    if(!t)fail('NOT_FOUND','Murojaat topilmadi',404);
+    if(actor.kind==='CUSTOMER'){
+      if(t.userId!==actor.id)fail('NOT_FOUND','Murojaat topilmadi',404);
+    }else if(t.userId!==actor.id&&actor.kind!=='SUPERADMIN'){
+      if(!t.sanatoriumId)fail('NOT_FOUND','Murojaat topilmadi',404);
+      scope(actor,t.sanatoriumId,'support.read');
+    }
+    const messages = await this.db.supportMessage.findMany({where:{ticketId:id},orderBy:{createdAt:'asc'}});
+    const userIds = [...new Set([t.userId, ...messages.map(m => m.userId)])];
+    const [users, sanatorium, booking] = await Promise.all([
+      this.db.user.findMany({
+        where: { id: { in: userIds } },
+        select: { id: true, name: true, phone: true, login: true, kind: true, status: true }
+      }),
+      t.sanatoriumId ? this.db.sanatorium.findUnique({ where: { id: t.sanatoriumId }, select: { id: true, name: true } }) : null,
+      t.bookingId ? this.db.booking.findUnique({ where: { id: t.bookingId }, select: { id: true, reference: true, checkIn: true, checkOut: true, status: true } }) : null
+    ]);
+    const userMap = new Map(users.map(u => [u.id, u]));
+    const sender = userMap.get(t.userId) ?? null;
+
+    return {
+      ...t,
+      sender,
+      sanatoriumName: sanatorium?.name ?? null,
+      booking,
+      messages: messages.map(m => {
+        const u = userMap.get(m.userId);
+        return {
+          ...m,
+          isMe: m.userId === actor.id,
+          userName: u?.name ?? (m.userId === t.userId ? (sender?.name || 'Mijoz') : 'Xodim'),
+          userPhone: u?.phone ?? null,
+          userKind: u?.kind ?? null,
+        };
+      })
+    };
+  }
   async ticketReply(actor:Actor,id:string,body:unknown,key?:string){
     const i=parse(z.object({text:z.string().min(1).max(5000),close:z.boolean().default(false)}).strict(),body);const t=await this.ticketGet(actor,id);if(i.close&&actor.kind!=='SUPERADMIN')fail('PERMISSION_DENIED','Murojaatni support yopadi',403);
     const run=async(tx:Tx)=>{const m=await tx.supportMessage.create({data:{ticketId:id,userId:actor.id,text:i.text}});if(i.close)await tx.supportTicket.update({where:{id},data:{status:'CLOSED'}});const admins=await tx.user.findMany({where:{kind:'SUPERADMIN',status:'ACTIVE'},select:{id:true}});await emit(tx,'support.replied',{recipient_ids:[...new Set([t.userId,...(actor.kind==='SUPERADMIN'?[]:admins.map(a=>a.id))])],ticket_id:id});return m;};

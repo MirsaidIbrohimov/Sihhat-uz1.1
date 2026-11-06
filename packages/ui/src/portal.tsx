@@ -24,6 +24,7 @@ import {
   Megaphone,
   Settings,
   ShieldCheck,
+  Smartphone,
   Users,
   Wallet,
   X,
@@ -58,6 +59,7 @@ import {
   Sanatoriums,
   Profile,
   Staff,
+  AppUsers,
   Inventory,
   Bookings,
   Payments,
@@ -104,6 +106,12 @@ const links = [
     label: "Jamoa va ruxsatlar",
     icon: Users,
     permission: "staff.invite",
+  },
+  {
+    id: "app-users",
+    label: "Ilova foydalanuvchilari",
+    icon: Smartphone,
+    admin: true,
   },
   {
     id: "payments",
@@ -181,6 +189,7 @@ const navigationGroups = [
       "bookings",
       "inventory",
       "staff",
+      "app-users",
     ],
   },
   {
@@ -676,6 +685,8 @@ export function Portal({
         return <Profile />;
       case "staff":
         return <Staff />;
+      case "app-users":
+        return <AppUsers />;
       case "inventory":
         return <Inventory />;
       case "bookings":

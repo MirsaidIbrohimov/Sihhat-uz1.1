@@ -1,4 +1,4 @@
-export { Dashboard, Sanatoriums, Profile, Staff } from "./governance";
+export { Dashboard, Sanatoriums, Profile, Staff, AppUsers } from "./governance";
 export { Inventory, Bookings, Payments } from "./operations";
 export { Finance, Billing } from "./financial";
 export {

@@ -20,4 +20,7 @@ export class StaffController {
   @Post('superadmin/staff/:id/block') @Roles('SUPERADMIN') block(@CurrentActor() a: Actor, @Param('id') id: string, @Body() b: unknown) { return this.staff.block(a, id, b); }
   @Post('superadmin/staff/:id/reset-password') @Roles('SUPERADMIN') @ApiBody({ schema: apiSchema(resetPasswordInput) }) reset(@CurrentActor() a: Actor, @Param('id') id: string, @Body() b: unknown) { return this.staff.reset(a, id, b); }
   @Post('partner/staff/:id/reset-password') @ApiBody({ schema: apiSchema(resetPasswordInput) }) partnerReset(@CurrentActor() a: Actor, @Param('id') id: string, @Body() b: unknown) { return this.staff.reset(a, id, b, true); }
+  @Get('superadmin/customers') @Roles('SUPERADMIN') customers(@CurrentActor() a: Actor, @Query() q: unknown) { return this.staff.customers(a, q); }
+  @Post('superadmin/customers/:id/toggle-status') @Roles('SUPERADMIN') toggleCustomerStatus(@CurrentActor() a: Actor, @Param('id') id: string, @Body() b: unknown) { return this.staff.toggleCustomerStatus(a, id, b); }
+  @Patch('superadmin/customers/:id') @Roles('SUPERADMIN') updateCustomer(@CurrentActor() a: Actor, @Param('id') id: string, @Body() b: unknown) { return this.staff.updateCustomer(a, id, b); }
 }

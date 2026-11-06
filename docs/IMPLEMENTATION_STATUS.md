@@ -1,6 +1,21 @@
 # Sihhat uz — amalga oshirish holati
 
-Yangilangan: 2026-11-06. Asos: ISHLAB_CHIQISH_REJASI.md va SIHHAT_UZ_ARXITEKTURA.md.
+Yangilangan: 2026-11-07. Asos: ISHLAB_CHIQISH_REJASI.md va SIHHAT_UZ_ARXITEKTURA.md.
+
+## 2026-11-07 Ilova foydalanuvchilari nazorati, Murojaatlar shaffofligi va Hamkor hisoblarini tozalash
+
+- **Superadmin uchun ilova foydalanuvchilari nazorati**:
+  - `GET /superadmin/customers`, `POST /superadmin/customers/:id/toggle-status`, `PATCH /superadmin/customers/:id` API yo‘nalishlari joriy etildi.
+  - Veb panelda **«Ilova foydalanuvchilari»** bo‘limi yaratildi (`packages/ui/src/governance.tsx`).
+  - Foydalanuvchilar qidiruvi (ism, login, telefon), holat filtri (Faol / Bloklangan), mijoz avatari, bronlar soni, murojaatlar soni va oxirgi faollik ma’lumotlari ko‘rsatiladi.
+  - Superadmin foydalanuvchini bloklash (barcha faol seanslarini bekor qilish) yoki qayta faollashtirish, ism/telefonini tahrirlash imkoniyatiga ega.
+- **Yordam xizmati (Chat) murojaat yuboruvchisi shaffofligi**:
+  - `GET /support/tickets` va `GET /support/tickets/:id` orqali yuboruvchi ma’lumotlari (`name`, `phone`, `kind`, `sanatoriumName`, `booking reference`) to‘liq qo‘shildi.
+  - Chat oynasi tepasida mijozning to‘liq ismi, telefon raqami (`📞 +998...`), mobil ilova nishoni (`📱 Ilova`), bog‘langan bron raqami va sanatoriya nomi aniq profilli kartada ko‘rsatiladi.
+  - Kiruvchi xabarlar ustida yuboruvchi mijozning ismi va telefoni aks etadi.
+- **Hamkor hisoblari va Superadmin tozalanishi**:
+  - Bazadan barcha STAFF hamkor hisoblari va a’zoliklar to‘liq tozalandi.
+  - Superadmin yagona hisob qilib belgilandi: `Mirsaid` (login: `mirsaid`).
 
 ## 2026-11-06 APK motion UI — uchta HTML taklif
 

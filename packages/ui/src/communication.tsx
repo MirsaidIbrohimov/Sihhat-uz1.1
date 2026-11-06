@@ -8,7 +8,9 @@ import {
   FileText,
   Mail,
   MessageSquare,
+  Phone,
   Send,
+  Smartphone,
   Star,
 } from "lucide-react";
 import { api, toMinor } from "@sihhat/api-client";
@@ -820,22 +822,47 @@ export function Support() {
               )}
               {filteredTickets.map((row: Row) => {
                 const isSelected = row.id === id;
-                const initial = (row.title || "M").slice(0, 1).toUpperCase();
+                const senderName = row.sender?.name || (row.sender?.kind === "CUSTOMER" ? "Mobil mijoz" : (row.title || "Murojaat"));
+                const initial = senderName.slice(0, 1).toUpperCase();
+                const phone = row.sender?.phone;
+                const isCustomer = row.sender?.kind === "CUSTOMER" || (!row.sender && (row.title || "").toLowerCase().includes("ilova"));
                 return (
                   <li
                     key={row.id}
                     className={`tg-chat-item ${isSelected ? "active" : ""}`}
                     onClick={() => selectTicket(row.id)}
+                    style={{ borderLeft: isSelected ? "3px solid #25e2a2" : "3px solid transparent" }}
                   >
-                    <div className="tg-avatar">{initial}</div>
+                    <div className="tg-avatar" style={{ background: isCustomer ? "linear-gradient(135deg, #104233, #19694e)" : "#22352c", color: "#25e2a2", fontWeight: 700 }}>
+                      {initial}
+                    </div>
                     <div className="tg-chat-info">
                       <div className="tg-chat-top">
-                        <span className="tg-chat-title">{row.title || "Murojaat"}</span>
+                        <span className="tg-chat-title" style={{ fontWeight: 600, color: "#eef7f2" }}>
+                          {senderName}
+                        </span>
                         <span className="tg-chat-time">{date(row.createdAt)}</span>
                       </div>
+                      <div style={{ display: "flex", gap: "6px", alignItems: "center", margin: "2px 0", flexWrap: "wrap" }}>
+                        {isCustomer && (
+                          <span style={{ fontSize: "10px", background: "rgba(37,226,162,0.15)", color: "#25e2a2", padding: "1px 6px", borderRadius: "10px", fontWeight: 600 }}>
+                            📱 Ilova
+                          </span>
+                        )}
+                        {phone && (
+                          <span style={{ fontSize: "11px", color: "#8ea69d" }}>
+                            {phone}
+                          </span>
+                        )}
+                        {row.booking && (
+                          <span style={{ fontSize: "10px", background: "rgba(255,255,255,0.06)", color: "#cbe5d8", padding: "1px 5px", borderRadius: "6px" }}>
+                            #{row.booking.reference}
+                          </span>
+                        )}
+                      </div>
                       <div className="tg-chat-bottom">
-                        <span className="tg-chat-preview">
-                          {row.lastMessage ?? (row.status === "RESOLVED" ? "Yakunlangan" : "Ochiq suhbat")}
+                        <span className="tg-chat-preview" style={{ color: "#7a9c8f" }}>
+                          {row.lastMessage ?? (row.status === "RESOLVED" || row.status === "CLOSED" ? "Yakunlangan" : row.title || "Ochiq suhbat")}
                         </span>
                         <Badge value={row.status} />
                       </div>
@@ -849,28 +876,48 @@ export function Support() {
         <div className="tg-room">
           {id ? (
             <>
-              <div className="tg-room-header">
-                <div className="tg-room-user">
+              <div className="tg-room-header" style={{ padding: "12px 18px", background: "#0a241a", borderBottom: "1px solid #19513e", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "10px" }}>
+                <div className="tg-room-user" style={{ display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap" }}>
                   <button
                     className="button secondary support-back"
-                    style={{ marginRight: "8px", minHeight: "32px", padding: "4px 8px" }}
+                    style={{ marginRight: "4px", minHeight: "32px", padding: "4px 8px" }}
                     onClick={() => selectTicket(null)}
                   >
                     ←
                   </button>
-                  <div className="tg-room-avatar">
-                    {(t?.title || "M").slice(0, 1).toUpperCase()}
+                  <div className="tg-room-avatar" style={{ width: "42px", height: "42px", borderRadius: "50%", background: "linear-gradient(135deg, #104233, #25e2a2)", color: "#041610", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: "17px" }}>
+                    {(t?.sender?.name || t?.title || "M").slice(0, 1).toUpperCase()}
                   </div>
                   <div>
-                    <div className="tg-room-name">{t?.title ?? "Suhbat"}</div>
-                    <div className="tg-room-sub">
-                      {t?.status === "RESOLVED" ? "Murojaat yopilgan" : "Faol muloqot"}
+                    <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+                      <span style={{ fontSize: "15px", fontWeight: 700, color: "#fff" }}>
+                        {t?.sender?.name || (t?.title ?? "Mobil ilova mijozi")}
+                      </span>
+                      <span style={{ fontSize: "11px", padding: "2px 8px", borderRadius: "12px", background: "rgba(37,226,162,0.15)", color: "#25e2a2", fontWeight: 600 }}>
+                        {t?.sender?.kind === "STAFF" ? "🏢 Xodim" : "📱 Mobil ilovadan mijoz"}
+                      </span>
+                      {t?.sender?.phone && (
+                        <a href={`tel:${t.sender.phone}`} style={{ fontSize: "12px", color: "#66e1b9", textDecoration: "none", fontWeight: 600, display: "inline-flex", alignItems: "center", gap: "4px" }}>
+                          <Phone size={12} /> {t.sender.phone}
+                        </a>
+                      )}
+                    </div>
+                    <div style={{ display: "flex", alignItems: "center", gap: "10px", marginTop: "3px", fontSize: "12px", color: "#8ea69d", flexWrap: "wrap" }}>
+                      <span>Mavzu: <strong style={{ color: "#d0e4da" }}>{t?.title ?? "Murojaat"}</strong></span>
+                      {t?.sanatoriumName && (
+                        <span>• 🏨 {t.sanatoriumName}</span>
+                      )}
+                      {t?.booking && (
+                        <span style={{ background: "rgba(255,255,255,0.08)", padding: "1px 6px", borderRadius: "6px", color: "#25e2a2" }}>
+                          🎫 Bron #{t.booking.reference} ({t.booking.status})
+                        </span>
+                      )}
                     </div>
                   </div>
                 </div>
                 <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
                   <Badge value={t?.status} />
-                  {ctx.admin && t?.status !== "RESOLVED" && (
+                  {ctx.admin && t?.status !== "RESOLVED" && t?.status !== "CLOSED" && (
                     <Act
                       onClick={() =>
                         action(
@@ -927,8 +974,10 @@ export function Support() {
                           >
                             <div className={`tg-bubble ${isOwn ? "own" : "incoming"}`}>
                               {!isOwn && (
-                                <div className="tg-bubble-sender">
-                                  {m.userName ?? "Suhbatdosh"}
+                                <div className="tg-bubble-sender" style={{ fontWeight: 700, fontSize: "12px", color: "#25e2a2", marginBottom: "4px", display: "flex", alignItems: "center", gap: "6px" }}>
+                                  <span>👤 {m.userName || (m.userId === t?.userId ? (t?.sender?.name || "Mijoz") : "Suhbatdosh")}</span>
+                                  {m.userPhone && <span style={{ fontSize: "11px", color: "#8ea69d", fontWeight: 400 }}>· {m.userPhone}</span>}
+                                  {m.userKind === "CUSTOMER" && <span style={{ fontSize: "10px", background: "rgba(37,226,162,0.18)", color: "#25e2a2", padding: "0 5px", borderRadius: "6px" }}>Ilova</span>}
                                 </div>
                               )}
                               <p className="tg-bubble-text">{m.text}</p>

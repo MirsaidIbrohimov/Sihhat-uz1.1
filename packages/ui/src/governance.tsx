@@ -1610,3 +1610,178 @@ export function Staff() {
     </>
   );
 }
+
+export function AppUsers() {
+  const ctx = usePortal();
+  const filters = useSavedFilters("app-users", { status: "" });
+  const [search, setSearch] = useState(""),
+    [q, setQ] = useState("");
+
+  function editUser(r: Row) {
+    ctx.form({
+      title: `${r.name} — Ma'lumotlarni tahrirlash`,
+      description: "Foydalanuvchi ismi yoki telefon raqamini o'zgartiring.",
+      fields: [
+        { key: "name", label: "To'liq ism", required: true, value: r.name },
+        { key: "phone", label: "Telefon", required: false, value: r.phone || "" },
+      ],
+      submit: (v) => api(`/superadmin/customers/${r.id}`, "PATCH", v),
+      done: ctx.refresh,
+    });
+  }
+
+  function toggleStatus(r: Row) {
+    const isBlock = r.status === "ACTIVE";
+    ctx.form({
+      title: isBlock ? "Foydalanuvchini bloklash" : "Foydalanuvchini faollashtirish",
+      description: isBlock
+        ? `${r.name} ilovaga kira olmaydi va barcha faol seanslari bekor qilinadi.`
+        : `${r.name} hisobi qayta faollashtiriladi.`,
+      fields: [
+        {
+          key: "reason",
+          label: "Sabab / Izoh",
+          type: "textarea",
+          required: isBlock,
+          value: isBlock ? "Qoidabuzarlik yoki admin cheklovi" : "Cheklov bekor qilindi",
+        },
+      ],
+      submit: (v) =>
+        api(`/superadmin/customers/${r.id}/toggle-status`, "POST", {
+          status: isBlock ? "BLOCKED" : "ACTIVE",
+          reason: v.reason,
+        }),
+      done: ctx.refresh,
+    });
+  }
+
+  return (
+    <>
+      <PageHeading
+        title="Ilova foydalanuvchilari"
+        subtitle="Mobil ilovadan ro‘yxatdan o‘tgan mijozlar ro‘yxati, ularning buyurtmalari va tizimdagi holati nazorati."
+      />
+      <ListFilters
+        search={search}
+        setSearch={setSearch}
+        apply={() => setQ(search.trim())}
+        reset={() => {
+          setSearch("");
+          setQ("");
+          filters.reset();
+        }}
+        filters={filters.values}
+        setFilter={filters.set}
+        statuses={["ACTIVE", "BLOCKED"]}
+        placeholder="Mijoz ismi, login yoki telefon"
+      />
+      <DataPanel
+        path="/superadmin/customers"
+        params={{
+          q: q || undefined,
+          status: filters.values.status || undefined,
+        }}
+        columns={[
+          {
+            label: "Foydalanuvchi",
+            render: (r) => (
+              <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                <div
+                  style={{
+                    width: "36px",
+                    height: "36px",
+                    borderRadius: "50%",
+                    background: r.status === "ACTIVE" ? "linear-gradient(135deg, #104233, #25e2a2)" : "#3a3a3a",
+                    color: r.status === "ACTIVE" ? "#041610" : "#fff",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    fontWeight: 800,
+                    fontSize: "14px",
+                  }}
+                >
+                  {(r.name || "M").slice(0, 1).toUpperCase()}
+                </div>
+                <div>
+                  <strong style={{ color: "#fff" }}>{r.name}</strong>
+                  <span className="subcell">ID: {r.id.slice(0, 8)}… {r.login ? `· @${r.login}` : ""}</span>
+                </div>
+              </div>
+            ),
+          },
+          {
+            label: "Telefon",
+            render: (r) =>
+              r.phone ? (
+                <a href={`tel:${r.phone}`} style={{ color: "#25e2a2", textDecoration: "none", fontWeight: 600 }}>
+                  {r.phone}
+                </a>
+              ) : (
+                <span className="subcell">—</span>
+              ),
+          },
+          {
+            label: "Bronlar",
+            render: (r) => (
+              <span
+                style={{
+                  background: r.bookingsCount > 0 ? "rgba(37,226,162,0.15)" : "rgba(255,255,255,0.05)",
+                  color: r.bookingsCount > 0 ? "#25e2a2" : "#8ea69d",
+                  padding: "2px 8px",
+                  borderRadius: "12px",
+                  fontWeight: 600,
+                  fontSize: "12px",
+                }}
+              >
+                {r.bookingsCount} ta
+              </span>
+            ),
+          },
+          {
+            label: "Murojaatlar",
+            render: (r) => (
+              <span
+                style={{
+                  background: r.ticketsCount > 0 ? "rgba(235,178,57,0.15)" : "rgba(255,255,255,0.05)",
+                  color: r.ticketsCount > 0 ? "#ebb239" : "#8ea69d",
+                  padding: "2px 8px",
+                  borderRadius: "12px",
+                  fontWeight: 600,
+                  fontSize: "12px",
+                }}
+              >
+                {r.ticketsCount} ta
+              </span>
+            ),
+          },
+          {
+            label: "Ro‘yxatdan o‘tgan",
+            render: (r) => date(r.createdAt),
+          },
+          {
+            label: "Oxirgi faollik",
+            render: (r) => (
+              <div>
+                <div>{date(r.lastSeenAt)}</div>
+                <span className="subcell">{r.device}</span>
+              </div>
+            ),
+          },
+          statusColumn,
+        ]}
+        actions={(r) => (
+          <>
+            <Act onClick={() => editUser(r)}>Tahrirlash</Act>
+            <Act
+              danger={r.status === "ACTIVE"}
+              onClick={() => toggleStatus(r)}
+            >
+              {r.status === "ACTIVE" ? "Bloklash" : "Faollashtirish"}
+            </Act>
+          </>
+        )}
+      />
+    </>
+  );
+}
+

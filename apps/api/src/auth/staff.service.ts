@@ -129,4 +129,122 @@ export class StaffService {
       await audit(tx, actor.id, 'staff.password_reset', userId, sanatoriumId); return { success: true };
     });
   }
+  async customers(actor: Actor, query: unknown) {
+    if (actor.kind !== 'SUPERADMIN') fail('PERMISSION_DENIED', 'Faqat superadmin ko‘ra oladi', 403);
+    const { page, limit, q, status } = parse(
+      pageQuery.extend({
+        q: z.string().trim().max(120).optional(),
+        status: z.enum(['ACTIVE', 'BLOCKED']).optional()
+      }).strict(),
+      query
+    );
+    const where: any = { kind: 'CUSTOMER' };
+    if (status) where.status = status;
+    if (q) {
+      const digits = q.replace(/[\s()-]/g, '');
+      where.OR = [
+        { name: { contains: q, mode: 'insensitive' } },
+        ...(digits.length > 2 ? [{ phone: { contains: digits } }] : []),
+        { login: { contains: q, mode: 'insensitive' } }
+      ];
+    }
+    const [users, total] = await Promise.all([
+      this.db.user.findMany({
+        where,
+        skip: (page - 1) * limit,
+        take: limit,
+        orderBy: { createdAt: 'desc' },
+        select: {
+          id: true,
+          name: true,
+          phone: true,
+          login: true,
+          status: true,
+          createdAt: true,
+          updatedAt: true,
+        }
+      }),
+      this.db.user.count({ where })
+    ]);
+
+    const userIds = users.map(u => u.id);
+    const [bookingCounts, ticketCounts, lastSessions] = await Promise.all([
+      userIds.length ? this.db.booking.groupBy({
+        by: ['userId'],
+        where: { userId: { in: userIds } },
+        _count: { id: true },
+      }) : [],
+      userIds.length ? this.db.supportTicket.groupBy({
+        by: ['userId'],
+        where: { userId: { in: userIds } },
+        _count: { id: true },
+      }) : [],
+      userIds.length ? this.db.session.findMany({
+        where: { userId: { in: userIds } },
+        orderBy: { lastActivityAt: 'desc' },
+        select: { userId: true, lastActivityAt: true, deviceLabel: true, channel: true },
+        distinct: ['userId'],
+      }) : []
+    ]);
+
+    const bookingMap = new Map(bookingCounts.map(b => [b.userId, b._count.id]));
+    const ticketMap = new Map(ticketCounts.map(t => [t.userId, t._count.id]));
+    const sessionMap = new Map(lastSessions.map(s => [s.userId, s]));
+
+    const data = users.map(u => {
+      const s = sessionMap.get(u.id);
+      return {
+        ...u,
+        bookingsCount: bookingMap.get(u.id) || 0,
+        ticketsCount: ticketMap.get(u.id) || 0,
+        lastSeenAt: s?.lastActivityAt ?? u.updatedAt,
+        device: s?.deviceLabel || s?.channel || 'Mobil ilova',
+      };
+    });
+
+    return paged(data, total, page, limit);
+  }
+
+  async toggleCustomerStatus(actor: Actor, id: string, body: unknown) {
+    if (actor.kind !== 'SUPERADMIN') fail('PERMISSION_DENIED', 'Faqat superadmin o‘zgartira oladi', 403);
+    parse(uuid, id);
+    const input = parse(z.object({ status: z.enum(['ACTIVE', 'BLOCKED']), reason: z.string().trim().max(300).optional() }).strict(), body);
+    return this.db.atomic(async tx => {
+      await lock(tx, `user:${id}`);
+      const target = await tx.user.findUnique({ where: { id } });
+      if (!target || target.kind !== 'CUSTOMER') fail('NOT_FOUND', 'Ilova foydalanuvchisi topilmadi', 404);
+      const updated = await tx.user.update({
+        where: { id },
+        data: { status: input.status }
+      });
+      if (input.status === 'BLOCKED') {
+        await tx.session.updateMany({
+          where: { userId: id, revokedAt: null },
+          data: { revokedAt: new Date() }
+        });
+      }
+      await audit(tx, actor.id, 'customer.status_updated', id, undefined, { status: target.status }, { status: updated.status, reason: input.reason });
+      return updated;
+    });
+  }
+
+  async updateCustomer(actor: Actor, id: string, body: unknown) {
+    if (actor.kind !== 'SUPERADMIN') fail('PERMISSION_DENIED', 'Faqat superadmin tahrirlay oladi', 403);
+    parse(uuid, id);
+    const input = parse(z.object({ name: z.string().trim().min(2).max(120).optional(), phone: phoneSchema.optional() }).strict(), body);
+    return this.db.atomic(async tx => {
+      await lock(tx, `user:${id}`);
+      const target = await tx.user.findUnique({ where: { id } });
+      if (!target || target.kind !== 'CUSTOMER') fail('NOT_FOUND', 'Ilova foydalanuvchisi topilmadi', 404);
+      const updated = await tx.user.update({
+        where: { id },
+        data: {
+          ...(input.name ? { name: input.name } : {}),
+          ...(input.phone ? { phone: input.phone } : {})
+        }
+      });
+      await audit(tx, actor.id, 'customer.profile_updated', id, undefined, { name: target.name, phone: target.phone }, { name: updated.name, phone: updated.phone });
+      return updated;
+    });
+  }
 }
