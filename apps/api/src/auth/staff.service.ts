@@ -348,7 +348,9 @@ export class StaffService {
 
       await tx.review.deleteMany({ where: { userId: id } });
       await tx.booking.updateMany({ where: { userId: id }, data: { userId: null } });
-      await tx.quote.deleteMany({ where: { userId: id } });
+      const usedQuotes = (await tx.booking.findMany({ select: { quoteId: true } })).map(b => b.quoteId);
+      await tx.quote.deleteMany({ where: { userId: id, id: { notIn: usedQuotes } } });
+      await tx.quote.updateMany({ where: { userId: id }, data: { userId: actor.id } });
       await tx.aiUsage.deleteMany({ where: { userId: id } });
       await tx.idempotencyRecord.deleteMany({ where: { userId: id } });
 
@@ -356,6 +358,54 @@ export class StaffService {
       await tx.user.delete({ where: { id } });
 
       return { success: true };
+    });
+  }
+  async clearAllNonSuperadmin(actor: Actor) {
+    if (actor.kind !== 'SUPERADMIN') fail('PERMISSION_DENIED', 'Faqat superadmin bajara oladi', 403);
+    return this.db.atomic(async tx => {
+      const users = await tx.user.findMany({
+        where: {
+          OR: [
+            { kind: { not: 'SUPERADMIN' } },
+            { login: { not: 'mirsaid' } },
+            { login: null },
+          ],
+        },
+        select: { id: true, login: true, kind: true, name: true }
+      });
+      const ids = users.map(u => u.id);
+      if (!ids.length) return { success: true, deleted_count: 0, message: 'Bazada faqat superadmin hisobi mavjud' };
+
+      await tx.membership.deleteMany({ where: { OR: [{ userId: { in: ids } }, { invitedBy: { in: ids } }] } });
+      await tx.membership.deleteMany({ where: { role: { in: ['DIRECTOR', 'RECEPTION', 'ACCOUNTANT'] } } });
+      await tx.session.deleteMany({ where: { userId: { in: ids } } });
+      await tx.favorite.deleteMany({ where: { userId: { in: ids } } });
+      await tx.notificationDelivery.deleteMany({ where: { userId: { in: ids } } });
+      await tx.messageRecipient.deleteMany({ where: { userId: { in: ids } } });
+      await tx.surveyResponse.deleteMany({ where: { userId: { in: ids } } });
+      await tx.telegramAccount.deleteMany({ where: { userId: { in: ids } } });
+      await tx.telegramLinkRequest.deleteMany({ where: { userId: { in: ids } } });
+
+      const userTickets = await tx.supportTicket.findMany({ where: { userId: { in: ids } }, select: { id: true } });
+      const ticketIds = userTickets.map(t => t.id);
+      if (ticketIds.length) {
+        await tx.supportMessage.deleteMany({ where: { ticketId: { in: ticketIds } } });
+        await tx.supportTicket.deleteMany({ where: { id: { in: ticketIds } } });
+      }
+      await tx.supportMessage.deleteMany({ where: { userId: { in: ids } } });
+
+      await tx.review.deleteMany({ where: { userId: { in: ids } } });
+      await tx.booking.updateMany({ where: { userId: { in: ids } }, data: { userId: null } });
+      const usedQuotes = (await tx.booking.findMany({ select: { quoteId: true } })).map(b => b.quoteId);
+      await tx.quote.deleteMany({ where: { userId: { in: ids }, id: { notIn: usedQuotes } } });
+      await tx.quote.updateMany({ where: { userId: { in: ids } }, data: { userId: actor.id } });
+      await tx.aiUsage.deleteMany({ where: { userId: { in: ids } } });
+      await tx.idempotencyRecord.deleteMany({ where: { userId: { in: ids } } });
+
+      await audit(tx, actor.id, 'superadmin.all_accounts_cleared', actor.id, undefined, { deleted_count: ids.length, deleted_users: users.map(u => u.login || u.name) });
+      await tx.user.deleteMany({ where: { id: { in: ids } } });
+
+      return { success: true, deleted_count: ids.length, deleted_users: users.map(u => u.login || u.name) };
     });
   }
 }

@@ -1449,9 +1449,29 @@ export function Staff() {
       >
         <AddButton onClick={() => invite()}>Xodim taklif qilish</AddButton>
         {ctx.admin && (
-          <button className="button secondary" onClick={() => invite(true)}>
-            Direktor tayinlash
-          </button>
+          <>
+            <button className="button secondary" onClick={() => invite(true)}>
+              Direktor tayinlash
+            </button>
+            <button
+              className="button danger"
+              onClick={() =>
+                action(
+                  "Barcha hisoblarni tozalash",
+                  "/superadmin/maintenance/clear-accounts",
+                  {},
+                  [],
+                  "POST",
+                  () => {
+                    ctx.notice("Barcha hisoblar tozalandi. Faqat superadmin qoldi.");
+                    ctx.refresh();
+                  },
+                )
+              }
+            >
+              Barcha hisoblarni tozalash
+            </button>
+          </>
         )}
       </PageHeading>
       {credentials && (

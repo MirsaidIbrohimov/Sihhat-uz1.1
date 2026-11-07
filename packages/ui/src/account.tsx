@@ -42,7 +42,7 @@ export function MyAccount({ changePassword }: { changePassword: () => void }) {
     ? "SUPERADMIN"
     : (ctx.actor.memberships.find(
         (m) => m.sanatoriumId === ctx.tenant && m.status === "ACTIVE",
-      )?.role ?? "STAFF");
+      )?.role ?? ctx.actor.memberships.find((m) => m.status === "ACTIVE")?.role ?? "STAFF");
 
   const close = (id?: string) =>
     ctx.form({
@@ -220,7 +220,7 @@ export function RoleGuide() {
     ? "SUPERADMIN"
     : (ctx.actor.memberships.find(
         (m) => m.sanatoriumId === ctx.tenant && m.status === "ACTIVE",
-      )?.role ?? "STAFF");
+      )?.role ?? ctx.actor.memberships.find((m) => m.status === "ACTIVE")?.role ?? "STAFF");
 
   const allGuides = [
     {

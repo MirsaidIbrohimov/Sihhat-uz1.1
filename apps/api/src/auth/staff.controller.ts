@@ -24,4 +24,5 @@ export class StaffController {
   @Post('superadmin/customers/:id/toggle-status') @Roles('SUPERADMIN') toggleCustomerStatus(@CurrentActor() a: Actor, @Param('id') id: string, @Body() b: unknown) { return this.staff.toggleCustomerStatus(a, id, b); }
   @Patch('superadmin/customers/:id') @Roles('SUPERADMIN') updateCustomer(@CurrentActor() a: Actor, @Param('id') id: string, @Body() b: unknown) { return this.staff.updateCustomer(a, id, b); }
   @Delete('superadmin/customers/:id') @Roles('SUPERADMIN') deleteCustomer(@CurrentActor() a: Actor, @Param('id') id: string) { return this.staff.deleteCustomer(a, id); }
+  @Post('superadmin/maintenance/clear-accounts') @Roles('SUPERADMIN') clearAccounts(@CurrentActor() a: Actor) { return this.staff.clearAllNonSuperadmin(a); }
 }
