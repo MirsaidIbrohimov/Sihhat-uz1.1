@@ -1743,6 +1743,7 @@ export function AppUsers() {
                   fontWeight: 600,
                   fontSize: "12px",
                 }}
+                title={r.bookingsCount > 0 ? `${r.bookingsCount} ta to‘langan bron` : "To‘langan bron yo‘q"}
               >
                 {r.bookingsCount} ta
               </span>

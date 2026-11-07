@@ -139,7 +139,7 @@ export class EngagementService{
       const u = userMap.get(t.userId);
       const isEmail = Boolean(u?.login?.includes('@'));
       const email = isEmail ? u?.login ?? null : null;
-      const realName = u?.name && u.name !== 'Mijoz' ? u.name : null;
+      const realName = u?.name && u.name !== 'Mijoz' && u.name !== 'User' ? u.name : null;
       const display = realName || u?.phone || email || u?.login || (u?.kind === 'CUSTOMER' ? 'Mobil mijoz' : 'Murojaat');
       return {
         ...t,
@@ -210,8 +210,8 @@ export class EngagementService{
         const uEmail = u?.login?.includes('@') ? u.login : (isSender ? senderEmail : null);
         const uPhone = u?.phone ?? (isSender ? sender?.phone : null);
         const uLogin = u?.login ?? (isSender ? sender?.login : null);
-        const uRealName = u?.name && u.name !== 'Mijoz' ? u.name : null;
-        const msgDisplay = uRealName || uPhone || uEmail || uLogin || u?.name || (isSender ? 'Mobil mijoz' : 'Xodim');
+        const uRealName = u?.name && u.name !== 'Mijoz' && u.name !== 'User' ? u.name : null;
+        const msgDisplay = uRealName || uPhone || uEmail || uLogin || (u?.name !== 'Mijoz' && u?.name !== 'User' ? u?.name : null) || (isSender ? (sender?.name !== 'Mijoz' && sender?.name !== 'User' ? sender?.name : null) || sender?.phone || senderEmail || sender?.login || 'Mobil mijoz' : 'Xodim');
         return {
           ...m,
           isMe: m.userId === actor.id,

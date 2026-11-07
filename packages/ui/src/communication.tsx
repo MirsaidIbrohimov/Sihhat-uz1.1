@@ -1046,7 +1046,14 @@ export function Support() {
                     <>
                       {t.messages.map((m: Row) => {
                         const isOwn = m.userId === ctx.actor.id;
-                        const bubbleSenderName = m.userName || (m.userId === t?.userId ? getSenderDisplay(t).primary : "Suhbatdosh");
+                        const senderInfo = m.userId === t?.userId ? getSenderDisplay(t) : null;
+                        const rawName = (m.userName ?? "").trim();
+                        const isPlaceholder = !rawName || rawName === "Mijoz" || rawName === "User";
+                        const bubbleSenderName = !isPlaceholder
+                          ? rawName
+                          : (senderInfo?.primary || rawName || "Suhbatdosh");
+                        const bubblePhone = m.userPhone || senderInfo?.phone;
+                        const bubbleEmail = m.userEmail || senderInfo?.email;
                         return (
                           <div
                             key={m.id}
@@ -1056,17 +1063,17 @@ export function Support() {
                               {!isOwn && (
                                 <div className="tg-bubble-sender" style={{ fontWeight: 700, fontSize: "12px", color: "#25e2a2", marginBottom: "4px", display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
                                   <span>👤 {bubbleSenderName}</span>
-                                  {m.userPhone && (
-                                    <a href={`tel:${m.userPhone}`} style={{ fontSize: "11px", color: "#66e1b9", textDecoration: "none", fontWeight: 600, display: "inline-flex", alignItems: "center", gap: "3px" }}>
-                                      <Phone size={10} /> {m.userPhone}
+                                  {bubblePhone && (
+                                    <a href={`tel:${bubblePhone}`} style={{ fontSize: "11px", color: "#66e1b9", textDecoration: "none", fontWeight: 600, display: "inline-flex", alignItems: "center", gap: "3px" }}>
+                                      <Phone size={10} /> {bubblePhone}
                                     </a>
                                   )}
-                                  {m.userEmail && (
+                                  {bubbleEmail && (
                                     <span style={{ fontSize: "11px", color: "#8ea69d", fontWeight: 400 }}>
-                                      ✉️ {m.userEmail}
+                                      ✉️ {bubbleEmail}
                                     </span>
                                   )}
-                                  {m.userKind === "CUSTOMER" && <span style={{ fontSize: "10px", background: "rgba(37,226,162,0.18)", color: "#25e2a2", padding: "0 5px", borderRadius: "6px" }}>Ilova</span>}
+                                  {(m.userKind === "CUSTOMER" || senderInfo?.isCustomer) && <span style={{ fontSize: "10px", background: "rgba(37,226,162,0.18)", color: "#25e2a2", padding: "0 5px", borderRadius: "6px" }}>Ilova</span>}
                                 </div>
                               )}
                               <p className="tg-bubble-text">{m.text}</p>

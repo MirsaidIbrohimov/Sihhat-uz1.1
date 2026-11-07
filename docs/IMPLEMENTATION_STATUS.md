@@ -8,6 +8,7 @@ Yangilangan: 2026-11-07. Asos: ISHLAB_CHIQISH_REJASI.md va SIHHAT_UZ_ARXITEKTURA
   - `GET /superadmin/customers`, `POST /superadmin/customers/:id/toggle-status`, `PATCH /superadmin/customers/:id`, `DELETE /superadmin/customers/:id` API yo‘nalishlari joriy etildi.
   - Veb panelda **«Ilova foydalanuvchilari»** bo‘limi yaratildi (`packages/ui/src/governance.tsx`).
   - Foydalanuvchilar qidiruvi (ism, login, telefon), holat filtri (Faol / Bloklangan), mijoz avatari, bronlar soni, murojaatlar soni va oxirgi faollik ma’lumotlari ko‘rsatiladi.
+  - **Faqat to‘langan bronlar**: jadvaldagi «Bronlar» ustuni faqatgina to‘lovi amalga oshirilgan (`CONFIRMED`, `CHECKED_IN`, `CHECKED_OUT`) bronlarni hisoblaydi, vaqtinchalik yoki to‘lanmagan bronlar umumiy songa qo‘shilmaydi.
   - Superadmin foydalanuvchini bloklash (barcha faol seanslarini bekor qilish) yoki qayta faollashtirish, ism/telefonini tahrirlash hamda hisobni butunlay o‘chirib tashlash («O‘chirish» amali) imkoniyatiga ega.
   - *Qayd*: Render backendida `Cannot GET /superadmin/customers` xatosi Render xizmati oxirgi commit bilan yangilanmagani (deploy qilinmagani) sababli yuzaga keladi. Render dashboardidan «Manual Deploy -> Deploy latest commit» bosilishi yoki lokal API ishlatilishi lozim.
 - **Yordam xizmati (Chat) murojaat yuboruvchisi shaffofligi**:

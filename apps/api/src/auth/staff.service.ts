@@ -171,7 +171,10 @@ export class StaffService {
     const [bookingCounts, ticketCounts, lastSessions] = await Promise.all([
       userIds.length ? this.db.booking.groupBy({
         by: ['userId'],
-        where: { userId: { in: userIds } },
+        where: {
+          userId: { in: userIds },
+          status: { in: ['CONFIRMED', 'CHECKED_IN', 'CHECKED_OUT'] },
+        },
         _count: { id: true },
       }) : [],
       userIds.length ? this.db.supportTicket.groupBy({
@@ -187,7 +190,7 @@ export class StaffService {
       }) : []
     ]);
 
-    const bookingMap = new Map(bookingCounts.map(b => [b.userId, b._count.id]));
+    const bookingMap = new Map(bookingCounts.filter(b => b.userId !== null).map(b => [b.userId!, b._count.id]));
     const ticketMap = new Map(ticketCounts.map(t => [t.userId, t._count.id]));
     const sessionMap = new Map(lastSessions.map(s => [s.userId, s]));
 
