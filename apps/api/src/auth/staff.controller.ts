@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Inject, Param, Patch, Post, Query } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Inject, Param, Patch, Post, Query } from '@nestjs/common';
 import { ApiBody, ApiTags } from '@nestjs/swagger';
 import { CurrentActor, Roles } from './guard';
 import { type Actor } from './permissions';
@@ -23,4 +23,5 @@ export class StaffController {
   @Get('superadmin/customers') @Roles('SUPERADMIN') customers(@CurrentActor() a: Actor, @Query() q: unknown) { return this.staff.customers(a, q); }
   @Post('superadmin/customers/:id/toggle-status') @Roles('SUPERADMIN') toggleCustomerStatus(@CurrentActor() a: Actor, @Param('id') id: string, @Body() b: unknown) { return this.staff.toggleCustomerStatus(a, id, b); }
   @Patch('superadmin/customers/:id') @Roles('SUPERADMIN') updateCustomer(@CurrentActor() a: Actor, @Param('id') id: string, @Body() b: unknown) { return this.staff.updateCustomer(a, id, b); }
+  @Delete('superadmin/customers/:id') @Roles('SUPERADMIN') deleteCustomer(@CurrentActor() a: Actor, @Param('id') id: string) { return this.staff.deleteCustomer(a, id); }
 }

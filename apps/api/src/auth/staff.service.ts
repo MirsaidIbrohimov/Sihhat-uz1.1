@@ -247,4 +247,41 @@ export class StaffService {
       return updated;
     });
   }
+
+  async deleteCustomer(actor: Actor, id: string) {
+    if (actor.kind !== 'SUPERADMIN') fail('PERMISSION_DENIED', 'Faqat superadmin o‘chira oladi', 403);
+    parse(uuid, id);
+    return this.db.atomic(async tx => {
+      await lock(tx, `user:${id}`);
+      const target = await tx.user.findUnique({ where: { id } });
+      if (!target || target.kind !== 'CUSTOMER') fail('NOT_FOUND', 'Ilova foydalanuvchisi topilmadi', 404);
+
+      await tx.session.deleteMany({ where: { userId: id } });
+      await tx.favorite.deleteMany({ where: { userId: id } });
+      await tx.notificationDelivery.deleteMany({ where: { userId: id } });
+      await tx.messageRecipient.deleteMany({ where: { userId: id } });
+      await tx.surveyResponse.deleteMany({ where: { userId: id } });
+      await tx.telegramAccount.deleteMany({ where: { userId: id } });
+      await tx.telegramLinkRequest.deleteMany({ where: { userId: id } });
+
+      const userTickets = await tx.supportTicket.findMany({ where: { userId: id }, select: { id: true } });
+      const ticketIds = userTickets.map(t => t.id);
+      if (ticketIds.length) {
+        await tx.supportMessage.deleteMany({ where: { ticketId: { in: ticketIds } } });
+        await tx.supportTicket.deleteMany({ where: { id: { in: ticketIds } } });
+      }
+      await tx.supportMessage.deleteMany({ where: { userId: id } });
+
+      await tx.review.deleteMany({ where: { userId: id } });
+      await tx.booking.updateMany({ where: { userId: id }, data: { userId: null } });
+      await tx.quote.deleteMany({ where: { userId: id } });
+      await tx.aiUsage.deleteMany({ where: { userId: id } });
+      await tx.idempotencyRecord.deleteMany({ where: { userId: id } });
+
+      await audit(tx, actor.id, 'customer.deleted', id, undefined, { name: target.name, phone: target.phone, login: target.login });
+      await tx.user.delete({ where: { id } });
+
+      return { success: true };
+    });
+  }
 }

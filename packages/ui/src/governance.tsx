@@ -1655,6 +1655,17 @@ export function AppUsers() {
     });
   }
 
+  function deleteUser(r: Row) {
+    ctx.form({
+      title: "Foydalanuvchini butunlay o‘chirish",
+      description: `«${r.name}» (${r.phone || r.login || "ID: " + r.id.slice(0, 8)}) hisobini tizimdan butunlay o‘chirib tashlamoqchimisiz? Barcha faol seanslari, yordam xabarlari va shaxsiy ma’lumotlari to‘liq o‘chiriladi. Ushbu amalni ortga qaytarib bo‘lmaydi.`,
+      fields: [],
+      button: "Ha, butunlay o‘chirilsin",
+      submit: () => api(`/superadmin/customers/${r.id}`, "DELETE", {}),
+      done: ctx.refresh,
+    });
+  }
+
   return (
     <>
       <PageHeading
@@ -1777,6 +1788,12 @@ export function AppUsers() {
               onClick={() => toggleStatus(r)}
             >
               {r.status === "ACTIVE" ? "Bloklash" : "Faollashtirish"}
+            </Act>
+            <Act
+              danger
+              onClick={() => deleteUser(r)}
+            >
+              O‘chirish
             </Act>
           </>
         )}
