@@ -19,6 +19,10 @@ Yangilangan: 2026-11-07. Asos: ISHLAB_CHIQISH_REJASI.md va SIHHAT_UZ_ARXITEKTURA
 - **Hamkor hisoblari va Superadmin tozalanishi**:
   - Bazadan barcha STAFF hamkor hisoblari va a’zoliklar to‘liq tozalandi.
   - Superadmin yagona hisob qilib belgilandi: `Mirsaid` (login: `mirsaid`).
+- **Direktor hisobi va Hamkor paneli tanlovi**:
+  - Hamkorlar portalida (`packages/ui/src/portal.tsx`) kirish vaqtida sanatoriya tanlovi (`tenant`) avtomatik tanlanmasdan bo‘sh qolishi sababli Direktor hisobi Resepshn sifatida ko‘rinishi va direktor bo‘limlari yashirinib qolishi tuzatildi (`effectiveTenant` va avto-tanlash joriy etildi).
+  - Superadmin uchun «Xodim taklif qilish» formasida lavozimlar orasiga «Direktor» tanlovi qo‘shildi.
+  - Jamoa jadvalida faol xodimlarni to‘g‘ridan-to‘g‘ri sanatoriya direktori etib tayinlash («Direktor qilish») amali qo‘shildi va API (`assignDirector`) mavjud foydalanuvchini xatosiz direktorga ko‘tarish imkoniyatiga ega bo‘ldi.
 - **OpenAPI va Shartnoma tekshiruvi**:
   - `PublicUser` sxemasiga `email` maydoni kiritildi, `docs/openapi.json` qayta generatsiya qilindi va `npm run test:contract` (OpenAPI B10) 100% muvaffaqiyatli o‘tdi.
 

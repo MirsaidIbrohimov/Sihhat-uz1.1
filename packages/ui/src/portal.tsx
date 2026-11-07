@@ -51,6 +51,7 @@ import {
   FormDialog,
   Loading,
   PortalContext,
+  label,
   type FormSpec,
   type Row,
 } from "./components";
@@ -507,6 +508,12 @@ export function Portal({
           return;
         }
         setActor(a);
+        if (a.kind === "STAFF") {
+          const active = a.memberships?.find((m: any) => m.status === "ACTIVE");
+          if (active?.sanatoriumId) {
+            setTenant((current) => current || active.sanatoriumId);
+          }
+        }
       })
       .catch((error) => {
         if (sessionGeneration.current !== generation) return;
@@ -539,9 +546,13 @@ export function Portal({
     api((admin ? "/superadmin" : "/partner") + "/sanatoriums?limit=100")
       .then((r) => {
         setTenants(r.data);
-        setTenant((id) =>
-          id === "" || r.data.some((s: Row) => s.id === id) ? id : (r.data[0]?.id ?? ""),
-        );
+        setTenant((id) => {
+          if (id && r.data.some((s: Row) => s.id === id)) return id;
+          const userTenant = actor?.memberships?.find(
+            (m) => m.status === "ACTIVE" && r.data.some((s: Row) => s.id === m.sanatoriumId)
+          )?.sanatoriumId;
+          return userTenant ?? r.data[0]?.id ?? "";
+        });
         setTenantError("");
       })
       .catch((e) => setTenantError(e.message));
@@ -622,11 +633,16 @@ export function Portal({
         }}
       />
     );
-  const allowed = (p: string) => can(actor, tenant, p);
+  const activeStaffTenant = !admin
+    ? (actor.memberships.find((m) => m.sanatoriumId === tenant && m.status === "ACTIVE")?.sanatoriumId ||
+       actor.memberships.find((m) => m.status === "ACTIVE")?.sanatoriumId || "")
+    : "";
+  const effectiveTenant = tenant || activeStaffTenant;
+  const allowed = (p: string) => can(actor, effectiveTenant, p);
   const accountant =
     !admin &&
     actor.memberships.find(
-      (m) => m.sanatoriumId === tenant && m.status === "ACTIVE",
+      (m) => m.sanatoriumId === effectiveTenant && m.status === "ACTIVE",
     )?.role === "ACCOUNTANT";
   const menuLinks = links.filter(
     (l) =>
@@ -723,7 +739,7 @@ export function Portal({
     <PortalContext.Provider
       value={{
         actor,
-        tenant,
+        tenant: effectiveTenant,
         tenants,
         admin,
         form: setForm,
@@ -861,11 +877,19 @@ export function Portal({
                       ? "SUPERADMIN"
                       : accountant
                         ? "HISOBCHI"
-                        : actor.memberships.find(
-                              (m) => m.sanatoriumId === tenant,
-                            )?.role === "DIRECTOR"
+                        : (actor.memberships.find(
+                              (m) => m.sanatoriumId === effectiveTenant && m.status === "ACTIVE",
+                            )?.role === "DIRECTOR" ||
+                           (!effectiveTenant && actor.memberships.some((m) => m.role === "DIRECTOR" && m.status === "ACTIVE")))
                           ? "DIREKTOR"
-                          : "RESEPSHN"}
+                          : (actor.memberships.find(
+                                (m) => m.sanatoriumId === effectiveTenant && m.status === "ACTIVE",
+                              )?.role === "RECEPTION" ||
+                             (!effectiveTenant && actor.memberships.some((m) => m.role === "RECEPTION" && m.status === "ACTIVE")))
+                            ? "RESEPSHN"
+                            : (actor.memberships.find((m) => m.status === "ACTIVE")?.role
+                                ? (label[actor.memberships.find((m) => m.status === "ACTIVE")!.role] ?? actor.memberships.find((m) => m.status === "ACTIVE")!.role).toUpperCase()
+                                : "XODIM")}
                   </span>
                 </div>
               </div>

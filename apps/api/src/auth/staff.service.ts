@@ -22,7 +22,29 @@ export class StaffService {
     const users = await this.db.user.findMany({ where: { id: { in: memberships.map(m => m.userId) } }, select: { id: true, name: true, login: true, phone: true, status: true, mustChangePassword: true } });
     return paged(memberships.map(m => ({ ...m, user: users.find(u => u.id === m.userId), permissions: effective(m) })), total, page, limit);
   }
-  private async createUser(tx: Tx, input: z.infer<typeof staffInput>, password: string) {
+  private async findOrCreateStaffUser(tx: Tx, input: z.infer<typeof staffInput>, password: string) {
+    const existing = await tx.user.findFirst({
+      where: {
+        OR: [
+          { login: input.login },
+          { phone: input.phone }
+        ]
+      }
+    });
+    if (existing) {
+      return tx.user.update({
+        where: { id: existing.id },
+        data: {
+          kind: 'STAFF',
+          name: input.name,
+          login: input.login,
+          phone: input.phone,
+          status: 'ACTIVE',
+          passwordHash: await passwordHash(password),
+          mustChangePassword: true,
+        }
+      });
+    }
     return tx.user.create({ data: { kind: 'STAFF', name: input.name, login: input.login, phone: input.phone, passwordHash: await passwordHash(password), mustChangePassword: true } });
   }
   async assignDirector(actor: Actor, body: unknown) {
@@ -34,8 +56,33 @@ export class StaffService {
       const previous = await tx.membership.findMany({ where: { sanatoriumId: input.sanatorium_id, role: 'DIRECTOR', status: 'ACTIVE' } });
       await tx.membership.updateMany({ where: { id: { in: previous.map(m => m.id) } }, data: { status: 'REVOKED', version: { increment: 1 } } });
       await tx.session.updateMany({ where: { userId: { in: previous.map(m => m.userId) }, revokedAt: null }, data: { revokedAt: new Date() } });
-      const user = await this.createUser(tx, input, password);
-      const membership = await tx.membership.create({ data: { userId: user.id, sanatoriumId: input.sanatorium_id, role: 'DIRECTOR', status: 'ACTIVE', ceiling: DIRECTOR, invitedBy: actor.id } });
+      const user = await this.findOrCreateStaffUser(tx, input, password);
+      const existingMembership = await tx.membership.findUnique({
+        where: { userId_sanatoriumId: { userId: user.id, sanatoriumId: input.sanatorium_id } }
+      });
+      const membership = existingMembership
+        ? await tx.membership.update({
+            where: { id: existingMembership.id },
+            data: {
+              role: 'DIRECTOR',
+              status: 'ACTIVE',
+              ceiling: DIRECTOR,
+              grants: [],
+              denies: [],
+              adminDenies: [],
+              version: { increment: 1 },
+            }
+          })
+        : await tx.membership.create({
+            data: {
+              userId: user.id,
+              sanatoriumId: input.sanatorium_id,
+              role: 'DIRECTOR',
+              status: 'ACTIVE',
+              ceiling: DIRECTOR,
+              invitedBy: actor.id,
+            }
+          });
       await audit(tx, actor.id, 'staff.director_assigned', membership.id, input.sanatorium_id, previous.map(p => ({ id: p.id, userId: p.userId })), { userId: user.id });
       return { membership, temporary_password: password };
     });
@@ -50,8 +97,32 @@ export class StaffService {
       if (current && (current.status !== 'ACTIVE' || !effective(current).includes('staff.invite'))) fail('PERMISSION_DENIED', 'Taklif yuborish vakolati bekor qilingan', 403);
       if (input.grants.some(p => !ceiling.includes(p))) fail('DELEGATION_DENIED', 'O‘zingizda yo‘q ruxsatni bera olmaysiz', 403);
       if (input.role === 'ACCOUNTANT' && !ACCOUNTANT.every(p => ceiling.includes(p))) fail('DELEGATION_DENIED', 'Hisobchini taklif qilish uchun hisobot va eksport vakolatlari kerak', 403);
-      const user = await this.createUser(tx, input, password);
-      const membership = await tx.membership.create({ data: { userId: user.id, sanatoriumId: input.sanatorium_id, role: input.role, status: actor.kind === 'SUPERADMIN' ? 'ACTIVE' : 'PENDING_APPROVAL', grants: input.grants, ceiling, invitedBy: actor.id } });
+      const user = await this.findOrCreateStaffUser(tx, input, password);
+      const existingMembership = await tx.membership.findUnique({
+        where: { userId_sanatoriumId: { userId: user.id, sanatoriumId: input.sanatorium_id } }
+      });
+      const membership = existingMembership
+        ? await tx.membership.update({
+            where: { id: existingMembership.id },
+            data: {
+              role: input.role,
+              status: actor.kind === 'SUPERADMIN' ? 'ACTIVE' : 'PENDING_APPROVAL',
+              grants: input.grants,
+              ceiling,
+              version: { increment: 1 },
+            }
+          })
+        : await tx.membership.create({
+            data: {
+              userId: user.id,
+              sanatoriumId: input.sanatorium_id,
+              role: input.role,
+              status: actor.kind === 'SUPERADMIN' ? 'ACTIVE' : 'PENDING_APPROVAL',
+              grants: input.grants,
+              ceiling,
+              invitedBy: actor.id,
+            }
+          });
       await audit(tx, actor.id, 'staff.invited', membership.id, input.sanatorium_id, undefined, { userId: user.id, role: membership.role, status: membership.status, grants: input.grants });
       const admins = await tx.user.findMany({ where: { kind: 'SUPERADMIN', status: 'ACTIVE' }, select: { id: true } });
       await emit(tx, 'staff.invited', { recipient_ids: admins.map(a => a.id), membership_id: membership.id });

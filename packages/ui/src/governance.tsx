@@ -1345,12 +1345,15 @@ export function Staff() {
                 label: "Lavozim",
                 type: "select" as const,
                 required: true,
-                value: "RECEPTION",
+                value: ctx.admin ? "DIRECTOR" : "RECEPTION",
                 options: [
+                  ...(ctx.admin ? [{ value: "DIRECTOR", label: "Direktor" }] : []),
                   { value: "RECEPTION", label: "Resepshn" },
                   { value: "ACCOUNTANT", label: "Hisobchi" },
                 ],
-                hint: "Hisobchi faqat o‘z sanatoriyasining hisobotlarini ko‘radi va yuklaydi.",
+                hint: ctx.admin
+                  ? "Direktor sanatoriyani to‘liq boshqaradi. Resepshn va hisobchi cheklangan vakolatlarga ega."
+                  : "Hisobchi faqat o‘z sanatoriyasining hisobotlarini ko‘radi va yuklaydi.",
               },
             ]
           : []),
@@ -1369,8 +1372,9 @@ export function Staff() {
         },
       ],
       submit: async (v) => {
+        const isDirector = director || v.role === "DIRECTOR";
         const r = await api(
-          director
+          isDirector
             ? "/superadmin/director-assignments"
             : "/partner/staff-invitations",
           "POST",
@@ -1557,6 +1561,40 @@ export function Staff() {
               r.status === "ACTIVE" && (
                 <Act onClick={() => permissionEdit(r)}>Ruxsatlar</Act>
               )}
+            {ctx.admin && r.role !== "DIRECTOR" && r.status === "ACTIVE" && (
+              <Act
+                onClick={() =>
+                  ctx.form({
+                    title: `${r.user?.name || "Xodim"}ni Direktor etib tayinlash`,
+                    description: `${r.user?.name} mazkur sanatoriyaning direktori etib tayinlanadi va to‘liq boshqaruv vakolatiga ega bo‘ladi.`,
+                    fields: [],
+                    submit: async () => {
+                      const res = await api<Row>(
+                        `/superadmin/director-assignments`,
+                        "POST",
+                        {
+                          sanatorium_id: r.sanatoriumId,
+                          name: r.user?.name,
+                          login: r.user?.login,
+                          phone: r.user?.phone,
+                        },
+                      );
+                      if (res?.temporary_password) {
+                        setCredentials({
+                          name: r.user?.name,
+                          login: r.user?.login,
+                          password: res.temporary_password,
+                        });
+                      }
+                      return res;
+                    },
+                    done: ctx.refresh,
+                  })
+                }
+              >
+                Direktor qilish
+              </Act>
+            )}
             {ctx.admin && r.status === "ACTIVE" && (
               <Act
                 danger
