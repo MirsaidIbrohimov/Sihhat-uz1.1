@@ -674,6 +674,60 @@ export function Reviews() {
     </>
   );
 }
+function getSenderDisplay(row?: Row | null) {
+  if (!row) return { primary: "Murojaat", realName: null, phone: null, email: null, login: null, initial: "M", isCustomer: false, badgeText: "Mijoz" };
+  const s = row.sender;
+  const isCustomer = s?.kind === "CUSTOMER" || (!s && (row.title || "").toLowerCase().includes("ilova"));
+  const realName = s?.name && s.name !== "Mijoz" && s.name !== "User" ? s.name : null;
+  const phone = s?.phone || null;
+  const login = s?.login || null;
+  const email = s?.email || (login && login.includes("@") ? login : null);
+
+  let fallbackPhone: string | null = null;
+  let fallbackEmail: string | null = null;
+  let fallbackName: string | null = null;
+  if (Array.isArray(row.messages)) {
+    for (const m of row.messages) {
+      if (m.userId === row.userId) {
+        if (!fallbackPhone && m.userPhone) fallbackPhone = m.userPhone;
+        if (!fallbackEmail && (m.userEmail || (m.userLogin && m.userLogin.includes("@")))) fallbackEmail = m.userEmail || m.userLogin;
+        if (!fallbackName && m.userName && m.userName !== "Mijoz") fallbackName = m.userName;
+      }
+    }
+  }
+
+  const finalName = realName || fallbackName;
+  const finalPhone = phone || fallbackPhone;
+  const finalEmail = email || fallbackEmail;
+  const finalLogin = login;
+
+  let primary = "";
+  if (finalName) {
+    primary = finalName;
+  } else if (finalPhone) {
+    primary = finalPhone;
+  } else if (finalEmail) {
+    primary = finalEmail;
+  } else if (finalLogin) {
+    primary = finalLogin;
+  } else {
+    primary = row.senderDisplay || (isCustomer ? "Mobil mijoz" : (row.title || "Murojaat"));
+  }
+
+  const initial = (primary || "M").replace(/[^a-zA-Z0-9\u0400-\u04FF]/g, "").slice(0, 1).toUpperCase() || "M";
+
+  return {
+    primary,
+    realName: finalName,
+    phone: finalPhone,
+    email: finalEmail,
+    login: finalLogin,
+    initial,
+    isCustomer,
+    badgeText: isCustomer ? "📱 Mobil mijoz" : "🏢 Xodim",
+  };
+}
+
 export function Support() {
   const ctx = usePortal(),
     action = useAction(),
@@ -822,10 +876,7 @@ export function Support() {
               )}
               {filteredTickets.map((row: Row) => {
                 const isSelected = row.id === id;
-                const senderName = row.sender?.name || (row.sender?.kind === "CUSTOMER" ? "Mobil mijoz" : (row.title || "Murojaat"));
-                const initial = senderName.slice(0, 1).toUpperCase();
-                const phone = row.sender?.phone;
-                const isCustomer = row.sender?.kind === "CUSTOMER" || (!row.sender && (row.title || "").toLowerCase().includes("ilova"));
+                const info = getSenderDisplay(row);
                 return (
                   <li
                     key={row.id}
@@ -833,25 +884,28 @@ export function Support() {
                     onClick={() => selectTicket(row.id)}
                     style={{ borderLeft: isSelected ? "3px solid #25e2a2" : "3px solid transparent" }}
                   >
-                    <div className="tg-avatar" style={{ background: isCustomer ? "linear-gradient(135deg, #104233, #19694e)" : "#22352c", color: "#25e2a2", fontWeight: 700 }}>
-                      {initial}
+                    <div className="tg-avatar" style={{ background: info.isCustomer ? "linear-gradient(135deg, #104233, #19694e)" : "#22352c", color: "#25e2a2", fontWeight: 700 }}>
+                      {info.initial}
                     </div>
                     <div className="tg-chat-info">
                       <div className="tg-chat-top">
                         <span className="tg-chat-title" style={{ fontWeight: 600, color: "#eef7f2" }}>
-                          {senderName}
+                          {info.primary}
                         </span>
                         <span className="tg-chat-time">{date(row.createdAt)}</span>
                       </div>
                       <div style={{ display: "flex", gap: "6px", alignItems: "center", margin: "2px 0", flexWrap: "wrap" }}>
-                        {isCustomer && (
-                          <span style={{ fontSize: "10px", background: "rgba(37,226,162,0.15)", color: "#25e2a2", padding: "1px 6px", borderRadius: "10px", fontWeight: 600 }}>
-                            📱 Ilova
+                        <span style={{ fontSize: "10px", background: "rgba(37,226,162,0.15)", color: "#25e2a2", padding: "1px 6px", borderRadius: "10px", fontWeight: 600 }}>
+                          {info.badgeText}
+                        </span>
+                        {info.realName && info.phone && (
+                          <span style={{ fontSize: "11px", color: "#8ea69d" }}>
+                            {info.phone}
                           </span>
                         )}
-                        {phone && (
+                        {info.email && info.primary !== info.email && (
                           <span style={{ fontSize: "11px", color: "#8ea69d" }}>
-                            {phone}
+                            {info.email}
                           </span>
                         )}
                         {row.booking && (
@@ -876,87 +930,112 @@ export function Support() {
         <div className="tg-room">
           {id ? (
             <>
-              <div className="tg-room-header" style={{ padding: "12px 18px", background: "#0a241a", borderBottom: "1px solid #19513e", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "10px" }}>
-                <div className="tg-room-user" style={{ display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap" }}>
-                  <button
-                    className="button secondary support-back"
-                    style={{ marginRight: "4px", minHeight: "32px", padding: "4px 8px" }}
-                    onClick={() => selectTicket(null)}
-                  >
-                    ←
-                  </button>
-                  <div className="tg-room-avatar" style={{ width: "42px", height: "42px", borderRadius: "50%", background: "linear-gradient(135deg, #104233, #25e2a2)", color: "#041610", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: "17px" }}>
-                    {(t?.sender?.name || t?.title || "M").slice(0, 1).toUpperCase()}
-                  </div>
-                  <div>
-                    <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
-                      <span style={{ fontSize: "15px", fontWeight: 700, color: "#fff" }}>
-                        {t?.sender?.name || (t?.title ?? "Mobil ilova mijozi")}
-                      </span>
-                      <span style={{ fontSize: "11px", padding: "2px 8px", borderRadius: "12px", background: "rgba(37,226,162,0.15)", color: "#25e2a2", fontWeight: 600 }}>
-                        {t?.sender?.kind === "STAFF" ? "🏢 Xodim" : "📱 Mobil ilovadan mijoz"}
-                      </span>
-                      {t?.sender?.phone && (
-                        <a href={`tel:${t.sender.phone}`} style={{ fontSize: "12px", color: "#66e1b9", textDecoration: "none", fontWeight: 600, display: "inline-flex", alignItems: "center", gap: "4px" }}>
-                          <Phone size={12} /> {t.sender.phone}
-                        </a>
+              {(() => {
+                const roomInfo = getSenderDisplay(t);
+                return (
+                  <div className="tg-room-header" style={{ padding: "12px 18px", background: "#0a241a", borderBottom: "1px solid #19513e", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "10px" }}>
+                    <div className="tg-room-user" style={{ display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap", flex: 1 }}>
+                      <button
+                        className="button secondary support-back"
+                        style={{ marginRight: "4px", minHeight: "32px", padding: "4px 8px" }}
+                        onClick={() => selectTicket(null)}
+                      >
+                        ←
+                      </button>
+                      <div className="tg-room-avatar" style={{ width: "44px", height: "44px", borderRadius: "50%", background: "linear-gradient(135deg, #104233, #25e2a2)", color: "#041610", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: "17px" }}>
+                        {roomInfo.initial}
+                      </div>
+                      <div style={{ flex: 1, minWidth: "220px" }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+                          <span style={{ fontSize: "16px", fontWeight: 700, color: "#fff" }}>
+                            {roomInfo.primary}
+                          </span>
+                          {roomInfo.realName && roomInfo.phone && (
+                            <span style={{ fontSize: "13px", color: "#66e1b9", fontWeight: 600 }}>
+                              ({roomInfo.phone})
+                            </span>
+                          )}
+                          <span style={{ fontSize: "11px", padding: "2px 8px", borderRadius: "12px", background: "rgba(37,226,162,0.15)", color: "#25e2a2", fontWeight: 600 }}>
+                            {roomInfo.badgeText}
+                          </span>
+                          {roomInfo.phone && (
+                            <a href={`tel:${roomInfo.phone}`} style={{ fontSize: "12px", padding: "2px 8px", borderRadius: "8px", background: "rgba(37,226,162,0.12)", color: "#25e2a2", textDecoration: "none", fontWeight: 700, display: "inline-flex", alignItems: "center", gap: "4px" }}>
+                              <Phone size={12} /> {roomInfo.phone}
+                            </a>
+                          )}
+                          {roomInfo.email && (
+                            <a href={`mailto:${roomInfo.email}`} style={{ fontSize: "12px", padding: "2px 8px", borderRadius: "8px", background: "rgba(37,226,162,0.08)", color: "#a5e9d3", textDecoration: "none", fontWeight: 600, display: "inline-flex", alignItems: "center", gap: "4px" }}>
+                              ✉️ {roomInfo.email}
+                            </a>
+                          )}
+                          {roomInfo.login && !roomInfo.email && (
+                            <span style={{ fontSize: "11px", color: "#8ea69d", background: "rgba(255,255,255,0.06)", padding: "1px 6px", borderRadius: "6px" }}>
+                              Login: {roomInfo.login}
+                            </span>
+                          )}
+                        </div>
+                        <div style={{ display: "flex", alignItems: "center", gap: "10px", marginTop: "3px", fontSize: "12px", color: "#8ea69d", flexWrap: "wrap" }}>
+                          <span>Mavzu: <strong style={{ color: "#d0e4da" }}>{t?.title ?? "Murojaat"}</strong></span>
+                          {t?.sanatoriumName && (
+                            <span>• 🏨 {t.sanatoriumName}</span>
+                          )}
+                          {t?.booking && (
+                            <span style={{ background: "rgba(255,255,255,0.08)", padding: "1px 6px", borderRadius: "6px", color: "#25e2a2" }}>
+                              🎫 Bron #{t.booking.reference} ({t.booking.status})
+                            </span>
+                          )}
+                          {t?.userId && (
+                            <span style={{ fontSize: "11px", color: "#6e8e81" }}>
+                              ID: {t.userId.slice(0, 8)}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                    <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+                      <Badge value={t?.status} />
+                      {ctx.admin && t?.status !== "RESOLVED" && t?.status !== "CLOSED" && (
+                        <Act
+                          onClick={() =>
+                            action(
+                              "Murojaatni yopish",
+                              `/support/tickets/${id}/messages`,
+                              {},
+                              [
+                                {
+                                  key: "text",
+                                  label: "Xulosa yoki yakuniy javob",
+                                  type: "textarea",
+                                  required: true,
+                                  value: "Murojaat ko‘rib chiqildi va yakunlandi.",
+                                },
+                                {
+                                  key: "close",
+                                  label: "Murojaatni yopish",
+                                  type: "checkbox" as const,
+                                  value: true,
+                                },
+                              ],
+                              "POST",
+                              () => {
+                                if (id) {
+                                  api<Row>(`/support/tickets/${id}`)
+                                    .then((fresh) => {
+                                      if (fresh) setThread(fresh);
+                                    })
+                                    .catch(() => {});
+                                }
+                              },
+                            )
+                          }
+                        >
+                          Yopish
+                        </Act>
                       )}
                     </div>
-                    <div style={{ display: "flex", alignItems: "center", gap: "10px", marginTop: "3px", fontSize: "12px", color: "#8ea69d", flexWrap: "wrap" }}>
-                      <span>Mavzu: <strong style={{ color: "#d0e4da" }}>{t?.title ?? "Murojaat"}</strong></span>
-                      {t?.sanatoriumName && (
-                        <span>• 🏨 {t.sanatoriumName}</span>
-                      )}
-                      {t?.booking && (
-                        <span style={{ background: "rgba(255,255,255,0.08)", padding: "1px 6px", borderRadius: "6px", color: "#25e2a2" }}>
-                          🎫 Bron #{t.booking.reference} ({t.booking.status})
-                        </span>
-                      )}
-                    </div>
                   </div>
-                </div>
-                <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
-                  <Badge value={t?.status} />
-                  {ctx.admin && t?.status !== "RESOLVED" && t?.status !== "CLOSED" && (
-                    <Act
-                      onClick={() =>
-                        action(
-                          "Murojaatni yopish",
-                          `/support/tickets/${id}/messages`,
-                          {},
-                          [
-                            {
-                              key: "text",
-                              label: "Xulosa yoki yakuniy javob",
-                              type: "textarea",
-                              required: true,
-                              value: "Murojaat ko‘rib chiqildi va yakunlandi.",
-                            },
-                            {
-                              key: "close",
-                              label: "Murojaatni yopish",
-                              type: "checkbox" as const,
-                              value: true,
-                            },
-                          ],
-                          "POST",
-                          () => {
-                            if (id) {
-                              api<Row>(`/support/tickets/${id}`)
-                                .then((fresh) => {
-                                  if (fresh) setThread(fresh);
-                                })
-                                .catch(() => {});
-                            }
-                          },
-                        )
-                      }
-                    >
-                      Yopish
-                    </Act>
-                  )}
-                </div>
-              </div>
+                );
+              })()}
               <div className="tg-viewport">
                 {!t && detail.loading ? (
                   <Loading />
@@ -967,6 +1046,7 @@ export function Support() {
                     <>
                       {t.messages.map((m: Row) => {
                         const isOwn = m.userId === ctx.actor.id;
+                        const bubbleSenderName = m.userName || (m.userId === t?.userId ? getSenderDisplay(t).primary : "Suhbatdosh");
                         return (
                           <div
                             key={m.id}
@@ -974,9 +1054,18 @@ export function Support() {
                           >
                             <div className={`tg-bubble ${isOwn ? "own" : "incoming"}`}>
                               {!isOwn && (
-                                <div className="tg-bubble-sender" style={{ fontWeight: 700, fontSize: "12px", color: "#25e2a2", marginBottom: "4px", display: "flex", alignItems: "center", gap: "6px" }}>
-                                  <span>👤 {m.userName || (m.userId === t?.userId ? (t?.sender?.name || "Mijoz") : "Suhbatdosh")}</span>
-                                  {m.userPhone && <span style={{ fontSize: "11px", color: "#8ea69d", fontWeight: 400 }}>· {m.userPhone}</span>}
+                                <div className="tg-bubble-sender" style={{ fontWeight: 700, fontSize: "12px", color: "#25e2a2", marginBottom: "4px", display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+                                  <span>👤 {bubbleSenderName}</span>
+                                  {m.userPhone && (
+                                    <a href={`tel:${m.userPhone}`} style={{ fontSize: "11px", color: "#66e1b9", textDecoration: "none", fontWeight: 600, display: "inline-flex", alignItems: "center", gap: "3px" }}>
+                                      <Phone size={10} /> {m.userPhone}
+                                    </a>
+                                  )}
+                                  {m.userEmail && (
+                                    <span style={{ fontSize: "11px", color: "#8ea69d", fontWeight: 400 }}>
+                                      ✉️ {m.userEmail}
+                                    </span>
+                                  )}
                                   {m.userKind === "CUSTOMER" && <span style={{ fontSize: "10px", background: "rgba(37,226,162,0.18)", color: "#25e2a2", padding: "0 5px", borderRadius: "6px" }}>Ilova</span>}
                                 </div>
                               )}

@@ -137,6 +137,10 @@ export class EngagementService{
 
     return tickets.map(t => {
       const u = userMap.get(t.userId);
+      const isEmail = Boolean(u?.login?.includes('@'));
+      const email = isEmail ? u?.login ?? null : null;
+      const realName = u?.name && u.name !== 'Mijoz' ? u.name : null;
+      const display = realName || u?.phone || email || u?.login || (u?.kind === 'CUSTOMER' ? 'Mobil mijoz' : 'Murojaat');
       return {
         ...t,
         sender: u ? {
@@ -144,9 +148,12 @@ export class EngagementService{
           name: u.name,
           phone: u.phone,
           login: u.login,
+          email,
           kind: u.kind,
           status: u.status,
+          displayName: display,
         } : null,
+        senderDisplay: display,
         sanatoriumName: t.sanatoriumId ? sanatoriumMap.get(t.sanatoriumId) ?? null : null,
         booking: t.bookingId ? bookingMap.get(t.bookingId) ?? null : null,
         lastMessage: lastMsgMap.get(t.id) ?? null,
@@ -174,21 +181,46 @@ export class EngagementService{
       t.bookingId ? this.db.booking.findUnique({ where: { id: t.bookingId }, select: { id: true, reference: true, checkIn: true, checkOut: true, status: true } }) : null
     ]);
     const userMap = new Map(users.map(u => [u.id, u]));
-    const sender = userMap.get(t.userId) ?? null;
+    const senderUser = userMap.get(t.userId) ?? null;
+    const isEmail = Boolean(senderUser?.login?.includes('@'));
+    const senderEmail = isEmail ? senderUser?.login ?? null : null;
+    const realName = senderUser?.name && senderUser.name !== 'Mijoz' ? senderUser.name : null;
+    const display = realName || senderUser?.phone || senderEmail || senderUser?.login || (senderUser?.kind === 'CUSTOMER' ? 'Mobil mijoz' : 'Murojaat');
+
+    const sender = senderUser ? {
+      id: senderUser.id,
+      name: senderUser.name,
+      phone: senderUser.phone,
+      login: senderUser.login,
+      email: senderEmail,
+      kind: senderUser.kind,
+      status: senderUser.status,
+      displayName: display,
+    } : null;
 
     return {
       ...t,
       sender,
+      senderDisplay: display,
       sanatoriumName: sanatorium?.name ?? null,
       booking,
       messages: messages.map(m => {
         const u = userMap.get(m.userId);
+        const isSender = m.userId === t.userId;
+        const uEmail = u?.login?.includes('@') ? u.login : (isSender ? senderEmail : null);
+        const uPhone = u?.phone ?? (isSender ? sender?.phone : null);
+        const uLogin = u?.login ?? (isSender ? sender?.login : null);
+        const uRealName = u?.name && u.name !== 'Mijoz' ? u.name : null;
+        const msgDisplay = uRealName || uPhone || uEmail || uLogin || u?.name || (isSender ? 'Mobil mijoz' : 'Xodim');
         return {
           ...m,
           isMe: m.userId === actor.id,
-          userName: u?.name ?? (m.userId === t.userId ? (sender?.name || 'Mijoz') : 'Xodim'),
-          userPhone: u?.phone ?? null,
-          userKind: u?.kind ?? null,
+          userName: msgDisplay,
+          rawName: u?.name ?? (isSender ? (sender?.name || 'Mijoz') : 'Xodim'),
+          userPhone: uPhone ?? null,
+          userLogin: uLogin ?? null,
+          userEmail: uEmail ?? null,
+          userKind: u?.kind ?? (isSender ? 'CUSTOMER' : 'STAFF'),
         };
       })
     };

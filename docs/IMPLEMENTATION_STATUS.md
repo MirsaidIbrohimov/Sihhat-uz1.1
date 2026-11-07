@@ -9,13 +9,17 @@ Yangilangan: 2026-11-07. Asos: ISHLAB_CHIQISH_REJASI.md va SIHHAT_UZ_ARXITEKTURA
   - Veb panelda **«Ilova foydalanuvchilari»** bo‘limi yaratildi (`packages/ui/src/governance.tsx`).
   - Foydalanuvchilar qidiruvi (ism, login, telefon), holat filtri (Faol / Bloklangan), mijoz avatari, bronlar soni, murojaatlar soni va oxirgi faollik ma’lumotlari ko‘rsatiladi.
   - Superadmin foydalanuvchini bloklash (barcha faol seanslarini bekor qilish) yoki qayta faollashtirish, ism/telefonini tahrirlash imkoniyatiga ega.
+  - *Qayd*: Render backendida `Cannot GET /superadmin/customers` xatosi Render xizmati oxirgi commit bilan yangilanmagani (deploy qilinmagani) sababli yuzaga keladi. Render dashboardidan «Manual Deploy -> Deploy latest commit» bosilishi yoki lokal API ishlatilishi lozim.
 - **Yordam xizmati (Chat) murojaat yuboruvchisi shaffofligi**:
-  - `GET /support/tickets` va `GET /support/tickets/:id` orqali yuboruvchi ma’lumotlari (`name`, `phone`, `kind`, `sanatoriumName`, `booking reference`) to‘liq qo‘shildi.
-  - Chat oynasi tepasida mijozning to‘liq ismi, telefon raqami (`📞 +998...`), mobil ilova nishoni (`📱 Ilova`), bog‘langan bron raqami va sanatoriya nomi aniq profilli kartada ko‘rsatiladi.
-  - Kiruvchi xabarlar ustida yuboruvchi mijozning ismi va telefoni aks etadi.
+  - `GET /support/tickets` va `GET /support/tickets/:id` orqali yuboruvchi ma’lumotlari (`name`, `phone`, `login`, `email`, `kind`, `sanatoriumName`, `booking reference`) to‘liq boyitildi.
+  - Chat oynasi tepasida mijozning to‘liq ismi, telefon raqami (`📞 +998...` bosiladigan havola), email (`✉️ ...`), mobil ilova nishoni (`📱 Mobil mijoz`), bog‘langan bron raqami va sanatoriya nomi aniq profilli kartada ko‘rsatiladi.
+  - Chap tarafdagi murojaatlar ro‘yxatida mijozning ismi yoki telefon raqami sarlavha sifatida ko‘rinadi.
+  - Kiruvchi xabarlar pufakchalari ustida yuboruvchi mijozning ismi, telefoni va emaili aniq va tiniq aks etadi.
 - **Hamkor hisoblari va Superadmin tozalanishi**:
   - Bazadan barcha STAFF hamkor hisoblari va a’zoliklar to‘liq tozalandi.
   - Superadmin yagona hisob qilib belgilandi: `Mirsaid` (login: `mirsaid`).
+- **OpenAPI va Shartnoma tekshiruvi**:
+  - `PublicUser` sxemasiga `email` maydoni kiritildi, `docs/openapi.json` qayta generatsiya qilindi va `npm run test:contract` (OpenAPI B10) 100% muvaffaqiyatli o‘tdi.
 
 ## 2026-11-06 APK motion UI — uchta HTML taklif
 
