@@ -6,6 +6,8 @@ export async function GET() {
   const localCandidates = [
     path.join(process.cwd(), "public", "downloads", "sihhat-uz.apk"),
     path.join(process.cwd(), "public", "sihhat-uz.apk"),
+    path.join(process.cwd(), "..", "..", "ilova", "Sihhat-uz-demo-0.2.2.apk"),
+    path.join(process.cwd(), "ilova", "Sihhat-uz-demo-0.2.2.apk"),
     path.join(process.cwd(), "..", "..", "ilova", "Sihhat-uz-demo-0.1.1.apk"),
     path.join(process.cwd(), "ilova", "Sihhat-uz-demo-0.1.1.apk"),
   ];
@@ -32,7 +34,7 @@ export async function GET() {
   }
 
   return NextResponse.redirect(
-    "https://github.com/MirsaidIbrohimov/Sihhat-uz1.1/raw/main/ilova/Sihhat-uz-demo-0.1.1.apk",
+    "https://github.com/MirsaidIbrohimov/Sihhat-uz1.1/raw/main/ilova/Sihhat-uz-demo-0.2.2.apk",
     302
   );
 }

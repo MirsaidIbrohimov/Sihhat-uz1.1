@@ -300,7 +300,7 @@ export function LandingPage() {
     });
   }, [sanatoriums, searchQuery, selectedRegion, selectedService]);
 
-  const apkUrl = "https://github.com/MirsaidIbrohimov/Sihhat-uz1.1/raw/main/ilova/Sihhat-uz-demo-0.1.1.apk";
+  const apkUrl = "https://github.com/MirsaidIbrohimov/Sihhat-uz1.1/raw/main/ilova/Sihhat-uz-demo-0.2.2.apk";
 
   return (
     <div className="landing-page">
@@ -671,7 +671,7 @@ export function LandingPage() {
             <div className="app-actions-wrap">
               <a href={apkUrl} className="btn-download-apk" download>
                 <Download size={20} />
-                <span>Android APK yuklab olish (59.6 MB)</span>
+                <span>Android APK yuklab olish (34.4 MB)</span>
               </a>
 
               <a
@@ -716,7 +716,7 @@ export function LandingPage() {
               O'zbekiston Respublikasi bo'ylab sanatoriya va sog'lomlashtirish maskanlarini qulay bron qilish yagona milliy platformasi.
             </p>
             <div style={{ fontSize: "0.85rem", color: "#9ef0d5" }}>
-              Demo sinov versiyasi: 0.1.1
+              Demo sinov versiyasi: 0.2.2
             </div>
           </div>
 
@@ -944,7 +944,7 @@ export function LandingPage() {
                 style={{ width: "100%", justifyContent: "center", display: "flex" }}
               >
                 <Download size={18} />
-                <span>To'g'ridan-to'g'ri APK yuklab olish (59.6 MB)</span>
+                <span>To'g'ridan-to'g'ri APK yuklab olish (34.4 MB)</span>
               </a>
             </div>
           </div>

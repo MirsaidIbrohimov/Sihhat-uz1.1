@@ -23,6 +23,9 @@ Yangilangan: 2026-11-08. Asos: ISHLAB_CHIQISH_REJASI.md va SIHHAT_UZ_ARXITEKTURA
 - **Sxema va Migratsiya**:
   - `SupportMessage` jadvaliga `imageUrl TEXT`, `isEdited BOOLEAN`, `deletedForUser BOOLEAN` ustunlari qo‘shildi (`202611080001_support_chat_features/migration.sql`).
   - OpenAPI shartnomasi yangilandi (`docs/openapi.json`).
+- **Mobil ilova v0.2.2 (build 5) APK yig‘ildi va joylandi**:
+  - `ilova/Sihhat-uz-demo-0.2.2.apk` (~34.4 MB) yig‘ildi, imzolandi va `ilova/SHA256SUMS.txt` hamda `ilova/README.md` yangilandi (SHA-256: `c3a6070ab3c42ec1c431adce15d36097a3f0f86b643bc673809ef15bfd9fa782`).
+  - Veb-sayt (`sihhat.uz`): landing sahifadagi to‘g‘ridan-to‘g‘ri yuklab olish havolalari (`packages/ui/src/landing.tsx`), `apps/superadmin-web/public/downloads/sihhat-uz.apk` hamda `/api/download/apk` yo‘nalishi yangi `0.2.2` versiyasiga ulandi.
 
 ## 2026-11-07 Ilova foydalanuvchilari nazorati, Murojaatlar shaffofligi va Hamkor hisoblarini tozalash
 
