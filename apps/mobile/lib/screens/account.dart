@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../data/api.dart';
 import '../widgets.dart';
@@ -376,15 +377,16 @@ class ChatBubble extends StatelessWidget {
                       ? Image.memory(
                           base64Decode(imageUrl!.split(',').last),
                           fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                          errorBuilder: (_, _, _) => const SizedBox.shrink(),
                         )
                       : Image.network(
                           imageUrl!,
                           fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                          errorBuilder: (_, _, _) => const SizedBox.shrink(),
                         ),
                 ),
-                if (text.isNotEmpty && text != '📷 Rasm') const SizedBox(height: 8),
+                if (text.isNotEmpty && text != '📷 Rasm')
+                  const SizedBox(height: 8),
               ],
               SelectableText(
                 text,
@@ -850,6 +852,43 @@ class _SupportThreadState extends State<SupportThread>
   final scroll = ScrollController();
   int shown = 0;
   String? sendError;
+  String? attachedImage;
+  static const _imageChannel = MethodChannel('uz.sihhat/image_picker');
+
+  Future<void> pickImage() async {
+    try {
+      final result = await _imageChannel.invokeMethod<String>('pickImage');
+      if (result != null && result.isNotEmpty && mounted) {
+        setState(() => attachedImage = result);
+      }
+    } catch (_) {
+      if (!mounted) return;
+      final controller = TextEditingController();
+      final url = await showDialog<String>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Rasm havolasini kiriting'),
+          content: TextField(
+            controller: controller,
+            decoration: const InputDecoration(hintText: 'https://...'),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Bekor qilish'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, controller.text.trim()),
+              child: const Text('Biriktirish'),
+            ),
+          ],
+        ),
+      );
+      if (url != null && url.isNotEmpty && mounted) {
+        setState(() => attachedImage = url);
+      }
+    }
+  }
 
   /// Keeps the newest message in view when replies arrive.
   void followNewMessages(int count) {
@@ -908,7 +947,12 @@ class _SupportThreadState extends State<SupportThread>
 
   Future<void> sendReply() async {
     final text = reply.text.trim();
-    if (sending || text.length < 3 || thread?['status'] == 'CLOSED') return;
+    if (sending ||
+        (text.isEmpty && attachedImage == null) ||
+        (attachedImage == null && text.length < 3) ||
+        thread?['status'] == 'CLOSED') {
+      return;
+    }
     setState(() {
       sending = true;
       sendError = null;
@@ -917,9 +961,15 @@ class _SupportThreadState extends State<SupportThread>
       await widget.api.send(
         '/support/tickets/${widget.id}/messages',
         method: 'POST',
-        body: {'text': text},
+        body: {
+          'text': text.isNotEmpty ? text : '📷 Rasm',
+          if (attachedImage != null) 'imageUrl': attachedImage,
+        },
       );
-      if (mounted) reply.clear();
+      if (mounted) {
+        reply.clear();
+        setState(() => attachedImage = null);
+      }
       await refreshThread();
     } catch (e) {
       if (mounted) setState(() => sendError = e.toString());
@@ -1008,14 +1058,109 @@ class _SupportThreadState extends State<SupportThread>
                 ],
               ),
             ),
-            if (t['status'] != 'CLOSED')
-              ConceptComposer(
-                controller: reply,
-                hint: 'Javob yozish…',
-                busy: sending,
-                send: sendReply,
-              )
-            else
+            if (t['status'] != 'CLOSED') ...[
+              if (attachedImage != null)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                  child: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: context.colors.surface.withValues(alpha: .85),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: neon.withValues(alpha: .3)),
+                    ),
+                    child: Row(
+                      children: [
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: SizedBox(
+                            width: 44,
+                            height: 44,
+                            child: attachedImage!.startsWith('data:')
+                                ? Image.memory(
+                                    base64Decode(
+                                      attachedImage!.split(',').last,
+                                    ),
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (_, _, _) =>
+                                        const Icon(Icons.broken_image),
+                                  )
+                                : Image.network(
+                                    attachedImage!,
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (_, _, _) =>
+                                        const Icon(Icons.broken_image),
+                                  ),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            'Rasm biriktirildi',
+                            style: TextStyle(
+                              color: context.colors.ink,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.close_rounded, size: 20),
+                          color: Colors.redAccent,
+                          onPressed: () => setState(() => attachedImage = null),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.only(left: 16, bottom: 12),
+                    child: Pressable(
+                      scale: .9,
+                      child: Container(
+                        width: 52,
+                        height: 52,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: attachedImage != null
+                              ? neon.withValues(alpha: .2)
+                              : context.colors.surface.withValues(alpha: .85),
+                          border: Border.all(
+                            color: attachedImage != null
+                                ? neon
+                                : neon.withValues(alpha: .3),
+                          ),
+                        ),
+                        child: IconButton(
+                          tooltip: 'Rasm biriktirish',
+                          onPressed: sending ? null : pickImage,
+                          icon: Icon(
+                            Icons.add_photo_alternate_rounded,
+                            color: attachedImage != null
+                                ? neon
+                                : context.colors.ink,
+                            size: 24,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  Expanded(
+                    child: ConceptComposer(
+                      controller: reply,
+                      hint: attachedImage != null
+                          ? 'Izoh yozing (ixtiyoriy)…'
+                          : 'Javob yozish…',
+                      busy: sending,
+                      send: sendReply,
+                    ),
+                  ),
+                ],
+              ),
+            ] else
               const SafeArea(
                 top: false,
                 child: Padding(

@@ -19,7 +19,7 @@ Yangilangan: 2026-11-08. Asos: ISHLAB_CHIQISH_REJASI.md va SIHHAT_UZ_ARXITEKTURA
   - Chat matn kiritish maydoniga rasm biriktirish tugmasi (`ImageIcon`) qo‘shildi.
   - Foydalanuvchi qurilmasidan PNG, JPEG, WebP rasmlarini tanlashi mumkin; yuborishdan oldin canvas orqali avtomatik ixchamlash (maksimal 1280px) va yuborishdan oldingi thumbnail ko‘rinishi joriy etildi.
   - Xabarlar pufakchasida biriktirilgan rasm chiroyli ramkada ko‘rsatiladi va uni bosganda to‘liq o‘lchamda ochiladi.
-  - Mobil ilovada ham `ChatBubble` `imageUrl` va `isEdited` parametrlarini to‘liq qo‘llab-quvvatlaydigan qilindi.
+  - **Mobil ilovadan ham rasm yuborish**: Android `MainActivity.kt`da `uz.sihhat/image_picker` platforma kanali orqali galereyadan rasm tanlash, xotirada 1280px gacha avtomatik masshtablash va JPEG sifatida Base64 formatga o‘girish integratsiya qilindi. `SupportThread`da xabar kiritish maydoni yoniga neon ramkali rasm biriktirish tugmasi (`Icons.add_photo_alternate_rounded`) va biriktirilgan rasm uchun bekor qilish tugmali ko‘rish paneli qo‘shildi. `ChatBubble` ham `imageUrl` va `isEdited` parametrlarini to‘liq qo‘llab-quvvatlaydi.
 - **Sxema va Migratsiya**:
   - `SupportMessage` jadvaliga `imageUrl TEXT`, `isEdited BOOLEAN`, `deletedForUser BOOLEAN` ustunlari qo‘shildi (`202611080001_support_chat_features/migration.sql`).
   - OpenAPI shartnomasi yangilandi (`docs/openapi.json`).
