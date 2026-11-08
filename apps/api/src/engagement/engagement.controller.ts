@@ -1,4 +1,4 @@
-import { Body,Controller,Get,Headers,Inject,Param,Patch,Post,Query } from '@nestjs/common';
+import { Body,Controller,Delete,Get,Headers,Inject,Param,Patch,Post,Query } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { CurrentActor,Roles } from '../auth/guard';
 import type { Actor } from '../auth/permissions';
@@ -24,6 +24,9 @@ export class EngagementController{
   @Post('support/tickets') ticket(@CurrentActor() a:Actor,@Body() b:unknown,@Headers('idempotency-key') key?:string){return this.s.ticket(a,b,key);}
   @Get('support/tickets/:id') ticketGet(@CurrentActor() a:Actor,@Param('id') id:string){return this.s.ticketGet(a,id);}
   @Post('support/tickets/:id/messages') ticketReply(@CurrentActor() a:Actor,@Param('id') id:string,@Body() b:unknown,@Headers('idempotency-key') key?:string){return this.s.ticketReply(a,id,b,key);}
+  @Patch('support/tickets/:id/messages/:messageId') ticketMessageEdit(@CurrentActor() a:Actor,@Param('id') id:string,@Param('messageId') messageId:string,@Body() b:unknown){return this.s.ticketMessageEdit(a,id,messageId,b);}
+  @Delete('support/tickets/:id/messages/:messageId') ticketMessageDelete(@CurrentActor() a:Actor,@Param('id') id:string,@Param('messageId') messageId:string){return this.s.ticketMessageDelete(a,id,messageId);}
+  @Post('support/upload') ticketImageUpload(@CurrentActor() a:Actor,@Body() b:unknown){return this.s.ticketImageUpload(a,b);}
   @Get('notifications') notifications(@CurrentActor() a:Actor){return this.s.notifications(a);}
   @Post('notifications/read-all') notificationReadAll(@CurrentActor() a:Actor){return this.s.notificationReadAll(a);}
   @Post('notifications/:id/read') notificationRead(@CurrentActor() a:Actor,@Param('id') id:string){return this.s.notificationRead(a,id);}

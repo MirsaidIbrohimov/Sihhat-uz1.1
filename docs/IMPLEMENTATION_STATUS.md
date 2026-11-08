@@ -1,6 +1,28 @@
 # Sihhat uz — amalga oshirish holati
 
-Yangilangan: 2026-11-07. Asos: ISHLAB_CHIQISH_REJASI.md va SIHHAT_UZ_ARXITEKTURA.md.
+Yangilangan: 2026-11-08. Asos: ISHLAB_CHIQISH_REJASI.md va SIHHAT_UZ_ARXITEKTURA.md.
+
+## 2026-11-08 Chat tahrirlash, o‘chirish (audit saqlash), rasm biriktirish va Superadmin ko‘rinishi
+
+- **Chat boshidagi ma’lumotlarni faqat Superadminga ko‘rsatish**:
+  - `packages/ui/src/communication.tsx`da ichki texnik identifikatorlar (`Login: ...`, `ID: ...`, telefon va email havolalari) faqat `ctx.admin` (Superadmin) bo‘lgandagina ko‘rsatiladigan qilindi.
+  - Hamkorlar va xodimlar uchun chat sarlavhasida faqat yuboruvchining ismi (`kimdan kelgani`), lavozim/ilova nishoni va mavzu qoldirildi; ortiqcha texnik ma’lumotlar yashirildi.
+- **Chatda xabarni tahrirlash (Edit)**:
+  - API: `PATCH /support/tickets/:id/messages/:messageId` endpointi qo‘shildi.
+  - Xabar muallifi o‘z xabarini tahrirlashi mumkin.
+  - Tahrirlangan xabarlarda vaqt yonida `(tahrirlangan)` belgisi ko‘rinadi.
+- **Chatda xabarni o‘chirish va Superadmin uchun audit saqlash (Delete & Retention)**:
+  - API: `DELETE /support/tickets/:id/messages/:messageId` endpointi qo‘shildi.
+  - Foydalanuvchi/xodim murojaatdagi o‘z xabarini o‘chirsa, bu oddiy foydalanuvchilar va hamkorlar uchun xabarlar oqimidan to‘liq yashiriladi (`deletedForUser: true`).
+  - **Superadmindan o‘chmaslik talabi**: Foydalanuvchi xabarni o‘chirgan taqdirda ham, Superadmin panelida ushbu xabar va unga biriktirilgan rasm saqlanib qoladi hamda maxsus `⚠️ [Yuboruvchi tomonidan o‘chirilgan xabar]` nishoni bilan to‘liq ko‘rsatiladi.
+- **Chatga rasm yuklash va ko‘rish (Image Attachment & Preview)**:
+  - Chat matn kiritish maydoniga rasm biriktirish tugmasi (`ImageIcon`) qo‘shildi.
+  - Foydalanuvchi qurilmasidan PNG, JPEG, WebP rasmlarini tanlashi mumkin; yuborishdan oldin canvas orqali avtomatik ixchamlash (maksimal 1280px) va yuborishdan oldingi thumbnail ko‘rinishi joriy etildi.
+  - Xabarlar pufakchasida biriktirilgan rasm chiroyli ramkada ko‘rsatiladi va uni bosganda to‘liq o‘lchamda ochiladi.
+  - Mobil ilovada ham `ChatBubble` `imageUrl` va `isEdited` parametrlarini to‘liq qo‘llab-quvvatlaydigan qilindi.
+- **Sxema va Migratsiya**:
+  - `SupportMessage` jadvaliga `imageUrl TEXT`, `isEdited BOOLEAN`, `deletedForUser BOOLEAN` ustunlari qo‘shildi (`202611080001_support_chat_features/migration.sql`).
+  - OpenAPI shartnomasi yangilandi (`docs/openapi.json`).
 
 ## 2026-11-07 Ilova foydalanuvchilari nazorati, Murojaatlar shaffofligi va Hamkor hisoblarini tozalash
 

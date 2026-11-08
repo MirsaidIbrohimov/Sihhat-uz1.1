@@ -1,12 +1,19 @@
-import { Inject,Injectable } from '@nestjs/common';
+import { Inject,Injectable,OnModuleInit } from '@nestjs/common';
 import { z } from 'zod';
 import { Db,audit,emit,lock,bodyHash,type Tx } from '../common/db';
 import { parse,uuid,version,reason,fail,pageQuery,paged } from '../common/errors';
 import { Actor,scope,tenantIds,requirePlatform } from '../auth/permissions';
 
 @Injectable()
-export class EngagementService{
+export class EngagementService implements OnModuleInit {
   constructor(@Inject(Db) readonly db:Db){}
+  async onModuleInit(){
+    await this.db.$executeRawUnsafe(`
+      ALTER TABLE "SupportMessage" ADD COLUMN IF NOT EXISTS "imageUrl" TEXT;
+      ALTER TABLE "SupportMessage" ADD COLUMN IF NOT EXISTS "isEdited" BOOLEAN NOT NULL DEFAULT false;
+      ALTER TABLE "SupportMessage" ADD COLUMN IF NOT EXISTS "deletedForUser" BOOLEAN NOT NULL DEFAULT false;
+    `).catch(()=>{});
+  }
   private async recipients(actor:Actor,ids:string[]){
     if(actor.kind==='CUSTOMER')fail('PERMISSION_DENIED','Ruxsat yo‘q',403);const users=await this.db.user.findMany({where:{id:{in:ids},status:'ACTIVE',kind:'STAFF'},select:{id:true}});if(users.length!==new Set(ids).size)fail('RECIPIENT_INVALID','Qabul qiluvchini tekshiring',422);
     if(actor.kind!=='SUPERADMIN'){const tenants=tenantIds(actor,'messages.send')??[];const members=await this.db.membership.findMany({where:{userId:{in:ids},sanatoriumId:{in:tenants},status:'ACTIVE'},select:{userId:true}});if(new Set(members.map(m=>m.userId)).size!==new Set(ids).size)fail('PERMISSION_DENIED','Boshqa sanatoriyaga yubora olmaysiz',403);}return [...new Set(ids)];
@@ -89,8 +96,8 @@ export class EngagementService{
   async reviewReply(actor:Actor,id:string,body:unknown){parse(uuid,id);const i=parse(z.object({reply:z.string().trim().min(3).max(3000)}).strict(),body);const r=await this.db.review.findUnique({where:{id}});if(!r)fail('NOT_FOUND','Sharh topilmadi',404);scope(actor,r.sanatoriumId,'reviews.reply');return this.db.atomic(async tx=>{const result=await tx.review.update({where:{id},data:{reply:i.reply}});await audit(tx,actor.id,'review.replied',id,r.sanatoriumId);return result;});}
   async moderateReview(actor:Actor,id:string,body:unknown){requirePlatform(actor,'reviews.moderate');parse(uuid,id);const i=parse(z.object({status:z.enum(['PUBLISHED','HIDDEN']),reason}).strict(),body);return this.db.atomic(async tx=>{const r=await tx.review.update({where:{id},data:{status:i.status,moderationReason:i.reason}});await audit(tx,actor.id,'review.moderated',id,r.sanatoriumId,undefined,i);return r;});}
   async ticket(actor:Actor,body:unknown,key?:string){
-    const i=parse(z.object({title:z.string().min(2).max(150),text:z.string().min(3).max(5000),booking_id:uuid.optional(),sanatorium_id:uuid.optional()}).strict(),body);let tenant=i.sanatorium_id;if(i.booking_id){const b=await this.db.booking.findUnique({where:{id:i.booking_id}});if(!b)fail('NOT_FOUND','Bron topilmadi',404);if(actor.kind==='CUSTOMER'){if(b.userId!==actor.id)fail('NOT_FOUND','Bron topilmadi',404);}else scope(actor,b.sanatoriumId,'support.read');tenant=b.sanatoriumId;}else if(tenant&&actor.kind!=='CUSTOMER')scope(actor,tenant,'support.read');
-    const run=async(tx:Tx)=>{const t=await tx.supportTicket.create({data:{userId:actor.id,sanatoriumId:tenant,bookingId:i.booking_id,title:i.title}});await tx.supportMessage.create({data:{ticketId:t.id,userId:actor.id,text:i.text}});await audit(tx,actor.id,'support.opened',t.id,tenant);const admins=await tx.user.findMany({where:{kind:'SUPERADMIN',status:'ACTIVE'},select:{id:true}});await emit(tx,'support.opened',{ticket_id:t.id,recipient_ids:admins.map(a=>a.id)});return t;};
+    const i=parse(z.object({title:z.string().min(2).max(150),text:z.string().min(1).max(5000),imageUrl:z.string().max(10_000_000).optional(),booking_id:uuid.optional(),sanatorium_id:uuid.optional()}).strict(),body);let tenant=i.sanatorium_id;if(i.booking_id){const b=await this.db.booking.findUnique({where:{id:i.booking_id}});if(!b)fail('NOT_FOUND','Bron topilmadi',404);if(actor.kind==='CUSTOMER'){if(b.userId!==actor.id)fail('NOT_FOUND','Bron topilmadi',404);}else scope(actor,b.sanatoriumId,'support.read');tenant=b.sanatoriumId;}else if(tenant&&actor.kind!=='CUSTOMER')scope(actor,tenant,'support.read');
+    const run=async(tx:Tx)=>{const t=await tx.supportTicket.create({data:{userId:actor.id,sanatoriumId:tenant,bookingId:i.booking_id,title:i.title}});await tx.supportMessage.create({data:{ticketId:t.id,userId:actor.id,text:i.text,imageUrl:i.imageUrl??null}});await audit(tx,actor.id,'support.opened',t.id,tenant);const admins=await tx.user.findMany({where:{kind:'SUPERADMIN',status:'ACTIVE'},select:{id:true}});await emit(tx,'support.opened',{ticket_id:t.id,recipient_ids:admins.map(a=>a.id)});return t;};
     return key?this.db.idempotent(actor.id,'support.open',key,i,run):this.db.atomic(run);
   }
   async tickets(actor:Actor){
@@ -106,6 +113,7 @@ export class EngagementService{
     const bookingIds = [...new Set(tickets.map(t => t.bookingId).filter(Boolean) as string[])];
     const ticketIds = tickets.map(t => t.id);
 
+    const isSuperAdmin = actor.kind === 'SUPERADMIN';
     const [users, sanatoriums, bookings, messages] = await Promise.all([
       this.db.user.findMany({
         where: { id: { in: userIds } },
@@ -120,7 +128,7 @@ export class EngagementService{
         select: { id: true, reference: true, checkIn: true, checkOut: true, status: true }
       }) : [],
       this.db.supportMessage.findMany({
-        where: { ticketId: { in: ticketIds } },
+        where: { ticketId: { in: ticketIds }, ...(isSuperAdmin ? {} : { deletedForUser: false }) },
         orderBy: { createdAt: 'desc' },
       })
     ]);
@@ -170,7 +178,9 @@ export class EngagementService{
       if(!t.sanatoriumId)fail('NOT_FOUND','Murojaat topilmadi',404);
       scope(actor,t.sanatoriumId,'support.read');
     }
-    const messages = await this.db.supportMessage.findMany({where:{ticketId:id},orderBy:{createdAt:'asc'}});
+    const isSuperAdmin = actor.kind === 'SUPERADMIN';
+    const rawMessages = await this.db.supportMessage.findMany({where:{ticketId:id},orderBy:{createdAt:'asc'}});
+    const messages = isSuperAdmin ? rawMessages : rawMessages.filter(m => !m.deletedForUser);
     const userIds = [...new Set([t.userId, ...messages.map(m => m.userId)])];
     const [users, sanatorium, booking] = await Promise.all([
       this.db.user.findMany({
@@ -221,14 +231,66 @@ export class EngagementService{
           userLogin: uLogin ?? null,
           userEmail: uEmail ?? null,
           userKind: u?.kind ?? (isSender ? 'CUSTOMER' : 'STAFF'),
+          isEdited: m.isEdited ?? false,
+          isDeleted: m.deletedForUser ?? false,
+          imageUrl: m.imageUrl ?? null,
         };
       })
     };
   }
   async ticketReply(actor:Actor,id:string,body:unknown,key?:string){
-    const i=parse(z.object({text:z.string().min(1).max(5000),close:z.boolean().default(false)}).strict(),body);const t=await this.ticketGet(actor,id);if(i.close&&actor.kind!=='SUPERADMIN')fail('PERMISSION_DENIED','Murojaatni support yopadi',403);
-    const run=async(tx:Tx)=>{const m=await tx.supportMessage.create({data:{ticketId:id,userId:actor.id,text:i.text}});if(i.close)await tx.supportTicket.update({where:{id},data:{status:'CLOSED'}});const admins=await tx.user.findMany({where:{kind:'SUPERADMIN',status:'ACTIVE'},select:{id:true}});await emit(tx,'support.replied',{recipient_ids:[...new Set([t.userId,...(actor.kind==='SUPERADMIN'?[]:admins.map(a=>a.id))])],ticket_id:id});return m;};
+    const i=parse(z.object({
+      text:z.string().max(5000).default(''),
+      imageUrl:z.string().max(10_000_000).optional(),
+      close:z.boolean().default(false)
+    }).strict(),body);
+    if(!i.text.trim() && !i.imageUrl) fail('VALIDATION_ERROR','Xabar matni yoki rasm kiritilishi shart',422);
+    const t=await this.ticketGet(actor,id);
+    if(i.close&&actor.kind!=='SUPERADMIN')fail('PERMISSION_DENIED','Murojaatni support yopadi',403);
+    const msgText = i.text.trim() || (i.imageUrl ? '📷 Rasm' : '');
+    const run=async(tx:Tx)=>{
+      const m=await tx.supportMessage.create({
+        data:{
+          ticketId:id,
+          userId:actor.id,
+          text:msgText,
+          imageUrl:i.imageUrl??null
+        }
+      });
+      if(i.close)await tx.supportTicket.update({where:{id},data:{status:'CLOSED'}});
+      const admins=await tx.user.findMany({where:{kind:'SUPERADMIN',status:'ACTIVE'},select:{id:true}});
+      await emit(tx,'support.replied',{recipient_ids:[...new Set([t.userId,...(actor.kind==='SUPERADMIN'?[]:admins.map(a=>a.id))])],ticket_id:id});
+      return m;
+    };
     return key?this.db.idempotent(actor.id,'support.reply',key,{id,...i},run):this.db.atomic(run);
+  }
+  async ticketMessageEdit(actor:Actor,ticketId:string,messageId:string,body:unknown){
+    parse(uuid,ticketId);
+    parse(uuid,messageId);
+    const i=parse(z.object({text:z.string().min(1).max(5000)}).strict(),body);
+    await this.ticketGet(actor,ticketId);
+    const msg=await this.db.supportMessage.findUnique({where:{id:messageId}});
+    if(!msg||msg.ticketId!==ticketId)fail('NOT_FOUND','Xabar topilmadi',404);
+    if(msg.userId!==actor.id&&actor.kind!=='SUPERADMIN')fail('PERMISSION_DENIED','Faqat o‘zingiz yozgan xabarni tahrirlashingiz mumkin',403);
+    if(msg.deletedForUser)fail('CANNOT_EDIT_DELETED','O‘chirilgan xabarni tahrirlab bo‘lmaydi',400);
+    const updated=await this.db.supportMessage.update({where:{id:messageId},data:{text:i.text,isEdited:true}});
+    return {id:updated.id,text:updated.text,isEdited:true,imageUrl:updated.imageUrl,createdAt:updated.createdAt};
+  }
+  async ticketMessageDelete(actor:Actor,ticketId:string,messageId:string){
+    parse(uuid,ticketId);
+    parse(uuid,messageId);
+    await this.ticketGet(actor,ticketId);
+    const msg=await this.db.supportMessage.findUnique({where:{id:messageId}});
+    if(!msg||msg.ticketId!==ticketId)fail('NOT_FOUND','Xabar topilmadi',404);
+    if(msg.userId!==actor.id&&actor.kind!=='SUPERADMIN')fail('PERMISSION_DENIED','Faqat o‘zingiz yozgan xabarni o‘chirishingiz mumkin',403);
+    // Foydalanuvchi/xodim xabarni o‘chirsa, bu foydalanuvchilar uchun yashiriladi (deletedForUser=true),
+    // ammo superadmin uchun audit va dalil sifatida o‘chmasdan saqlanib qoladi.
+    await this.db.supportMessage.update({where:{id:messageId},data:{deletedForUser:true}});
+    return {success:true,messageId};
+  }
+  async ticketImageUpload(actor:Actor,body:unknown){
+    const i=parse(z.object({base64:z.string().min(10).max(11_000_000),mime:z.enum(['image/png','image/jpeg','image/webp'])}).strict(),body);
+    return {url:`data:${i.mime};base64,${i.base64}`};
   }
   async notifications(actor:Actor){return this.db.notificationDelivery.findMany({where:{userId:actor.id,channel:'IN_APP'},take:100,orderBy:{id:'desc'}});}
   async notificationReadAll(actor:Actor){await this.db.notificationDelivery.updateMany({where:{userId:actor.id,channel:'IN_APP',readAt:null},data:{readAt:new Date()}});return {success:true};}

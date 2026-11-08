@@ -5,13 +5,17 @@ import {
   Check,
   CheckCheck,
   ClipboardList,
+  Edit2,
   FileText,
+  Image as ImageIcon,
   Mail,
   MessageSquare,
   Phone,
   Send,
   Smartphone,
   Star,
+  Trash2,
+  X,
 } from "lucide-react";
 import { api, toMinor } from "@sihhat/api-client";
 import {
@@ -734,7 +738,11 @@ export function Support() {
     [id, setId] = useState<string | null>(null),
     [searchQuery, setSearchQuery] = useState(""),
     [replyText, setReplyText] = useState(""),
+    [attachedImage, setAttachedImage] = useState<string | null>(null),
+    [editingMessageId, setEditingMessageId] = useState<string | null>(null),
+    [editingText, setEditingText] = useState(""),
     [sending, setSending] = useState(false),
+    fileInputRef = useRef<HTMLInputElement>(null),
     messagesEndRef = useRef<HTMLDivElement>(null),
     tickets = useRemote("/support/tickets", ctx.epoch),
     detail = useRemote(id ? `/support/tickets/${id}` : null, ctx.epoch),
@@ -771,22 +779,109 @@ export function Support() {
   const selectTicket = (ticketId: string | null) => {
     setId(ticketId);
     setThread(null);
+    setAttachedImage(null);
+    setEditingMessageId(null);
+  };
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      ctx.notice("Faqat rasm fayllari (JPEG, PNG, WebP) yuklanishi mumkin");
+      return;
+    }
+    if (file.size > 8 * 1024 * 1024) {
+      ctx.notice("Rasm hajmi 8 MB dan oshmasligi kerak");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      const raw = reader.result as string;
+      const img = new Image();
+      img.onload = () => {
+        const maxDim = 1280;
+        let w = img.width, h = img.height;
+        if (w > maxDim || h > maxDim) {
+          if (w > h) {
+            h = Math.round((h * maxDim) / w);
+            w = maxDim;
+          } else {
+            w = Math.round((w * maxDim) / h);
+            h = maxDim;
+          }
+        }
+        const canvas = document.createElement("canvas");
+        canvas.width = w;
+        canvas.height = h;
+        const c2d = canvas.getContext("2d");
+        if (c2d) {
+          c2d.drawImage(img, 0, 0, w, h);
+          setAttachedImage(canvas.toDataURL("image/jpeg", 0.82));
+        } else {
+          setAttachedImage(raw);
+        }
+      };
+      img.src = raw;
+    };
+    reader.readAsDataURL(file);
+    e.target.value = "";
   };
 
   const handleSend = async (e?: React.FormEvent) => {
     e?.preventDefault();
     const text = replyText.trim();
-    if (!text || !id || sending) return;
+    if ((!text && !attachedImage) || !id || sending) return;
     setSending(true);
     try {
-      await api(`/support/tickets/${id}/messages`, "POST", { text });
+      await api(`/support/tickets/${id}/messages`, "POST", {
+        text: text || "📷 Rasm",
+        imageUrl: attachedImage || undefined,
+      });
       setReplyText("");
+      setAttachedImage(null);
       const fresh = await api<Row>(`/support/tickets/${id}`);
       if (fresh) setThread(fresh);
     } catch (err: any) {
       ctx.notice(err.message || "Xabar yuborishda xatolik");
     } finally {
       setSending(false);
+    }
+  };
+
+  const startEdit = (msg: Row) => {
+    setEditingMessageId(msg.id);
+    setEditingText(msg.text);
+  };
+
+  const cancelEdit = () => {
+    setEditingMessageId(null);
+    setEditingText("");
+  };
+
+  const saveEdit = async (msgId: string) => {
+    const text = editingText.trim();
+    if (!text || !id) return;
+    try {
+      await api(`/support/tickets/${id}/messages/${msgId}`, "PATCH", { text });
+      cancelEdit();
+      const fresh = await api<Row>(`/support/tickets/${id}`);
+      if (fresh) setThread(fresh);
+      ctx.notice("Xabar tahrirlandi");
+    } catch (err: any) {
+      ctx.notice(err.message || "Tahrirlashda xatolik");
+    }
+  };
+
+  const deleteMessage = async (msgId: string) => {
+    if (!id) return;
+    if (!window.confirm("Haqiqatan ham bu xabarni o‘chirmoqchimisiz?")) return;
+    try {
+      await api(`/support/tickets/${id}/messages/${msgId}`, "DELETE");
+      const fresh = await api<Row>(`/support/tickets/${id}`);
+      if (fresh) setThread(fresh);
+      ctx.notice("Xabar o‘chirildi");
+    } catch (err: any) {
+      ctx.notice(err.message || "O‘chirishda xatolik");
     }
   };
 
@@ -950,25 +1045,25 @@ export function Support() {
                           <span style={{ fontSize: "16px", fontWeight: 700, color: "#fff" }}>
                             {roomInfo.primary}
                           </span>
-                          {roomInfo.realName && roomInfo.phone && (
+                          <span style={{ fontSize: "11px", padding: "2px 8px", borderRadius: "12px", background: "rgba(37,226,162,0.15)", color: "#25e2a2", fontWeight: 600 }}>
+                            {roomInfo.badgeText}
+                          </span>
+                          {ctx.admin && roomInfo.realName && roomInfo.phone && (
                             <span style={{ fontSize: "13px", color: "#66e1b9", fontWeight: 600 }}>
                               ({roomInfo.phone})
                             </span>
                           )}
-                          <span style={{ fontSize: "11px", padding: "2px 8px", borderRadius: "12px", background: "rgba(37,226,162,0.15)", color: "#25e2a2", fontWeight: 600 }}>
-                            {roomInfo.badgeText}
-                          </span>
-                          {roomInfo.phone && (
+                          {ctx.admin && roomInfo.phone && (
                             <a href={`tel:${roomInfo.phone}`} style={{ fontSize: "12px", padding: "2px 8px", borderRadius: "8px", background: "rgba(37,226,162,0.12)", color: "#25e2a2", textDecoration: "none", fontWeight: 700, display: "inline-flex", alignItems: "center", gap: "4px" }}>
                               <Phone size={12} /> {roomInfo.phone}
                             </a>
                           )}
-                          {roomInfo.email && (
+                          {ctx.admin && roomInfo.email && (
                             <a href={`mailto:${roomInfo.email}`} style={{ fontSize: "12px", padding: "2px 8px", borderRadius: "8px", background: "rgba(37,226,162,0.08)", color: "#a5e9d3", textDecoration: "none", fontWeight: 600, display: "inline-flex", alignItems: "center", gap: "4px" }}>
                               ✉️ {roomInfo.email}
                             </a>
                           )}
-                          {roomInfo.login && !roomInfo.email && (
+                          {ctx.admin && roomInfo.login && !roomInfo.email && (
                             <span style={{ fontSize: "11px", color: "#8ea69d", background: "rgba(255,255,255,0.06)", padding: "1px 6px", borderRadius: "6px" }}>
                               Login: {roomInfo.login}
                             </span>
@@ -984,7 +1079,7 @@ export function Support() {
                               🎫 Bron #{t.booking.reference} ({t.booking.status})
                             </span>
                           )}
-                          {t?.userId && (
+                          {ctx.admin && t?.userId && (
                             <span style={{ fontSize: "11px", color: "#6e8e81" }}>
                               ID: {t.userId.slice(0, 8)}
                             </span>
@@ -1052,8 +1147,9 @@ export function Support() {
                         const bubbleSenderName = !isPlaceholder
                           ? rawName
                           : (senderInfo?.primary || rawName || "Suhbatdosh");
-                        const bubblePhone = m.userPhone || senderInfo?.phone;
-                        const bubbleEmail = m.userEmail || senderInfo?.email;
+                        const bubblePhone = ctx.admin ? (m.userPhone || senderInfo?.phone) : null;
+                        const bubbleEmail = ctx.admin ? (m.userEmail || senderInfo?.email) : null;
+                        const isEditingThis = editingMessageId === m.id;
                         return (
                           <div
                             key={m.id}
@@ -1076,10 +1172,100 @@ export function Support() {
                                   {(m.userKind === "CUSTOMER" || senderInfo?.isCustomer) && <span style={{ fontSize: "10px", background: "rgba(37,226,162,0.18)", color: "#25e2a2", padding: "0 5px", borderRadius: "6px" }}>Ilova</span>}
                                 </div>
                               )}
-                              <p className="tg-bubble-text">{m.text}</p>
-                              <div className="tg-bubble-meta">
+                              {m.isDeleted && (
+                                <div style={{ fontSize: "11px", color: "#ff7b72", background: "rgba(255,80,80,0.12)", border: "1px solid rgba(255,80,80,0.3)", padding: "3px 8px", borderRadius: "4px", marginBottom: "6px", fontWeight: 600 }}>
+                                  ⚠️ [Yuboruvchi tomonidan o‘chirilgan xabar]
+                                </div>
+                              )}
+                              {m.imageUrl && (
+                                <div style={{ marginBottom: m.text && m.text !== "📷 Rasm" ? "8px" : "0" }}>
+                                  <img
+                                    src={m.imageUrl}
+                                    alt="Biriktirilgan rasm"
+                                    onClick={() => window.open(m.imageUrl, "_blank")}
+                                    style={{
+                                      maxWidth: "100%",
+                                      maxHeight: "280px",
+                                      borderRadius: "8px",
+                                      cursor: "pointer",
+                                      display: "block",
+                                      objectFit: "cover",
+                                      border: "1px solid rgba(255,255,255,0.1)",
+                                    }}
+                                    title="Rasmni to‘liq ko‘rish"
+                                  />
+                                </div>
+                              )}
+                              {isEditingThis ? (
+                                <div style={{ marginTop: "4px" }}>
+                                  <textarea
+                                    value={editingText}
+                                    onChange={(e) => setEditingText(e.target.value)}
+                                    style={{
+                                      width: "100%",
+                                      minHeight: "60px",
+                                      padding: "8px",
+                                      background: "#041610",
+                                      color: "#fff",
+                                      border: "1px solid #25e2a2",
+                                      borderRadius: "6px",
+                                      fontSize: "13px",
+                                      boxSizing: "border-box",
+                                      fontFamily: "inherit",
+                                    }}
+                                  />
+                                  <div style={{ display: "flex", gap: "6px", marginTop: "6px", justifyContent: "flex-end" }}>
+                                    <button
+                                      type="button"
+                                      className="button secondary"
+                                      style={{ padding: "2px 8px", fontSize: "12px", minHeight: "28px" }}
+                                      onClick={cancelEdit}
+                                    >
+                                      Bekor qilish
+                                    </button>
+                                    <button
+                                      type="button"
+                                      className="button primary"
+                                      style={{ padding: "2px 8px", fontSize: "12px", minHeight: "28px" }}
+                                      onClick={() => saveEdit(m.id)}
+                                    >
+                                      Saqlash
+                                    </button>
+                                  </div>
+                                </div>
+                              ) : (
+                                <p className="tg-bubble-text">{m.text}</p>
+                              )}
+                              <div className="tg-bubble-meta" style={{ display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap", justifyContent: isOwn ? "flex-end" : "flex-start" }}>
+                                {m.isEdited && (
+                                  <span style={{ fontSize: "10px", color: isOwn ? "rgba(4,22,16,0.75)" : "#8ea69d", fontStyle: "italic" }}>
+                                    (tahrirlangan)
+                                  </span>
+                                )}
                                 <span>{dateTime(m.createdAt).slice(11, 16)}</span>
                                 {isOwn && <CheckCheck size={13} />}
+                                {(isOwn || ctx.admin) && !m.isDeleted && !isEditingThis && (
+                                  <span style={{ display: "inline-flex", gap: "6px", marginLeft: "6px" }}>
+                                    {isOwn && (
+                                      <button
+                                        type="button"
+                                        onClick={() => startEdit(m)}
+                                        title="Xabarni tahrirlash"
+                                        style={{ background: "transparent", border: "none", cursor: "pointer", color: isOwn ? "#041610" : "#8ea69d", padding: "1px 2px", opacity: 0.75 }}
+                                      >
+                                        <Edit2 size={12} />
+                                      </button>
+                                    )}
+                                    <button
+                                      type="button"
+                                      onClick={() => deleteMessage(m.id)}
+                                      title="Xabarni o‘chirish"
+                                      style={{ background: "transparent", border: "none", cursor: "pointer", color: isOwn ? "#800" : "#ff7b72", padding: "1px 2px", opacity: 0.85 }}
+                                    >
+                                      <Trash2 size={12} />
+                                    </button>
+                                  </span>
+                                )}
                               </div>
                             </div>
                           </div>
@@ -1090,19 +1276,63 @@ export function Support() {
                   )
                 )}
               </div>
-              <form className="tg-composer" onSubmit={handleSend}>
+              {attachedImage && (
+                <div style={{ padding: "8px 16px", background: "#0a241a", borderTop: "1px solid #19513e", display: "flex", alignItems: "center", gap: "10px" }}>
+                  <img
+                    src={attachedImage}
+                    alt="Biriktirilgan rasm"
+                    style={{ width: "42px", height: "42px", objectFit: "cover", borderRadius: "6px", border: "1px solid #25e2a2" }}
+                  />
+                  <span style={{ fontSize: "12px", color: "#66e1b9", flex: 1 }}>Rasm biriktirildi</span>
+                  <button
+                    type="button"
+                    onClick={() => setAttachedImage(null)}
+                    style={{ background: "transparent", border: "none", color: "#ff7b72", cursor: "pointer", padding: "4px" }}
+                    title="Rasmni olib tashlash"
+                  >
+                    <X size={16} />
+                  </button>
+                </div>
+              )}
+              <form className="tg-composer" onSubmit={handleSend} style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  accept="image/png,image/jpeg,image/webp"
+                  style={{ display: "none" }}
+                  onChange={handleFileSelect}
+                />
+                <button
+                  type="button"
+                  title="Rasm biriktirish"
+                  disabled={sending || t?.status === "RESOLVED" || t?.status === "CLOSED"}
+                  onClick={() => fileInputRef.current?.click()}
+                  style={{
+                    background: attachedImage ? "rgba(37,226,162,0.18)" : "transparent",
+                    border: "none",
+                    borderRadius: "6px",
+                    color: attachedImage ? "#25e2a2" : "#8ea69d",
+                    cursor: "pointer",
+                    padding: "8px",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  <ImageIcon size={19} />
+                </button>
                 <input
                   type="text"
                   className="tg-composer-input"
-                  placeholder="Xabar yozing..."
+                  placeholder={attachedImage ? "Rasmga izoh yozing (ixtiyoriy)..." : "Xabar yozing..."}
                   value={replyText}
-                  disabled={sending || t?.status === "RESOLVED"}
+                  disabled={sending || t?.status === "RESOLVED" || t?.status === "CLOSED"}
                   onChange={(e) => setReplyText(e.target.value)}
                 />
                 <button
                   type="submit"
                   className="tg-composer-send"
-                  disabled={!replyText.trim() || sending || t?.status === "RESOLVED"}
+                  disabled={(!replyText.trim() && !attachedImage) || sending || t?.status === "RESOLVED" || t?.status === "CLOSED"}
                   aria-label="Xabar yuborish"
                 >
                   <Send size={18} />

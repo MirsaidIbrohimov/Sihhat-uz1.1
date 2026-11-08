@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/material.dart';
 
@@ -311,13 +312,16 @@ String eventTime(dynamic value) {
 class ChatBubble extends StatelessWidget {
   final String text;
   final bool own, error;
-  final String? author, time;
+  final String? author, time, imageUrl;
+  final bool isEdited;
   const ChatBubble({
     required this.text,
     this.own = false,
     this.error = false,
     this.author,
     this.time,
+    this.imageUrl,
+    this.isEdited = false,
     super.key,
   });
   @override
@@ -365,6 +369,23 @@ class ChatBubble extends StatelessWidget {
                 ),
                 const SizedBox(height: 6),
               ],
+              if (imageUrl != null && imageUrl!.isNotEmpty) ...[
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: imageUrl!.startsWith('data:')
+                      ? Image.memory(
+                          base64Decode(imageUrl!.split(',').last),
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                        )
+                      : Image.network(
+                          imageUrl!,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                        ),
+                ),
+                if (text.isNotEmpty && text != '📷 Rasm') const SizedBox(height: 8),
+              ],
               SelectableText(
                 text,
                 style: TextStyle(
@@ -383,7 +404,7 @@ class ChatBubble extends StatelessWidget {
                   child: Align(
                     alignment: Alignment.centerRight,
                     child: Text(
-                      time!,
+                      isEdited ? '$time · tahrirlangan' : time!,
                       style: TextStyle(
                         fontSize: 11,
                         color: own
@@ -975,6 +996,8 @@ class _SupportThreadState extends State<SupportThread>
                   for (final m in messages)
                     ChatBubble(
                       text: m['text'] ?? '',
+                      imageUrl: m['imageUrl'] as String?,
+                      isEdited: m['isEdited'] == true,
                       own: m['userId'] == t['userId'],
                       author: m['userId'] == t['userId']
                           ? 'Siz'

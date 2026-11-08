@@ -689,6 +689,9 @@ model SupportMessage {
   ticketId String @db.Uuid
   userId String @db.Uuid
   text String
+  imageUrl String?
+  isEdited Boolean @default(false)
+  deletedForUser Boolean @default(false)
   createdAt DateTime @default(now())
 }
 
