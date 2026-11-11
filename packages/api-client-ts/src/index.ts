@@ -5,6 +5,7 @@ export type Actor = {
   name: string;
   login?: string | null;
   phone?: string | null;
+  avatarUrl?: string | null;
   sessionId?: string;
   mustChangePassword: boolean;
   idleTimeoutSeconds?: number | null;

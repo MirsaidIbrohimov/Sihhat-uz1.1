@@ -1951,7 +1951,7 @@ export function LandingPage() {
                 style={{ marginBottom: "1rem" }}
               >
                 <Smartphone size={14} />
-                <span>Sihhat.uz Rasmiy Android Ilovasi · v0.2.3</span>
+                <span>Sihhat.uz Rasmiy Android Ilovasi · v0.2.4</span>
               </div>
 
               <h2

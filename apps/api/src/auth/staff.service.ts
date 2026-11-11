@@ -19,7 +19,7 @@ export class StaffService {
     const matchingUsers = q ? await this.db.user.findMany({ where: { OR: [{ name: { contains: q, mode: 'insensitive' } }, { login: { contains: q, mode: 'insensitive' } }, { phone: { contains: q.replace(/[\s()-]/g, '') } }] }, select: { id: true } }) : null;
     const where = { ...(ids ? { sanatoriumId: { in: ids } } : {}), ...(matchingUsers ? { userId: { in: matchingUsers.map(u => u.id) } } : {}), ...(status ? { status } : {}), ...(role ? { role } : {}) };
     const [memberships, total] = await Promise.all([this.db.membership.findMany({ where, skip: (page - 1) * limit, take: limit, orderBy: { createdAt: 'desc' } }), this.db.membership.count({ where })]);
-    const users = await this.db.user.findMany({ where: { id: { in: memberships.map(m => m.userId) } }, select: { id: true, name: true, login: true, phone: true, status: true, mustChangePassword: true } });
+    const users = await this.db.user.findMany({ where: { id: { in: memberships.map(m => m.userId) } }, select: { id: true, name: true, login: true, phone: true, avatarUrl: true, status: true, mustChangePassword: true } });
     return paged(memberships.map(m => ({ ...m, user: users.find(u => u.id === m.userId), permissions: effective(m) })), total, page, limit);
   }
   private async findOrCreateStaffUser(tx: Tx, input: z.infer<typeof staffInput>, password: string) {
@@ -230,6 +230,7 @@ export class StaffService {
           name: true,
           phone: true,
           login: true,
+          avatarUrl: true,
           status: true,
           createdAt: true,
           updatedAt: true,
@@ -256,7 +257,7 @@ export class StaffService {
       userIds.length ? this.db.session.findMany({
         where: { userId: { in: userIds } },
         orderBy: { lastActivityAt: 'desc' },
-        select: { userId: true, lastActivityAt: true, deviceLabel: true, channel: true },
+        select: { userId: true, lastActivityAt: true, revokedAt: true, refreshExpiresAt: true, deviceLabel: true, channel: true },
         distinct: ['userId'],
       }) : []
     ]);
@@ -264,11 +265,20 @@ export class StaffService {
     const bookingMap = new Map(bookingCounts.filter(b => b.userId !== null).map(b => [b.userId!, b._count.id]));
     const ticketMap = new Map(ticketCounts.map(t => [t.userId, t._count.id]));
     const sessionMap = new Map(lastSessions.map(s => [s.userId, s]));
+    const now = Date.now();
 
     const data = users.map(u => {
       const s = sessionMap.get(u.id);
+      const isOnline = Boolean(
+        s &&
+        !s.revokedAt &&
+        s.refreshExpiresAt.getTime() > now &&
+        now - s.lastActivityAt.getTime() < 180_000,
+      );
       return {
         ...u,
+        avatarUrl: u.avatarUrl ?? null,
+        isOnline,
         bookingsCount: bookingMap.get(u.id) || 0,
         ticketsCount: ticketMap.get(u.id) || 0,
         lastSeenAt: s?.lastActivityAt ?? u.updatedAt,

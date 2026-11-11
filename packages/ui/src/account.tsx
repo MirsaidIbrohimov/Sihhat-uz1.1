@@ -1,10 +1,11 @@
 "use client";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import {
   ArrowRight,
   BookOpen,
   Building2,
   CalendarCheck,
+  Camera,
   Check,
   CreditCard,
   Edit3,
@@ -18,6 +19,7 @@ import {
   Search,
   ShieldCheck,
   Smartphone,
+  Trash2,
   User,
   Users,
 } from "lucide-react";
@@ -38,11 +40,115 @@ import {
 export function MyAccount({ changePassword }: { changePassword: () => void }) {
   const ctx = usePortal(),
     sessions = useRemote("/auth/sessions", ctx.epoch);
+  const avatarInputRef = useRef<HTMLInputElement>(null);
+  const [avatarBusy, setAvatarBusy] = useState(false);
+  const [avatarError, setAvatarError] = useState("");
   const role = ctx.admin
     ? "SUPERADMIN"
     : (ctx.actor.memberships.find(
         (m) => m.sanatoriumId === ctx.tenant && m.status === "ACTIVE",
       )?.role ?? ctx.actor.memberships.find((m) => m.status === "ACTIVE")?.role ?? "STAFF");
+
+  const MAX_AVATAR_BYTES = 15 * 1024 * 1024;
+
+  const prepareAvatarDataUrl = (file: File): Promise<string> =>
+    new Promise((resolve, reject) => {
+      if (file.type === "image/gif") {
+        const reader = new FileReader();
+        reader.onerror = () => reject(new Error("Rasm faylini o‘qib bo‘lmadi"));
+        reader.onload = () => resolve(String(reader.result));
+        reader.readAsDataURL(file);
+        return;
+      }
+      const reader = new FileReader();
+      reader.onerror = () => reject(new Error("Rasm faylini o‘qib bo‘lmadi"));
+      reader.onload = () => {
+        const img = new Image();
+        img.onerror = () => resolve(String(reader.result));
+        img.onload = () => {
+          const maxDim = 512;
+          let { width, height } = img;
+          if (width <= maxDim && height <= maxDim && file.size <= 350 * 1024) {
+            resolve(String(reader.result));
+            return;
+          }
+          if (width > maxDim || height > maxDim) {
+            if (width >= height) {
+              height = Math.max(1, Math.round((height * maxDim) / width));
+              width = maxDim;
+            } else {
+              width = Math.max(1, Math.round((width * maxDim) / height));
+              height = maxDim;
+            }
+          }
+          const canvas = document.createElement("canvas");
+          canvas.width = width;
+          canvas.height = height;
+          const context2d = canvas.getContext("2d");
+          if (!context2d) {
+            resolve(String(reader.result));
+            return;
+          }
+          context2d.drawImage(img, 0, 0, width, height);
+          const outMime = file.type === "image/png" ? "image/png" : "image/jpeg";
+          resolve(canvas.toDataURL(outMime, 0.86));
+        };
+        img.src = String(reader.result);
+      };
+      reader.readAsDataURL(file);
+    });
+
+  const handleAvatarSelected = async (
+    e: React.ChangeEvent<HTMLInputElement>,
+  ) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    if (!/^image\/(png|jpeg|jpg|webp|gif)$/i.test(file.type)) {
+      const msg = "Faqat PNG, JPEG, WEBP yoki GIF rasm yuklash mumkin";
+      setAvatarError(msg);
+      ctx.notice(msg);
+      return;
+    }
+    if (file.size > MAX_AVATAR_BYTES) {
+      const msg = "Profil rasmi hajmi 15 MB dan oshmasligi kerak";
+      setAvatarError(msg);
+      ctx.notice(msg);
+      return;
+    }
+    setAvatarBusy(true);
+    setAvatarError("");
+    try {
+      const avatarUrl = await prepareAvatarDataUrl(file);
+      await api("/auth/profile", "PATCH", { avatarUrl });
+      ctx.reloadActor?.();
+      ctx.refresh();
+      ctx.notice("Profil rasmi yangilandi");
+    } catch (err: any) {
+      const msg = err?.message || "Profil rasmini yuklashda xatolik";
+      setAvatarError(msg);
+      ctx.notice(msg);
+    } finally {
+      setAvatarBusy(false);
+    }
+  };
+
+  const handleAvatarRemove = async () => {
+    setAvatarBusy(true);
+    setAvatarError("");
+    try {
+      await api("/auth/profile", "PATCH", { avatarUrl: null });
+      ctx.reloadActor?.();
+      ctx.refresh();
+      ctx.notice("Profil rasmi o‘chirildi");
+    } catch (err: any) {
+      const msg = err?.message || "Profil rasmini o‘chirishda xatolik";
+      setAvatarError(msg);
+      ctx.notice(msg);
+    } finally {
+      setAvatarBusy(false);
+    }
+  };
 
   const close = (id?: string) =>
     ctx.form({
@@ -69,14 +175,68 @@ export function MyAccount({ changePassword }: { changePassword: () => void }) {
     <>
       <PageHeading
         title="Mening hisobim"
-        subtitle="Shaxsiy profilingiz, xavfsizlik sozlamalari va faol qurilmalar."
+        subtitle="Shaxsiy profilingiz, profil rasmi, xavfsizlik sozlamalari va faol qurilmalar."
+      />
+
+      <input
+        ref={avatarInputRef}
+        type="file"
+        accept="image/png,image/jpeg,image/webp,image/gif"
+        style={{ display: "none" }}
+        onChange={handleAvatarSelected}
       />
 
       {/* Modern Profile Hero Card */}
       <div className="profile-hero">
         <div className="profile-hero-left">
-          <div className="profile-hero-avatar">
-            {ctx.actor.name.slice(0, 2).toUpperCase()}
+          <div style={{ position: "relative", flexShrink: 0 }}>
+            <button
+              type="button"
+              onClick={() => avatarInputRef.current?.click()}
+              disabled={avatarBusy}
+              title="Profil rasmini yuklash (maks. 15 MB)"
+              className="profile-hero-avatar"
+              style={{
+                padding: 0,
+                cursor: avatarBusy ? "wait" : "pointer",
+                overflow: "hidden",
+              }}
+            >
+              {ctx.actor.avatarUrl ? (
+                <img
+                  src={ctx.actor.avatarUrl}
+                  alt={ctx.actor.name}
+                  style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                />
+              ) : (
+                ctx.actor.name.slice(0, 2).toUpperCase()
+              )}
+            </button>
+            <button
+              type="button"
+              onClick={() => avatarInputRef.current?.click()}
+              disabled={avatarBusy}
+              aria-label="Profil rasmini yuklash"
+              title="Rasm yuklash (maks. 15 MB)"
+              style={{
+                position: "absolute",
+                right: "-2px",
+                bottom: "-2px",
+                width: "26px",
+                height: "26px",
+                borderRadius: "50%",
+                border: "2px solid #0b241d",
+                background: "#22c55e",
+                color: "#ffffff",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                cursor: "pointer",
+                boxShadow: "0 2px 6px rgba(0,0,0,0.35)",
+              }}
+            >
+              <Camera size={13} />
+            </button>
           </div>
           <div>
             <h2 className="profile-hero-name">{ctx.actor.name}</h2>
@@ -84,12 +244,45 @@ export function MyAccount({ changePassword }: { changePassword: () => void }) {
               <span className="role-pill">{label[role] ?? role}</span>
               <span className="login-pill">@{ctx.actor.login ?? "user"}</span>
               <span className="status-pill online">
-                <span className="status-dot" /> Faol
+                <span className="status-dot" /> Onlayn
               </span>
             </div>
+            <div style={{ fontSize: "12px", color: "rgba(255,255,255,0.72)", marginTop: "6px" }}>
+              Profil rasmi chatda ko‘rinadi · PNG, JPEG, WEBP, GIF (maks. 15 MB)
+            </div>
+            {avatarError && (
+              <div style={{ fontSize: "12px", color: "#fecaca", marginTop: "4px", fontWeight: 600 }}>
+                {avatarError}
+              </div>
+            )}
           </div>
         </div>
-        <div className="toolbar" style={{ marginTop: 0 }}>
+        <div className="toolbar" style={{ marginTop: 0, flexWrap: "wrap" }}>
+          <button
+            type="button"
+            className="button secondary"
+            disabled={avatarBusy}
+            style={{ display: "inline-flex", alignItems: "center", gap: "8px" }}
+            onClick={() => avatarInputRef.current?.click()}
+          >
+            <Camera size={15} />{" "}
+            {avatarBusy
+              ? "Yuklanmoqda..."
+              : ctx.actor.avatarUrl
+                ? "Rasmni o‘zgartirish"
+                : "Rasm yuklash"}
+          </button>
+          {ctx.actor.avatarUrl && (
+            <button
+              type="button"
+              className="button secondary"
+              disabled={avatarBusy}
+              style={{ display: "inline-flex", alignItems: "center", gap: "6px", color: "#fca5a5" }}
+              onClick={handleAvatarRemove}
+            >
+              <Trash2 size={14} /> Rasmni o‘chirish
+            </button>
+          )}
           <button
             className="button secondary"
             style={{ display: "inline-flex", alignItems: "center", gap: "8px" }}

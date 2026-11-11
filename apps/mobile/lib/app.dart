@@ -82,14 +82,44 @@ class _Entry extends StatefulWidget {
   State<_Entry> createState() => _EntryState();
 }
 
-class _EntryState extends State<_Entry> {
+class _EntryState extends State<_Entry> with WidgetsBindingObserver {
   bool checking = true;
   String? error;
+  Timer? _heartbeatTimer;
+  bool _appResumed = true;
+
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     widget.api.session.addListener(sessionChanged);
+    _startHeartbeat();
     restore();
+  }
+
+  void _startHeartbeat() {
+    _heartbeatTimer?.cancel();
+    _heartbeatTimer = Timer.periodic(const Duration(seconds: 45), (_) {
+      if (_appResumed && widget.api.signedIn) {
+        unawaited(_sendHeartbeat());
+      }
+    });
+  }
+
+  Future<void> _sendHeartbeat() async {
+    try {
+      await widget.api.send('/auth/heartbeat', method: 'POST', body: {});
+    } catch (_) {
+      // Heartbeat failure is non-fatal when offline.
+    }
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    _appResumed = state == AppLifecycleState.resumed;
+    if (_appResumed && widget.api.signedIn) {
+      unawaited(_sendHeartbeat());
+    }
   }
 
   @override
@@ -105,6 +135,8 @@ class _EntryState extends State<_Entry> {
 
   @override
   void dispose() {
+    _heartbeatTimer?.cancel();
+    WidgetsBinding.instance.removeObserver(this);
     widget.api.session.removeListener(sessionChanged);
     super.dispose();
   }

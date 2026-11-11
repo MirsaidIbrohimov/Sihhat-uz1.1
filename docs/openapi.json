@@ -1127,6 +1127,135 @@
         ]
       }
     },
+    "/auth/heartbeat": {
+      "post": {
+        "operationId": "AuthController_heartbeat",
+        "parameters": [
+          {
+            "name": "Origin",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Allowed WEB origin; required with cookie authentication."
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Muvaffaqiyatli natija",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sessiya yaroqsiz",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Ruxsat yo‘q",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Topilmadi",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Holat yoki version konflikti",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validatsiya xatosi",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Urinishlar limiti",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Tashqi xizmat mavjud emas",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Kirish va profil"
+        ],
+        "security": [
+          {
+            "cookie": [],
+            "CSRF": []
+          },
+          {
+            "bearer": []
+          }
+        ],
+        "x-roles": [
+          "SUPERADMIN",
+          "STAFF",
+          "CUSTOMER"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {},
+                "required": [],
+                "additionalProperties": false
+              }
+            }
+          }
+        }
+      }
+    },
     "/auth/change-password": {
       "post": {
         "operationId": "AuthController_changePassword",
@@ -1741,11 +1870,13 @@
                   },
                   "login": {
                     "type": "string"
+                  },
+                  "avatarUrl": {
+                    "type": "string",
+                    "nullable": true
                   }
                 },
-                "required": [
-                  "name"
-                ],
+                "required": [],
                 "additionalProperties": false
               }
             }
@@ -23350,6 +23481,10 @@
             "type": "string",
             "nullable": true
           },
+          "avatarUrl": {
+            "type": "string",
+            "nullable": true
+          },
           "must_change_password": {
             "type": "boolean"
           }
@@ -23361,6 +23496,7 @@
           "phone",
           "login",
           "email",
+          "avatarUrl",
           "must_change_password"
         ],
         "additionalProperties": false
@@ -23474,6 +23610,10 @@
             "type": "string",
             "nullable": true
           },
+          "avatarUrl": {
+            "type": "string",
+            "nullable": true
+          },
           "sessionId": {
             "type": "string",
             "format": "uuid"
@@ -23541,6 +23681,7 @@
           "name",
           "phone",
           "login",
+          "avatarUrl",
           "sessionId",
           "idleTimeoutSeconds",
           "lastActivityAt",

@@ -286,4 +286,103 @@ void main() {
       api.client.close();
     },
   );
+
+  testWidgets(
+    'customer can update and remove profile avatar in ProfileScreen and SupportThread displays peer online status',
+    (tester) async {
+      String? currentAvatar;
+      final api = Api(
+        baseUrl: 'http://localhost',
+        store: MemoryStore(),
+        client: MockClient((r) async {
+          if (r.method == 'GET' && r.url.path == '/auth/me') {
+            return reply({
+              'id': 'cust-1',
+              'kind': 'CUSTOMER',
+              'name': 'Mijoz Ali',
+              'login': 'ali@example.com',
+              'avatarUrl': currentAvatar,
+            });
+          }
+          if (r.method == 'PATCH' && r.url.path == '/auth/profile') {
+            final body = jsonDecode(r.body) as Map<String, dynamic>;
+            currentAvatar = body['avatarUrl'] as String?;
+            return reply({
+              'id': 'cust-1',
+              'kind': 'CUSTOMER',
+              'name': 'Mijoz Ali',
+              'login': 'ali@example.com',
+              'avatarUrl': currentAvatar,
+            });
+          }
+          if (r.method == 'GET' &&
+              r.url.path == '/support/tickets/ticket-online') {
+            return reply({
+              'id': 'ticket-online',
+              'userId': 'cust-1',
+              'title': 'Onlayn suhbat',
+              'status': 'OPEN',
+              'peer': {
+                'id': 'admin-1',
+                'name': 'Superadmin',
+                'kind': 'SUPERADMIN',
+                'avatarUrl': null,
+                'isOnline': true,
+              },
+              'messages': [
+                {
+                  'id': 'm-1',
+                  'userId': 'admin-1',
+                  'isMe': false,
+                  'text': 'Salom!',
+                  'createdAt': DateTime.now().toUtc().toIso8601String(),
+                },
+              ],
+            });
+          }
+          return reply({});
+        }),
+      );
+      await api.tokens({
+        'access_token': 'acc-token-123456',
+        'refresh_token': 'ref-token-12345678901234567890123456789012',
+      });
+
+      await tester.pumpWidget(
+        MaterialApp(home: Scaffold(body: ProfileScreen(api, () {}))),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Profil rasmini o‘zgartirish'));
+      await tester.pumpAndSettle();
+      expect(find.text('Maksimal hajm: 15 MB'), findsOneWidget);
+      await tester.tap(find.text('Rasm havolasi (URL)'));
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.byType(TextField),
+        'https://example.com/avatar.png',
+      );
+      await tester.tap(find.text('Saqlash'));
+      await tester.pumpAndSettle();
+
+      expect(currentAvatar, 'https://example.com/avatar.png');
+      expect(find.text('Profil rasmi yangilandi'), findsOneWidget);
+
+      await tester.tap(find.text('Profil rasmini o‘zgartirish'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Profil rasmini o‘chirish'));
+      await tester.pumpAndSettle();
+      expect(currentAvatar, isNull);
+
+      await tester.pumpWidget(
+        MaterialApp(home: SupportThread(api, 'ticket-online')),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Superadmin · Onlayn'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+
+      await tester.pumpWidget(const SizedBox.shrink());
+      api.client.close();
+    },
+  );
 }

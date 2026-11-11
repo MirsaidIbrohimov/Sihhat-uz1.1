@@ -11,7 +11,7 @@ export const PLATFORM = ['sanatoriums.manage', 'moderation.manage', 'staff.appro
 export const DIRECTOR = [...DELEGATABLE, 'staff.invite', 'staff.permissions.manage', 'staff.reset', 'audit.read', 'bank.request'];
 export const RECEPTION = ['sanatorium.profile.edit', 'bookings.read', 'bookings.create_manual', 'bookings.guarantee', 'bookings.check_in', 'bookings.check_out', 'payments.read', 'reports.operational.read', 'surveys.respond', 'support.read'];
 export const ACCOUNTANT = ['reports.operational.read', 'reports.financial.read', 'reports.export'];
-export type Actor = { id: string; kind: string; name: string; phone?:string|null; login?:string|null; sessionId: string; idleTimeoutSeconds?:number|null; lastActivityAt?:string; mustChangePassword: boolean; memberships: { id: string; sanatoriumId: string; role: string; status: string; permissions: string[]; version: number }[] };
+export type Actor = { id: string; kind: string; name: string; phone?:string|null; login?:string|null; avatarUrl?:string|null; sessionId: string; idleTimeoutSeconds?:number|null; lastActivityAt?:string; mustChangePassword: boolean; memberships: { id: string; sanatoriumId: string; role: string; status: string; permissions: string[]; version: number }[] };
 export function effective(m: { role: string; grants: string[]; denies: string[]; adminDenies?: string[]; ceiling: string[] }) {
   const allowed = new Set(m.role === 'ACCOUNTANT' ? ACCOUNTANT : DIRECTOR);
   const template = m.role === 'DIRECTOR' ? DIRECTOR : m.role === 'RECEPTION' ? RECEPTION : m.role === 'ACCOUNTANT' ? ACCOUNTANT : [];

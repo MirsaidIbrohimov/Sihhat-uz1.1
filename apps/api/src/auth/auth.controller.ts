@@ -41,6 +41,8 @@ export class AuthController {
   }
   @Post('activity') @Roles('STAFF', 'SUPERADMIN') @AccountantAccess()
   activity(@CurrentActor() actor: Actor) { return this.auth.activity(actor); }
+  @Post('heartbeat') @AccountantAccess()
+  heartbeat(@CurrentActor() actor: Actor) { return this.auth.heartbeat(actor); }
   @Post('change-password') @AccountantAccess() @ApiBody({ schema: apiSchema(changePasswordInput) })
   changePassword(@CurrentActor() actor: Actor, @Body() body: unknown) { return this.auth.changePassword(actor, body); }
   @Get('sessions') @Roles('STAFF', 'SUPERADMIN') @AccountantAccess()

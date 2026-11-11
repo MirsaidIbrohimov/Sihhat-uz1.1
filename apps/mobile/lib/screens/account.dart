@@ -751,15 +751,22 @@ class _SupportScreenState extends State<SupportScreen> {
                 icon: 'message-circle',
               ),
             for (final (i, t) in visible.indexed) ...[
-              Reveal(
-                index: i,
-                child: TgChatListTile(
-                  title: t['title']?.toString() ?? 'Murojaat',
-                  preview: _previewFor(t),
-                  status: t['status']?.toString() ?? 'OPEN',
-                  timeLabel: _timeFor(t),
-                  onTap: () => open(t['id']?.toString()),
-                ),
+              Builder(
+                builder: (_) {
+                  final peer = t['peer'] is Map ? asJson(t['peer']) : null;
+                  return Reveal(
+                    index: i,
+                    child: TgChatListTile(
+                      title: t['title']?.toString() ?? 'Murojaat',
+                      preview: _previewFor(t),
+                      status: t['status']?.toString() ?? 'OPEN',
+                      timeLabel: _timeFor(t),
+                      avatarUrl: peer?['avatarUrl']?.toString(),
+                      isOnline: peer?['isOnline'] == true,
+                      onTap: () => open(t['id']?.toString()),
+                    ),
+                  );
+                },
               ),
               const SizedBox(height: 10),
             ],
@@ -873,6 +880,89 @@ class _NewSupportTicketScreenState extends State<NewSupportTicketScreen> {
   );
 }
 
+const MethodChannel _sihhatImageChannel = MethodChannel(
+  'uz.sihhat/image_picker',
+);
+const int _sihhatMaxImageBytes = 15 * 1024 * 1024;
+
+Future<String?> _pickImageOrUrl(
+  BuildContext context, {
+  required bool urlOnly,
+  required String urlTitle,
+  required String urlConfirmLabel,
+  int maxDim = 1280,
+}) async {
+  if (!urlOnly) {
+    try {
+      final result = await _sihhatImageChannel.invokeMethod<String>(
+        'pickImage',
+        {'maxDim': maxDim, 'maxBytes': _sihhatMaxImageBytes},
+      );
+      if (result != null && result.isNotEmpty) return result;
+      return null;
+    } on PlatformException catch (e) {
+      if (e.code == 'FILE_TOO_LARGE') {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Rasm hajmi 15 MB dan oshmasligi kerak'),
+            ),
+          );
+        }
+        return null;
+      }
+      // Missing plugin or unsupported channel falls through to URL dialog.
+    } catch (_) {
+      // Missing plugin channel in test environments falls through to URL dialog.
+    }
+  }
+  if (!context.mounted) return null;
+  final url = await showDialog<String>(
+    context: context,
+    builder: (_) =>
+        _ImageUrlDialog(title: urlTitle, confirmLabel: urlConfirmLabel),
+  );
+  return url != null && url.isNotEmpty ? url : null;
+}
+
+class _ImageUrlDialog extends StatefulWidget {
+  final String title;
+  final String confirmLabel;
+  const _ImageUrlDialog({required this.title, required this.confirmLabel});
+
+  @override
+  State<_ImageUrlDialog> createState() => _ImageUrlDialogState();
+}
+
+class _ImageUrlDialogState extends State<_ImageUrlDialog> {
+  final controller = TextEditingController();
+
+  @override
+  void dispose() {
+    controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+    title: Text(widget.title),
+    content: TextField(
+      controller: controller,
+      decoration: const InputDecoration(hintText: 'https://...'),
+    ),
+    actions: [
+      TextButton(
+        onPressed: () => Navigator.pop(context),
+        child: const Text('Bekor qilish'),
+      ),
+      TextButton(
+        onPressed: () => Navigator.pop(context, controller.text.trim()),
+        child: Text(widget.confirmLabel),
+      ),
+    ],
+  );
+}
+
 class SupportThread extends StatefulWidget {
   final Api api;
   final String id;
@@ -897,45 +987,16 @@ class _SupportThreadState extends State<SupportThread>
   String? editingMessageId;
   String? editingOriginalText;
   final deletingIds = <String>{};
-  static const _imageChannel = MethodChannel('uz.sihhat/image_picker');
-
   Future<void> _pickNativeOrUrlImage({bool urlOnly = false}) async {
-    if (!urlOnly) {
-      try {
-        final result = await _imageChannel.invokeMethod<String>('pickImage');
-        if (result != null && result.isNotEmpty && mounted) {
-          setState(() => attachedImage = result);
-          return;
-        }
-      } catch (_) {
-        // Fallback to URL dialog when native picker channel is unavailable.
-      }
-    }
-    if (!mounted) return;
-    final controller = TextEditingController();
-    final url = await showDialog<String>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Rasm havolasini kiriting'),
-        content: TextField(
-          controller: controller,
-          decoration: const InputDecoration(hintText: 'https://...'),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Bekor qilish'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, controller.text.trim()),
-            child: const Text('Biriktirish'),
-          ),
-        ],
-      ),
+    final picked = await _pickImageOrUrl(
+      context,
+      urlOnly: urlOnly,
+      urlTitle: 'Rasm havolasini kiriting',
+      urlConfirmLabel: 'Biriktirish',
+      maxDim: 1280,
     );
-    controller.dispose();
-    if (url != null && url.isNotEmpty && mounted) {
-      setState(() => attachedImage = url);
+    if (picked != null && picked.isNotEmpty && mounted) {
+      setState(() => attachedImage = picked);
     }
   }
 
@@ -1347,6 +1408,9 @@ class _SupportThreadState extends State<SupportThread>
         final messages = rows(t['messages']);
         final closed = isSupportTicketClosed(t['status']);
         final title = t['title']?.toString() ?? 'Murojaat';
+        final peer = t['peer'] is Map ? asJson(t['peer']) : null;
+        final peerOnline = peer?['isOnline'] == true;
+        final peerAvatar = peer?['avatarUrl']?.toString();
         final c = context.colors;
         final dark = Theme.of(context).brightness == Brightness.dark;
         followNewMessages(messages.length);
@@ -1369,7 +1433,13 @@ class _SupportThreadState extends State<SupportThread>
               ),
               child: Row(
                 children: [
-                  TgAvatar(label: title, size: 42, closed: closed),
+                  TgAvatar(
+                    label: title,
+                    imageUrl: peerAvatar,
+                    size: 42,
+                    closed: closed,
+                    isOnline: peerOnline,
+                  ),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Column(
@@ -1385,7 +1455,9 @@ class _SupportThreadState extends State<SupportThread>
                         Text(
                           closed
                               ? 'Murojaat yopilgan (Arxiv)'
-                              : 'Resepshn · Onlayn',
+                              : peerOnline
+                              ? 'Superadmin · Onlayn'
+                              : 'Superadmin · Yordam xizmati',
                           style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
@@ -1472,6 +1544,10 @@ class _SupportThreadState extends State<SupportThread>
                                 text: m['text']?.toString() ?? '',
                                 imageUrl: imageUrl,
                                 author: own ? null : 'Yordam xizmati',
+                                avatarUrl: own
+                                    ? null
+                                    : (m['userAvatarUrl']?.toString() ??
+                                          peerAvatar),
                                 time: supportClockTime(m['createdAt']),
                                 own: own,
                                 isEdited: m['isEdited'] == true,
@@ -1724,6 +1800,8 @@ class ProfileScreen extends StatefulWidget {
 
 class _ProfileScreenState extends State<ProfileScreen> {
   int epoch = 0;
+  bool avatarBusy = false;
+
   Future<void> edit(Json p) async {
     final saved = await showModalBottomSheet<bool>(
       context: context,
@@ -1733,6 +1811,204 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ConceptScope(child: _ProfileNameDialog(widget.api, p['name'] ?? '')),
     );
     if (saved == true && mounted) setState(() => epoch++);
+  }
+
+  Future<void> _saveAvatar(String? nextAvatar) async {
+    if (nextAvatar != null && nextAvatar.startsWith('data:')) {
+      try {
+        final rawBytes = base64Decode(nextAvatar.split(',').last).length;
+        if (rawBytes > _sihhatMaxImageBytes) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Rasm hajmi 15 MB dan oshmasligi kerak'),
+              ),
+            );
+          }
+          return;
+        }
+      } catch (_) {}
+    }
+    setState(() => avatarBusy = true);
+    try {
+      await widget.api.send(
+        '/auth/profile',
+        method: 'PATCH',
+        body: {'avatarUrl': nextAvatar},
+      );
+      await widget.api.refreshProfile();
+      if (!mounted) return;
+      setState(() => epoch++);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            nextAvatar == null
+                ? 'Profil rasmi o‘chirildi'
+                : 'Profil rasmi yangilandi',
+          ),
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(e.toString())));
+      }
+    } finally {
+      if (mounted) setState(() => avatarBusy = false);
+    }
+  }
+
+  Future<void> _pickAvatarFromGalleryOrUrl({required bool urlOnly}) async {
+    final picked = await _pickImageOrUrl(
+      context,
+      urlOnly: urlOnly,
+      urlTitle: 'Profil rasmi havolasi (HTTPS)',
+      urlConfirmLabel: 'Saqlash',
+      maxDim: 512,
+    );
+    if (picked != null && picked.isNotEmpty) {
+      await _saveAvatar(picked);
+    }
+  }
+
+  Future<void> editAvatar(Json p) async {
+    if (avatarBusy) return;
+    final hasAvatar =
+        p['avatarUrl'] != null && p['avatarUrl'].toString().trim().isNotEmpty;
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final action = await showModalBottomSheet<String>(
+      context: context,
+      backgroundColor: dark ? const Color(0xff092722) : Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: 8),
+            Container(
+              width: 38,
+              height: 4,
+              decoration: BoxDecoration(
+                color: context.colors.muted.withValues(alpha: .35),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 8),
+            ListTile(
+              leading: Icon(
+                Icons.photo_library_outlined,
+                color: context.colors.primary,
+              ),
+              title: const Text('Galereyadan rasm tanlash'),
+              subtitle: const Text('Maksimal hajm: 15 MB'),
+              onTap: () => Navigator.pop(ctx, 'gallery'),
+            ),
+            ListTile(
+              leading: Icon(Icons.link_rounded, color: context.colors.primary),
+              title: const Text('Rasm havolasi (URL)'),
+              subtitle: const Text('HTTPS rasm manzilini saqlash'),
+              onTap: () => Navigator.pop(ctx, 'url'),
+            ),
+            if (hasAvatar)
+              ListTile(
+                leading: const Icon(
+                  Icons.delete_outline_rounded,
+                  color: Colors.redAccent,
+                ),
+                title: const Text(
+                  'Profil rasmini o‘chirish',
+                  style: TextStyle(color: Colors.redAccent),
+                ),
+                onTap: () => Navigator.pop(ctx, 'remove'),
+              ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+    if (action == null || !mounted) return;
+    if (action == 'remove') {
+      await _saveAvatar(null);
+    } else {
+      await _pickAvatarFromGalleryOrUrl(urlOnly: action == 'url');
+    }
+  }
+
+  Widget _buildProfileAvatar(Json p) {
+    final avatar = p['avatarUrl']?.toString().trim() ?? '';
+    Widget inner;
+    if (avatar.isNotEmpty) {
+      if (avatar.startsWith('data:')) {
+        try {
+          inner = ClipOval(
+            child: Image.memory(
+              base64Decode(avatar.split(',').last),
+              width: 104,
+              height: 104,
+              fit: BoxFit.cover,
+              errorBuilder: (_, _, _) =>
+                  const Icon(Icons.person_rounded, size: 62, color: abyss),
+            ),
+          );
+        } catch (_) {
+          inner = const Icon(Icons.person_rounded, size: 62, color: abyss);
+        }
+      } else {
+        inner = ClipOval(
+          child: Image.network(
+            avatar,
+            width: 104,
+            height: 104,
+            fit: BoxFit.cover,
+            errorBuilder: (_, _, _) =>
+                const Icon(Icons.person_rounded, size: 62, color: abyss),
+          ),
+        );
+      }
+    } else {
+      inner = const Icon(Icons.person_rounded, size: 62, color: abyss);
+    }
+    return InkWell(
+      onTap: avatarBusy ? null : () => editAvatar(p),
+      customBorder: const CircleBorder(),
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          PulseGlow(
+            child: CircleAvatar(
+              radius: 52,
+              backgroundColor: neon,
+              child: avatarBusy
+                  ? const CircularProgressIndicator(color: abyss)
+                  : inner,
+            ),
+          ),
+          Positioned(
+            right: 2,
+            bottom: 2,
+            child: Container(
+              width: 32,
+              height: 32,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: context.colors.primary,
+                border: Border.all(color: context.colors.canvas, width: 2.5),
+              ),
+              child: Icon(
+                Icons.photo_camera_rounded,
+                size: 16,
+                color: Theme.of(context).brightness == Brightness.dark
+                    ? abyss
+                    : Colors.white,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -1777,13 +2053,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               padding: const EdgeInsets.only(top: 4, bottom: 24),
               child: Column(
                 children: [
-                  const PulseGlow(
-                    child: CircleAvatar(
-                      radius: 52,
-                      backgroundColor: neon,
-                      child: Icon(Icons.person_rounded, size: 62, color: abyss),
-                    ),
-                  ),
+                  _buildProfileAvatar(p),
                   const SizedBox(height: 18),
                   Reveal(
                     child: Text(
@@ -1828,6 +2098,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 padding: EdgeInsets.zero,
                 child: Column(
                   children: [
+                    ConceptMenuRow(
+                      'user-round',
+                      'Profil rasmini o‘zgartirish',
+                      glyph: Icons.photo_camera_rounded,
+                      onTap: () => editAvatar(p),
+                    ),
+                    const Divider(height: 1, indent: 18, endIndent: 18),
                     ConceptMenuRow(
                       'user-round',
                       'Ism-familiyani o‘zgartirish',

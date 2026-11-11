@@ -179,7 +179,13 @@ export class AuthService {
     }
     const memberships = await this.db.membership.findMany({ where: { userId: user.id } });
     if (user.kind === 'STAFF' && !memberships.some(m => m.status === 'ACTIVE')) fail('STAFF_NOT_APPROVED', 'Xodim vakolati faol emas', 403);
-    return { id: user.id, name: user.name, phone:user.phone, login:user.login, kind: user.kind, sessionId: session.id, idleTimeoutSeconds: channel === 'WEB' ? webIdleTimeoutSeconds(user.kind) : null, lastActivityAt: session.lastActivityAt.toISOString(), mustChangePassword: user.mustChangePassword, memberships: memberships.map(m => ({ id: m.id, sanatoriumId: m.sanatoriumId, role: m.role, status: m.status, permissions: m.status === 'ACTIVE' ? effective(m) : [], version: m.version })) };
+    let lastActivityAt = session.lastActivityAt;
+    if (channel === 'MOBILE' && Date.now() - session.lastActivityAt.getTime() >= 25_000) {
+      const now = new Date();
+      await this.db.session.updateMany({ where: { id: session.id, revokedAt: null }, data: { lastActivityAt: now } });
+      lastActivityAt = now;
+    }
+    return { id: user.id, name: user.name, phone:user.phone, login:user.login, avatarUrl: user.avatarUrl ?? null, kind: user.kind, sessionId: session.id, idleTimeoutSeconds: channel === 'WEB' ? webIdleTimeoutSeconds(user.kind) : null, lastActivityAt: lastActivityAt.toISOString(), mustChangePassword: user.mustChangePassword, memberships: memberships.map(m => ({ id: m.id, sanatoriumId: m.sanatoriumId, role: m.role, status: m.status, permissions: m.status === 'ACTIVE' ? effective(m) : [], version: m.version })) };
   }
   async csrf(sessionId: string, token: string | undefined, origin: string | undefined) {
     if (!token || !origin || !this.config.CORS_ORIGINS.split(',').includes(origin)) fail('CSRF_INVALID', 'Sahifani yangilab qayta urinib ko‘ring', 403);
@@ -217,6 +223,16 @@ export class AuthService {
     });
     if (!touched.count) idleFailure();
     return { last_activity_at: now.toISOString(), idle_timeout_seconds: seconds };
+  }
+  async heartbeat(actor: Actor) {
+    const now = new Date();
+    const session = await this.db.session.findUnique({ where: { id: actor.sessionId }, select: { id: true, channel: true, revokedAt: true, lastActivityAt: true } });
+    if (!session || session.revokedAt) fail('UNAUTHENTICATED', 'Qayta kiring', 401);
+    if (session.channel === 'MOBILE') {
+      await this.db.session.updateMany({ where: { id: session.id, revokedAt: null }, data: { lastActivityAt: now } });
+      return { online: true, last_activity_at: now.toISOString() };
+    }
+    return { online: Date.now() - session.lastActivityAt.getTime() < 180_000, last_activity_at: session.lastActivityAt.toISOString() };
   }
   async logout(actor: Actor) { await this.db.session.update({ where: { id: actor.sessionId }, data: { revokedAt: new Date() } }); return { success: true }; }
   async sessions(actor: Actor) {
@@ -259,11 +275,56 @@ export class AuthService {
     });
   }
   async profile(actor: Actor, body: unknown) {
-    const input = parse(z.object({ name: z.string().trim().min(2).max(120), phone: phoneSchema.optional(), login: loginSchema.optional() }).strict(), body);
+    const MAX_AVATAR_BYTES = 15 * 1024 * 1024;
+    const input = parse(
+      z.object({
+        name: z.string().trim().min(2).max(120).optional(),
+        phone: phoneSchema.optional(),
+        login: loginSchema.optional(),
+        avatarUrl: z.string().max(22_000_000).nullable().optional(),
+      }).strict().refine(
+        v => v.name !== undefined || v.phone !== undefined || v.login !== undefined || v.avatarUrl !== undefined,
+        { message: 'Kamida bitta profil maydonini kiriting' },
+      ),
+      body,
+    );
     if (actor.kind === 'CUSTOMER' && input.login) fail('PERMISSION_DENIED', 'Mijoz login bilan kirmaydi', 403);
+    let normalizedAvatar: string | null | undefined = undefined;
+    if (input.avatarUrl !== undefined) {
+      const raw = input.avatarUrl?.trim() ?? '';
+      if (!raw) {
+        normalizedAvatar = null;
+      } else if (raw.startsWith('data:')) {
+        const m = /^data:(image\/(?:png|jpeg|jpg|webp|gif));base64,([A-Za-z0-9+/=\r\n]+)$/i.exec(raw);
+        if (!m) fail('INVALID_AVATAR', 'Faqat PNG, JPEG, WEBP yoki GIF rasm yuklash mumkin', 422);
+        const cleanB64 = m[2].replace(/[\r\n]/g, '');
+        const decodedBytes = Buffer.from(cleanB64, 'base64').byteLength;
+        if (!decodedBytes) fail('INVALID_AVATAR', 'Rasm ma’lumoti yaroqsiz', 422);
+        if (decodedBytes > MAX_AVATAR_BYTES) fail('AVATAR_TOO_LARGE', 'Rasm hajmi 15 MB dan oshmasligi kerak', 422);
+        normalizedAvatar = `data:${m[1].toLowerCase()};base64,${cleanB64}`;
+      } else {
+        let parsed: URL | null = null;
+        try { parsed = new URL(raw); } catch { parsed = null; }
+        if (!parsed || parsed.protocol !== 'https:' || raw.length > 2048) {
+          fail('INVALID_AVATAR', 'Rasm havolasi to‘g‘ri HTTPS manzil bo‘lishi kerak', 422);
+        }
+        normalizedAvatar = parsed.href;
+      }
+    }
+    const data: { name?: string; phone?: string; login?: string; avatarUrl?: string | null } = {
+      ...(input.name !== undefined ? { name: input.name } : {}),
+      ...(input.phone !== undefined ? { phone: input.phone } : {}),
+      ...(input.login !== undefined ? { login: input.login } : {}),
+      ...(normalizedAvatar !== undefined ? { avatarUrl: normalizedAvatar } : {}),
+    };
     return this.db.atomic(async tx => {
-      const user = await tx.user.update({ where: { id: actor.id }, data: input });
-      await audit(tx, actor.id, 'account.profile_updated', actor.id, undefined, undefined, { name: user.name, login: user.login, phone: user.phone });
+      const user = await tx.user.update({ where: { id: actor.id }, data });
+      await audit(tx, actor.id, 'account.profile_updated', actor.id, undefined, undefined, {
+        name: user.name,
+        login: user.login,
+        phone: user.phone,
+        avatarUpdated: normalizedAvatar !== undefined,
+      });
       return this.publicUser(user);
     });
   }
@@ -297,7 +358,7 @@ export class AuthService {
       await audit(tx, user.id, 'auth.bootstrap', user.id); return this.publicUser(user);
     });
   }
-  publicUser(user: { id: string; kind: string; name: string; phone: string | null; login: string | null; mustChangePassword: boolean }) {
+  publicUser(user: { id: string; kind: string; name: string; phone: string | null; login: string | null; avatarUrl?: string | null; mustChangePassword: boolean }) {
     const isEmail = user.login?.includes('@');
     return {
       id: user.id,
@@ -306,6 +367,7 @@ export class AuthService {
       phone: user.phone,
       email: isEmail ? user.login : null,
       login: user.login,
+      avatarUrl: user.avatarUrl ?? null,
       must_change_password: user.mustChangePassword,
     };
   }

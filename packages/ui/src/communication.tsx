@@ -712,10 +712,43 @@ export function Reviews() {
     </>
   );
 }
-function getSenderDisplay(row?: Row | null) {
-  if (!row) return { primary: "Murojaat", realName: null, phone: null, email: null, login: null, initial: "M", isCustomer: false, badgeText: "Mijoz" };
+function getSenderDisplay(row?: Row | null, isAdminViewer = true) {
+  if (!row) {
+    return {
+      primary: isAdminViewer ? "Murojaat" : "Superadmin",
+      realName: null,
+      phone: null,
+      email: null,
+      login: null,
+      initial: isAdminViewer ? "M" : "S",
+      isCustomer: false,
+      avatarUrl: null as string | null,
+      isOnline: false,
+      badgeText: isAdminViewer ? "Mijoz" : "🛡️ Superadmin",
+    };
+  }
   const s = row.sender;
-  const isCustomer = s?.kind === "CUSTOMER" || (!s && (row.title || "").toLowerCase().includes("ilova"));
+  const isCustomer =
+    s?.kind === "CUSTOMER" ||
+    (!s && (row.title || "").toLowerCase().includes("ilova"));
+
+  // In partner panel (director/reception), chatting on a non-customer ticket means talking to Superadmin.
+  if (!isAdminViewer && !isCustomer) {
+    const peer = row.peer;
+    return {
+      primary: "Superadmin",
+      realName: "Superadmin",
+      phone: null,
+      email: null,
+      login: null,
+      initial: "S",
+      isCustomer: false,
+      avatarUrl: (peer?.avatarUrl as string | null) ?? null,
+      isOnline: Boolean(peer?.isOnline),
+      badgeText: "🛡️ Superadmin",
+    };
+  }
+
   const realName = s?.name && s.name !== "Mijoz" && s.name !== "User" ? s.name : null;
   const phone = s?.phone || null;
   const login = s?.login || null;
@@ -740,7 +773,7 @@ function getSenderDisplay(row?: Row | null) {
   const finalLogin = login;
 
   let primary = "";
-  if (s?.kind === "SUPERADMIN" && row.sanatoriumName) {
+  if (row.sanatoriumName && !isCustomer) {
     primary = row.sanatoriumName;
   } else if (finalName) {
     primary = finalName;
@@ -764,10 +797,69 @@ function getSenderDisplay(row?: Row | null) {
     login: finalLogin,
     initial,
     isCustomer,
+    avatarUrl: (s?.avatarUrl as string | null) ?? null,
+    isOnline: Boolean(s?.isOnline),
     badgeText: isCustomer
       ? "📱 Mobil mijoz"
-      : (s?.kind === "SUPERADMIN" && row.sanatoriumName ? "🏥 Hamkor sanatoriya" : "🏢 Xodim"),
+      : row.sanatoriumName
+        ? `🏥 ${finalName || "Hamkor sanatoriya"}`
+        : "🏢 Xodim",
   };
+}
+
+function ChatAvatar({
+  name,
+  avatarUrl,
+  isOnline,
+  seed,
+  variant = "list",
+}: {
+  name: string;
+  avatarUrl?: string | null;
+  isOnline?: boolean;
+  seed?: string;
+  variant?: "list" | "room" | "bubble" | "picker";
+}) {
+  const initial =
+    (name || "S").replace(/[^a-zA-Z0-9\u0400-\u04FF]/g, "").slice(0, 1).toUpperCase() || "S";
+  const bg = getAvatarGradient(seed || name || "S");
+  if (variant === "bubble") {
+    return (
+      <div className="tg-bubble-avatar" style={{ background: bg }} title={name}>
+        {avatarUrl ? <img src={avatarUrl} alt={name} /> : initial}
+      </div>
+    );
+  }
+  if (variant === "picker") {
+    return (
+      <div className="tg-avatar-wrap" style={{ width: "32px", height: "32px" }}>
+        <div
+          className="tg-avatar"
+          style={{ width: "32px", height: "32px", fontSize: "12px", background: bg }}
+        >
+          {avatarUrl ? <img src={avatarUrl} alt={name} /> : initial}
+        </div>
+        {isOnline && (
+          <span
+            className="tg-avatar-dot"
+            style={{ width: "10px", height: "10px" }}
+            aria-label="Onlayn"
+          />
+        )}
+      </div>
+    );
+  }
+  return (
+    <div className={`tg-avatar-wrap ${variant === "room" ? "tg-room-avatar-wrap" : ""}`}>
+      <div
+        className={variant === "room" ? "tg-room-avatar" : "tg-avatar"}
+        style={{ background: bg }}
+      >
+        {avatarUrl ? <img src={avatarUrl} alt={name} /> : initial}
+      </div>
+      {isOnline && <span className="tg-avatar-dot" aria-label="Onlayn" title="Onlayn" />}
+    </div>
+  );
 }
 
 const AVATAR_GRADIENTS = [
@@ -897,6 +989,7 @@ export function Support({
       return;
     }
     const timer = setInterval(() => {
+      if (document.visibilityState !== "visible") return;
       api<Row>(`/support/tickets/${id}`)
         .then((fresh) => {
           if (fresh) setThread(fresh);
@@ -905,6 +998,13 @@ export function Support({
     }, 10000);
     return () => clearInterval(timer);
   }, [id]);
+
+  useEffect(() => {
+    const listTimer = setInterval(() => {
+      if (document.visibilityState === "visible") tickets.reload();
+    }, 15000);
+    return () => clearInterval(listTimer);
+  }, [tickets.reload]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -1253,7 +1353,7 @@ export function Support({
   const filteredTickets = searchQuery.trim()
     ? folderTickets.filter((row: Row) => {
         const q = searchQuery.toLowerCase();
-        const info = getSenderDisplay(row);
+        const info = getSenderDisplay(row, ctx.admin);
         return (
           (row.title ?? "").toLowerCase().includes(q) ||
           (row.lastMessage ?? "").toLowerCase().includes(q) ||
@@ -1487,7 +1587,6 @@ export function Support({
                     ) : (
                       filteredCustomers.map((cust: Row) => {
                         const isSel = selectedUserId === cust.id;
-                        const cInit = (cust.name || "U").slice(0, 1).toUpperCase();
                         return (
                           <div
                             key={cust.id}
@@ -1504,23 +1603,13 @@ export function Support({
                               transition: "background 0.1s",
                             }}
                           >
-                            <div
-                              style={{
-                                width: "30px",
-                                height: "30px",
-                                borderRadius: "50%",
-                                background: getAvatarGradient(cust.id || cust.name || "U"),
-                                color: "#ffffff",
-                                display: "flex",
-                                alignItems: "center",
-                                justifyContent: "center",
-                                fontWeight: 700,
-                                fontSize: "12px",
-                                flexShrink: 0,
-                              }}
-                            >
-                              {cInit}
-                            </div>
+                            <ChatAvatar
+                              variant="picker"
+                              name={cust.name || "U"}
+                              avatarUrl={cust.avatarUrl}
+                              isOnline={Boolean(cust.isOnline)}
+                              seed={cust.id || cust.name || "U"}
+                            />
                             <div style={{ flex: 1, minWidth: 0 }}>
                               <div style={{ fontSize: "13px", fontWeight: 600, color: "var(--ink)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                                 {cust.name || "Noma'lum foydalanuvchi"}
@@ -1773,7 +1862,7 @@ export function Support({
               )}
               {filteredTickets.map((row: Row) => {
                 const isSelected = row.id === id;
-                const info = getSenderDisplay(row);
+                const info = getSenderDisplay(row, ctx.admin);
                 const rowClosed = isTicketClosed(row.status);
                 return (
                   <li
@@ -1781,15 +1870,13 @@ export function Support({
                     className={`tg-chat-item ${isSelected ? "active" : ""}`}
                     onClick={() => selectTicket(row.id)}
                   >
-                    <div className="tg-avatar-wrap">
-                      <div
-                        className="tg-avatar"
-                        style={{ background: getAvatarGradient(row.id || info.primary) }}
-                      >
-                        {info.initial}
-                      </div>
-                      {!rowClosed && <span className="tg-avatar-dot" aria-hidden="true" />}
-                    </div>
+                    <ChatAvatar
+                      variant="list"
+                      name={info.primary}
+                      avatarUrl={info.avatarUrl}
+                      isOnline={info.isOnline}
+                      seed={row.id || info.primary}
+                    />
                     <div className="tg-chat-info">
                       <div className="tg-chat-top">
                         <span className="tg-chat-title">{info.primary}</span>
@@ -1797,7 +1884,11 @@ export function Support({
                       </div>
                       <div className="tg-chat-subline">
                         <span className="tg-role-tag">
-                          {info.isCustomer ? "Mijoz" : "Hamkor"}
+                          {info.primary === "Superadmin"
+                            ? "Superadmin"
+                            : info.isCustomer
+                              ? "Mijoz"
+                              : "Hamkor"}
                         </span>
                         <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>
                           {row.title || "Suhbat"}
@@ -1821,8 +1912,7 @@ export function Support({
           {id ? (
             <>
               {(() => {
-                const roomInfo = getSenderDisplay(t);
-                const roomAvatarBg = getAvatarGradient(t?.id || roomInfo.primary);
+                const roomInfo = getSenderDisplay(t, ctx.admin);
                 return (
                   <div className="tg-room-header">
                     <div className="tg-room-user">
@@ -1835,13 +1925,18 @@ export function Support({
                       >
                         ←
                       </button>
-                      <div className="tg-room-avatar" style={{ background: roomAvatarBg }}>
-                        {roomInfo.initial}
-                      </div>
+                      <ChatAvatar
+                        variant="room"
+                        name={roomInfo.primary}
+                        avatarUrl={roomInfo.avatarUrl}
+                        isOnline={roomInfo.isOnline}
+                        seed={t?.id || roomInfo.primary}
+                      />
                       <div style={{ flex: 1, minWidth: "180px" }}>
                         <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
                           <span className="tg-room-name">{roomInfo.primary}</span>
                           <span className="tg-role-tag">{roomInfo.badgeText}</span>
+                          {roomInfo.isOnline && <span className="tg-online-badge">Onlayn</span>}
                           {ctx.admin && roomInfo.phone && (
                             <a href={`tel:${roomInfo.phone}`} style={{ fontSize: "12px", color: "var(--tg-accent)", fontWeight: 700, display: "inline-flex", alignItems: "center", gap: "3px" }}>
                               <Phone size={12} /> {roomInfo.phone}
@@ -1933,19 +2028,30 @@ export function Support({
                 ) : (
                   t && (
                     <>
-                      {t.messages.map((m: Row, index: number) => {
+                      {(() => {
+                        const roomInfo = getSenderDisplay(t, ctx.admin);
+                        return t.messages.map((m: Row, index: number) => {
                         const prevMsg = index > 0 ? t.messages[index - 1] : null;
                         const dateGroup = formatMessageDateGroup(m.createdAt);
                         const showDateSep =
                           Boolean(dateGroup) &&
                           dateGroup !== formatMessageDateGroup(prevMsg?.createdAt);
                         const isOwn = m.userId === ctx.actor.id;
-                        const senderInfo = m.userId === t?.userId ? getSenderDisplay(t) : null;
+                        const senderInfo = m.userId === t?.userId ? roomInfo : null;
                         const rawName = (m.userName ?? "").trim();
                         const isPlaceholder = !rawName || rawName === "Mijoz" || rawName === "User";
-                        const bubbleSenderName = !isPlaceholder
-                          ? rawName
-                          : (senderInfo?.primary || rawName || "Suhbatdosh");
+                        const bubbleSenderName =
+                          !ctx.admin && m.userKind === "SUPERADMIN"
+                            ? "Superadmin"
+                            : !isPlaceholder
+                              ? rawName
+                              : (senderInfo?.primary || rawName || "Suhbatdosh");
+                        const bubbleAvatarUrl =
+                          m.userAvatarUrl ??
+                          (!ctx.admin && m.userKind === "SUPERADMIN"
+                            ? t?.peer?.avatarUrl
+                            : senderInfo?.avatarUrl) ??
+                          null;
                         const bubblePhone = ctx.admin ? (m.userPhone || senderInfo?.phone) : null;
                         const bubbleEmail = ctx.admin ? (m.userEmail || senderInfo?.email) : null;
                         const isEditingThis = editingMessageId === m.id;
@@ -1956,7 +2062,15 @@ export function Support({
                                 <span>{dateGroup}</span>
                               </div>
                             )}
-                            <div className={`tg-bubble-row ${isOwn ? "own" : "incoming"}`}>
+                            <div className={`tg-bubble-row ${isOwn ? "own" : "incoming"}`} style={!isOwn ? { display: "flex", alignItems: "flex-end", gap: "8px" } : undefined}>
+                              {!isOwn && (
+                                <ChatAvatar
+                                  variant="bubble"
+                                  name={bubbleSenderName}
+                                  avatarUrl={bubbleAvatarUrl}
+                                  seed={m.userId || bubbleSenderName}
+                                />
+                              )}
                               <div className={`tg-bubble ${isOwn ? "own" : "incoming"}`}>
                                 {!isOwn && (
                                   <div className="tg-bubble-sender" style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
@@ -2112,7 +2226,7 @@ export function Support({
                             </div>
                           </div>
                         );
-                      })}
+                      }); })()}
                       <div ref={messagesEndRef} />
                     </>
                   )

@@ -1,6 +1,6 @@
 # Sihhat uz — Android ilovasi
 
-Joriy reliz versiya: **0.2.3 (build 6)**, 2026-11-11.
+Joriy reliz versiya: **0.2.4 (build 7)**, 2026-11-11.
 
 ### 📱 Yuklab olish
 
@@ -9,15 +9,15 @@ Joriy reliz versiya: **0.2.3 (build 6)**, 2026-11-11.
 - **SHA-256 nazorat summasi:** [SHA256SUMS.txt](SHA256SUMS.txt)
 
 Lokal reliz nusxalari (`.gitignore`da, Gitga kiritilmaydi):
-- `.local/releases/sihhat-uz-release.apk` (`63,799,955` bayt, ~60.8 MB)
+- `.local/releases/sihhat-uz-release.apk` (`63,898,343` bayt, ~60.9 MB)
 - `ilova/Songgi UI/yangi versiya.apk`
 
-### 🚀 0.2.3 (build 6) yangilanishlari
+### 🚀 0.2.4 (build 7) yangilanishlari
 
-1. **Telegram Messenger uslubidagi chat (`Yordam va xabarlar`):** `Ochiq` / `Yopilgan` jildlari, qidiruv maydoni, gradient avatarlar, naqshli fon, sana ajratgichlari (`Bugun`/`Kecha`), qo‘sh tasdiq belgilari va kattalashuvchi rasm ko‘rish.
-2. **Xabarlarni tahrirlash va o‘chirish (audit saqlash bilan):** Foydalanuvchi o‘z xabarini Telegram menyusi orqali tahrirlashi (`tahrirlangan`) va o‘z chatidan o‘chirishi mumkin; foydalanuvchi o‘chirgan xabar **Superadmin** panelida audit uchun saqlanadi va faqat Superadmin uni bazadan butunlay o‘chirishi mumkin.
-3. **Onlayn API va to‘lov:** Ilova `https://sihhat-api.onrender.com` bilan ishlaydi (`demo_otp: false`).
-4. **Avtomatik reliz (`GitHub Actions`):** `.github/workflows/android-release.yml` har `apps/mobile/**` pushida APKni imzolab **GitHub Releases**ga chiqaradi, `sihhat.uz/api/download/apk` esa avtomatik eng so‘nggi relizni tarqatadi.
+1. **Profil rasmi (15 MB gacha):** Ilova foydalanuvchilari profillariga galereyadan (15 MB gacha tekshiruv va xotiraga mos optimizatsiya bilan) yoki HTTPS havoladan profil rasmini qo‘yishi va o‘chirishi mumkin.
+2. **Jonli onlayn holat va chat avatarlari:** Ilova faol ishlayotganda `/auth/heartbeat` yuboriladi; Telegram uslubidagi suhbatda Superadmin/suhbatdosh rasmlari hamda onlayn yashil nuqta ko‘rinadi.
+3. **Telegram Messenger uslubidagi chat (`Yordam va xabarlar`):** `Ochiq` / `Yopilgan` jildlari, xabarni tahrirlash (`tahrirlangan`), o‘z chatidan o‘chirish (Superadminda audit saqlanadi), `+` rasm biriktirish va kattalashtirish.
+4. **Onlayn API va avtomatik reliz (`GitHub Actions`):** Ilova `https://sihhat-api.onrender.com` bilan ishlaydi (`demo_otp: false`). `.github/workflows/android-release.yml` har `apps/mobile/**` pushida APKni imzolab **GitHub Releases**ga chiqaradi, `sihhat.uz/api/download/apk` esa eng so‘nggi relizni uzatadi.
 
 ### 🛠 Faylni tekshirish
 
@@ -26,4 +26,4 @@ Get-FileHash -Algorithm SHA256 -LiteralPath .local/releases/sihhat-uz.apk
 ```
 
 Natija `ilova/SHA256SUMS.txt`dagi qiymat bilan bir xil bo‘lishi kerak:
-`60e70fce23e696a257168bbdf4a10e5f28e16d7ad2032b3f235aea9cf4ef99e7`
+`90b175ab0767cf9ebd807c510e15f766d8d33716d43aab7c2ccfd4cfc796afa8`

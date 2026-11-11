@@ -272,6 +272,23 @@ svg {
   background: var(--green-light);
   font-weight: 700;
   color: var(--green);
+  overflow: hidden;
+  flex-shrink: 0;
+}
+.avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.user-block.clickable {
+  cursor: pointer;
+  padding: 4px 8px 4px 4px;
+  border-radius: 999px;
+  transition: background-color 0.15s ease;
+}
+.user-block.clickable:hover {
+  background: var(--soft);
 }
 .user-name {
   display: block;

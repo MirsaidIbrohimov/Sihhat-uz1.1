@@ -167,59 +167,98 @@ List<Color> supportAvatarGradient(String seed) {
 
 class TgAvatar extends StatelessWidget {
   final String label;
+  final String? imageUrl;
   final double size;
   final bool closed;
+  final bool isOnline;
   final bool showStatusDot;
 
   const TgAvatar({
     required this.label,
+    this.imageUrl,
     this.size = 48,
     this.closed = false,
+    this.isOnline = false,
     this.showStatusDot = true,
     super.key,
   });
+
+  Widget _buildImageOrMonogram(String letter, List<Color> colors) {
+    final raw = imageUrl?.trim() ?? '';
+    if (raw.isNotEmpty) {
+      Widget img;
+      if (raw.startsWith('data:')) {
+        try {
+          img = Image.memory(
+            base64Decode(raw.split(',').last),
+            width: size,
+            height: size,
+            fit: BoxFit.cover,
+            errorBuilder: (_, _, _) => _monogram(letter, colors),
+          );
+        } catch (_) {
+          img = _monogram(letter, colors);
+        }
+      } else {
+        img = Image.network(
+          raw,
+          width: size,
+          height: size,
+          fit: BoxFit.cover,
+          errorBuilder: (_, _, _) => _monogram(letter, colors),
+        );
+      }
+      return ClipOval(
+        child: SizedBox(width: size, height: size, child: img),
+      );
+    }
+    return _monogram(letter, colors);
+  }
+
+  Widget _monogram(String letter, List<Color> colors) => Container(
+    width: size,
+    height: size,
+    alignment: Alignment.center,
+    decoration: BoxDecoration(
+      shape: BoxShape.circle,
+      gradient: LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: colors,
+      ),
+      boxShadow: [
+        BoxShadow(
+          color: colors.first.withValues(alpha: .28),
+          blurRadius: 10,
+          offset: const Offset(0, 3),
+        ),
+      ],
+    ),
+    child: Text(
+      letter,
+      style: TextStyle(
+        fontFamily: 'Manrope',
+        color: Colors.white,
+        fontWeight: FontWeight.w800,
+        fontSize: size * .4,
+      ),
+    ),
+  );
 
   @override
   Widget build(BuildContext context) {
     final trimmed = label.trim();
     final letter = trimmed.isNotEmpty ? trimmed[0].toUpperCase() : 'S';
     final colors = supportAvatarGradient(trimmed);
+    final showBadge = showStatusDot && (isOnline || closed);
     return SizedBox(
       width: size,
       height: size,
       child: Stack(
         clipBehavior: Clip.none,
         children: [
-          Container(
-            width: size,
-            height: size,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: colors,
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: colors.first.withValues(alpha: .28),
-                  blurRadius: 10,
-                  offset: const Offset(0, 3),
-                ),
-              ],
-            ),
-            child: Text(
-              letter,
-              style: TextStyle(
-                fontFamily: 'Manrope',
-                color: Colors.white,
-                fontWeight: FontWeight.w800,
-                fontSize: size * .4,
-              ),
-            ),
-          ),
-          if (showStatusDot)
+          _buildImageOrMonogram(letter, colors),
+          if (showBadge)
             Positioned(
               right: -1,
               bottom: -1,
@@ -228,12 +267,12 @@ class TgAvatar extends StatelessWidget {
                 height: size * .32,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: closed
-                      ? context.colors.muted
-                      : const Color(0xff22c55e),
+                  color: isOnline
+                      ? const Color(0xff22c55e)
+                      : context.colors.muted,
                   border: Border.all(color: context.colors.surface, width: 2),
                 ),
-                child: closed
+                child: closed && !isOnline
                     ? Icon(
                         Icons.lock_rounded,
                         size: size * .18,
@@ -377,6 +416,8 @@ class TgChatListTile extends StatelessWidget {
   final String preview;
   final String status;
   final String timeLabel;
+  final String? avatarUrl;
+  final bool isOnline;
   final VoidCallback onTap;
 
   const TgChatListTile({
@@ -384,6 +425,8 @@ class TgChatListTile extends StatelessWidget {
     required this.preview,
     required this.status,
     required this.timeLabel,
+    this.avatarUrl,
+    this.isOnline = false,
     required this.onTap,
     super.key,
   });
@@ -407,7 +450,12 @@ class TgChatListTile extends StatelessWidget {
           ),
           child: Row(
             children: [
-              TgAvatar(label: title, closed: closed),
+              TgAvatar(
+                label: title,
+                imageUrl: avatarUrl,
+                isOnline: isOnline,
+                closed: closed,
+              ),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
@@ -577,6 +625,7 @@ class TgMessageBubble extends StatelessWidget {
   final String text;
   final String? imageUrl;
   final String? author;
+  final String? avatarUrl;
   final String time;
   final bool own;
   final bool isEdited;
@@ -590,6 +639,7 @@ class TgMessageBubble extends StatelessWidget {
     required this.time,
     this.imageUrl,
     this.author,
+    this.avatarUrl,
     this.own = false,
     this.isEdited = false,
     this.canModify = false,
@@ -605,7 +655,7 @@ class TgMessageBubble extends StatelessWidget {
     final bubble = Container(
       margin: const EdgeInsets.only(bottom: 8),
       constraints: BoxConstraints(
-        maxWidth: MediaQuery.sizeOf(context).width * .78,
+        maxWidth: MediaQuery.sizeOf(context).width * (own ? .78 : .72),
         minWidth: 96,
       ),
       decoration: BoxDecoration(
@@ -743,13 +793,31 @@ class TgMessageBubble extends StatelessWidget {
       ),
     );
 
-    return Reveal(
-      offset: Offset(own ? .12 : -.12, .03),
-      child: Align(
-        alignment: own ? Alignment.centerRight : Alignment.centerLeft,
-        child: Opacity(opacity: isDeleting ? .55 : 1, child: bubble),
-      ),
-    );
+    final content = own
+        ? Align(
+            alignment: Alignment.centerRight,
+            child: Opacity(opacity: isDeleting ? .55 : 1, child: bubble),
+          )
+        : Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Padding(
+                padding: const EdgeInsets.only(right: 6, bottom: 8),
+                child: TgAvatar(
+                  label: author ?? 'Yordam',
+                  imageUrl: avatarUrl,
+                  size: 30,
+                  showStatusDot: false,
+                ),
+              ),
+              Flexible(
+                child: Opacity(opacity: isDeleting ? .55 : 1, child: bubble),
+              ),
+            ],
+          );
+
+    return Reveal(offset: Offset(own ? .12 : -.12, .03), child: content);
   }
 }
 

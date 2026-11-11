@@ -202,10 +202,17 @@ export class EngagementService implements OnModuleInit {
     const ticketIds = tickets.map(t => t.id);
 
     const isSuperAdmin = actor.kind === 'SUPERADMIN';
-    const [users, sanatoriums, bookings, messages] = await Promise.all([
+    const now = new Date();
+    const onlineCutoff = new Date(now.getTime() - 180_000);
+    const superadminUser = !isSuperAdmin && this.db.user.findFirst
+      ? await this.db.user.findFirst({ where: { kind: 'SUPERADMIN', status: 'ACTIVE' }, select: { id: true, name: true, avatarUrl: true } })
+      : null;
+    const onlineTargetIds = [...new Set([...userIds, ...(superadminUser ? [superadminUser.id] : [])])];
+
+    const [users, sanatoriums, bookings, messages, activeSessions] = await Promise.all([
       this.db.user.findMany({
         where: { id: { in: userIds } },
-        select: { id: true, name: true, phone: true, login: true, kind: true, status: true }
+        select: { id: true, name: true, phone: true, login: true, avatarUrl: true, kind: true, status: true }
       }),
       sanatoriumIds.length ? this.db.sanatorium.findMany({
         where: { id: { in: sanatoriumIds } },
@@ -218,12 +225,28 @@ export class EngagementService implements OnModuleInit {
       this.db.supportMessage.findMany({
         where: { ticketId: { in: ticketIds }, ...(isSuperAdmin ? {} : { deletedForUser: false }) },
         orderBy: { createdAt: 'desc' },
-      })
+      }),
+      onlineTargetIds.length && this.db.session?.findMany ? this.db.session.findMany({
+        where: {
+          userId: { in: onlineTargetIds },
+          revokedAt: null,
+          refreshExpiresAt: { gt: now },
+          lastActivityAt: { gt: onlineCutoff },
+        },
+        orderBy: { lastActivityAt: 'desc' },
+        select: { userId: true, lastActivityAt: true, channel: true },
+      }) : []
     ]);
 
     const userMap = new Map(users.map(u => [u.id, u]));
     const sanatoriumMap = new Map(sanatoriums.map(s => [s.id, s.name]));
     const bookingMap = new Map(bookings.map(b => [b.id, b]));
+    const onlineMap = new Map<string, { isOnline: boolean; lastSeenAt: Date }>();
+    for (const s of activeSessions as Array<{ userId: string; lastActivityAt: Date }>) {
+      if (!onlineMap.has(s.userId)) {
+        onlineMap.set(s.userId, { isOnline: true, lastSeenAt: s.lastActivityAt });
+      }
+    }
     const lastMsgMap = new Map<string, string>();
     for (const m of messages) {
       if (!lastMsgMap.has(m.ticketId)) {
@@ -231,12 +254,21 @@ export class EngagementService implements OnModuleInit {
       }
     }
 
+    const peer = !isSuperAdmin ? {
+      id: superadminUser?.id ?? null,
+      name: 'Superadmin',
+      kind: 'SUPERADMIN',
+      avatarUrl: superadminUser?.avatarUrl ?? null,
+      isOnline: superadminUser ? (onlineMap.get(superadminUser.id)?.isOnline ?? false) : false,
+    } : null;
+
     return tickets.map(t => {
       const u = userMap.get(t.userId);
       const isEmail = Boolean(u?.login?.includes('@'));
       const email = isEmail ? u?.login ?? null : null;
       const realName = u?.name && u.name !== 'Mijoz' && u.name !== 'User' ? u.name : null;
       const display = realName || u?.phone || email || u?.login || (u?.kind === 'CUSTOMER' ? 'Mobil mijoz' : 'Murojaat');
+      const presence = onlineMap.get(t.userId);
       return {
         ...t,
         sender: u ? {
@@ -245,11 +277,15 @@ export class EngagementService implements OnModuleInit {
           phone: u.phone,
           login: u.login,
           email,
+          avatarUrl: u.avatarUrl ?? null,
+          isOnline: presence?.isOnline ?? false,
+          lastSeenAt: presence?.lastSeenAt ?? null,
           kind: u.kind,
           status: u.status,
           displayName: display,
         } : null,
         senderDisplay: display,
+        peer,
         sanatoriumName: t.sanatoriumId ? sanatoriumMap.get(t.sanatoriumId) ?? null : null,
         booking: t.bookingId ? bookingMap.get(t.bookingId) ?? null : null,
         lastMessage: lastMsgMap.get(t.id) ?? null,
@@ -270,20 +306,44 @@ export class EngagementService implements OnModuleInit {
     const rawMessages = await this.db.supportMessage.findMany({where:{ticketId:id},orderBy:{createdAt:'asc'}});
     const messages = isSuperAdmin ? rawMessages : rawMessages.filter(m => !m.deletedForUser);
     const userIds = [...new Set([t.userId, ...messages.map(m => m.userId)])];
-    const [users, sanatorium, booking] = await Promise.all([
+    const now = new Date();
+    const onlineCutoff = new Date(now.getTime() - 180_000);
+    const superadminUser = !isSuperAdmin && this.db.user.findFirst
+      ? await this.db.user.findFirst({ where: { kind: 'SUPERADMIN', status: 'ACTIVE' }, select: { id: true, name: true, avatarUrl: true } })
+      : null;
+    const onlineTargetIds = [...new Set([...userIds, ...(superadminUser ? [superadminUser.id] : [])])];
+
+    const [users, sanatorium, booking, activeSessions] = await Promise.all([
       this.db.user.findMany({
         where: { id: { in: userIds } },
-        select: { id: true, name: true, phone: true, login: true, kind: true, status: true }
+        select: { id: true, name: true, phone: true, login: true, avatarUrl: true, kind: true, status: true }
       }),
       t.sanatoriumId ? this.db.sanatorium.findUnique({ where: { id: t.sanatoriumId }, select: { id: true, name: true } }) : null,
-      t.bookingId ? this.db.booking.findUnique({ where: { id: t.bookingId }, select: { id: true, reference: true, checkIn: true, checkOut: true, status: true } }) : null
+      t.bookingId ? this.db.booking.findUnique({ where: { id: t.bookingId }, select: { id: true, reference: true, checkIn: true, checkOut: true, status: true } }) : null,
+      onlineTargetIds.length && this.db.session?.findMany ? this.db.session.findMany({
+        where: {
+          userId: { in: onlineTargetIds },
+          revokedAt: null,
+          refreshExpiresAt: { gt: now },
+          lastActivityAt: { gt: onlineCutoff },
+        },
+        orderBy: { lastActivityAt: 'desc' },
+        select: { userId: true, lastActivityAt: true, channel: true },
+      }) : []
     ]);
     const userMap = new Map(users.map(u => [u.id, u]));
+    const onlineMap = new Map<string, { isOnline: boolean; lastSeenAt: Date }>();
+    for (const s of activeSessions as Array<{ userId: string; lastActivityAt: Date }>) {
+      if (!onlineMap.has(s.userId)) {
+        onlineMap.set(s.userId, { isOnline: true, lastSeenAt: s.lastActivityAt });
+      }
+    }
     const senderUser = userMap.get(t.userId) ?? null;
     const isEmail = Boolean(senderUser?.login?.includes('@'));
     const senderEmail = isEmail ? senderUser?.login ?? null : null;
     const realName = senderUser?.name && senderUser.name !== 'Mijoz' ? senderUser.name : null;
     const display = realName || senderUser?.phone || senderEmail || senderUser?.login || (senderUser?.kind === 'CUSTOMER' ? 'Mobil mijoz' : 'Murojaat');
+    const senderPresence = onlineMap.get(t.userId);
 
     const sender = senderUser ? {
       id: senderUser.id,
@@ -291,15 +351,27 @@ export class EngagementService implements OnModuleInit {
       phone: senderUser.phone,
       login: senderUser.login,
       email: senderEmail,
+      avatarUrl: senderUser.avatarUrl ?? null,
+      isOnline: senderPresence?.isOnline ?? false,
+      lastSeenAt: senderPresence?.lastSeenAt ?? null,
       kind: senderUser.kind,
       status: senderUser.status,
       displayName: display,
+    } : null;
+
+    const peer = !isSuperAdmin ? {
+      id: superadminUser?.id ?? null,
+      name: 'Superadmin',
+      kind: 'SUPERADMIN',
+      avatarUrl: superadminUser?.avatarUrl ?? null,
+      isOnline: superadminUser ? (onlineMap.get(superadminUser.id)?.isOnline ?? false) : false,
     } : null;
 
     return {
       ...t,
       sender,
       senderDisplay: display,
+      peer,
       sanatoriumName: sanatorium?.name ?? null,
       booking,
       messages: messages.map(m => {
@@ -309,7 +381,9 @@ export class EngagementService implements OnModuleInit {
         const uPhone = u?.phone ?? (isSender ? sender?.phone : null);
         const uLogin = u?.login ?? (isSender ? sender?.login : null);
         const uRealName = u?.name && u.name !== 'Mijoz' && u.name !== 'User' ? u.name : null;
-        const msgDisplay = uRealName || uPhone || uEmail || uLogin || (u?.name !== 'Mijoz' && u?.name !== 'User' ? u?.name : null) || (isSender ? (sender?.name !== 'Mijoz' && sender?.name !== 'User' ? sender?.name : null) || sender?.phone || senderEmail || sender?.login || 'Mobil mijoz' : 'Xodim');
+        const msgDisplay = u?.kind === 'SUPERADMIN' && !isSuperAdmin
+          ? 'Superadmin'
+          : (uRealName || uPhone || uEmail || uLogin || (u?.name !== 'Mijoz' && u?.name !== 'User' ? u?.name : null) || (isSender ? (sender?.name !== 'Mijoz' && sender?.name !== 'User' ? sender?.name : null) || sender?.phone || senderEmail || sender?.login || 'Mobil mijoz' : 'Xodim'));
         return {
           ...m,
           isMe: m.userId === actor.id,
@@ -318,6 +392,8 @@ export class EngagementService implements OnModuleInit {
           userPhone: uPhone ?? null,
           userLogin: uLogin ?? null,
           userEmail: uEmail ?? null,
+          userAvatarUrl: u?.avatarUrl ?? null,
+          userIsOnline: onlineMap.get(m.userId)?.isOnline ?? false,
           userKind: u?.kind ?? (isSender ? 'CUSTOMER' : 'STAFF'),
           isEdited: m.isEdited ?? false,
           isDeleted: m.deletedForUser ?? false,

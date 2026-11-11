@@ -84,7 +84,7 @@ export async function createApp(options: { quiet?: boolean; swagger?: boolean } 
   const config = app.get<Config>(CONFIG);
   app.use(helmet({ contentSecurityPolicy: false }));
   app.use(cookieParser());
-  app.use(expressJson({limit:'12mb',verify:(req, _res, buffer)=>{if(req.url?.split('?')[0]==='/payments/tezcheck')(req as Request & {rawBody?:Buffer}).rawBody=Buffer.from(buffer);}}));
+  app.use(expressJson({limit:'24mb',verify:(req, _res, buffer)=>{if(req.url?.split('?')[0]==='/payments/tezcheck')(req as Request & {rawBody?:Buffer}).rawBody=Buffer.from(buffer);}}));
   const express = app.getHttpAdapter().getInstance();
   express.set('trust proxy', config.TRUST_PROXY === 'private' ? ['loopback', 'uniquelocal'] : false);
   express.set('json replacer', (_key: string, value: unknown) => typeof value === 'bigint' ? value.toString() : value);

@@ -366,18 +366,50 @@
   font-size: 16px;
   color: #ffffff;
   letter-spacing: 0.02em;
+  overflow: hidden;
   box-shadow: 0 3px 10px rgba(0, 0, 0, 0.18);
+}
+
+.tg-avatar img,
+.tg-room-avatar img,
+.tg-bubble-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
 }
 
 .tg-avatar-dot {
   position: absolute;
-  right: 1px;
-  bottom: 1px;
+  right: 0;
+  bottom: 0;
   width: 12px;
   height: 12px;
   border-radius: 50%;
   background: #22c55e;
   border: 2px solid var(--tg-sidebar-bg);
+  box-shadow: 0 0 6px rgba(34, 197, 94, 0.65);
+}
+
+.tg-room-avatar-wrap .tg-avatar-dot {
+  border-color: var(--tg-header-bg);
+}
+
+.tg-online-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #22c55e;
+}
+
+.tg-online-badge::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #22c55e;
 }
 
 .tg-chat-item.active .tg-avatar-dot {
@@ -513,7 +545,24 @@
   font-weight: 800;
   color: #ffffff;
   font-size: 15px;
+  overflow: hidden;
   flex-shrink: 0;
+}
+
+.tg-bubble-avatar {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 11.5px;
+  color: #ffffff;
+  overflow: hidden;
+  flex-shrink: 0;
+  align-self: flex-end;
+  margin-bottom: 2px;
 }
 
 .tg-room-name {

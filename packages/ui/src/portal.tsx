@@ -854,9 +854,19 @@ export function Portal({
                   <Bell size={17} />
                 </button>
               )}
-              <div className="user-block">
+              <button
+                type="button"
+                className="user-block clickable"
+                style={{ background: "transparent", border: "none", textAlign: "left", font: "inherit", color: "inherit" }}
+                onClick={() => go("account")}
+                title="Mening hisobim va profil rasmi"
+              >
                 <div className="avatar">
-                  {actor.name.slice(0, 1).toUpperCase()}
+                  {actor.avatarUrl ? (
+                    <img src={actor.avatarUrl} alt={actor.name} />
+                  ) : (
+                    actor.name.slice(0, 1).toUpperCase()
+                  )}
                 </div>
                 <div>
                   <span className="user-name">{actor.name}</span>
@@ -880,7 +890,7 @@ export function Portal({
                                 : "XODIM")}
                   </span>
                 </div>
-              </div>
+              </button>
               <button
                 className="icon-button"
                 aria-label="Parolni almashtirish"

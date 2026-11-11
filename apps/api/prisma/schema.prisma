@@ -15,6 +15,7 @@ model User {
   name String
   login String? @unique
   phone String? @unique
+  avatarUrl String?
   passwordHash String?
   mustChangePassword Boolean @default(false)
   mfaSecret String?
