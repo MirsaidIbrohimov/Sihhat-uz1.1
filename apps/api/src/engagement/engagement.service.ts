@@ -387,10 +387,14 @@ export class EngagementService implements OnModuleInit {
     const msg=await this.db.supportMessage.findUnique({where:{id:messageId}});
     if(!msg||msg.ticketId!==ticketId)fail('NOT_FOUND','Xabar topilmadi',404);
     if(msg.userId!==actor.id&&actor.kind!=='SUPERADMIN')fail('PERMISSION_DENIED','Faqat o‘zingiz yozgan xabarni o‘chirishingiz mumkin',403);
+    if(actor.kind==='SUPERADMIN'){
+      await this.db.supportMessage.delete({where:{id:messageId}});
+      return {success:true,messageId,deleted:true};
+    }
     // Foydalanuvchi/xodim xabarni o‘chirsa, bu foydalanuvchilar uchun yashiriladi (deletedForUser=true),
     // ammo superadmin uchun audit va dalil sifatida o‘chmasdan saqlanib qoladi.
     await this.db.supportMessage.update({where:{id:messageId},data:{deletedForUser:true}});
-    return {success:true,messageId};
+    return {success:true,messageId,deleted:false};
   }
   async ticketImageUpload(actor:Actor,body:unknown){
     const i=parse(z.object({base64:z.string().min(10).max(15_000_000),mime:z.string().max(100)}).strict(),body);

@@ -1,16 +1,20 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import {
+  Archive,
   Bell,
   Building2,
   Check,
   CheckCheck,
+  CheckCircle2,
   ClipboardList,
   Download,
   Edit2,
   FileText,
   Image as ImageIcon,
+  Lock,
   Mail,
+  Megaphone,
   MessageSquare,
   Paperclip,
   Phone,
@@ -18,6 +22,7 @@ import {
   Search,
   Send,
   Smartphone,
+  SquarePen,
   Star,
   Trash2,
   Users,
@@ -52,8 +57,10 @@ import {
 } from "./components";
 export function Communications({
   kind,
+  embedded = false,
 }: {
   kind: "messages" | "tasks" | "surveys";
+  embedded?: boolean;
 }) {
   const ctx = usePortal(),
     action = useAction(),
@@ -242,55 +249,74 @@ export function Communications({
       done: ctx.refresh,
     });
   }
+  const canSendAnnouncement =
+    ctx.admin ||
+    (kind === "messages"
+      ? ctx.allowed("messages.send")
+      : kind === "tasks"
+        ? ctx.allowed("tasks.manage")
+        : false);
+
   return (
     <>
-      <PageHeading
-        title={
-          kind === "messages"
-            ? "Xabarlar"
-            : kind === "tasks"
-              ? "Jamoa vazifalari"
-              : "Anketalar"
-        }
-        subtitle={
-          kind === "messages"
-            ? "Xabarlar faqat tegishli qabul qiluvchilarga ko‘rinadi."
-            : kind === "tasks"
-              ? "Vazifani qabul qilish va bajarish holati tarixda qayd etiladi."
-              : "Har bir anketa versiyasiga alohida javob saqlanadi."
-        }
-      >
-        {(ctx.admin ||
-          (kind === "messages"
-            ? ctx.allowed("messages.send")
-            : kind === "tasks"
-              ? ctx.allowed("tasks.manage")
-              : false)) && (
-          <AddButton onClick={create}>
-            {kind === "messages"
-              ? "Xabar yuborish"
+      {!embedded && (
+        <PageHeading
+          title={
+            kind === "messages"
+              ? "Xabarlar"
               : kind === "tasks"
-                ? "Vazifa berish"
-                : "Anketa yaratish"}
-          </AddButton>
-        )}
-      </PageHeading>
+                ? "Jamoa vazifalari"
+                : "Anketalar"
+          }
+          subtitle={
+            kind === "messages"
+              ? "Xabarlar faqat tegishli qabul qiluvchilarga ko‘rinadi."
+              : kind === "tasks"
+                ? "Vazifani qabul qilish va bajarish holati tarixda qayd etiladi."
+                : "Har bir anketa versiyasiga alohida javob saqlanadi."
+          }
+        >
+          {canSendAnnouncement && (
+            <AddButton onClick={create}>
+              {kind === "messages"
+                ? "Xabar yuborish"
+                : kind === "tasks"
+                  ? "Vazifa berish"
+                  : "Anketa yaratish"}
+            </AddButton>
+          )}
+        </PageHeading>
+      )}
       {kind === "messages" && (
-        <div className="tabs" style={{ marginBottom: "16px" }}>
-          <button
-            type="button"
-            className={`tab ${messageTab === "sent" ? "active" : ""}`}
-            onClick={() => setMessageTab("sent")}
-          >
-            Yuborilgan e’lonlar va xabarlar
-          </button>
-          <button
-            type="button"
-            className={`tab ${messageTab === "inbox" ? "active" : ""}`}
-            onClick={() => setMessageTab("inbox")}
-          >
-            Kiruvchi xabarlar
-          </button>
+        <div
+          style={{
+            display: "flex",
+            flexWrap: "wrap",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: "12px",
+            marginBottom: "16px",
+          }}
+        >
+          <div className="tabs" style={{ marginBottom: 0 }}>
+            <button
+              type="button"
+              className={`tab ${messageTab === "sent" ? "active" : ""}`}
+              onClick={() => setMessageTab("sent")}
+            >
+              Yuborilgan e’lonlar va xabarlar
+            </button>
+            <button
+              type="button"
+              className={`tab ${messageTab === "inbox" ? "active" : ""}`}
+              onClick={() => setMessageTab("inbox")}
+            >
+              Kiruvchi xabarlar
+            </button>
+          </div>
+          {embedded && canSendAnnouncement && (
+            <AddButton onClick={create}>Xabar yuborish</AddButton>
+          )}
         </div>
       )}
       {kind === "messages" ? (
@@ -744,9 +770,59 @@ function getSenderDisplay(row?: Row | null) {
   };
 }
 
-export function Support() {
+const AVATAR_GRADIENTS = [
+  "linear-gradient(135deg, #10b981 0%, #047857 100%)",
+  "linear-gradient(135deg, #06b6d4 0%, #0e7490 100%)",
+  "linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)",
+  "linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%)",
+  "linear-gradient(135deg, #f59e0b 0%, #d97706 100%)",
+  "linear-gradient(135deg, #ec4899 0%, #be185d 100%)",
+];
+
+function getAvatarGradient(seed: string): string {
+  let hash = 0;
+  for (let i = 0; i < seed.length; i++) {
+    hash = (hash * 31 + seed.charCodeAt(i)) >>> 0;
+  }
+  return AVATAR_GRADIENTS[hash % AVATAR_GRADIENTS.length];
+}
+
+function isTicketClosed(status?: string | null): boolean {
+  return status === "CLOSED" || status === "RESOLVED";
+}
+
+function formatChatListTime(iso?: string | null): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return date(iso);
+  const now = new Date();
+  if (d.toDateString() === now.toDateString()) {
+    return dateTime(iso).slice(11, 16);
+  }
+  return date(iso);
+}
+
+function formatMessageDateGroup(iso?: string | null): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return date(iso);
+  const now = new Date();
+  const yesterday = new Date(now);
+  yesterday.setDate(now.getDate() - 1);
+  if (d.toDateString() === now.toDateString()) return "Bugun";
+  if (d.toDateString() === yesterday.toDateString()) return "Kecha";
+  return date(iso);
+}
+
+export function Support({
+  initialTab = "chat",
+}: {
+  initialTab?: "chat" | "announcements";
+} = {}) {
   const ctx = usePortal(),
     action = useAction(),
+    [hubTab, setHubTab] = useState<"chat" | "announcements">(initialTab),
+    [chatFolder, setChatFolder] = useState<"open" | "closed">("open"),
     [id, setId] = useState<string | null>(null),
     [searchQuery, setSearchQuery] = useState(""),
     [replyText, setReplyText] = useState(""),
@@ -790,9 +866,26 @@ export function Support() {
     [thread, setThread] = useState<Row | null>(null);
 
   useEffect(() => {
-    if (window.matchMedia("(min-width: 900px)").matches)
-      setId((selected) => selected ?? list(tickets.data)[0]?.id ?? null);
-  }, [tickets.data]);
+    setHubTab(initialTab);
+  }, [initialTab]);
+
+  useEffect(() => {
+    const all = list(tickets.data);
+    const inFolder = all.filter((row: Row) =>
+      chatFolder === "closed"
+        ? isTicketClosed(row.status)
+        : !isTicketClosed(row.status),
+    );
+    setId((selected) => {
+      if (selected && inFolder.some((row: Row) => row.id === selected)) {
+        return selected;
+      }
+      if (window.matchMedia("(min-width: 900px)").matches) {
+        return inFolder[0]?.id ?? null;
+      }
+      return null;
+    });
+  }, [tickets.data, chatFolder]);
 
   useEffect(() => {
     if (detail.data) setThread(detail.data);
@@ -1101,6 +1194,8 @@ export function Support() {
       setNewTitle("");
       setNewText("");
       setSelectedUserId(null);
+      setChatFolder("open");
+      setHubTab("chat");
       await tickets.reload();
       if (res?.id) {
         selectTicket(res.id);
@@ -1152,11 +1247,23 @@ export function Support() {
   };
 
   const allTickets = list(tickets.data);
+  const openTickets = allTickets.filter((row: Row) => !isTicketClosed(row.status));
+  const closedTickets = allTickets.filter((row: Row) => isTicketClosed(row.status));
+  const folderTickets = chatFolder === "closed" ? closedTickets : openTickets;
   const filteredTickets = searchQuery.trim()
-    ? allTickets.filter((row: Row) =>
-        (row.title ?? "").toLowerCase().includes(searchQuery.toLowerCase()),
-      )
-    : allTickets;
+    ? folderTickets.filter((row: Row) => {
+        const q = searchQuery.toLowerCase();
+        const info = getSenderDisplay(row);
+        return (
+          (row.title ?? "").toLowerCase().includes(q) ||
+          (row.lastMessage ?? "").toLowerCase().includes(q) ||
+          (row.sanatoriumName ?? "").toLowerCase().includes(q) ||
+          info.primary.toLowerCase().includes(q) ||
+          (info.phone ?? "").toLowerCase().includes(q) ||
+          (info.email ?? "").toLowerCase().includes(q)
+        );
+      })
+    : folderTickets;
 
   const filteredCustomers = customers.filter((c: Row) => {
     if (!userSearch.trim()) return true;
@@ -1182,16 +1289,54 @@ export function Support() {
   const selectedPartner = partners.find((p: Row) => p.id === selectedPartnerId);
 
   const t = thread ?? detail.data;
+  const ticketIsClosed = isTicketClosed(t?.status);
   return (
     <>
       <PageHeading
-        title="Yordam xizmati"
-        subtitle="Mijozlar va sanatoriyalar bilan Telegram uslubidagi qulay chat."
+        title="Yordam va xabarlar"
+        subtitle={
+          hubTab === "chat"
+            ? "Telegram uslubidagi tezkor chat — yopilgan murojaatlar avtomatik Arxivga o‘tadi."
+            : "Rasmiy e’lonlar, ogohlantirishlar va xabarnomalar."
+        }
       >
-        <AddButton onClick={() => setNewModalOpen(true)}>
-          Murojaat yaratish
-        </AddButton>
+        {hubTab === "chat" && (
+          <AddButton onClick={() => setNewModalOpen(true)}>
+            Murojaat yaratish
+          </AddButton>
+        )}
       </PageHeading>
+
+      <div className="tg-hub-bar">
+        <div className="tg-hub-segments" role="tablist" aria-label="Aloqa bo‘limlari">
+          <button
+            type="button"
+            role="tab"
+            aria-selected={hubTab === "chat"}
+            className={`tg-hub-seg ${hubTab === "chat" ? "active" : ""}`}
+            onClick={() => setHubTab("chat")}
+          >
+            <MessageSquare size={15} />
+            <span>Jonli chat</span>
+            <span className="tg-seg-count">{openTickets.length}</span>
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={hubTab === "announcements"}
+            className={`tg-hub-seg ${hubTab === "announcements" ? "active" : ""}`}
+            onClick={() => setHubTab("announcements")}
+          >
+            <Megaphone size={15} />
+            <span>E’lonlar va xabarlar</span>
+          </button>
+        </div>
+      </div>
+
+      {hubTab === "announcements" ? (
+        <Communications kind="messages" embedded />
+      ) : (
+        <>
 
       {/* Recipient Selection Modal */}
       {newModalOpen && (
@@ -1203,9 +1348,9 @@ export function Support() {
             style={{ maxWidth: "620px", width: "95%", maxHeight: "90vh", display: "flex", flexDirection: "column", overflow: "hidden" }}
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="modal-heading" style={{ padding: "16px 20px", borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
+            <div className="modal-heading" style={{ padding: "16px 20px", borderBottom: "1px solid var(--line)" }}>
               <div>
-                <h2 style={{ fontSize: "18px", fontWeight: 700, margin: 0, color: "#eef7f2" }}>Yangi xabar / murojaat</h2>
+                <h2 style={{ fontSize: "18px", fontWeight: 700, margin: 0, color: "var(--ink)" }}>Yangi xabar / murojaat</h2>
                 <p className="muted" style={{ fontSize: "13px", margin: "4px 0 0" }}>Qabul qiluvchini tanlang va xabar yozing</p>
               </div>
               <button
@@ -1223,10 +1368,10 @@ export function Support() {
               {/* Recipient Type Switcher Tabs (Superadmin) */}
               {ctx.admin ? (
                 <div>
-                  <label style={{ fontSize: "12px", fontWeight: 600, color: "#8ea69d", textTransform: "uppercase", letterSpacing: "0.5px", display: "block", marginBottom: "8px" }}>
+                  <label style={{ fontSize: "12px", fontWeight: 600, color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.5px", display: "block", marginBottom: "8px" }}>
                     Qabul qiluvchi turi
                   </label>
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", background: "rgba(0,0,0,0.25)", padding: "4px", borderRadius: "10px" }}>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", background: "var(--soft)", border: "1px solid var(--line)", padding: "4px", borderRadius: "10px" }}>
                     <button
                       type="button"
                       onClick={() => {
@@ -1245,8 +1390,8 @@ export function Support() {
                         fontSize: "13px",
                         cursor: "pointer",
                         transition: "all 0.15s ease",
-                        background: recipientType === "CUSTOMER" ? "#25e2a2" : "transparent",
-                        color: recipientType === "CUSTOMER" ? "#041610" : "#a2b8ad",
+                        background: recipientType === "CUSTOMER" ? "var(--green)" : "transparent",
+                        color: recipientType === "CUSTOMER" ? "var(--on-primary)" : "var(--muted)",
                       }}
                     >
                       <Smartphone size={16} />
@@ -1270,8 +1415,8 @@ export function Support() {
                         fontSize: "13px",
                         cursor: "pointer",
                         transition: "all 0.15s ease",
-                        background: recipientType === "PARTNER" ? "#25e2a2" : "transparent",
-                        color: recipientType === "PARTNER" ? "#041610" : "#a2b8ad",
+                        background: recipientType === "PARTNER" ? "var(--green)" : "transparent",
+                        color: recipientType === "PARTNER" ? "var(--on-primary)" : "var(--muted)",
                       }}
                     >
                       <Building2 size={16} />
@@ -1280,7 +1425,7 @@ export function Support() {
                   </div>
                 </div>
               ) : (
-                <div style={{ padding: "10px 14px", borderRadius: "10px", background: "rgba(37,226,162,0.1)", border: "1px solid rgba(37,226,162,0.28)", color: "#a5e9d3", fontSize: "13px" }}>
+                <div style={{ padding: "10px 14px", borderRadius: "10px", background: "var(--green-light)", border: "1px solid var(--line)", color: "var(--ink)", fontSize: "13px", fontWeight: 600 }}>
                   Murojaatingiz to‘g‘ridan-to‘g‘ri Sihhat.uz Yordam xizmatiga yuboriladi.
                 </div>
               )}
@@ -1289,11 +1434,11 @@ export function Support() {
               {ctx.admin && recipientType === "CUSTOMER" && (
                 <div>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
-                    <label style={{ fontSize: "12px", fontWeight: 600, color: "#8ea69d" }}>
+                    <label style={{ fontSize: "12px", fontWeight: 600, color: "var(--muted)" }}>
                       Ilova foydalanuvchisini tanlang *
                     </label>
                     {selectedUser && (
-                      <span style={{ fontSize: "11px", color: "#25e2a2", fontWeight: 600 }}>
+                      <span style={{ fontSize: "11px", color: "var(--green)", fontWeight: 700 }}>
                         Tanlandi: {selectedUser.name}
                       </span>
                     )}
@@ -1307,24 +1452,24 @@ export function Support() {
                       style={{
                         width: "100%",
                         padding: "9px 12px 9px 34px",
-                        background: "#061d15",
-                        border: "1px solid #1c523f",
+                        background: "var(--soft)",
+                        border: "1px solid var(--line)",
                         borderRadius: "8px",
-                        color: "#fff",
+                        color: "var(--ink)",
                         fontSize: "13px",
                         boxSizing: "border-box",
                       }}
                     />
-                    <Search size={15} style={{ position: "absolute", left: "11px", top: "11px", color: "#8ea69d" }} />
+                    <Search size={15} style={{ position: "absolute", left: "11px", top: "11px", color: "var(--muted)" }} />
                   </div>
 
                   <div
                     style={{
                       maxHeight: "160px",
                       overflowY: "auto",
-                      border: "1px solid #194635",
+                      border: "1px solid var(--line)",
                       borderRadius: "8px",
-                      background: "#041610",
+                      background: "var(--soft)",
                       padding: "4px",
                       display: "flex",
                       flexDirection: "column",
@@ -1332,11 +1477,11 @@ export function Support() {
                     }}
                   >
                     {loadingRecipients ? (
-                      <div style={{ padding: "16px", textAlign: "center", color: "#8ea69d", fontSize: "12px" }}>
+                      <div style={{ padding: "16px", textAlign: "center", color: "var(--muted)", fontSize: "12px" }}>
                         Foydalanuvchilar yuklanmoqda...
                       </div>
                     ) : filteredCustomers.length === 0 ? (
-                      <div style={{ padding: "16px", textAlign: "center", color: "#8ea69d", fontSize: "12px" }}>
+                      <div style={{ padding: "16px", textAlign: "center", color: "var(--muted)", fontSize: "12px" }}>
                         Foydalanuvchi topilmadi
                       </div>
                     ) : (
@@ -1354,8 +1499,8 @@ export function Support() {
                               display: "flex",
                               alignItems: "center",
                               gap: "10px",
-                              background: isSel ? "rgba(37,226,162,0.18)" : "transparent",
-                              border: isSel ? "1px solid #25e2a2" : "1px solid transparent",
+                              background: isSel ? "var(--green-light)" : "transparent",
+                              border: isSel ? "1px solid var(--green)" : "1px solid transparent",
                               transition: "background 0.1s",
                             }}
                           >
@@ -1364,8 +1509,8 @@ export function Support() {
                                 width: "30px",
                                 height: "30px",
                                 borderRadius: "50%",
-                                background: isSel ? "#25e2a2" : "#133f30",
-                                color: isSel ? "#041610" : "#25e2a2",
+                                background: getAvatarGradient(cust.id || cust.name || "U"),
+                                color: "#ffffff",
                                 display: "flex",
                                 alignItems: "center",
                                 justifyContent: "center",
@@ -1377,15 +1522,15 @@ export function Support() {
                               {cInit}
                             </div>
                             <div style={{ flex: 1, minWidth: 0 }}>
-                              <div style={{ fontSize: "13px", fontWeight: 600, color: isSel ? "#fff" : "#eef7f2", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                              <div style={{ fontSize: "13px", fontWeight: 600, color: "var(--ink)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                                 {cust.name || "Noma'lum foydalanuvchi"}
                               </div>
-                              <div style={{ fontSize: "11px", color: "#8ea69d", display: "flex", gap: "8px" }}>
+                              <div style={{ fontSize: "11px", color: "var(--muted)", display: "flex", gap: "8px" }}>
                                 {cust.phone && <span>{cust.phone}</span>}
                                 {cust.email && <span>{cust.email}</span>}
                               </div>
                             </div>
-                            {isSel && <Check size={16} style={{ color: "#25e2a2" }} />}
+                            {isSel && <Check size={16} style={{ color: "var(--green)" }} />}
                           </div>
                         );
                       })
@@ -1398,11 +1543,11 @@ export function Support() {
               {(!ctx.admin ? partners.length > 1 : recipientType === "PARTNER") && (
                 <div>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
-                    <label style={{ fontSize: "12px", fontWeight: 600, color: "#8ea69d" }}>
+                    <label style={{ fontSize: "12px", fontWeight: 600, color: "var(--muted)" }}>
                       {ctx.admin ? "Hamkor sanatoriyani tanlang *" : "Sanatoriyani tanlang *"}
                     </label>
                     {selectedPartner && (
-                      <span style={{ fontSize: "11px", color: "#25e2a2", fontWeight: 600 }}>
+                      <span style={{ fontSize: "11px", color: "var(--green)", fontWeight: 700 }}>
                         Tanlandi: {selectedPartner.name}
                       </span>
                     )}
@@ -1416,24 +1561,24 @@ export function Support() {
                       style={{
                         width: "100%",
                         padding: "9px 12px 9px 34px",
-                        background: "#061d15",
-                        border: "1px solid #1c523f",
+                        background: "var(--soft)",
+                        border: "1px solid var(--line)",
                         borderRadius: "8px",
-                        color: "#fff",
+                        color: "var(--ink)",
                         fontSize: "13px",
                         boxSizing: "border-box",
                       }}
                     />
-                    <Search size={15} style={{ position: "absolute", left: "11px", top: "11px", color: "#8ea69d" }} />
+                    <Search size={15} style={{ position: "absolute", left: "11px", top: "11px", color: "var(--muted)" }} />
                   </div>
 
                   <div
                     style={{
                       maxHeight: "160px",
                       overflowY: "auto",
-                      border: "1px solid #194635",
+                      border: "1px solid var(--line)",
                       borderRadius: "8px",
-                      background: "#041610",
+                      background: "var(--soft)",
                       padding: "4px",
                       display: "flex",
                       flexDirection: "column",
@@ -1441,11 +1586,11 @@ export function Support() {
                     }}
                   >
                     {loadingRecipients ? (
-                      <div style={{ padding: "16px", textAlign: "center", color: "#8ea69d", fontSize: "12px" }}>
+                      <div style={{ padding: "16px", textAlign: "center", color: "var(--muted)", fontSize: "12px" }}>
                         Sanatoriyalar yuklanmoqda...
                       </div>
                     ) : filteredPartners.length === 0 ? (
-                      <div style={{ padding: "16px", textAlign: "center", color: "#8ea69d", fontSize: "12px" }}>
+                      <div style={{ padding: "16px", textAlign: "center", color: "var(--muted)", fontSize: "12px" }}>
                         Sanatoriya topilmadi
                       </div>
                     ) : (
@@ -1462,18 +1607,18 @@ export function Support() {
                               display: "flex",
                               alignItems: "center",
                               gap: "10px",
-                              background: isSel ? "rgba(37,226,162,0.18)" : "transparent",
-                              border: isSel ? "1px solid #25e2a2" : "1px solid transparent",
+                              background: isSel ? "var(--green-light)" : "transparent",
+                              border: isSel ? "1px solid var(--green)" : "1px solid transparent",
                             }}
                           >
-                            <Building2 size={18} style={{ color: isSel ? "#25e2a2" : "#8ea69d", flexShrink: 0 }} />
+                            <Building2 size={18} style={{ color: isSel ? "var(--green)" : "var(--muted)", flexShrink: 0 }} />
                             <div style={{ flex: 1, minWidth: 0 }}>
-                              <div style={{ fontSize: "13px", fontWeight: 600, color: isSel ? "#fff" : "#eef7f2" }}>
+                              <div style={{ fontSize: "13px", fontWeight: 600, color: "var(--ink)" }}>
                                 {san.name}
                               </div>
-                              {san.region && <div style={{ fontSize: "11px", color: "#8ea69d" }}>{san.region}</div>}
+                              {san.region && <div style={{ fontSize: "11px", color: "var(--muted)" }}>{san.region}</div>}
                             </div>
-                            {isSel && <Check size={16} style={{ color: "#25e2a2" }} />}
+                            {isSel && <Check size={16} style={{ color: "var(--green)" }} />}
                           </div>
                         );
                       })
@@ -1484,7 +1629,7 @@ export function Support() {
 
               {/* Title / Mavzu */}
               <div>
-                <label style={{ fontSize: "12px", fontWeight: 600, color: "#8ea69d", display: "block", marginBottom: "6px" }}>
+                <label style={{ fontSize: "12px", fontWeight: 600, color: "var(--muted)", display: "block", marginBottom: "6px" }}>
                   Mavzu *
                 </label>
                 <input
@@ -1496,10 +1641,10 @@ export function Support() {
                   style={{
                     width: "100%",
                     padding: "9px 12px",
-                    background: "#061d15",
-                    border: "1px solid #1c523f",
+                    background: "var(--soft)",
+                    border: "1px solid var(--line)",
                     borderRadius: "8px",
-                    color: "#fff",
+                    color: "var(--ink)",
                     fontSize: "13px",
                     boxSizing: "border-box",
                   }}
@@ -1508,7 +1653,7 @@ export function Support() {
 
               {/* Text / Matn */}
               <div>
-                <label style={{ fontSize: "12px", fontWeight: 600, color: "#8ea69d", display: "block", marginBottom: "6px" }}>
+                <label style={{ fontSize: "12px", fontWeight: 600, color: "var(--muted)", display: "block", marginBottom: "6px" }}>
                   Xabar matni *
                 </label>
                 <textarea
@@ -1520,10 +1665,10 @@ export function Support() {
                   style={{
                     width: "100%",
                     padding: "10px 12px",
-                    background: "#061d15",
-                    border: "1px solid #1c523f",
+                    background: "var(--soft)",
+                    border: "1px solid var(--line)",
                     borderRadius: "8px",
-                    color: "#fff",
+                    color: "var(--ink)",
                     fontSize: "13px",
                     boxSizing: "border-box",
                     resize: "vertical",
@@ -1571,22 +1716,47 @@ export function Support() {
       <div className={`tg-messenger ${id ? "has-selection" : ""}`}>
         <div className="tg-sidebar">
           <div className="tg-sidebar-header">
-            <h3>Murojaatlar ({filteredTickets.length})</h3>
+            <h3>Suhbatlar</h3>
             <button
-              className="button secondary"
-              style={{ padding: "4px 10px", fontSize: "12px", minHeight: "32px" }}
+              type="button"
+              className="tg-compose-btn"
               onClick={() => setNewModalOpen(true)}
             >
-              + Yangi
+              <SquarePen size={14} />
+              <span>+ Yangi</span>
             </button>
           </div>
           <div className="tg-search-bar">
+            <Search size={15} className="tg-search-icon" />
             <input
               type="text"
-              placeholder="Qidirish..."
+              placeholder="Ism, mavzu yoki xabar qidirish..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
+          </div>
+          <div className="tg-folders" role="tablist" aria-label="Chat jildlari">
+            <button
+              type="button"
+              role="tab"
+              aria-selected={chatFolder === "open"}
+              className={`tg-folder-tab ${chatFolder === "open" ? "active" : ""}`}
+              onClick={() => setChatFolder("open")}
+            >
+              <span>Ochiq</span>
+              <span className="tg-folder-badge">{openTickets.length}</span>
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={chatFolder === "closed"}
+              className={`tg-folder-tab ${chatFolder === "closed" ? "active" : ""}`}
+              onClick={() => setChatFolder("closed")}
+            >
+              <Archive size={13} />
+              <span>Yopilgan</span>
+              <span className="tg-folder-badge">{closedTickets.length}</span>
+            </button>
           </div>
           {tickets.loading ? (
             <Loading />
@@ -1595,55 +1765,50 @@ export function Support() {
           ) : (
             <ul className="tg-chat-list">
               {!filteredTickets.length && (
-                <li style={{ padding: "24px 16px", textAlign: "center", color: "#8ea69d", fontSize: "13px" }}>
-                  Murojaat topilmadi
+                <li style={{ padding: "28px 16px", textAlign: "center", color: "var(--tg-muted)", fontSize: "13px" }}>
+                  {chatFolder === "open"
+                    ? "Hozircha ochiq murojaatlar yo‘q"
+                    : "Yopilgan murojaatlar arxivi bo‘sh"}
                 </li>
               )}
               {filteredTickets.map((row: Row) => {
                 const isSelected = row.id === id;
                 const info = getSenderDisplay(row);
+                const rowClosed = isTicketClosed(row.status);
                 return (
                   <li
                     key={row.id}
                     className={`tg-chat-item ${isSelected ? "active" : ""}`}
                     onClick={() => selectTicket(row.id)}
-                    style={{ borderLeft: isSelected ? "3px solid #25e2a2" : "3px solid transparent" }}
                   >
-                    <div className="tg-avatar" style={{ background: info.isCustomer ? "linear-gradient(135deg, #104233, #19694e)" : "#22352c", color: "#25e2a2", fontWeight: 700 }}>
-                      {info.initial}
+                    <div className="tg-avatar-wrap">
+                      <div
+                        className="tg-avatar"
+                        style={{ background: getAvatarGradient(row.id || info.primary) }}
+                      >
+                        {info.initial}
+                      </div>
+                      {!rowClosed && <span className="tg-avatar-dot" aria-hidden="true" />}
                     </div>
                     <div className="tg-chat-info">
                       <div className="tg-chat-top">
-                        <span className="tg-chat-title" style={{ fontWeight: 600, color: "#eef7f2" }}>
-                          {info.primary}
-                        </span>
-                        <span className="tg-chat-time">{date(row.createdAt)}</span>
+                        <span className="tg-chat-title">{info.primary}</span>
+                        <span className="tg-chat-time">{formatChatListTime(row.createdAt)}</span>
                       </div>
-                      <div style={{ display: "flex", gap: "6px", alignItems: "center", margin: "2px 0", flexWrap: "wrap" }}>
-                        <span style={{ fontSize: "10px", background: "rgba(37,226,162,0.15)", color: "#25e2a2", padding: "1px 6px", borderRadius: "10px", fontWeight: 600 }}>
-                          {info.badgeText}
+                      <div className="tg-chat-subline">
+                        <span className="tg-role-tag">
+                          {info.isCustomer ? "Mijoz" : "Hamkor"}
                         </span>
-                        {info.realName && info.phone && (
-                          <span style={{ fontSize: "11px", color: "#8ea69d" }}>
-                            {info.phone}
-                          </span>
-                        )}
-                        {info.email && info.primary !== info.email && (
-                          <span style={{ fontSize: "11px", color: "#8ea69d" }}>
-                            {info.email}
-                          </span>
-                        )}
-                        {row.booking && (
-                          <span style={{ fontSize: "10px", background: "rgba(255,255,255,0.06)", color: "#cbe5d8", padding: "1px 5px", borderRadius: "6px" }}>
-                            #{row.booking.reference}
-                          </span>
-                        )}
+                        <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>
+                          {row.title || "Suhbat"}
+                        </span>
+                        {row.booking && <span>· #{row.booking.reference}</span>}
                       </div>
                       <div className="tg-chat-bottom">
-                        <span className="tg-chat-preview" style={{ color: "#7a9c8f" }}>
-                          {row.lastMessage ?? (row.status === "RESOLVED" || row.status === "CLOSED" ? "Yakunlangan" : row.title || "Ochiq suhbat")}
+                        <span className="tg-chat-preview">
+                          {row.lastMessage ?? (rowClosed ? "Yakunlangan" : "Yangi suhbat")}
                         </span>
-                        <Badge value={row.status} />
+                        {rowClosed && <Lock size={12} style={{ opacity: 0.75, flexShrink: 0 }} />}
                       </div>
                     </div>
                   </li>
@@ -1657,60 +1822,52 @@ export function Support() {
             <>
               {(() => {
                 const roomInfo = getSenderDisplay(t);
+                const roomAvatarBg = getAvatarGradient(t?.id || roomInfo.primary);
                 return (
-                  <div className="tg-room-header" style={{ padding: "12px 18px", background: "#0a241a", borderBottom: "1px solid #19513e", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "10px" }}>
-                    <div className="tg-room-user" style={{ display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap", flex: 1 }}>
+                  <div className="tg-room-header">
+                    <div className="tg-room-user">
                       <button
+                        type="button"
                         className="button secondary support-back"
-                        style={{ marginRight: "4px", minHeight: "32px", padding: "4px 8px" }}
+                        style={{ marginRight: "2px", minHeight: "34px", padding: "4px 9px" }}
                         onClick={() => selectTicket(null)}
+                        aria-label="Orqaga"
                       >
                         ←
                       </button>
-                      <div className="tg-room-avatar" style={{ width: "44px", height: "44px", borderRadius: "50%", background: "linear-gradient(135deg, #104233, #25e2a2)", color: "#041610", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: "17px" }}>
+                      <div className="tg-room-avatar" style={{ background: roomAvatarBg }}>
                         {roomInfo.initial}
                       </div>
-                      <div style={{ flex: 1, minWidth: "220px" }}>
+                      <div style={{ flex: 1, minWidth: "180px" }}>
                         <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
-                          <span style={{ fontSize: "16px", fontWeight: 700, color: "#fff" }}>
-                            {roomInfo.primary}
-                          </span>
-                          <span style={{ fontSize: "11px", padding: "2px 8px", borderRadius: "12px", background: "rgba(37,226,162,0.15)", color: "#25e2a2", fontWeight: 600 }}>
-                            {roomInfo.badgeText}
-                          </span>
-                          {ctx.admin && roomInfo.realName && roomInfo.phone && (
-                            <span style={{ fontSize: "13px", color: "#66e1b9", fontWeight: 600 }}>
-                              ({roomInfo.phone})
-                            </span>
-                          )}
+                          <span className="tg-room-name">{roomInfo.primary}</span>
+                          <span className="tg-role-tag">{roomInfo.badgeText}</span>
                           {ctx.admin && roomInfo.phone && (
-                            <a href={`tel:${roomInfo.phone}`} style={{ fontSize: "12px", padding: "2px 8px", borderRadius: "8px", background: "rgba(37,226,162,0.12)", color: "#25e2a2", textDecoration: "none", fontWeight: 700, display: "inline-flex", alignItems: "center", gap: "4px" }}>
+                            <a href={`tel:${roomInfo.phone}`} style={{ fontSize: "12px", color: "var(--tg-accent)", fontWeight: 700, display: "inline-flex", alignItems: "center", gap: "3px" }}>
                               <Phone size={12} /> {roomInfo.phone}
                             </a>
                           )}
                           {ctx.admin && roomInfo.email && (
-                            <a href={`mailto:${roomInfo.email}`} style={{ fontSize: "12px", padding: "2px 8px", borderRadius: "8px", background: "rgba(37,226,162,0.08)", color: "#a5e9d3", textDecoration: "none", fontWeight: 600, display: "inline-flex", alignItems: "center", gap: "4px" }}>
+                            <a href={`mailto:${roomInfo.email}`} style={{ fontSize: "12px", color: "var(--tg-muted)", fontWeight: 600 }}>
                               ✉️ {roomInfo.email}
                             </a>
                           )}
                           {ctx.admin && roomInfo.login && !roomInfo.email && (
-                            <span style={{ fontSize: "11px", color: "#8ea69d", background: "rgba(255,255,255,0.06)", padding: "1px 6px", borderRadius: "6px" }}>
-                              Login: {roomInfo.login}
+                            <span style={{ fontSize: "11px", color: "var(--tg-muted)" }}>
+                              @{roomInfo.login}
                             </span>
                           )}
                         </div>
-                        <div style={{ display: "flex", alignItems: "center", gap: "10px", marginTop: "3px", fontSize: "12px", color: "#8ea69d", flexWrap: "wrap" }}>
-                          <span>Mavzu: <strong style={{ color: "#d0e4da" }}>{t?.title ?? "Murojaat"}</strong></span>
-                          {t?.sanatoriumName && (
-                            <span>• 🏨 {t.sanatoriumName}</span>
-                          )}
+                        <div className="tg-room-sub" style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap", marginTop: "2px" }}>
+                          <span>Mavzu: <strong style={{ color: "var(--tg-ink)" }}>{t?.title ?? "Murojaat"}</strong></span>
+                          {t?.sanatoriumName && <span>• {t.sanatoriumName}</span>}
                           {t?.booking && (
-                            <span style={{ background: "rgba(255,255,255,0.08)", padding: "1px 6px", borderRadius: "6px", color: "#25e2a2" }}>
-                              🎫 Bron #{t.booking.reference} ({t.booking.status})
+                            <span style={{ color: "var(--tg-accent)", fontWeight: 700 }}>
+                              • Bron #{t.booking.reference} ({t.booking.status})
                             </span>
                           )}
                           {ctx.admin && t?.userId && (
-                            <span style={{ fontSize: "11px", color: "#6e8e81" }}>
+                            <span style={{ fontSize: "11px", opacity: 0.7 }}>
                               ID: {t.userId.slice(0, 8)}
                             </span>
                           )}
@@ -1719,7 +1876,7 @@ export function Support() {
                     </div>
                     <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
                       <Badge value={t?.status} />
-                      {ctx.admin && t?.status !== "RESOLVED" && t?.status !== "CLOSED" && (
+                      {ctx.admin && !ticketIsClosed && (
                         <Act
                           onClick={() =>
                             action(
@@ -1743,7 +1900,12 @@ export function Support() {
                               ],
                               "POST",
                               () => {
-                                if (id) {
+                                ctx.notice("Murojaat yopildi va Yopilganlar arxiviga o‘tkazildi");
+                                void tickets.reload();
+                                if (chatFolder === "open") {
+                                  setId(null);
+                                  setThread(null);
+                                } else if (id) {
                                   api<Row>(`/support/tickets/${id}`)
                                     .then((fresh) => {
                                       if (fresh) setThread(fresh);
@@ -1754,7 +1916,9 @@ export function Support() {
                             )
                           }
                         >
-                          Yopish
+                          <span style={{ display: "inline-flex", alignItems: "center", gap: "5px" }}>
+                            <CheckCircle2 size={14} /> Yopish
+                          </span>
                         </Act>
                       )}
                     </div>
@@ -1769,7 +1933,12 @@ export function Support() {
                 ) : (
                   t && (
                     <>
-                      {t.messages.map((m: Row) => {
+                      {t.messages.map((m: Row, index: number) => {
+                        const prevMsg = index > 0 ? t.messages[index - 1] : null;
+                        const dateGroup = formatMessageDateGroup(m.createdAt);
+                        const showDateSep =
+                          Boolean(dateGroup) &&
+                          dateGroup !== formatMessageDateGroup(prevMsg?.createdAt);
                         const isOwn = m.userId === ctx.actor.id;
                         const senderInfo = m.userId === t?.userId ? getSenderDisplay(t) : null;
                         const rawName = (m.userName ?? "").trim();
@@ -1781,164 +1950,164 @@ export function Support() {
                         const bubbleEmail = ctx.admin ? (m.userEmail || senderInfo?.email) : null;
                         const isEditingThis = editingMessageId === m.id;
                         return (
-                          <div
-                            key={m.id}
-                            className={`tg-bubble-row ${isOwn ? "own" : "incoming"}`}
-                          >
-                            <div className={`tg-bubble ${isOwn ? "own" : "incoming"}`}>
-                              {!isOwn && (
-                                <div className="tg-bubble-sender" style={{ fontWeight: 700, fontSize: "12px", color: "#25e2a2", marginBottom: "4px", display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
-                                  <span>👤 {bubbleSenderName}</span>
-                                  {bubblePhone && (
-                                    <a href={`tel:${bubblePhone}`} style={{ fontSize: "11px", color: "#66e1b9", textDecoration: "none", fontWeight: 600, display: "inline-flex", alignItems: "center", gap: "3px" }}>
-                                      <Phone size={10} /> {bubblePhone}
-                                    </a>
-                                  )}
-                                  {bubbleEmail && (
-                                    <span style={{ fontSize: "11px", color: "#8ea69d", fontWeight: 400 }}>
-                                      ✉️ {bubbleEmail}
-                                    </span>
-                                  )}
-                                  {(m.userKind === "CUSTOMER" || senderInfo?.isCustomer) && <span style={{ fontSize: "10px", background: "rgba(37,226,162,0.18)", color: "#25e2a2", padding: "0 5px", borderRadius: "6px" }}>Ilova</span>}
-                                </div>
-                              )}
-                              {m.isDeleted && (
-                                <div style={{ fontSize: "11px", color: "#ff7b72", background: "rgba(255,80,80,0.12)", border: "1px solid rgba(255,80,80,0.3)", padding: "3px 8px", borderRadius: "4px", marginBottom: "6px", fontWeight: 600 }}>
-                                  ⚠️ [Yuboruvchi tomonidan o‘chirilgan xabar]
-                                </div>
-                              )}
-                              {m.imageUrl && (
-                                <div style={{ marginBottom: m.text && !["📷 Rasm", "🎬 Video"].includes(m.text) ? "8px" : "0" }}>
-                                  {m.imageUrl.startsWith("data:video/") || m.imageUrl.endsWith(".mp4") || m.imageUrl.endsWith(".webm") || m.imageUrl.endsWith(".mov") ? (
-                                    <video
-                                      src={m.imageUrl}
-                                      controls
-                                      style={{
-                                        maxWidth: "100%",
-                                        maxHeight: "300px",
-                                        borderRadius: "8px",
-                                        display: "block",
-                                        background: "#000",
-                                      }}
-                                    />
-                                  ) : m.imageUrl.startsWith("data:application/") || m.imageUrl.startsWith("data:text/") || /\.(pdf|docx?|xlsx?|zip|txt)($|\?)/i.test(m.imageUrl) ? (
-                                    <a
-                                      href={m.imageUrl}
-                                      download={m.text?.replace(/^📎 Fayl:\s*/, "") || "biriktirilgan_fayl"}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      style={{
-                                        display: "flex",
-                                        alignItems: "center",
-                                        gap: "10px",
-                                        padding: "10px 14px",
-                                        borderRadius: "8px",
-                                        background: isOwn ? "rgba(4,22,16,0.3)" : "rgba(255,255,255,0.08)",
-                                        border: "1px solid rgba(255,255,255,0.12)",
-                                        color: isOwn ? "#041610" : "#eef7f2",
-                                        textDecoration: "none",
-                                        fontWeight: 600,
-                                        fontSize: "13px",
-                                      }}
-                                    >
-                                      <FileText size={22} style={{ color: isOwn ? "#041610" : "#25e2a2", flexShrink: 0 }} />
-                                      <div style={{ flex: 1, minWidth: 0 }}>
-                                        <div style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                                          {m.text?.replace(/^📎 Fayl:\s*/, "") || "Yuklab olinadigan hujjat"}
-                                        </div>
-                                        <div style={{ fontSize: "11px", opacity: 0.75, fontWeight: 400 }}>Faylni yuklab olish</div>
-                                      </div>
-                                      <Download size={16} style={{ flexShrink: 0, opacity: 0.8 }} />
-                                    </a>
-                                  ) : (
-                                    <img
-                                      src={m.imageUrl}
-                                      alt="Biriktirilgan rasm"
-                                      onClick={() => window.open(m.imageUrl, "_blank")}
-                                      style={{
-                                        maxWidth: "100%",
-                                        maxHeight: "280px",
-                                        borderRadius: "8px",
-                                        cursor: "pointer",
-                                        display: "block",
-                                        objectFit: "cover",
-                                        border: "1px solid rgba(255,255,255,0.1)",
-                                      }}
-                                      title="Rasmni to‘liq ko‘rish"
-                                    />
-                                  )}
-                                </div>
-                              )}
-                              {isEditingThis ? (
-                                <div style={{ marginTop: "4px" }}>
-                                  <textarea
-                                    value={editingText}
-                                    onChange={(e) => setEditingText(e.target.value)}
-                                    style={{
-                                      width: "100%",
-                                      minHeight: "60px",
-                                      padding: "8px",
-                                      background: "#041610",
-                                      color: "#fff",
-                                      border: "1px solid #25e2a2",
-                                      borderRadius: "6px",
-                                      fontSize: "13px",
-                                      boxSizing: "border-box",
-                                      fontFamily: "inherit",
-                                    }}
-                                  />
-                                  <div style={{ display: "flex", gap: "6px", marginTop: "6px", justifyContent: "flex-end" }}>
-                                    <button
-                                      type="button"
-                                      className="button secondary"
-                                      style={{ padding: "2px 8px", fontSize: "12px", minHeight: "28px" }}
-                                      onClick={cancelEdit}
-                                    >
-                                      Bekor qilish
-                                    </button>
-                                    <button
-                                      type="button"
-                                      className="button primary"
-                                      style={{ padding: "2px 8px", fontSize: "12px", minHeight: "28px" }}
-                                      onClick={() => saveEdit(m.id)}
-                                    >
-                                      Saqlash
-                                    </button>
+                          <div key={m.id}>
+                            {showDateSep && (
+                              <div className="tg-date-sep">
+                                <span>{dateGroup}</span>
+                              </div>
+                            )}
+                            <div className={`tg-bubble-row ${isOwn ? "own" : "incoming"}`}>
+                              <div className={`tg-bubble ${isOwn ? "own" : "incoming"}`}>
+                                {!isOwn && (
+                                  <div className="tg-bubble-sender" style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+                                    <span>{bubbleSenderName}</span>
+                                    {bubblePhone && (
+                                      <a href={`tel:${bubblePhone}`} style={{ fontSize: "11px", color: "var(--tg-accent)", textDecoration: "none", fontWeight: 600, display: "inline-flex", alignItems: "center", gap: "3px" }}>
+                                        <Phone size={10} /> {bubblePhone}
+                                      </a>
+                                    )}
+                                    {bubbleEmail && (
+                                      <span style={{ fontSize: "11px", color: "var(--tg-muted)", fontWeight: 400 }}>
+                                        {bubbleEmail}
+                                      </span>
+                                    )}
                                   </div>
-                                </div>
-                              ) : (
-                                <p className="tg-bubble-text">{m.text}</p>
-                              )}
-                              <div className="tg-bubble-meta" style={{ display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap", justifyContent: isOwn ? "flex-end" : "flex-start" }}>
-                                {m.isEdited && (
-                                  <span style={{ fontSize: "10px", color: isOwn ? "rgba(4,22,16,0.75)" : "#8ea69d", fontStyle: "italic" }}>
-                                    (tahrirlangan)
-                                  </span>
                                 )}
-                                <span>{dateTime(m.createdAt).slice(11, 16)}</span>
-                                {isOwn && <CheckCheck size={13} />}
-                                {(isOwn || ctx.admin) && !m.isDeleted && !isEditingThis && (
-                                  <span style={{ display: "inline-flex", gap: "6px", marginLeft: "6px" }}>
-                                    {isOwn && (
+                                {m.isDeleted && (
+                                  <div style={{ fontSize: "11px", color: "var(--tg-danger)", background: "rgba(239,68,68,0.12)", border: "1px solid rgba(239,68,68,0.28)", padding: "3px 8px", borderRadius: "6px", marginBottom: "6px", fontWeight: 600 }}>
+                                    Yuboruvchi tomonidan o‘chirilgan xabar (Audit)
+                                  </div>
+                                )}
+                                {m.imageUrl && (
+                                  <div style={{ marginBottom: m.text && !["📷 Rasm", "🎬 Video"].includes(m.text) ? "8px" : "0" }}>
+                                    {m.imageUrl.startsWith("data:video/") || m.imageUrl.endsWith(".mp4") || m.imageUrl.endsWith(".webm") || m.imageUrl.endsWith(".mov") ? (
+                                      <video
+                                        src={m.imageUrl}
+                                        controls
+                                        style={{
+                                          maxWidth: "100%",
+                                          maxHeight: "300px",
+                                          borderRadius: "10px",
+                                          display: "block",
+                                          background: "#000",
+                                        }}
+                                      />
+                                    ) : m.imageUrl.startsWith("data:application/") || m.imageUrl.startsWith("data:text/") || /\.(pdf|docx?|xlsx?|zip|txt)($|\?)/i.test(m.imageUrl) ? (
+                                      <a
+                                        href={m.imageUrl}
+                                        download={m.text?.replace(/^📎 Fayl:\s*/, "") || "biriktirilgan_fayl"}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        style={{
+                                          display: "flex",
+                                          alignItems: "center",
+                                          gap: "10px",
+                                          padding: "10px 14px",
+                                          borderRadius: "10px",
+                                          background: "rgba(0,0,0,0.08)",
+                                          border: "1px solid var(--tg-border)",
+                                          color: "inherit",
+                                          textDecoration: "none",
+                                          fontWeight: 600,
+                                          fontSize: "13px",
+                                        }}
+                                      >
+                                        <FileText size={22} style={{ color: "var(--tg-accent)", flexShrink: 0 }} />
+                                        <div style={{ flex: 1, minWidth: 0 }}>
+                                          <div style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                                            {m.text?.replace(/^📎 Fayl:\s*/, "") || "Yuklab olinadigan hujjat"}
+                                          </div>
+                                          <div style={{ fontSize: "11px", opacity: 0.75, fontWeight: 400 }}>Faylni yuklab olish</div>
+                                        </div>
+                                        <Download size={16} style={{ flexShrink: 0, opacity: 0.8 }} />
+                                      </a>
+                                    ) : (
+                                      <img
+                                        src={m.imageUrl}
+                                        alt="Biriktirilgan rasm"
+                                        onClick={() => window.open(m.imageUrl, "_blank")}
+                                        style={{
+                                          maxWidth: "100%",
+                                          maxHeight: "280px",
+                                          borderRadius: "10px",
+                                          cursor: "pointer",
+                                          display: "block",
+                                          objectFit: "cover",
+                                        }}
+                                        title="Rasmni to‘liq ko‘rish"
+                                      />
+                                    )}
+                                  </div>
+                                )}
+                                {isEditingThis ? (
+                                  <div style={{ marginTop: "4px" }}>
+                                    <textarea
+                                      value={editingText}
+                                      onChange={(e) => setEditingText(e.target.value)}
+                                      style={{
+                                        width: "100%",
+                                        minHeight: "60px",
+                                        padding: "8px",
+                                        background: "var(--tg-input-bg)",
+                                        color: "var(--tg-ink)",
+                                        border: "1px solid var(--tg-accent)",
+                                        borderRadius: "8px",
+                                        fontSize: "13px",
+                                        boxSizing: "border-box",
+                                        fontFamily: "inherit",
+                                      }}
+                                    />
+                                    <div style={{ display: "flex", gap: "6px", marginTop: "6px", justifyContent: "flex-end" }}>
                                       <button
                                         type="button"
-                                        onClick={() => startEdit(m)}
-                                        title="Xabarni tahrirlash"
-                                        style={{ background: "transparent", border: "none", cursor: "pointer", color: isOwn ? "#041610" : "#8ea69d", padding: "1px 2px", opacity: 0.75 }}
+                                        className="button secondary"
+                                        style={{ padding: "2px 8px", fontSize: "12px", minHeight: "28px" }}
+                                        onClick={cancelEdit}
                                       >
-                                        <Edit2 size={12} />
+                                        Bekor qilish
                                       </button>
-                                    )}
-                                    <button
-                                      type="button"
-                                      onClick={() => deleteMessage(m.id)}
-                                      title="Xabarni o‘chirish"
-                                      style={{ background: "transparent", border: "none", cursor: "pointer", color: isOwn ? "#800" : "#ff7b72", padding: "1px 2px", opacity: 0.85 }}
-                                    >
-                                      <Trash2 size={12} />
-                                    </button>
-                                  </span>
+                                      <button
+                                        type="button"
+                                        className="button primary"
+                                        style={{ padding: "2px 8px", fontSize: "12px", minHeight: "28px" }}
+                                        onClick={() => saveEdit(m.id)}
+                                      >
+                                        Saqlash
+                                      </button>
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <p className="tg-bubble-text">{m.text}</p>
                                 )}
+                                <div className="tg-bubble-meta">
+                                  {m.isEdited && (
+                                    <span style={{ fontStyle: "italic" }}>tahrirlangan</span>
+                                  )}
+                                  <span>{dateTime(m.createdAt).slice(11, 16)}</span>
+                                  {isOwn && <CheckCheck size={13} />}
+                                  {(ctx.admin || (isOwn && !m.isDeleted && !ticketIsClosed)) && !isEditingThis && (
+                                    <span className="tg-bubble-actions">
+                                      {isOwn && !m.isDeleted && !ticketIsClosed && (
+                                        <button
+                                          type="button"
+                                          onClick={() => startEdit(m)}
+                                          title="Xabarni tahrirlash"
+                                          style={{ background: "transparent", border: "none", cursor: "pointer", color: "inherit", padding: "1px 2px" }}
+                                        >
+                                          <Edit2 size={12} />
+                                        </button>
+                                      )}
+                                      <button
+                                        type="button"
+                                        onClick={() => deleteMessage(m.id)}
+                                        title={ctx.admin ? "Bazadan butunlay o‘chirish" : "Xabarni o‘chirish"}
+                                        style={{ background: "transparent", border: "none", cursor: "pointer", color: "var(--tg-danger)", padding: "1px 2px" }}
+                                      >
+                                        <Trash2 size={12} />
+                                      </button>
+                                    </span>
+                                  )}
+                                </div>
                               </div>
                             </div>
                           </div>
@@ -1949,222 +2118,243 @@ export function Support() {
                   )
                 )}
               </div>
-              {attachedMedia && (
-                <div style={{ padding: "8px 16px", background: "#0a241a", borderTop: "1px solid #19513e", display: "flex", alignItems: "center", gap: "10px" }}>
-                  {attachedMedia.type === "image" ? (
-                    <img
-                      src={attachedMedia.url}
-                      alt="Biriktirilgan rasm"
-                      style={{ width: "42px", height: "42px", objectFit: "cover", borderRadius: "6px", border: "1px solid #25e2a2" }}
+              {ticketIsClosed ? (
+                <div className="tg-composer-closed">
+                  <Lock size={15} />
+                  <span>Murojaat yopilgan — yozishmalar arxivda saqlanadi</span>
+                </div>
+              ) : (
+                <>
+                  {attachedMedia && (
+                    <div style={{ padding: "8px 16px", background: "var(--tg-header-bg)", borderTop: "1px solid var(--tg-border)", display: "flex", alignItems: "center", gap: "10px" }}>
+                      {attachedMedia.type === "image" ? (
+                        <img
+                          src={attachedMedia.url}
+                          alt="Biriktirilgan rasm"
+                          style={{ width: "42px", height: "42px", objectFit: "cover", borderRadius: "6px", border: "1px solid var(--tg-accent)" }}
+                        />
+                      ) : attachedMedia.type === "video" ? (
+                        <div style={{ width: "42px", height: "42px", borderRadius: "6px", background: "rgba(56,189,248,0.18)", border: "1px solid #38bdf8", display: "flex", alignItems: "center", justifyContent: "center", color: "#38bdf8" }}>
+                          <Video size={20} />
+                        </div>
+                      ) : (
+                        <div style={{ width: "42px", height: "42px", borderRadius: "6px", background: "rgba(251,191,36,0.18)", border: "1px solid #fbbf24", display: "flex", alignItems: "center", justifyContent: "center", color: "#fbbf24" }}>
+                          <FileText size={20} />
+                        </div>
+                      )}
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: "13px", color: "var(--tg-accent)", fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                          {attachedMedia.name}
+                        </div>
+                        <div style={{ fontSize: "11px", color: "var(--tg-muted)" }}>
+                          {attachedMedia.type === "image" ? "Rasm biriktirildi" : attachedMedia.type === "video" ? `Video (${attachedMedia.sizeText || ""})` : `Hujjat / Fayl (${attachedMedia.sizeText || ""})`}
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setAttachedMedia(null)}
+                        style={{ background: "transparent", border: "none", color: "var(--tg-danger)", cursor: "pointer", padding: "4px" }}
+                        title="Birikmani olib tashlash"
+                      >
+                        <X size={16} />
+                      </button>
+                    </div>
+                  )}
+                  {replyError && (
+                    <div role="alert" style={{ padding: "8px 16px", background: "rgba(239,68,68,0.14)", borderTop: "1px solid rgba(239,68,68,0.4)", color: "var(--tg-danger)", fontSize: "12px", fontWeight: 600, display: "flex", justifyContent: "space-between", alignItems: "center", gap: "8px" }}>
+                      <span>{replyError}</span>
+                      <button type="button" onClick={() => setReplyError("")} style={{ background: "transparent", border: "none", color: "var(--tg-danger)", cursor: "pointer", padding: "2px" }} aria-label="Xatoni yopish">
+                        <X size={14} />
+                      </button>
+                    </div>
+                  )}
+                  <form className="tg-composer" onSubmit={handleSend}>
+                    <input
+                      type="file"
+                      ref={imageInputRef}
+                      accept="image/png,image/jpeg,image/webp,image/gif"
+                      style={{ display: "none" }}
+                      onChange={handleImageSelect}
                     />
-                  ) : attachedMedia.type === "video" ? (
-                    <div style={{ width: "42px", height: "42px", borderRadius: "6px", background: "rgba(56,189,248,0.2)", border: "1px solid #38bdf8", display: "flex", alignItems: "center", justifyContent: "center", color: "#38bdf8" }}>
-                      <Video size={20} />
-                    </div>
-                  ) : (
-                    <div style={{ width: "42px", height: "42px", borderRadius: "6px", background: "rgba(251,191,36,0.2)", border: "1px solid #fbbf24", display: "flex", alignItems: "center", justifyContent: "center", color: "#fbbf24" }}>
-                      <FileText size={20} />
-                    </div>
-                  )}
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: "13px", color: "#66e1b9", fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                      {attachedMedia.name}
-                    </div>
-                    <div style={{ fontSize: "11px", color: "#8ea69d" }}>
-                      {attachedMedia.type === "image" ? "Rasm biriktirildi" : attachedMedia.type === "video" ? `Video (${attachedMedia.sizeText || ""})` : `Hujjat / Fayl (${attachedMedia.sizeText || ""})`}
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setAttachedMedia(null)}
-                    style={{ background: "transparent", border: "none", color: "#ff7b72", cursor: "pointer", padding: "4px" }}
-                    title="Birikmani olib tashlash"
-                  >
-                    <X size={16} />
-                  </button>
-                </div>
-              )}
-              {replyError && (
-                <div role="alert" style={{ padding: "8px 16px", background: "rgba(239,68,68,0.14)", borderTop: "1px solid rgba(239,68,68,0.4)", color: "#fca5a5", fontSize: "12px", fontWeight: 600, display: "flex", justifyContent: "space-between", alignItems: "center", gap: "8px" }}>
-                  <span>{replyError}</span>
-                  <button type="button" onClick={() => setReplyError("")} style={{ background: "transparent", border: "none", color: "#fca5a5", cursor: "pointer", padding: "2px" }} aria-label="Xatoni yopish">
-                    <X size={14} />
-                  </button>
-                </div>
-              )}
-              <form className="tg-composer" onSubmit={handleSend} style={{ display: "flex", alignItems: "center", gap: "8px", position: "relative" }}>
-                <input
-                  type="file"
-                  ref={imageInputRef}
-                  accept="image/png,image/jpeg,image/webp,image/gif"
-                  style={{ display: "none" }}
-                  onChange={handleImageSelect}
-                />
-                <input
-                  type="file"
-                  ref={videoInputRef}
-                  accept="video/mp4,video/webm,video/quicktime"
-                  style={{ display: "none" }}
-                  onChange={handleVideoSelect}
-                />
-                <input
-                  type="file"
-                  ref={docInputRef}
-                  accept=".pdf,.doc,.docx,.xls,.xlsx,.txt,.zip"
-                  style={{ display: "none" }}
-                  onChange={handleDocSelect}
-                />
+                    <input
+                      type="file"
+                      ref={videoInputRef}
+                      accept="video/mp4,video/webm,video/quicktime"
+                      style={{ display: "none" }}
+                      onChange={handleVideoSelect}
+                    />
+                    <input
+                      type="file"
+                      ref={docInputRef}
+                      accept=".pdf,.doc,.docx,.xls,.xlsx,.txt,.zip"
+                      style={{ display: "none" }}
+                      onChange={handleDocSelect}
+                    />
 
-                {/* Telegram-style + button and popup */}
-                <div ref={attachMenuRef} style={{ position: "relative" }}>
-                  <button
-                    type="button"
-                    title="Biriktirish (+)"
-                    disabled={sending || t?.status === "RESOLVED" || t?.status === "CLOSED"}
-                    onClick={() => setAttachMenuOpen((v) => !v)}
-                    style={{
-                      background: attachMenuOpen || attachedMedia ? "rgba(37,226,162,0.2)" : "transparent",
-                      border: "1px solid",
-                      borderColor: attachMenuOpen || attachedMedia ? "#25e2a2" : "rgba(255,255,255,0.12)",
-                      borderRadius: "50%",
-                      width: "36px",
-                      height: "36px",
-                      color: attachMenuOpen || attachedMedia ? "#25e2a2" : "#8ea69d",
-                      cursor: "pointer",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      transition: "all 0.2s cubic-bezier(0.4, 0, 0.2, 1)",
-                      transform: attachMenuOpen ? "rotate(45deg)" : "none",
-                    }}
-                  >
-                    <Plus size={20} />
-                  </button>
+                    {/* Telegram-style + button and popup */}
+                    <div ref={attachMenuRef} style={{ position: "relative" }}>
+                      <button
+                        type="button"
+                        title="Biriktirish (+)"
+                        disabled={sending}
+                        onClick={() => setAttachMenuOpen((v) => !v)}
+                        style={{
+                          background: attachMenuOpen || attachedMedia ? "var(--tg-hover-bg)" : "transparent",
+                          border: "1px solid",
+                          borderColor: attachMenuOpen || attachedMedia ? "var(--tg-accent)" : "var(--tg-border)",
+                          borderRadius: "50%",
+                          width: "38px",
+                          height: "38px",
+                          color: attachMenuOpen || attachedMedia ? "var(--tg-accent)" : "var(--tg-muted)",
+                          cursor: "pointer",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          transition: "all 0.2s cubic-bezier(0.4, 0, 0.2, 1)",
+                          transform: attachMenuOpen ? "rotate(45deg)" : "none",
+                        }}
+                      >
+                        <Plus size={19} />
+                      </button>
 
-                  {attachMenuOpen && (
-                    <div
-                      style={{
-                        position: "absolute",
-                        bottom: "46px",
-                        left: "0",
-                        background: "#072017",
-                        border: "1px solid #1c523f",
-                        borderRadius: "12px",
-                        boxShadow: "0 10px 30px rgba(0,0,0,0.55), 0 0 15px rgba(37,226,162,0.12)",
-                        padding: "6px",
-                        display: "flex",
-                        flexDirection: "column",
-                        gap: "4px",
-                        minWidth: "175px",
-                        zIndex: 60,
-                      }}
+                      {attachMenuOpen && (
+                        <div
+                          style={{
+                            position: "absolute",
+                            bottom: "48px",
+                            left: "0",
+                            background: "var(--tg-header-bg)",
+                            border: "1px solid var(--tg-border)",
+                            borderRadius: "14px",
+                            boxShadow: "0 12px 32px rgba(0,0,0,0.35)",
+                            padding: "6px",
+                            display: "flex",
+                            flexDirection: "column",
+                            gap: "4px",
+                            minWidth: "180px",
+                            zIndex: 60,
+                          }}
+                        >
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setAttachMenuOpen(false);
+                              imageInputRef.current?.click();
+                            }}
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              gap: "10px",
+                              padding: "8px 12px",
+                              background: "transparent",
+                              border: "none",
+                              borderRadius: "9px",
+                              color: "var(--tg-ink)",
+                              fontSize: "13px",
+                              fontWeight: 600,
+                              cursor: "pointer",
+                              textAlign: "left",
+                            }}
+                            onMouseEnter={(e) => (e.currentTarget.style.background = "var(--tg-hover-bg)")}
+                            onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                          >
+                            <span style={{ color: "var(--tg-accent)", display: "flex" }}><ImageIcon size={17} /></span>
+                            <span>📷 Rasm</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setAttachMenuOpen(false);
+                              videoInputRef.current?.click();
+                            }}
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              gap: "10px",
+                              padding: "8px 12px",
+                              background: "transparent",
+                              border: "none",
+                              borderRadius: "9px",
+                              color: "var(--tg-ink)",
+                              fontSize: "13px",
+                              fontWeight: 600,
+                              cursor: "pointer",
+                              textAlign: "left",
+                            }}
+                            onMouseEnter={(e) => (e.currentTarget.style.background = "var(--tg-hover-bg)")}
+                            onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                          >
+                            <span style={{ color: "#38bdf8", display: "flex" }}><Video size={17} /></span>
+                            <span>🎬 Video</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setAttachMenuOpen(false);
+                              docInputRef.current?.click();
+                            }}
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              gap: "10px",
+                              padding: "8px 12px",
+                              background: "transparent",
+                              border: "none",
+                              borderRadius: "9px",
+                              color: "var(--tg-ink)",
+                              fontSize: "13px",
+                              fontWeight: 600,
+                              cursor: "pointer",
+                              textAlign: "left",
+                            }}
+                            onMouseEnter={(e) => (e.currentTarget.style.background = "var(--tg-hover-bg)")}
+                            onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                          >
+                            <span style={{ color: "#fbbf24", display: "flex" }}><Paperclip size={17} /></span>
+                            <span>📎 Fayl / Hujjat</span>
+                          </button>
+                        </div>
+                      )}
+                    </div>
+
+                    <input
+                      type="text"
+                      className="tg-composer-input"
+                      placeholder={attachedMedia ? "Izoh yozing (ixtiyoriy)..." : "Xabar yozing..."}
+                      value={replyText}
+                      disabled={sending}
+                      onChange={(e) => setReplyText(e.target.value)}
+                    />
+                    <button
+                      type="submit"
+                      className="tg-composer-send"
+                      disabled={(!replyText.trim() && !attachedMedia) || sending}
+                      aria-label="Xabar yuborish"
                     >
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setAttachMenuOpen(false);
-                          imageInputRef.current?.click();
-                        }}
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          gap: "10px",
-                          padding: "8px 12px",
-                          background: "transparent",
-                          border: "none",
-                          borderRadius: "8px",
-                          color: "#eef7f2",
-                          fontSize: "13px",
-                          cursor: "pointer",
-                          textAlign: "left",
-                        }}
-                        onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(37,226,162,0.14)")}
-                        onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
-                      >
-                        <span style={{ color: "#25e2a2", display: "flex" }}><ImageIcon size={17} /></span>
-                        <span>📷 Rasm</span>
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setAttachMenuOpen(false);
-                          videoInputRef.current?.click();
-                        }}
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          gap: "10px",
-                          padding: "8px 12px",
-                          background: "transparent",
-                          border: "none",
-                          borderRadius: "8px",
-                          color: "#eef7f2",
-                          fontSize: "13px",
-                          cursor: "pointer",
-                          textAlign: "left",
-                        }}
-                        onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(37,226,162,0.14)")}
-                        onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
-                      >
-                        <span style={{ color: "#38bdf8", display: "flex" }}><Video size={17} /></span>
-                        <span>🎬 Video</span>
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setAttachMenuOpen(false);
-                          docInputRef.current?.click();
-                        }}
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          gap: "10px",
-                          padding: "8px 12px",
-                          background: "transparent",
-                          border: "none",
-                          borderRadius: "8px",
-                          color: "#eef7f2",
-                          fontSize: "13px",
-                          cursor: "pointer",
-                          textAlign: "left",
-                        }}
-                        onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(37,226,162,0.14)")}
-                        onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
-                      >
-                        <span style={{ color: "#fbbf24", display: "flex" }}><Paperclip size={17} /></span>
-                        <span>📎 Fayl / Hujjat</span>
-                      </button>
-                    </div>
-                  )}
-                </div>
-
-                <input
-                  type="text"
-                  className="tg-composer-input"
-                  placeholder={attachedMedia ? "Izoh yozing (ixtiyoriy)..." : "Xabar yozing..."}
-                  value={replyText}
-                  disabled={sending || t?.status === "RESOLVED" || t?.status === "CLOSED"}
-                  onChange={(e) => setReplyText(e.target.value)}
-                />
-                <button
-                  type="submit"
-                  className="tg-composer-send"
-                  disabled={(!replyText.trim() && !attachedMedia) || sending || t?.status === "RESOLVED" || t?.status === "CLOSED"}
-                  aria-label="Xabar yuborish"
-                >
-                  <Send size={18} />
-                </button>
-              </form>
+                      <Send size={17} />
+                    </button>
+                  </form>
+                </>
+              )}
             </>
           ) : (
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%", color: "#8ea69d" }}>
-              <Empty text="Muloqotni ko‘rish uchun chap tarafdan suhbatni tanlang" />
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "100%", padding: "24px", color: "var(--tg-muted)", textAlign: "center", gap: "8px" }}>
+              <MessageSquare size={36} style={{ opacity: 0.45 }} />
+              <Empty
+                text={
+                  chatFolder === "open"
+                    ? "Hozircha ochiq suhbat tanlanmagan — chapdan tanlang yoki «+ Yangi» bosing"
+                    : "Arxivdagi yopilgan suhbatni ko‘rish uchun chap tarafdan tanlang"
+                }
+              />
             </div>
           )}
         </div>
       </div>
+        </>
+      )}
     </>
   );
 }

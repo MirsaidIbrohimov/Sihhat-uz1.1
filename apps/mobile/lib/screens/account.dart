@@ -14,6 +14,7 @@ import '../neon.dart';
 import '../catalog_card.dart';
 import 'catalog.dart';
 import 'login.dart';
+import 'support_telegram.dart';
 
 class AiScreen extends StatefulWidget {
   final Api api;
@@ -608,6 +609,15 @@ class SupportScreen extends StatefulWidget {
 
 class _SupportScreenState extends State<SupportScreen> {
   int revision = 0;
+  String activeFolder = 'open';
+  final searchController = TextEditingController();
+
+  @override
+  void dispose() {
+    searchController.dispose();
+    super.dispose();
+  }
+
   Future<void> open([String? id]) async {
     var ticket = id;
     if (ticket == null) {
@@ -625,107 +635,137 @@ class _SupportScreenState extends State<SupportScreen> {
     if (mounted) setState(() => revision++);
   }
 
+  String _previewFor(Json t) {
+    final last = t['lastMessage'];
+    if (last is Map) {
+      final txt = last['text']?.toString().trim() ?? '';
+      if (txt.isNotEmpty) return txt;
+      if ((last['imageUrl']?.toString() ?? '').isNotEmpty) return '📷 Rasm';
+    }
+    final msgs = t['messages'];
+    if (msgs is List && msgs.isNotEmpty && msgs.last is Map) {
+      final txt = (msgs.last as Map)['text']?.toString().trim() ?? '';
+      if (txt.isNotEmpty) return txt;
+    }
+    return isSupportTicketClosed(t['status'])
+        ? 'Murojaat yopilgan'
+        : 'Suhbatni davom ettiring';
+  }
+
+  String _timeFor(Json t) {
+    final last = t['lastMessage'];
+    final raw = last is Map
+        ? (last['createdAt'] ?? t['createdAt'])
+        : t['createdAt'];
+    return supportShortTime(raw);
+  }
+
   @override
   Widget build(BuildContext context) => ConceptPage(
-    title: 'Yordam xizmati (Murojaatlar)',
-    subtitle: 'Murojaatlaringizni boshqaring',
+    title: 'Yordam va xabarlar',
+    subtitle: 'Telegram uslubidagi tezkor suhbatlar',
+    actions: [
+      IconButton(
+        tooltip: 'Yangi murojaat',
+        onPressed: () => open(),
+        icon: Icon(Icons.edit_note_rounded, color: context.colors.primary),
+      ),
+    ],
     bottom: ConceptScope(
       child: ConceptDock(label: 'Yangi murojaat', onPressed: () => open()),
     ),
     body: AsyncContent(
       key: ValueKey(revision),
       load: () => widget.api.send('/support/tickets'),
-      builder: (v) => ListView(
-        padding: const EdgeInsets.all(20),
-        children: [
-          Reveal(
-            child: ConceptCard(
-              onTap: () => open(),
-              selected: true,
-              child: Row(
-                children: [
-                  const PulseGlow(
-                    borderRadius: BorderRadius.all(Radius.circular(16)),
-                    child: GlyphTile(
-                      Icons.support_agent_rounded,
-                      size: 52,
-                      solid: true,
-                    ),
-                  ),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Yangi murojaat',
-                          style: conceptHeading(context, size: 17),
-                        ),
-                        Text(
-                          'Savollaringizni yuboring',
-                          style: TextStyle(
-                            color: context.colors.muted,
-                            fontSize: 12,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const NeonArrow(size: 36),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text('Murojaatlarim', style: conceptHeading(context, size: 22)),
-          const SizedBox(height: 14),
-          if (rows(v).isEmpty)
-            const EmptyView(
-              'Hozircha murojaatlar yo‘q.',
-              icon: 'message-circle',
-            ),
-          for (final (i, t) in rows(v).indexed)
-            Reveal(
-              index: i + 1,
-              child: ConceptCard(
-                onTap: () => open(t['id']),
-                child: Row(
-                  children: [
-                    GlyphTile(
-                      t['status'] == 'CLOSED'
-                          ? Icons.task_alt_rounded
-                          : Icons.support_agent_rounded,
-                      size: 48,
-                    ),
-                    const SizedBox(width: 14),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            t['title'],
-                            style: conceptHeading(context, size: 16),
-                          ),
-                          const SizedBox(height: 6),
-                          Pill(t['status']),
-                          const SizedBox(height: 6),
-                          Text(
-                            eventTime(t['createdAt']),
-                            style: TextStyle(
-                              color: context.colors.muted,
-                              fontSize: 12,
-                            ),
-                          ),
-                        ],
+      builder: (v) {
+        final all = rows(v);
+        final openTickets = all
+            .where((t) => !isSupportTicketClosed(t['status']))
+            .toList();
+        final closedTickets = all
+            .where((t) => isSupportTicketClosed(t['status']))
+            .toList();
+        final query = searchController.text.trim().toLowerCase();
+        final baseList = activeFolder == 'closed' ? closedTickets : openTickets;
+        final visible = query.isEmpty
+            ? baseList
+            : baseList.where((t) {
+                final title = (t['title']?.toString() ?? '').toLowerCase();
+                final preview = _previewFor(t).toLowerCase();
+                return title.contains(query) || preview.contains(query);
+              }).toList();
+
+        return ListView(
+          padding: const EdgeInsets.fromLTRB(16, 10, 16, 20),
+          children: [
+            TextField(
+              controller: searchController,
+              onChanged: (_) => setState(() {}),
+              decoration: InputDecoration(
+                hintText: 'Suhbat yoki mavzu qidirish…',
+                prefixIcon: Icon(
+                  Icons.search_rounded,
+                  color: context.colors.muted,
+                  size: 20,
+                ),
+                suffixIcon: query.isEmpty
+                    ? null
+                    : IconButton(
+                        icon: const Icon(Icons.close_rounded, size: 18),
+                        onPressed: () {
+                          searchController.clear();
+                          setState(() {});
+                        },
                       ),
-                    ),
-                    SihhatIcon('chevron-right', color: context.colors.primary),
-                  ],
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(24),
+                  borderSide: BorderSide(color: context.colors.border),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(24),
+                  borderSide: BorderSide(color: context.colors.border),
                 ),
               ),
             ),
-        ],
-      ),
+            const SizedBox(height: 12),
+            TgFolderTabs(
+              activeFolder: activeFolder,
+              openCount: openTickets.length,
+              closedCount: closedTickets.length,
+              onSelect: (f) => setState(() => activeFolder = f),
+            ),
+            const SizedBox(height: 14),
+            if (visible.isEmpty)
+              EmptyView(
+                query.isNotEmpty
+                    ? 'Qidiruv bo‘yicha suhbat topilmadi.'
+                    : activeFolder == 'open'
+                    ? (all.isEmpty
+                          ? 'Hozircha murojaatlar yo‘q.'
+                          : 'Ochiq murojaatlar yo‘q.')
+                    : 'Yopilgan murojaatlar arxivi bo‘sh.',
+                icon: 'message-circle',
+              ),
+            for (final (i, t) in visible.indexed) ...[
+              Reveal(
+                index: i,
+                child: TgChatListTile(
+                  title: t['title']?.toString() ?? 'Murojaat',
+                  preview: _previewFor(t),
+                  status: t['status']?.toString() ?? 'OPEN',
+                  timeLabel: _timeFor(t),
+                  onTap: () => open(t['id']?.toString()),
+                ),
+              ),
+              const SizedBox(height: 10),
+            ],
+          ],
+        );
+      },
     ),
   );
 }
@@ -849,45 +889,101 @@ class _SupportThreadState extends State<SupportThread>
   final revision = ValueNotifier(0);
   bool active = true, sending = false;
   final reply = TextEditingController();
+  final composerFocus = FocusNode();
   final scroll = ScrollController();
   int shown = 0;
   String? sendError;
   String? attachedImage;
+  String? editingMessageId;
+  String? editingOriginalText;
+  final deletingIds = <String>{};
   static const _imageChannel = MethodChannel('uz.sihhat/image_picker');
 
-  Future<void> pickImage() async {
-    try {
-      final result = await _imageChannel.invokeMethod<String>('pickImage');
-      if (result != null && result.isNotEmpty && mounted) {
-        setState(() => attachedImage = result);
-      }
-    } catch (_) {
-      if (!mounted) return;
-      final controller = TextEditingController();
-      final url = await showDialog<String>(
-        context: context,
-        builder: (ctx) => AlertDialog(
-          title: const Text('Rasm havolasini kiriting'),
-          content: TextField(
-            controller: controller,
-            decoration: const InputDecoration(hintText: 'https://...'),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('Bekor qilish'),
-            ),
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, controller.text.trim()),
-              child: const Text('Biriktirish'),
-            ),
-          ],
-        ),
-      );
-      if (url != null && url.isNotEmpty && mounted) {
-        setState(() => attachedImage = url);
+  Future<void> _pickNativeOrUrlImage({bool urlOnly = false}) async {
+    if (!urlOnly) {
+      try {
+        final result = await _imageChannel.invokeMethod<String>('pickImage');
+        if (result != null && result.isNotEmpty && mounted) {
+          setState(() => attachedImage = result);
+          return;
+        }
+      } catch (_) {
+        // Fallback to URL dialog when native picker channel is unavailable.
       }
     }
+    if (!mounted) return;
+    final controller = TextEditingController();
+    final url = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Rasm havolasini kiriting'),
+        content: TextField(
+          controller: controller,
+          decoration: const InputDecoration(hintText: 'https://...'),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Bekor qilish'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, controller.text.trim()),
+            child: const Text('Biriktirish'),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+    if (url != null && url.isNotEmpty && mounted) {
+      setState(() => attachedImage = url);
+    }
+  }
+
+  Future<void> pickImage() async {
+    if (!mounted || editingMessageId != null) return;
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final choice = await showModalBottomSheet<String>(
+      context: context,
+      backgroundColor: dark ? const Color(0xff092722) : Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: 8),
+            Container(
+              width: 38,
+              height: 4,
+              decoration: BoxDecoration(
+                color: context.colors.muted.withValues(alpha: .35),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 8),
+            ListTile(
+              leading: Icon(
+                Icons.photo_library_outlined,
+                color: context.colors.primary,
+              ),
+              title: const Text('Galereyadan rasm tanlash'),
+              subtitle: const Text('Qurilmadagi rasmni chatga yuborish'),
+              onTap: () => Navigator.pop(ctx, 'gallery'),
+            ),
+            ListTile(
+              leading: Icon(Icons.link_rounded, color: context.colors.primary),
+              title: const Text('Rasm havolasi (URL)'),
+              subtitle: const Text('Internetdagi rasm manzilini biriktirish'),
+              onTap: () => Navigator.pop(ctx, 'url'),
+            ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+    if (choice == null || !mounted) return;
+    await _pickNativeOrUrlImage(urlOnly: choice == 'url');
   }
 
   /// Keeps the newest message in view when replies arrive.
@@ -914,7 +1010,7 @@ class _SupportThreadState extends State<SupportThread>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    timer = Timer.periodic(const Duration(seconds: 10), (_) {
+    timer = Timer.periodic(const Duration(seconds: 5), (_) {
       if (active) refreshThread().catchError((_) => <String, dynamic>{});
     });
   }
@@ -929,6 +1025,7 @@ class _SupportThreadState extends State<SupportThread>
     }
     return value;
   })().whenComplete(() => reading = null);
+
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     active = state == AppLifecycleState.resumed;
@@ -941,17 +1038,277 @@ class _SupportThreadState extends State<SupportThread>
     WidgetsBinding.instance.removeObserver(this);
     revision.dispose();
     reply.dispose();
+    composerFocus.dispose();
     scroll.dispose();
     super.dispose();
   }
 
+  void startEditing(Json message) {
+    final msgId = message['id']?.toString();
+    if (msgId == null || msgId.isEmpty) return;
+    final original = message['text']?.toString() ?? '';
+    setState(() {
+      editingMessageId = msgId;
+      editingOriginalText = original;
+      attachedImage = null;
+      sendError = null;
+      reply.text = original;
+      reply.selection = TextSelection.collapsed(offset: original.length);
+    });
+    composerFocus.requestFocus();
+  }
+
+  void cancelEditing() {
+    setState(() {
+      editingMessageId = null;
+      editingOriginalText = null;
+      sendError = null;
+      reply.clear();
+    });
+  }
+
+  Future<void> confirmDeleteMessage(Json message) async {
+    final msgId = message['id']?.toString();
+    if (msgId == null || msgId.isEmpty || deletingIds.contains(msgId)) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Xabarni o‘chirish'),
+        content: const Text('Ushbu xabar sizning chatingizdan o‘chiriladi.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Bekor qilish'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: TextButton.styleFrom(
+              foregroundColor: TgThemeColors.of(ctx).danger,
+            ),
+            child: const Text('O‘chirish'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    setState(() {
+      deletingIds.add(msgId);
+      sendError = null;
+    });
+    try {
+      await widget.api.send(
+        '/support/tickets/${widget.id}/messages/$msgId',
+        method: 'DELETE',
+      );
+      if (!mounted) return;
+      if (editingMessageId == msgId) {
+        editingMessageId = null;
+        editingOriginalText = null;
+        reply.clear();
+      }
+      // Optimistically remove for crisp Telegram responsiveness, then sync.
+      final current = thread;
+      if (current != null && current['messages'] is List) {
+        final next = (current['messages'] as List)
+            .where((item) => item is Map && item['id']?.toString() != msgId)
+            .toList();
+        thread = {...current, 'messages': next};
+        shown = next.length;
+        revision.value++;
+      }
+      await refreshThread();
+    } catch (e) {
+      if (mounted) setState(() => sendError = e.toString());
+    } finally {
+      if (mounted) setState(() => deletingIds.remove(msgId));
+    }
+  }
+
+  Future<void> openMessageMenu(Json message, bool own, bool closed) async {
+    if (!mounted) return;
+    final msgId = message['id']?.toString();
+    final canModify = own && !closed && msgId != null && msgId.isNotEmpty;
+    final rawText = message['text']?.toString() ?? '';
+    final tg = TgThemeColors.of(context);
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: tg.panelBg,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: 8),
+            Container(
+              width: 38,
+              height: 4,
+              decoration: BoxDecoration(
+                color: context.colors.muted.withValues(alpha: .35),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(18, 12, 18, 6),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          own ? 'Sizning xabaringiz' : 'Yordam xizmati',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            color: context.colors.primary,
+                          ),
+                        ),
+                        if (rawText.isNotEmpty) ...[
+                          const SizedBox(height: 2),
+                          Text(
+                            rawText,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: context.colors.muted,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const Divider(height: 1),
+            if (canModify) ...[
+              ListTile(
+                leading: Icon(
+                  Icons.edit_rounded,
+                  color: context.colors.primary,
+                ),
+                title: const Text('Tahrirlash'),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  startEditing(message);
+                },
+              ),
+              ListTile(
+                leading: Icon(Icons.delete_outline_rounded, color: tg.danger),
+                title: Text('O‘chirish', style: TextStyle(color: tg.danger)),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  confirmDeleteMessage(message);
+                },
+              ),
+            ],
+            if (rawText.isNotEmpty)
+              ListTile(
+                leading: Icon(Icons.copy_rounded, color: context.colors.ink),
+                title: const Text('Nusxa olish'),
+                onTap: () async {
+                  Navigator.pop(ctx);
+                  await Clipboard.setData(ClipboardData(text: rawText));
+                  if (!mounted) return;
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Xabar nusxalandi'),
+                      duration: Duration(seconds: 2),
+                    ),
+                  );
+                },
+              ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void openImagePreview(String imageUrl) {
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => Dialog.fullscreen(
+        backgroundColor: Colors.black.withValues(alpha: .94),
+        child: Stack(
+          children: [
+            Center(
+              child: InteractiveViewer(
+                child: imageUrl.startsWith('data:')
+                    ? Image.memory(
+                        base64Decode(imageUrl.split(',').last),
+                        fit: BoxFit.contain,
+                        errorBuilder: (_, _, _) => const Icon(
+                          Icons.broken_image_outlined,
+                          color: Colors.white54,
+                          size: 48,
+                        ),
+                      )
+                    : Image.network(
+                        imageUrl,
+                        fit: BoxFit.contain,
+                        errorBuilder: (_, _, _) => const Icon(
+                          Icons.broken_image_outlined,
+                          color: Colors.white54,
+                          size: 48,
+                        ),
+                      ),
+              ),
+            ),
+            Positioned(
+              top: 16,
+              right: 16,
+              child: IconButton.filled(
+                onPressed: () => Navigator.pop(ctx),
+                icon: const Icon(Icons.close_rounded, color: Colors.white),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Future<void> sendReply() async {
     final text = reply.text.trim();
-    if (sending ||
-        (text.isEmpty && attachedImage == null) ||
-        thread?['status'] == 'CLOSED') {
+    if (sending || isSupportTicketClosed(thread?['status'])) return;
+
+    if (editingMessageId != null) {
+      if (text.isEmpty) {
+        setState(() => sendError = 'Xabar matni bo‘sh bo‘lmasin');
+        return;
+      }
+      setState(() {
+        sending = true;
+        sendError = null;
+      });
+      try {
+        await widget.api.send(
+          '/support/tickets/${widget.id}/messages/$editingMessageId',
+          method: 'PATCH',
+          body: {'text': text},
+        );
+        if (mounted) {
+          reply.clear();
+          setState(() {
+            editingMessageId = null;
+            editingOriginalText = null;
+          });
+        }
+        await refreshThread();
+      } catch (e) {
+        if (mounted) setState(() => sendError = e.toString());
+      } finally {
+        if (mounted) setState(() => sending = false);
+      }
       return;
     }
+
+    if (text.isEmpty && attachedImage == null) return;
     setState(() {
       sending = true;
       sendError = null;
@@ -980,7 +1337,7 @@ class _SupportThreadState extends State<SupportThread>
   @override
   Widget build(BuildContext context) => ConceptPage(
     title: 'Yordam xizmati (Chat)',
-    subtitle: 'Resepshn bilan onlayn suhbat',
+    subtitle: 'Telegram uslubidagi suhbat',
     body: CachedContent(
       cached: () async => thread,
       refresh: refreshThread,
@@ -988,83 +1345,214 @@ class _SupportThreadState extends State<SupportThread>
       builder: (v) {
         final t = asJson(v);
         final messages = rows(t['messages']);
+        final closed = isSupportTicketClosed(t['status']);
+        final title = t['title']?.toString() ?? 'Murojaat';
+        final c = context.colors;
+        final dark = Theme.of(context).brightness == Brightness.dark;
         followNewMessages(messages.length);
+
+        final pillBorder = OutlineInputBorder(
+          borderRadius: BorderRadius.circular(28),
+          borderSide: BorderSide(
+            color: dark ? neon.withValues(alpha: .3) : c.border,
+          ),
+        );
+
+        String? prevDayKey;
         return Column(
           children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 4, 20, 8),
-              child: Reveal(
-                child: ConceptCard(
-                  margin: EdgeInsets.zero,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 14,
-                    vertical: 12,
+            Container(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 10),
+              decoration: BoxDecoration(
+                color: c.surface.withValues(alpha: .92),
+                border: Border(bottom: BorderSide(color: c.border)),
+              ),
+              child: Row(
+                children: [
+                  TgAvatar(label: title, size: 42, closed: closed),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: conceptHeading(context, size: 15),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          closed
+                              ? 'Murojaat yopilgan (Arxiv)'
+                              : 'Resepshn · Onlayn',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: closed ? c.muted : c.primary,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                  child: Row(
-                    children: [
-                      NeonRing(
-                        size: 50,
-                        width: 2.5,
-                        child: ClipOval(
-                          child: Container(
-                            color: abyss,
-                            alignment: Alignment.center,
-                            child: const NeonGlyph(
-                              Icons.support_agent_rounded,
-                              size: 26,
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(999),
+                      color: closed ? c.muted.withValues(alpha: .14) : c.soft,
+                    ),
+                    child: Text(
+                      supportStatusLabel(t['status']),
+                      style: TextStyle(
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w700,
+                        color: closed ? c.muted : c.primary,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Expanded(
+              child: TgWallpaperBackground(
+                child: ListView(
+                  controller: scroll,
+                  padding: const EdgeInsets.fromLTRB(14, 10, 14, 12),
+                  children: [
+                    if (messages.isEmpty)
+                      Center(
+                        child: Container(
+                          margin: const EdgeInsets.only(top: 24),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 8,
+                          ),
+                          decoration: BoxDecoration(
+                            color: TgThemeColors.of(context).datePillBg,
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                          child: Text(
+                            'Suhbatni boshlash uchun xabar yozing',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: TgThemeColors.of(context).datePillText,
                             ),
                           ),
                         ),
                       ),
-                      const SizedBox(width: 12),
+                    for (final m in messages) ...[
+                      Builder(
+                        builder: (_) {
+                          final dayKey = supportDayKey(m['createdAt']);
+                          final dayChanged =
+                              dayKey.isNotEmpty && dayKey != prevDayKey;
+                          if (dayKey.isNotEmpty) prevDayKey = dayKey;
+                          final own = m['isMe'] is bool
+                              ? m['isMe'] as bool
+                              : m['userId'] == t['userId'];
+                          final msgId = m['id']?.toString();
+                          final canModify =
+                              own &&
+                              !closed &&
+                              msgId != null &&
+                              msgId.isNotEmpty;
+                          final imageUrl = m['imageUrl'] as String?;
+                          return Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              if (dayChanged)
+                                TgDateSeparator(
+                                  supportDayLabel(m['createdAt']),
+                                ),
+                              TgMessageBubble(
+                                text: m['text']?.toString() ?? '',
+                                imageUrl: imageUrl,
+                                author: own ? null : 'Yordam xizmati',
+                                time: supportClockTime(m['createdAt']),
+                                own: own,
+                                isEdited: m['isEdited'] == true,
+                                canModify: canModify,
+                                isDeleting:
+                                    msgId != null &&
+                                    deletingIds.contains(msgId),
+                                onOpenMenu: () =>
+                                    openMessageMenu(m, own, closed),
+                                onPreviewImage:
+                                    imageUrl != null && imageUrl.isNotEmpty
+                                    ? () => openImagePreview(imageUrl)
+                                    : null,
+                              ),
+                            ],
+                          );
+                        },
+                      ),
+                    ],
+                    if (sendError != null) ErrorView(sendError!),
+                  ],
+                ),
+              ),
+            ),
+            if (!closed) ...[
+              if (editingMessageId != null)
+                Container(
+                  padding: const EdgeInsets.fromLTRB(16, 8, 8, 8),
+                  decoration: BoxDecoration(
+                    color: c.surface,
+                    border: Border(top: BorderSide(color: c.border)),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 3,
+                        height: 34,
+                        decoration: BoxDecoration(
+                          color: c.primary,
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Icon(Icons.edit_rounded, size: 18, color: c.primary),
+                      const SizedBox(width: 8),
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              t['title'],
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                              style: conceptHeading(context, size: 16),
+                              'Xabarni tahrirlash',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                                color: c.primary,
+                              ),
                             ),
-                            const SizedBox(height: 6),
-                            Pill(t['status']),
+                            Text(
+                              editingOriginalText ?? '',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(fontSize: 12, color: c.muted),
+                            ),
                           ],
                         ),
+                      ),
+                      IconButton(
+                        tooltip: 'Tahrirlashni bekor qilish',
+                        onPressed: sending ? null : cancelEditing,
+                        icon: const Icon(Icons.close_rounded, size: 20),
                       ),
                     ],
                   ),
                 ),
-              ),
-            ),
-            Expanded(
-              child: ListView(
-                controller: scroll,
-                padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
-                children: [
-                  for (final m in messages)
-                    ChatBubble(
-                      text: m['text'] ?? '',
-                      imageUrl: m['imageUrl'] as String?,
-                      isEdited: m['isEdited'] == true,
-                      own: m['userId'] == t['userId'],
-                      author: m['userId'] == t['userId']
-                          ? 'Siz'
-                          : 'Yordam xizmati',
-                      time: eventTime(m['createdAt']),
-                    ),
-                  if (sendError != null) ErrorView(sendError!),
-                ],
-              ),
-            ),
-            if (t['status'] != 'CLOSED') ...[
-              if (attachedImage != null)
+              if (attachedImage != null && editingMessageId == null)
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
                   child: Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: context.colors.surface.withValues(alpha: .85),
+                      color: c.surface.withValues(alpha: .9),
                       borderRadius: BorderRadius.circular(14),
                       border: Border.all(color: neon.withValues(alpha: .3)),
                     ),
@@ -1097,7 +1585,7 @@ class _SupportThreadState extends State<SupportThread>
                           child: Text(
                             'Rasm biriktirildi',
                             style: TextStyle(
-                              color: context.colors.ink,
+                              color: c.ink,
                               fontSize: 13,
                               fontWeight: FontWeight.w600,
                             ),
@@ -1112,58 +1600,106 @@ class _SupportThreadState extends State<SupportThread>
                     ),
                   ),
                 ),
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.only(left: 16, bottom: 12),
-                    child: Pressable(
-                      scale: .9,
-                      child: Container(
-                        width: 52,
-                        height: 52,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: attachedImage != null
-                              ? neon.withValues(alpha: .2)
-                              : context.colors.surface.withValues(alpha: .85),
-                          border: Border.all(
+              SafeArea(
+                top: false,
+                child: Container(
+                  padding: const EdgeInsets.fromLTRB(12, 8, 12, 10),
+                  decoration: BoxDecoration(
+                    color: c.surface.withValues(alpha: .95),
+                    border: Border(top: BorderSide(color: c.border)),
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      if (editingMessageId == null) ...[
+                        Container(
+                          width: 48,
+                          height: 48,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
                             color: attachedImage != null
-                                ? neon
-                                : neon.withValues(alpha: .3),
+                                ? c.primary.withValues(alpha: .18)
+                                : c.soft.withValues(alpha: dark ? .35 : .8),
+                            border: Border.all(
+                              color: attachedImage != null
+                                  ? c.primary
+                                  : c.border,
+                            ),
+                          ),
+                          child: IconButton(
+                            tooltip: 'Biriktirish (+)',
+                            onPressed: sending ? null : pickImage,
+                            icon: Icon(
+                              Icons.add_rounded,
+                              color: attachedImage != null ? c.primary : c.ink,
+                              size: 24,
+                            ),
                           ),
                         ),
-                        child: IconButton(
-                          tooltip: 'Biriktirish (+)',
-                          onPressed: sending ? null : pickImage,
-                          icon: Icon(
-                            Icons.add_rounded,
-                            color: attachedImage != null
-                                ? neon
-                                : context.colors.ink,
-                            size: 26,
+                        const SizedBox(width: 8),
+                      ],
+                      Expanded(
+                        child: TextField(
+                          controller: reply,
+                          focusNode: composerFocus,
+                          enabled: !sending,
+                          minLines: 1,
+                          maxLines: 4,
+                          maxLength: 5000,
+                          textInputAction: TextInputAction.send,
+                          onSubmitted: (_) => sendReply(),
+                          decoration: InputDecoration(
+                            hintText: editingMessageId != null
+                                ? 'Tahrirlangan xabarni kiriting…'
+                                : attachedImage != null
+                                ? 'Izoh yozing (ixtiyoriy)…'
+                                : 'Xabar yozing…',
+                            counterText: '',
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 18,
+                              vertical: 13,
+                            ),
+                            border: pillBorder,
+                            enabledBorder: pillBorder,
+                            disabledBorder: pillBorder,
+                            focusedBorder: pillBorder.copyWith(
+                              borderSide: BorderSide(
+                                color: c.primary,
+                                width: 1.5,
+                              ),
+                            ),
                           ),
                         ),
                       ),
-                    ),
+                      const SizedBox(width: 8),
+                      SizedBox(
+                        width: 48,
+                        height: 48,
+                        child: IconButton.filled(
+                          tooltip: 'Yuborish',
+                          onPressed: sending ? null : sendReply,
+                          icon: sending
+                              ? const SizedBox(
+                                  width: 18,
+                                  height: 18,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                  ),
+                                )
+                              : editingMessageId != null
+                              ? const Icon(Icons.check_rounded)
+                              : const SihhatIcon('send'),
+                        ),
+                      ),
+                    ],
                   ),
-                  Expanded(
-                    child: ConceptComposer(
-                      controller: reply,
-                      hint: attachedImage != null
-                          ? 'Izoh yozing (ixtiyoriy)…'
-                          : 'Javob yozish…',
-                      busy: sending,
-                      send: sendReply,
-                    ),
-                  ),
-                ],
+                ),
               ),
             ] else
               const SafeArea(
                 top: false,
                 child: Padding(
-                  padding: EdgeInsets.fromLTRB(20, 4, 20, 12),
+                  padding: EdgeInsets.fromLTRB(16, 6, 16, 12),
                   child: ConceptInfo(
                     icon: 'check-check',
                     title: 'Murojaat yopilgan',

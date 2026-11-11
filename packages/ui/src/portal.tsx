@@ -22,6 +22,7 @@ import {
   Mail,
   Menu,
   Megaphone,
+  MessageSquare,
   Settings,
   ShieldCheck,
   Smartphone,
@@ -66,7 +67,6 @@ import {
   Payments,
   Finance,
   Billing,
-  Communications,
   Reviews,
   Support,
   Audit,
@@ -141,7 +141,7 @@ const links = [
     icon: ChartNoAxesCombined,
     admin: true,
   },
-  { id: "messages", label: "Xabarlar", icon: Mail, group: "Aloqa" },
+  { id: "support", label: "Yordam va xabarlar", icon: MessageSquare, group: "Aloqa" },
   {
     id: "articles",
     label: "Yangilik va tavsiyalar",
@@ -154,7 +154,6 @@ const links = [
     icon: HeartPulse,
     permission: "reviews.reply",
   },
-  { id: "support", label: "Yordam xizmati", icon: CircleHelp },
   { id: "notifications", label: "Bildirishnomalar", icon: Bell },
   { id: "telegram", label: "Telegram bot", icon: Mail },
   {
@@ -193,10 +192,9 @@ const navigationGroups = [
   {
     label: "Aloqa",
     ids: [
-      "messages",
+      "support",
       "articles",
       "reviews",
-      "support",
       "notifications",
     ],
   },
@@ -645,7 +643,8 @@ export function Portal({
           allowed("reports.financial.read")
         : !l.permission || allowed(l.permission)),
   );
-  const authorized = menuLinks.some((l) => l.id === section);
+  const authorized =
+    menuLinks.some((l) => l.id === section) || section === "messages";
   const changePassword = () =>
     setForm({
       title: "Parolni almashtirish",
@@ -707,11 +706,11 @@ export function Portal({
       case "ads":
         return <Billing kind={section} />;
       case "messages":
-        return <Communications kind={section} />;
+        return <Support initialTab="announcements" />;
       case "reviews":
         return <Reviews />;
       case "support":
-        return <Support />;
+        return <Support initialTab="chat" />;
       case "audit":
         return <Audit />;
       case "reconciliation":
@@ -918,7 +917,9 @@ export function Portal({
               <span>/</span>
               {accountant && section === "dashboard"
                 ? "Hisobotlar"
-                : menuLinks.find((item) => item.id === section)?.label}
+                : section === "messages"
+                  ? "E’lonlar va xabarlar"
+                  : menuLinks.find((item) => item.id === section)?.label}
             </div>
             {tenantError && <ErrorBox message={tenantError} retry={refresh} />}{" "}
             {!admin && !tenant ? (

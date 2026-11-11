@@ -152,4 +152,138 @@ void main() {
       api.client.close();
     },
   );
+
+  testWidgets(
+    'support inbox separates Ochiq and Yopilgan folders, and Telegram thread supports editing & deleting own messages',
+    (tester) async {
+      final messages = <Json>[
+        {
+          'id': 'm-user-1',
+          'userId': 'customer',
+          'isMe': true,
+          'text': 'Salom, savolim bor',
+          'isEdited': false,
+          'createdAt': DateTime.now().toUtc().toIso8601String(),
+        },
+        {
+          'id': 'm-admin-1',
+          'userId': 'admin',
+          'isMe': false,
+          'text': 'Albatta, eshitaman',
+          'isEdited': false,
+          'createdAt': DateTime.now().toUtc().toIso8601String(),
+        },
+      ];
+      String? patchedText;
+      final deletedIds = <String>[];
+      final api = Api(
+        baseUrl: 'http://localhost',
+        store: MemoryStore(),
+        client: MockClient((r) async {
+          if (r.method == 'GET' && r.url.path == '/support/tickets') {
+            return reply([
+              {
+                'id': 't-open',
+                'title': 'Ochiq murojaat mavzusi',
+                'status': 'OPEN',
+                'createdAt': '2026-11-11T10:00:00.000Z',
+              },
+              {
+                'id': 't-closed',
+                'title': 'Arxivlangan murojaat',
+                'status': 'CLOSED',
+                'createdAt': '2026-11-10T10:00:00.000Z',
+              },
+            ]);
+          }
+          if (r.method == 'GET' && r.url.path == '/support/tickets/t-open') {
+            return reply({
+              'id': 't-open',
+              'userId': 'customer',
+              'title': 'Ochiq murojaat mavzusi',
+              'status': 'OPEN',
+              'messages': messages,
+            });
+          }
+          if (r.method == 'PATCH' &&
+              r.url.path == '/support/tickets/t-open/messages/m-user-1') {
+            final body = jsonDecode(r.body) as Map<String, dynamic>;
+            patchedText = body['text'] as String?;
+            messages[0]['text'] = patchedText;
+            messages[0]['isEdited'] = true;
+            return reply(messages[0]);
+          }
+          if (r.method == 'DELETE' &&
+              r.url.path == '/support/tickets/t-open/messages/m-user-1') {
+            deletedIds.add('m-user-1');
+            messages.removeWhere((m) => m['id'] == 'm-user-1');
+            return reply({
+              'success': true,
+              'messageId': 'm-user-1',
+              'deleted': false,
+            });
+          }
+          return reply({});
+        }),
+      );
+
+      // 1. Folder tabs: Ochiq shown first, Yopilgan shows closed tickets.
+      await tester.pumpWidget(MaterialApp(home: SupportScreen(api)));
+      await tester.pumpAndSettle();
+      expect(find.text('Ochiq murojaat mavzusi'), findsOneWidget);
+      expect(find.text('Arxivlangan murojaat'), findsNothing);
+
+      await tester.tap(find.text('Yopilgan'));
+      await tester.pumpAndSettle();
+      expect(find.text('Arxivlangan murojaat'), findsOneWidget);
+      expect(find.text('Ochiq murojaat mavzusi'), findsNothing);
+
+      await tester.tap(find.text('Ochiq'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Ochiq murojaat mavzusi'));
+      await tester.pumpAndSettle();
+
+      // 2. Edit own message via Telegram bubble menu -> PATCH request -> "tahrirlangan" label.
+      await tester.tap(find.text('Salom, savolim bor'));
+      await tester.pumpAndSettle();
+      expect(find.text('Tahrirlash'), findsOneWidget);
+      expect(find.text('O‘chirish'), findsOneWidget);
+      await tester.tap(find.text('Tahrirlash'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Xabarni tahrirlash'), findsOneWidget);
+      await tester.enterText(find.byType(TextField), 'Tuzatilgan savolim');
+      await tester.tap(find.byTooltip('Yuborish'));
+      await tester.pumpAndSettle();
+
+      expect(patchedText, 'Tuzatilgan savolim');
+      expect(find.text('Tuzatilgan savolim'), findsOneWidget);
+      expect(find.text('tahrirlangan'), findsOneWidget);
+
+      // 3. Incoming admin message cannot be edited/deleted by customer.
+      await tester.longPress(find.text('Albatta, eshitaman'));
+      await tester.pumpAndSettle();
+      expect(find.text('Tahrirlash'), findsNothing);
+      expect(find.text('Nusxa olish'), findsOneWidget);
+      Navigator.of(tester.element(find.text('Nusxa olish'))).pop();
+      await tester.pumpAndSettle();
+
+      // 4. Delete own message -> DELETE request -> removed from APK thread while admin message stays.
+      await tester.tap(find.text('Tuzatilgan savolim'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('O‘chirish'));
+      await tester.pumpAndSettle();
+      expect(find.text('Xabarni o‘chirish'), findsOneWidget);
+      await tester.tap(find.widgetWithText(TextButton, 'O‘chirish'));
+      await tester.pumpAndSettle();
+
+      expect(deletedIds, ['m-user-1']);
+      expect(find.text('Tuzatilgan savolim'), findsNothing);
+      expect(find.text('Albatta, eshitaman'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+
+      await tester.pumpWidget(const SizedBox.shrink());
+      api.client.close();
+    },
+  );
 }

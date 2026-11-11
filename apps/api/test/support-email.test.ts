@@ -82,7 +82,24 @@ function buildFixture() {
         messages.push(row);
         return row;
       },
-      findMany: async ({ where }: any) => messages.filter((m) => m.ticketId === where.ticketId),
+      findUnique: async ({ where }: any) => messages.find((m) => m.id === where.id) ?? null,
+      update: async ({ where, data }: any) => {
+        const idx = messages.findIndex((m) => m.id === where.id);
+        if (idx === -1) return null;
+        Object.assign(messages[idx], data);
+        return messages[idx];
+      },
+      delete: async ({ where }: any) => {
+        const idx = messages.findIndex((m) => m.id === where.id);
+        if (idx === -1) return null;
+        return messages.splice(idx, 1)[0];
+      },
+      findMany: async ({ where }: any) =>
+        messages.filter(
+          (m) =>
+            m.ticketId === where.ticketId &&
+            (where.deletedForUser === undefined || m.deletedForUser === where.deletedForUser),
+        ),
     },
     user: {
       findMany: async ({ where }: any) => {
@@ -197,4 +214,35 @@ test('support email: skips customer self-reply & non-email users, and survives S
   };
   const msg = await service.ticketReply(admin, TICKET_ID, { text: 'Yana xabar' });
   assert.equal(msg.text, 'Yana xabar');
+});
+
+test('support messages: customer edit/soft-delete hides from customer while keeping audit for superadmin until superadmin deletes', async () => {
+  const { service } = buildFixture();
+  const customer: Actor = { kind: 'CUSTOMER', id: USER_ID } as Actor;
+  const admin: Actor = { kind: 'SUPERADMIN', id: ADMIN_ID } as Actor;
+
+  const created = await service.ticketReply(customer, TICKET_ID, { text: 'Boshlangich xabar' });
+  const edited = await service.ticketMessageEdit(customer, TICKET_ID, created.id, { text: 'Tahrirlangan xabar' });
+  assert.equal(edited.text, 'Tahrirlangan xabar');
+  assert.equal(edited.isEdited, true);
+
+  // Customer deletes own message -> soft-deleted for customer, audit stays for superadmin
+  const custDelete = await service.ticketMessageDelete(customer, TICKET_ID, created.id);
+  assert.equal(custDelete.deleted, false);
+
+  const custThread = await service.ticketGet(customer, TICKET_ID);
+  assert.equal(custThread.messages.some((m: any) => m.id === created.id), false);
+
+  const adminThreadBefore = await service.ticketGet(admin, TICKET_ID);
+  const auditMsg = adminThreadBefore.messages.find((m: any) => m.id === created.id);
+  assert.ok(auditMsg);
+  assert.equal(auditMsg.text, 'Tahrirlangan xabar');
+  assert.equal(auditMsg.isDeleted, true);
+
+  // Superadmin permanently deletes the audit message
+  const adminDelete = await service.ticketMessageDelete(admin, TICKET_ID, created.id);
+  assert.equal(adminDelete.deleted, true);
+
+  const adminThreadAfter = await service.ticketGet(admin, TICKET_ID);
+  assert.equal(adminThreadAfter.messages.some((m: any) => m.id === created.id), false);
 });
