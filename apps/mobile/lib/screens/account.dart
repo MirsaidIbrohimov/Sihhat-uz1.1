@@ -1135,14 +1135,14 @@ class _SupportThreadState extends State<SupportThread>
                           ),
                         ),
                         child: IconButton(
-                          tooltip: 'Rasm biriktirish',
+                          tooltip: 'Biriktirish (+)',
                           onPressed: sending ? null : pickImage,
                           icon: Icon(
-                            Icons.add_photo_alternate_rounded,
+                            Icons.add_rounded,
                             color: attachedImage != null
                                 ? neon
                                 : context.colors.ink,
-                            size: 24,
+                            size: 26,
                           ),
                         ),
                       ),

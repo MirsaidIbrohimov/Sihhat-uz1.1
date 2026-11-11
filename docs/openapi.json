@@ -15754,7 +15754,7 @@
           }
         },
         "tags": [
-          "Xabar, vazifa, anketa va yordam"
+          "Xabar va yordam"
         ],
         "security": [
           {
@@ -15867,7 +15867,7 @@
           }
         },
         "tags": [
-          "Xabar, vazifa, anketa va yordam"
+          "Xabar va yordam"
         ],
         "security": [
           {
@@ -16033,7 +16033,7 @@
           }
         },
         "tags": [
-          "Xabar, vazifa, anketa va yordam"
+          "Xabar va yordam"
         ],
         "security": [
           {
@@ -16166,7 +16166,7 @@
           }
         },
         "tags": [
-          "Xabar, vazifa, anketa va yordam"
+          "Xabar va yordam"
         ],
         "security": [
           {
@@ -16216,863 +16216,6 @@
                   "title",
                   "body",
                   "kind"
-                ],
-                "additionalProperties": false
-              }
-            }
-          }
-        }
-      }
-    },
-    "/tasks": {
-      "get": {
-        "operationId": "EngagementController_tasks",
-        "parameters": [],
-        "responses": {
-          "200": {
-            "description": "Muvaffaqiyatli natija",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "type": "object",
-                    "additionalProperties": true
-                  }
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Sessiya yaroqsiz",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiError"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Ruxsat yo‘q",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiError"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Topilmadi",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiError"
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "Holat yoki version konflikti",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiError"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validatsiya xatosi",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiError"
-                }
-              }
-            }
-          },
-          "429": {
-            "description": "Urinishlar limiti",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiError"
-                }
-              }
-            }
-          },
-          "503": {
-            "description": "Tashqi xizmat mavjud emas",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiError"
-                }
-              }
-            }
-          }
-        },
-        "tags": [
-          "Xabar, vazifa, anketa va yordam"
-        ],
-        "security": [
-          {
-            "cookie": []
-          },
-          {
-            "bearer": []
-          }
-        ],
-        "x-roles": [
-          "SUPERADMIN",
-          "STAFF",
-          "CUSTOMER"
-        ]
-      },
-      "post": {
-        "operationId": "EngagementController_task",
-        "parameters": [
-          {
-            "name": "Origin",
-            "in": "header",
-            "required": true,
-            "schema": {
-              "type": "string"
-            },
-            "description": "Allowed WEB origin; required with cookie authentication."
-          }
-        ],
-        "responses": {
-          "201": {
-            "description": "Muvaffaqiyatli natija",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "additionalProperties": true
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Sessiya yaroqsiz",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiError"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Ruxsat yo‘q",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiError"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Topilmadi",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiError"
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "Holat yoki version konflikti",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiError"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validatsiya xatosi",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiError"
-                }
-              }
-            }
-          },
-          "429": {
-            "description": "Urinishlar limiti",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiError"
-                }
-              }
-            }
-          },
-          "503": {
-            "description": "Tashqi xizmat mavjud emas",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiError"
-                }
-              }
-            }
-          }
-        },
-        "tags": [
-          "Xabar, vazifa, anketa va yordam"
-        ],
-        "security": [
-          {
-            "cookie": [],
-            "CSRF": []
-          }
-        ],
-        "x-roles": [
-          "STAFF",
-          "SUPERADMIN"
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "sanatorium_id": {
-                    "type": "string",
-                    "format": "uuid"
-                  },
-                  "assigned_to": {
-                    "type": "string",
-                    "format": "uuid"
-                  },
-                  "title": {
-                    "type": "string"
-                  },
-                  "body": {
-                    "type": "string"
-                  },
-                  "due_at": {
-                    "type": "string",
-                    "format": "date-time"
-                  }
-                },
-                "required": [
-                  "sanatorium_id",
-                  "assigned_to",
-                  "title",
-                  "body",
-                  "due_at"
-                ],
-                "additionalProperties": false
-              }
-            }
-          }
-        }
-      }
-    },
-    "/tasks/{id}": {
-      "patch": {
-        "operationId": "EngagementController_reply",
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            }
-          },
-          {
-            "name": "Origin",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "type": "string"
-            },
-            "description": "Allowed WEB origin; required with cookie authentication."
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Muvaffaqiyatli natija",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "additionalProperties": true
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Sessiya yaroqsiz",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiError"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Ruxsat yo‘q",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiError"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Topilmadi",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiError"
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "Holat yoki version konflikti",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiError"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validatsiya xatosi",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiError"
-                }
-              }
-            }
-          },
-          "429": {
-            "description": "Urinishlar limiti",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiError"
-                }
-              }
-            }
-          },
-          "503": {
-            "description": "Tashqi xizmat mavjud emas",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiError"
-                }
-              }
-            }
-          }
-        },
-        "tags": [
-          "Xabar, vazifa, anketa va yordam"
-        ],
-        "security": [
-          {
-            "cookie": [],
-            "CSRF": []
-          },
-          {
-            "bearer": []
-          }
-        ],
-        "x-roles": [
-          "SUPERADMIN",
-          "STAFF",
-          "CUSTOMER"
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "version": {
-                    "type": "integer"
-                  },
-                  "status": {
-                    "type": "string",
-                    "enum": [
-                      "ACCEPTED",
-                      "COMPLETED"
-                    ]
-                  },
-                  "reply": {
-                    "type": "string"
-                  }
-                },
-                "required": [
-                  "version",
-                  "status"
-                ],
-                "additionalProperties": false
-              }
-            }
-          }
-        }
-      }
-    },
-    "/superadmin/surveys": {
-      "post": {
-        "operationId": "EngagementController_survey",
-        "parameters": [
-          {
-            "name": "Origin",
-            "in": "header",
-            "required": true,
-            "schema": {
-              "type": "string"
-            },
-            "description": "Allowed WEB origin; required with cookie authentication."
-          }
-        ],
-        "responses": {
-          "201": {
-            "description": "Muvaffaqiyatli natija",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "additionalProperties": true
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Sessiya yaroqsiz",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiError"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Ruxsat yo‘q",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiError"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Topilmadi",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiError"
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "Holat yoki version konflikti",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiError"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validatsiya xatosi",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiError"
-                }
-              }
-            }
-          },
-          "429": {
-            "description": "Urinishlar limiti",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiError"
-                }
-              }
-            }
-          },
-          "503": {
-            "description": "Tashqi xizmat mavjud emas",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiError"
-                }
-              }
-            }
-          }
-        },
-        "tags": [
-          "Xabar, vazifa, anketa va yordam"
-        ],
-        "security": [
-          {
-            "cookie": [],
-            "CSRF": []
-          }
-        ],
-        "x-roles": [
-          "SUPERADMIN"
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "title": {
-                    "type": "string"
-                  },
-                  "sanatorium_ids": {
-                    "type": "array",
-                    "items": {
-                      "type": "string",
-                      "format": "uuid"
-                    }
-                  },
-                  "recipient_ids": {
-                    "type": "array",
-                    "items": {
-                      "type": "string",
-                      "format": "uuid"
-                    }
-                  },
-                  "questions": {
-                    "type": "array",
-                    "items": {
-                      "type": "object",
-                      "properties": {
-                        "id": {
-                          "type": "string"
-                        },
-                        "label": {
-                          "type": "string"
-                        },
-                        "type": {
-                          "type": "string",
-                          "enum": [
-                            "TEXT",
-                            "BOOLEAN",
-                            "NUMBER"
-                          ]
-                        },
-                        "required": {
-                          "type": "boolean"
-                        }
-                      },
-                      "required": [
-                        "id",
-                        "label",
-                        "type",
-                        "required"
-                      ],
-                      "additionalProperties": false
-                    }
-                  }
-                },
-                "required": [
-                  "title",
-                  "questions"
-                ],
-                "additionalProperties": false
-              }
-            }
-          }
-        }
-      }
-    },
-    "/surveys": {
-      "get": {
-        "operationId": "EngagementController_surveys",
-        "parameters": [],
-        "responses": {
-          "200": {
-            "description": "Muvaffaqiyatli natija",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "type": "object",
-                    "additionalProperties": true
-                  }
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Sessiya yaroqsiz",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiError"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Ruxsat yo‘q",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiError"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Topilmadi",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiError"
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "Holat yoki version konflikti",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiError"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validatsiya xatosi",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiError"
-                }
-              }
-            }
-          },
-          "429": {
-            "description": "Urinishlar limiti",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiError"
-                }
-              }
-            }
-          },
-          "503": {
-            "description": "Tashqi xizmat mavjud emas",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiError"
-                }
-              }
-            }
-          }
-        },
-        "tags": [
-          "Xabar, vazifa, anketa va yordam"
-        ],
-        "security": [
-          {
-            "cookie": []
-          },
-          {
-            "bearer": []
-          }
-        ],
-        "x-roles": [
-          "SUPERADMIN",
-          "STAFF",
-          "CUSTOMER"
-        ]
-      }
-    },
-    "/surveys/{id}/responses": {
-      "post": {
-        "operationId": "EngagementController_answer",
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            }
-          },
-          {
-            "name": "Origin",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "type": "string"
-            },
-            "description": "Allowed WEB origin; required with cookie authentication."
-          }
-        ],
-        "responses": {
-          "201": {
-            "description": "Muvaffaqiyatli natija",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "additionalProperties": true
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Sessiya yaroqsiz",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiError"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Ruxsat yo‘q",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiError"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Topilmadi",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiError"
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "Holat yoki version konflikti",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiError"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validatsiya xatosi",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiError"
-                }
-              }
-            }
-          },
-          "429": {
-            "description": "Urinishlar limiti",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiError"
-                }
-              }
-            }
-          },
-          "503": {
-            "description": "Tashqi xizmat mavjud emas",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiError"
-                }
-              }
-            }
-          }
-        },
-        "tags": [
-          "Xabar, vazifa, anketa va yordam"
-        ],
-        "security": [
-          {
-            "cookie": [],
-            "CSRF": []
-          },
-          {
-            "bearer": []
-          }
-        ],
-        "x-roles": [
-          "SUPERADMIN",
-          "STAFF",
-          "CUSTOMER"
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "version": {
-                    "type": "integer"
-                  },
-                  "answers": {
-                    "type": "object",
-                    "additionalProperties": {
-                      "oneOf": [
-                        {
-                          "type": "string"
-                        },
-                        {
-                          "type": "boolean"
-                        },
-                        {
-                          "type": "number"
-                        }
-                      ]
-                    }
-                  }
-                },
-                "required": [
-                  "version",
-                  "answers"
                 ],
                 "additionalProperties": false
               }
@@ -17169,7 +16312,7 @@
           }
         },
         "tags": [
-          "Xabar, vazifa, anketa va yordam"
+          "Xabar va yordam"
         ],
         "security": [
           {
@@ -17329,7 +16472,7 @@
           }
         },
         "tags": [
-          "Xabar, vazifa, anketa va yordam"
+          "Xabar va yordam"
         ],
         "security": [
           {
@@ -17449,7 +16592,7 @@
           }
         },
         "tags": [
-          "Xabar, vazifa, anketa va yordam"
+          "Xabar va yordam"
         ],
         "security": [
           {
@@ -17589,7 +16732,7 @@
           }
         },
         "tags": [
-          "Xabar, vazifa, anketa va yordam"
+          "Xabar va yordam"
         ],
         "security": [
           {
@@ -17720,7 +16863,7 @@
           }
         },
         "tags": [
-          "Xabar, vazifa, anketa va yordam"
+          "Xabar va yordam"
         ],
         "security": [
           {
@@ -17833,7 +16976,7 @@
           }
         },
         "tags": [
-          "Xabar, vazifa, anketa va yordam"
+          "Xabar va yordam"
         ],
         "security": [
           {
@@ -17869,6 +17012,13 @@
                   "sanatorium_id": {
                     "type": "string",
                     "format": "uuid"
+                  },
+                  "target_user_id": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "imageUrl": {
+                    "type": "string"
                   }
                 },
                 "required": [
@@ -17980,7 +17130,7 @@
           }
         },
         "tags": [
-          "Xabar, vazifa, anketa va yordam"
+          "Xabar va yordam"
         ],
         "security": [
           {
@@ -18104,7 +17254,7 @@
           }
         },
         "tags": [
-          "Xabar, vazifa, anketa va yordam"
+          "Xabar va yordam"
         ],
         "security": [
           {
@@ -18132,6 +17282,9 @@
                   },
                   "close": {
                     "type": "boolean"
+                  },
+                  "imageUrl": {
+                    "type": "string"
                   }
                 },
                 "required": [
@@ -18260,7 +17413,7 @@
           }
         },
         "tags": [
-          "Xabar, vazifa, anketa va yordam"
+          "Xabar va yordam"
         ],
         "security": [
           {
@@ -18392,7 +17545,7 @@
           }
         },
         "tags": [
-          "Xabar, vazifa, anketa va yordam"
+          "Xabar va yordam"
         ],
         "security": [
           {
@@ -18508,7 +17661,7 @@
           }
         },
         "tags": [
-          "Xabar, vazifa, anketa va yordam"
+          "Xabar va yordam"
         ],
         "security": [
           {
@@ -18617,7 +17770,7 @@
           }
         },
         "tags": [
-          "Xabar, vazifa, anketa va yordam"
+          "Xabar va yordam"
         ],
         "security": [
           {
@@ -18732,7 +17885,7 @@
           }
         },
         "tags": [
-          "Xabar, vazifa, anketa va yordam"
+          "Xabar va yordam"
         ],
         "security": [
           {
@@ -18857,7 +18010,7 @@
           }
         },
         "tags": [
-          "Xabar, vazifa, anketa va yordam"
+          "Xabar va yordam"
         ],
         "security": [
           {

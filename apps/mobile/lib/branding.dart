@@ -8,11 +8,17 @@ class SihhatLogo extends StatelessWidget {
   Widget build(BuildContext context) => ClipRRect(
     borderRadius: BorderRadius.circular(size * .22),
     child: Image.asset(
-      'assets/branding/sihhat-logo.jpg',
+      'assets/branding/sihhat-logo.png',
       width: size,
       height: size,
       fit: BoxFit.contain,
       semanticLabel: 'Sihhat uz logosi',
+      errorBuilder: (_, _, _) => Image.asset(
+        'assets/branding/sihhat-logo.jpg',
+        width: size,
+        height: size,
+        fit: BoxFit.contain,
+      ),
     ),
   );
 }

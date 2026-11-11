@@ -2,19 +2,26 @@
 import { useEffect, useRef, useState } from "react";
 import {
   Bell,
+  Building2,
   Check,
   CheckCheck,
   ClipboardList,
+  Download,
   Edit2,
   FileText,
   Image as ImageIcon,
   Mail,
   MessageSquare,
+  Paperclip,
   Phone,
+  Plus,
+  Search,
   Send,
   Smartphone,
   Star,
   Trash2,
+  Users,
+  Video,
   X,
 } from "lucide-react";
 import { api, toMinor } from "@sihhat/api-client";
@@ -289,7 +296,8 @@ export function Communications({
       {kind === "messages" ? (
         <DataPanel
           key={messageTab}
-          path={`/messages?box=${messageTab}`}
+          path="/messages"
+          params={{ box: messageTab }}
           title={
             messageTab === "sent"
               ? "Yuborilgan e’lonlar va xabarlar"
@@ -738,11 +746,34 @@ export function Support() {
     [id, setId] = useState<string | null>(null),
     [searchQuery, setSearchQuery] = useState(""),
     [replyText, setReplyText] = useState(""),
-    [attachedImage, setAttachedImage] = useState<string | null>(null),
+    [attachedMedia, setAttachedMedia] = useState<{
+      name: string;
+      url: string;
+      type: "image" | "video" | "file";
+      sizeText?: string;
+    } | null>(null),
+    [attachMenuOpen, setAttachMenuOpen] = useState(false),
     [editingMessageId, setEditingMessageId] = useState<string | null>(null),
     [editingText, setEditingText] = useState(""),
     [sending, setSending] = useState(false),
-    fileInputRef = useRef<HTMLInputElement>(null),
+    // New Ticket Modal State
+    [newModalOpen, setNewModalOpen] = useState(false),
+    [recipientType, setRecipientType] = useState<"CUSTOMER" | "PARTNER">("CUSTOMER"),
+    [customers, setCustomers] = useState<Row[]>([]),
+    [partners, setPartners] = useState<Row[]>([]),
+    [loadingRecipients, setLoadingRecipients] = useState(false),
+    [userSearch, setUserSearch] = useState(""),
+    [partnerSearch, setPartnerSearch] = useState(""),
+    [selectedUserId, setSelectedUserId] = useState<string | null>(null),
+    [selectedPartnerId, setSelectedPartnerId] = useState<string | null>(ctx.tenant ?? null),
+    [newTitle, setNewTitle] = useState(""),
+    [newText, setNewText] = useState(""),
+    [creatingTicket, setCreatingTicket] = useState(false),
+    // Refs
+    attachMenuRef = useRef<HTMLDivElement>(null),
+    imageInputRef = useRef<HTMLInputElement>(null),
+    videoInputRef = useRef<HTMLInputElement>(null),
+    docInputRef = useRef<HTMLInputElement>(null),
     messagesEndRef = useRef<HTMLDivElement>(null),
     tickets = useRemote("/support/tickets", ctx.epoch),
     detail = useRemote(id ? `/support/tickets/${id}` : null, ctx.epoch),
@@ -776,14 +807,48 @@ export function Support() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [thread?.messages?.length]);
 
+  // Click outside to close attachment menu
+  useEffect(() => {
+    if (!attachMenuOpen) return;
+    const closeMenu = (e: MouseEvent) => {
+      if (attachMenuRef.current && !attachMenuRef.current.contains(e.target as Node)) {
+        setAttachMenuOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", closeMenu);
+    return () => document.removeEventListener("mousedown", closeMenu);
+  }, [attachMenuOpen]);
+
+  // Fetch recipients when new ticket modal opens
+  useEffect(() => {
+    if (!newModalOpen) return;
+    let isMounted = true;
+    setLoadingRecipients(true);
+    Promise.all([
+      api<any>("/superadmin/customers?limit=100").catch(() => []),
+      api<any>((ctx.admin ? "/superadmin" : "/partner") + "/sanatoriums?limit=100").catch(() => []),
+    ]).then(([cRes, pRes]) => {
+      if (!isMounted) return;
+      const cList = Array.isArray(cRes) ? cRes : (cRes?.data ?? cRes?.rows ?? []);
+      const pList = Array.isArray(pRes) ? pRes : (pRes?.data ?? pRes?.rows ?? []);
+      setCustomers(cList);
+      setPartners(pList);
+      setLoadingRecipients(false);
+    });
+    return () => {
+      isMounted = false;
+    };
+  }, [newModalOpen, ctx.admin]);
+
   const selectTicket = (ticketId: string | null) => {
     setId(ticketId);
     setThread(null);
-    setAttachedImage(null);
+    setAttachedMedia(null);
+    setAttachMenuOpen(false);
     setEditingMessageId(null);
   };
 
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     if (!file.type.startsWith("image/")) {
@@ -816,9 +881,17 @@ export function Support() {
         const c2d = canvas.getContext("2d");
         if (c2d) {
           c2d.drawImage(img, 0, 0, w, h);
-          setAttachedImage(canvas.toDataURL("image/jpeg", 0.82));
+          setAttachedMedia({
+            name: file.name,
+            url: canvas.toDataURL("image/jpeg", 0.82),
+            type: "image",
+          });
         } else {
-          setAttachedImage(raw);
+          setAttachedMedia({
+            name: file.name,
+            url: raw,
+            type: "image",
+          });
         }
       };
       img.src = raw;
@@ -827,24 +900,114 @@ export function Support() {
     e.target.value = "";
   };
 
+  const handleVideoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith("video/")) {
+      ctx.notice("Faqat video fayllari (MP4, WebM, MOV) yuklanishi mumkin");
+      return;
+    }
+    if (file.size > 15 * 1024 * 1024) {
+      ctx.notice("Video hajmi 15 MB dan oshmasligi kerak");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      setAttachedMedia({
+        name: file.name,
+        url: reader.result as string,
+        type: "video",
+        sizeText: `${(file.size / (1024 * 1024)).toFixed(1)} MB`,
+      });
+    };
+    reader.readAsDataURL(file);
+    e.target.value = "";
+  };
+
+  const handleDocSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 15 * 1024 * 1024) {
+      ctx.notice("Fayl hajmi 15 MB dan oshmasligi kerak");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      setAttachedMedia({
+        name: file.name,
+        url: reader.result as string,
+        type: "file",
+        sizeText: `${(file.size / (1024 * 1024)).toFixed(1)} MB`,
+      });
+    };
+    reader.readAsDataURL(file);
+    e.target.value = "";
+  };
+
   const handleSend = async (e?: React.FormEvent) => {
     e?.preventDefault();
     const text = replyText.trim();
-    if ((!text && !attachedImage) || !id || sending) return;
+    if ((!text && !attachedMedia) || !id || sending) return;
     setSending(true);
     try {
+      const fallbackPlaceholder = attachedMedia
+        ? attachedMedia.type === "video"
+          ? "🎬 Video"
+          : attachedMedia.type === "file"
+            ? `📎 Fayl: ${attachedMedia.name}`
+            : "📷 Rasm"
+        : "";
       await api(`/support/tickets/${id}/messages`, "POST", {
-        text: text || "📷 Rasm",
-        imageUrl: attachedImage || undefined,
+        text: text || fallbackPlaceholder,
+        imageUrl: attachedMedia?.url || undefined,
       });
       setReplyText("");
-      setAttachedImage(null);
+      setAttachedMedia(null);
       const fresh = await api<Row>(`/support/tickets/${id}`);
       if (fresh) setThread(fresh);
     } catch (err: any) {
       ctx.notice(err.message || "Xabar yuborishda xatolik");
     } finally {
       setSending(false);
+    }
+  };
+
+  const handleCreateTicket = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newTitle.trim() || !newText.trim() || creatingTicket) return;
+    if (recipientType === "CUSTOMER" && !selectedUserId) {
+      ctx.notice("Iltimos, ilova foydalanuvchisini tanlang");
+      return;
+    }
+    if (recipientType === "PARTNER" && !selectedPartnerId) {
+      ctx.notice("Iltimos, hamkor sanatoriyani tanlang");
+      return;
+    }
+    setCreatingTicket(true);
+    try {
+      const payload: any = {
+        title: newTitle.trim(),
+        text: newText.trim(),
+      };
+      if (recipientType === "CUSTOMER") {
+        payload.target_user_id = selectedUserId;
+      } else {
+        payload.sanatorium_id = selectedPartnerId;
+      }
+      const res = await api<Row>("/support/tickets", "POST", payload);
+      ctx.notice("Yangi suhbat muvaffaqiyatli ochildi");
+      setNewModalOpen(false);
+      setNewTitle("");
+      setNewText("");
+      setSelectedUserId(null);
+      await tickets.reload();
+      if (res?.id) {
+        selectTicket(res.id);
+      }
+    } catch (err: any) {
+      ctx.notice(err.message || "Murojaat yaratishda xatolik yuz berdi");
+    } finally {
+      setCreatingTicket(false);
     }
   };
 
@@ -892,6 +1055,29 @@ export function Support() {
       )
     : allTickets;
 
+  const filteredCustomers = customers.filter((c: Row) => {
+    if (!userSearch.trim()) return true;
+    const q = userSearch.toLowerCase();
+    return (
+      (c.name ?? "").toLowerCase().includes(q) ||
+      (c.phone ?? "").toLowerCase().includes(q) ||
+      (c.email ?? "").toLowerCase().includes(q) ||
+      (c.login ?? "").toLowerCase().includes(q)
+    );
+  });
+
+  const filteredPartners = partners.filter((p: Row) => {
+    if (!partnerSearch.trim()) return true;
+    const q = partnerSearch.toLowerCase();
+    return (
+      (p.name ?? "").toLowerCase().includes(q) ||
+      (p.region ?? "").toLowerCase().includes(q)
+    );
+  });
+
+  const selectedUser = customers.find((c: Row) => c.id === selectedUserId);
+  const selectedPartner = partners.find((p: Row) => p.id === selectedPartnerId);
+
   const t = thread ?? detail.data;
   return (
     <>
@@ -899,28 +1085,367 @@ export function Support() {
         title="Yordam xizmati"
         subtitle="Mijozlar va sanatoriyalar bilan Telegram uslubidagi qulay chat."
       >
-        <AddButton
-          onClick={() =>
-            action(
-              "Yangi murojaat",
-              "/support/tickets",
-              { sanatorium_id: ctx.tenant },
-              [
-                { key: "title", label: "Mavzu", required: true },
-                {
-                  key: "text",
-                  label: "Murojaat matni",
-                  type: "textarea",
-                  required: true,
-                  minLength: 3,
-                },
-              ],
-            )
-          }
-        >
+        <AddButton onClick={() => setNewModalOpen(true)}>
           Murojaat yaratish
         </AddButton>
       </PageHeading>
+
+      {/* Recipient Selection Modal */}
+      {newModalOpen && (
+        <div className="modal-backdrop" style={{ zIndex: 1000 }} onClick={() => !creatingTicket && setNewModalOpen(false)}>
+          <section
+            className="modal"
+            role="dialog"
+            aria-modal="true"
+            style={{ maxWidth: "620px", width: "95%", maxHeight: "90vh", display: "flex", flexDirection: "column", overflow: "hidden" }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="modal-heading" style={{ padding: "16px 20px", borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
+              <div>
+                <h2 style={{ fontSize: "18px", fontWeight: 700, margin: 0, color: "#eef7f2" }}>Yangi xabar / murojaat</h2>
+                <p className="muted" style={{ fontSize: "13px", margin: "4px 0 0" }}>Qabul qiluvchini tanlang va xabar yozing</p>
+              </div>
+              <button
+                className="icon-button"
+                type="button"
+                aria-label="Yopish"
+                disabled={creatingTicket}
+                onClick={() => setNewModalOpen(false)}
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateTicket} style={{ padding: "20px", overflowY: "auto", display: "flex", flexDirection: "column", gap: "16px" }}>
+              {/* Recipient Type Switcher Tabs */}
+              <div>
+                <label style={{ fontSize: "12px", fontWeight: 600, color: "#8ea69d", textTransform: "uppercase", letterSpacing: "0.5px", display: "block", marginBottom: "8px" }}>
+                  Qabul qiluvchi turi
+                </label>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", background: "rgba(0,0,0,0.25)", padding: "4px", borderRadius: "10px" }}>
+                  <button
+                    type="button"
+                    onClick={() => setRecipientType("CUSTOMER")}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      gap: "8px",
+                      padding: "10px 14px",
+                      borderRadius: "8px",
+                      border: "none",
+                      fontWeight: 600,
+                      fontSize: "13px",
+                      cursor: "pointer",
+                      transition: "all 0.15s ease",
+                      background: recipientType === "CUSTOMER" ? "#25e2a2" : "transparent",
+                      color: recipientType === "CUSTOMER" ? "#041610" : "#a2b8ad",
+                    }}
+                  >
+                    <Smartphone size={16} />
+                    <span>📱 Ilova foydalanuvchisi</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setRecipientType("PARTNER")}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      gap: "8px",
+                      padding: "10px 14px",
+                      borderRadius: "8px",
+                      border: "none",
+                      fontWeight: 600,
+                      fontSize: "13px",
+                      cursor: "pointer",
+                      transition: "all 0.15s ease",
+                      background: recipientType === "PARTNER" ? "#25e2a2" : "transparent",
+                      color: recipientType === "PARTNER" ? "#041610" : "#a2b8ad",
+                    }}
+                  >
+                    <Building2 size={16} />
+                    <span>🏥 Hamkor sanatoriya</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Customer Picker */}
+              {recipientType === "CUSTOMER" && (
+                <div>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
+                    <label style={{ fontSize: "12px", fontWeight: 600, color: "#8ea69d" }}>
+                      Ilova foydalanuvchisini tanlang *
+                    </label>
+                    {selectedUser && (
+                      <span style={{ fontSize: "11px", color: "#25e2a2", fontWeight: 600 }}>
+                        Tanlandi: {selectedUser.name}
+                      </span>
+                    )}
+                  </div>
+                  <div style={{ position: "relative", marginBottom: "8px" }}>
+                    <input
+                      type="text"
+                      placeholder="Foydalanuvchi ismi, telefon yoki emaili bo‘yicha qidirish..."
+                      value={userSearch}
+                      onChange={(e) => setUserSearch(e.target.value)}
+                      style={{
+                        width: "100%",
+                        padding: "9px 12px 9px 34px",
+                        background: "#061d15",
+                        border: "1px solid #1c523f",
+                        borderRadius: "8px",
+                        color: "#fff",
+                        fontSize: "13px",
+                        boxSizing: "border-box",
+                      }}
+                    />
+                    <Search size={15} style={{ position: "absolute", left: "11px", top: "11px", color: "#8ea69d" }} />
+                  </div>
+
+                  <div
+                    style={{
+                      maxHeight: "160px",
+                      overflowY: "auto",
+                      border: "1px solid #194635",
+                      borderRadius: "8px",
+                      background: "#041610",
+                      padding: "4px",
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: "2px",
+                    }}
+                  >
+                    {loadingRecipients ? (
+                      <div style={{ padding: "16px", textAlign: "center", color: "#8ea69d", fontSize: "12px" }}>
+                        Foydalanuvchilar yuklanmoqda...
+                      </div>
+                    ) : filteredCustomers.length === 0 ? (
+                      <div style={{ padding: "16px", textAlign: "center", color: "#8ea69d", fontSize: "12px" }}>
+                        Foydalanuvchi topilmadi
+                      </div>
+                    ) : (
+                      filteredCustomers.map((cust: Row) => {
+                        const isSel = selectedUserId === cust.id;
+                        const cInit = (cust.name || "U").slice(0, 1).toUpperCase();
+                        return (
+                          <div
+                            key={cust.id}
+                            onClick={() => setSelectedUserId(cust.id)}
+                            style={{
+                              padding: "8px 10px",
+                              borderRadius: "6px",
+                              cursor: "pointer",
+                              display: "flex",
+                              alignItems: "center",
+                              gap: "10px",
+                              background: isSel ? "rgba(37,226,162,0.18)" : "transparent",
+                              border: isSel ? "1px solid #25e2a2" : "1px solid transparent",
+                              transition: "background 0.1s",
+                            }}
+                          >
+                            <div
+                              style={{
+                                width: "30px",
+                                height: "30px",
+                                borderRadius: "50%",
+                                background: isSel ? "#25e2a2" : "#133f30",
+                                color: isSel ? "#041610" : "#25e2a2",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                fontWeight: 700,
+                                fontSize: "12px",
+                                flexShrink: 0,
+                              }}
+                            >
+                              {cInit}
+                            </div>
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div style={{ fontSize: "13px", fontWeight: 600, color: isSel ? "#fff" : "#eef7f2", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                                {cust.name || "Noma'lum foydalanuvchi"}
+                              </div>
+                              <div style={{ fontSize: "11px", color: "#8ea69d", display: "flex", gap: "8px" }}>
+                                {cust.phone && <span>{cust.phone}</span>}
+                                {cust.email && <span>{cust.email}</span>}
+                              </div>
+                            </div>
+                            {isSel && <Check size={16} style={{ color: "#25e2a2" }} />}
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Partner Picker */}
+              {recipientType === "PARTNER" && (
+                <div>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
+                    <label style={{ fontSize: "12px", fontWeight: 600, color: "#8ea69d" }}>
+                      Hamkor sanatoriyani tanlang *
+                    </label>
+                    {selectedPartner && (
+                      <span style={{ fontSize: "11px", color: "#25e2a2", fontWeight: 600 }}>
+                        Tanlandi: {selectedPartner.name}
+                      </span>
+                    )}
+                  </div>
+                  <div style={{ position: "relative", marginBottom: "8px" }}>
+                    <input
+                      type="text"
+                      placeholder="Sanatoriya nomi bo‘yicha qidirish..."
+                      value={partnerSearch}
+                      onChange={(e) => setPartnerSearch(e.target.value)}
+                      style={{
+                        width: "100%",
+                        padding: "9px 12px 9px 34px",
+                        background: "#061d15",
+                        border: "1px solid #1c523f",
+                        borderRadius: "8px",
+                        color: "#fff",
+                        fontSize: "13px",
+                        boxSizing: "border-box",
+                      }}
+                    />
+                    <Search size={15} style={{ position: "absolute", left: "11px", top: "11px", color: "#8ea69d" }} />
+                  </div>
+
+                  <div
+                    style={{
+                      maxHeight: "160px",
+                      overflowY: "auto",
+                      border: "1px solid #194635",
+                      borderRadius: "8px",
+                      background: "#041610",
+                      padding: "4px",
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: "2px",
+                    }}
+                  >
+                    {loadingRecipients ? (
+                      <div style={{ padding: "16px", textAlign: "center", color: "#8ea69d", fontSize: "12px" }}>
+                        Sanatoriyalar yuklanmoqda...
+                      </div>
+                    ) : filteredPartners.length === 0 ? (
+                      <div style={{ padding: "16px", textAlign: "center", color: "#8ea69d", fontSize: "12px" }}>
+                        Sanatoriya topilmadi
+                      </div>
+                    ) : (
+                      filteredPartners.map((san: Row) => {
+                        const isSel = selectedPartnerId === san.id;
+                        return (
+                          <div
+                            key={san.id}
+                            onClick={() => setSelectedPartnerId(san.id)}
+                            style={{
+                              padding: "8px 10px",
+                              borderRadius: "6px",
+                              cursor: "pointer",
+                              display: "flex",
+                              alignItems: "center",
+                              gap: "10px",
+                              background: isSel ? "rgba(37,226,162,0.18)" : "transparent",
+                              border: isSel ? "1px solid #25e2a2" : "1px solid transparent",
+                            }}
+                          >
+                            <Building2 size={18} style={{ color: isSel ? "#25e2a2" : "#8ea69d", flexShrink: 0 }} />
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div style={{ fontSize: "13px", fontWeight: 600, color: isSel ? "#fff" : "#eef7f2" }}>
+                                {san.name}
+                              </div>
+                              {san.region && <div style={{ fontSize: "11px", color: "#8ea69d" }}>{san.region}</div>}
+                            </div>
+                            {isSel && <Check size={16} style={{ color: "#25e2a2" }} />}
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Title / Mavzu */}
+              <div>
+                <label style={{ fontSize: "12px", fontWeight: 600, color: "#8ea69d", display: "block", marginBottom: "6px" }}>
+                  Mavzu *
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="Mavzu (masalan: Xizmat ko‘rsatish / E’lon / Bron bo‘yicha)"
+                  value={newTitle}
+                  onChange={(e) => setNewTitle(e.target.value)}
+                  style={{
+                    width: "100%",
+                    padding: "9px 12px",
+                    background: "#061d15",
+                    border: "1px solid #1c523f",
+                    borderRadius: "8px",
+                    color: "#fff",
+                    fontSize: "13px",
+                    boxSizing: "border-box",
+                  }}
+                />
+              </div>
+
+              {/* Text / Matn */}
+              <div>
+                <label style={{ fontSize: "12px", fontWeight: 600, color: "#8ea69d", display: "block", marginBottom: "6px" }}>
+                  Xabar matni *
+                </label>
+                <textarea
+                  required
+                  rows={4}
+                  placeholder="Xabarni shu yerga yozing..."
+                  value={newText}
+                  onChange={(e) => setNewText(e.target.value)}
+                  style={{
+                    width: "100%",
+                    padding: "10px 12px",
+                    background: "#061d15",
+                    border: "1px solid #1c523f",
+                    borderRadius: "8px",
+                    color: "#fff",
+                    fontSize: "13px",
+                    boxSizing: "border-box",
+                    resize: "vertical",
+                    minHeight: "80px",
+                    fontFamily: "inherit",
+                  }}
+                />
+              </div>
+
+              {/* Modal Buttons */}
+              <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px", marginTop: "8px" }}>
+                <button
+                  type="button"
+                  className="button secondary"
+                  disabled={creatingTicket}
+                  onClick={() => setNewModalOpen(false)}
+                >
+                  Bekor qilish
+                </button>
+                <button
+                  type="submit"
+                  className="button primary"
+                  disabled={
+                    creatingTicket ||
+                    !newTitle.trim() ||
+                    !newText.trim() ||
+                    (recipientType === "CUSTOMER" && !selectedUserId) ||
+                    (recipientType === "PARTNER" && !selectedPartnerId)
+                  }
+                >
+                  {creatingTicket ? "Yuborilmoqda..." : "Yuborish"}
+                </button>
+              </div>
+            </form>
+          </section>
+        </div>
+      )}
 
       <div className={`tg-messenger ${id ? "has-selection" : ""}`}>
         <div className="tg-sidebar">
@@ -929,23 +1454,7 @@ export function Support() {
             <button
               className="button secondary"
               style={{ padding: "4px 10px", fontSize: "12px", minHeight: "32px" }}
-              onClick={() =>
-                action(
-                  "Yangi murojaat",
-                  "/support/tickets",
-                  { sanatorium_id: ctx.tenant },
-                  [
-                    { key: "title", label: "Mavzu", required: true },
-                    {
-                      key: "text",
-                      label: "Murojaat matni",
-                      type: "textarea",
-                      required: true,
-                      minLength: 3,
-                    },
-                  ],
-                )
-              }
+              onClick={() => setNewModalOpen(true)}
             >
               + Yangi
             </button>
@@ -1178,22 +1687,65 @@ export function Support() {
                                 </div>
                               )}
                               {m.imageUrl && (
-                                <div style={{ marginBottom: m.text && m.text !== "📷 Rasm" ? "8px" : "0" }}>
-                                  <img
-                                    src={m.imageUrl}
-                                    alt="Biriktirilgan rasm"
-                                    onClick={() => window.open(m.imageUrl, "_blank")}
-                                    style={{
-                                      maxWidth: "100%",
-                                      maxHeight: "280px",
-                                      borderRadius: "8px",
-                                      cursor: "pointer",
-                                      display: "block",
-                                      objectFit: "cover",
-                                      border: "1px solid rgba(255,255,255,0.1)",
-                                    }}
-                                    title="Rasmni to‘liq ko‘rish"
-                                  />
+                                <div style={{ marginBottom: m.text && !["📷 Rasm", "🎬 Video"].includes(m.text) ? "8px" : "0" }}>
+                                  {m.imageUrl.startsWith("data:video/") || m.imageUrl.endsWith(".mp4") || m.imageUrl.endsWith(".webm") || m.imageUrl.endsWith(".mov") ? (
+                                    <video
+                                      src={m.imageUrl}
+                                      controls
+                                      style={{
+                                        maxWidth: "100%",
+                                        maxHeight: "300px",
+                                        borderRadius: "8px",
+                                        display: "block",
+                                        background: "#000",
+                                      }}
+                                    />
+                                  ) : m.imageUrl.startsWith("data:application/") || m.imageUrl.startsWith("data:text/") || /\.(pdf|docx?|xlsx?|zip|txt)($|\?)/i.test(m.imageUrl) ? (
+                                    <a
+                                      href={m.imageUrl}
+                                      download={m.text?.replace(/^📎 Fayl:\s*/, "") || "biriktirilgan_fayl"}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      style={{
+                                        display: "flex",
+                                        alignItems: "center",
+                                        gap: "10px",
+                                        padding: "10px 14px",
+                                        borderRadius: "8px",
+                                        background: isOwn ? "rgba(4,22,16,0.3)" : "rgba(255,255,255,0.08)",
+                                        border: "1px solid rgba(255,255,255,0.12)",
+                                        color: isOwn ? "#041610" : "#eef7f2",
+                                        textDecoration: "none",
+                                        fontWeight: 600,
+                                        fontSize: "13px",
+                                      }}
+                                    >
+                                      <FileText size={22} style={{ color: isOwn ? "#041610" : "#25e2a2", flexShrink: 0 }} />
+                                      <div style={{ flex: 1, minWidth: 0 }}>
+                                        <div style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                                          {m.text?.replace(/^📎 Fayl:\s*/, "") || "Yuklab olinadigan hujjat"}
+                                        </div>
+                                        <div style={{ fontSize: "11px", opacity: 0.75, fontWeight: 400 }}>Faylni yuklab olish</div>
+                                      </div>
+                                      <Download size={16} style={{ flexShrink: 0, opacity: 0.8 }} />
+                                    </a>
+                                  ) : (
+                                    <img
+                                      src={m.imageUrl}
+                                      alt="Biriktirilgan rasm"
+                                      onClick={() => window.open(m.imageUrl, "_blank")}
+                                      style={{
+                                        maxWidth: "100%",
+                                        maxHeight: "280px",
+                                        borderRadius: "8px",
+                                        cursor: "pointer",
+                                        display: "block",
+                                        objectFit: "cover",
+                                        border: "1px solid rgba(255,255,255,0.1)",
+                                      }}
+                                      title="Rasmni to‘liq ko‘rish"
+                                    />
+                                  )}
                                 </div>
                               )}
                               {isEditingThis ? (
@@ -1276,55 +1828,193 @@ export function Support() {
                   )
                 )}
               </div>
-              {attachedImage && (
+              {attachedMedia && (
                 <div style={{ padding: "8px 16px", background: "#0a241a", borderTop: "1px solid #19513e", display: "flex", alignItems: "center", gap: "10px" }}>
-                  <img
-                    src={attachedImage}
-                    alt="Biriktirilgan rasm"
-                    style={{ width: "42px", height: "42px", objectFit: "cover", borderRadius: "6px", border: "1px solid #25e2a2" }}
-                  />
-                  <span style={{ fontSize: "12px", color: "#66e1b9", flex: 1 }}>Rasm biriktirildi</span>
+                  {attachedMedia.type === "image" ? (
+                    <img
+                      src={attachedMedia.url}
+                      alt="Biriktirilgan rasm"
+                      style={{ width: "42px", height: "42px", objectFit: "cover", borderRadius: "6px", border: "1px solid #25e2a2" }}
+                    />
+                  ) : attachedMedia.type === "video" ? (
+                    <div style={{ width: "42px", height: "42px", borderRadius: "6px", background: "rgba(56,189,248,0.2)", border: "1px solid #38bdf8", display: "flex", alignItems: "center", justifyContent: "center", color: "#38bdf8" }}>
+                      <Video size={20} />
+                    </div>
+                  ) : (
+                    <div style={{ width: "42px", height: "42px", borderRadius: "6px", background: "rgba(251,191,36,0.2)", border: "1px solid #fbbf24", display: "flex", alignItems: "center", justifyContent: "center", color: "#fbbf24" }}>
+                      <FileText size={20} />
+                    </div>
+                  )}
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: "13px", color: "#66e1b9", fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      {attachedMedia.name}
+                    </div>
+                    <div style={{ fontSize: "11px", color: "#8ea69d" }}>
+                      {attachedMedia.type === "image" ? "Rasm biriktirildi" : attachedMedia.type === "video" ? `Video (${attachedMedia.sizeText || ""})` : `Hujjat / Fayl (${attachedMedia.sizeText || ""})`}
+                    </div>
+                  </div>
                   <button
                     type="button"
-                    onClick={() => setAttachedImage(null)}
+                    onClick={() => setAttachedMedia(null)}
                     style={{ background: "transparent", border: "none", color: "#ff7b72", cursor: "pointer", padding: "4px" }}
-                    title="Rasmni olib tashlash"
+                    title="Birikmani olib tashlash"
                   >
                     <X size={16} />
                   </button>
                 </div>
               )}
-              <form className="tg-composer" onSubmit={handleSend} style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+              <form className="tg-composer" onSubmit={handleSend} style={{ display: "flex", alignItems: "center", gap: "8px", position: "relative" }}>
                 <input
                   type="file"
-                  ref={fileInputRef}
-                  accept="image/png,image/jpeg,image/webp"
+                  ref={imageInputRef}
+                  accept="image/png,image/jpeg,image/webp,image/gif"
                   style={{ display: "none" }}
-                  onChange={handleFileSelect}
+                  onChange={handleImageSelect}
                 />
-                <button
-                  type="button"
-                  title="Rasm biriktirish"
-                  disabled={sending || t?.status === "RESOLVED" || t?.status === "CLOSED"}
-                  onClick={() => fileInputRef.current?.click()}
-                  style={{
-                    background: attachedImage ? "rgba(37,226,162,0.18)" : "transparent",
-                    border: "none",
-                    borderRadius: "6px",
-                    color: attachedImage ? "#25e2a2" : "#8ea69d",
-                    cursor: "pointer",
-                    padding: "8px",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                  }}
-                >
-                  <ImageIcon size={19} />
-                </button>
+                <input
+                  type="file"
+                  ref={videoInputRef}
+                  accept="video/mp4,video/webm,video/quicktime"
+                  style={{ display: "none" }}
+                  onChange={handleVideoSelect}
+                />
+                <input
+                  type="file"
+                  ref={docInputRef}
+                  accept=".pdf,.doc,.docx,.xls,.xlsx,.txt,.zip"
+                  style={{ display: "none" }}
+                  onChange={handleDocSelect}
+                />
+
+                {/* Telegram-style + button and popup */}
+                <div ref={attachMenuRef} style={{ position: "relative" }}>
+                  <button
+                    type="button"
+                    title="Biriktirish (+)"
+                    disabled={sending || t?.status === "RESOLVED" || t?.status === "CLOSED"}
+                    onClick={() => setAttachMenuOpen((v) => !v)}
+                    style={{
+                      background: attachMenuOpen || attachedMedia ? "rgba(37,226,162,0.2)" : "transparent",
+                      border: "1px solid",
+                      borderColor: attachMenuOpen || attachedMedia ? "#25e2a2" : "rgba(255,255,255,0.12)",
+                      borderRadius: "50%",
+                      width: "36px",
+                      height: "36px",
+                      color: attachMenuOpen || attachedMedia ? "#25e2a2" : "#8ea69d",
+                      cursor: "pointer",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      transition: "all 0.2s cubic-bezier(0.4, 0, 0.2, 1)",
+                      transform: attachMenuOpen ? "rotate(45deg)" : "none",
+                    }}
+                  >
+                    <Plus size={20} />
+                  </button>
+
+                  {attachMenuOpen && (
+                    <div
+                      style={{
+                        position: "absolute",
+                        bottom: "46px",
+                        left: "0",
+                        background: "#072017",
+                        border: "1px solid #1c523f",
+                        borderRadius: "12px",
+                        boxShadow: "0 10px 30px rgba(0,0,0,0.55), 0 0 15px rgba(37,226,162,0.12)",
+                        padding: "6px",
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: "4px",
+                        minWidth: "175px",
+                        zIndex: 60,
+                      }}
+                    >
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setAttachMenuOpen(false);
+                          imageInputRef.current?.click();
+                        }}
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "10px",
+                          padding: "8px 12px",
+                          background: "transparent",
+                          border: "none",
+                          borderRadius: "8px",
+                          color: "#eef7f2",
+                          fontSize: "13px",
+                          cursor: "pointer",
+                          textAlign: "left",
+                        }}
+                        onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(37,226,162,0.14)")}
+                        onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                      >
+                        <span style={{ color: "#25e2a2", display: "flex" }}><ImageIcon size={17} /></span>
+                        <span>📷 Rasm</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setAttachMenuOpen(false);
+                          videoInputRef.current?.click();
+                        }}
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "10px",
+                          padding: "8px 12px",
+                          background: "transparent",
+                          border: "none",
+                          borderRadius: "8px",
+                          color: "#eef7f2",
+                          fontSize: "13px",
+                          cursor: "pointer",
+                          textAlign: "left",
+                        }}
+                        onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(37,226,162,0.14)")}
+                        onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                      >
+                        <span style={{ color: "#38bdf8", display: "flex" }}><Video size={17} /></span>
+                        <span>🎬 Video</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setAttachMenuOpen(false);
+                          docInputRef.current?.click();
+                        }}
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "10px",
+                          padding: "8px 12px",
+                          background: "transparent",
+                          border: "none",
+                          borderRadius: "8px",
+                          color: "#eef7f2",
+                          fontSize: "13px",
+                          cursor: "pointer",
+                          textAlign: "left",
+                        }}
+                        onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(37,226,162,0.14)")}
+                        onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                      >
+                        <span style={{ color: "#fbbf24", display: "flex" }}><Paperclip size={17} /></span>
+                        <span>📎 Fayl / Hujjat</span>
+                      </button>
+                    </div>
+                  )}
+                </div>
+
                 <input
                   type="text"
                   className="tg-composer-input"
-                  placeholder={attachedImage ? "Rasmga izoh yozing (ixtiyoriy)..." : "Xabar yozing..."}
+                  placeholder={attachedMedia ? "Izoh yozing (ixtiyoriy)..." : "Xabar yozing..."}
                   value={replyText}
                   disabled={sending || t?.status === "RESOLVED" || t?.status === "CLOSED"}
                   onChange={(e) => setReplyText(e.target.value)}
@@ -1332,7 +2022,7 @@ export function Support() {
                 <button
                   type="submit"
                   className="tg-composer-send"
-                  disabled={(!replyText.trim() && !attachedImage) || sending || t?.status === "RESOLVED" || t?.status === "CLOSED"}
+                  disabled={(!replyText.trim() && !attachedMedia) || sending || t?.status === "RESOLVED" || t?.status === "CLOSED"}
                   aria-label="Xabar yuborish"
                 >
                   <Send size={18} />

@@ -15,8 +15,12 @@ export class EngagementService implements OnModuleInit {
     `).catch(()=>{});
   }
   private async recipients(actor:Actor,ids:string[]){
-    if(actor.kind==='CUSTOMER')fail('PERMISSION_DENIED','Ruxsat yo‘q',403);const users=await this.db.user.findMany({where:{id:{in:ids},status:'ACTIVE',kind:'STAFF'},select:{id:true}});if(users.length!==new Set(ids).size)fail('RECIPIENT_INVALID','Qabul qiluvchini tekshiring',422);
-    if(actor.kind!=='SUPERADMIN'){const tenants=tenantIds(actor,'messages.send')??[];const members=await this.db.membership.findMany({where:{userId:{in:ids},sanatoriumId:{in:tenants},status:'ACTIVE'},select:{userId:true}});if(new Set(members.map(m=>m.userId)).size!==new Set(ids).size)fail('PERMISSION_DENIED','Boshqa sanatoriyaga yubora olmaysiz',403);}return [...new Set(ids)];
+    if(actor.kind==='CUSTOMER')fail('PERMISSION_DENIED','Ruxsat yo‘q',403);
+    if(!ids.length) return [];
+    const users=await this.db.user.findMany({where:{id:{in:ids},status:'ACTIVE'},select:{id:true}});
+    if(actor.kind!=='SUPERADMIN'&&users.length!==new Set(ids).size)fail('RECIPIENT_INVALID','Qabul qiluvchini tekshiring',422);
+    if(actor.kind!=='SUPERADMIN'){const tenants=tenantIds(actor,'messages.send')??[];const members=await this.db.membership.findMany({where:{userId:{in:ids},sanatoriumId:{in:tenants},status:'ACTIVE'},select:{userId:true}});if(new Set(members.map(m=>m.userId)).size!==new Set(ids).size)fail('PERMISSION_DENIED','Boshqa sanatoriyaga yubora olmaysiz',403);}
+    return [...new Set(users.map(u=>u.id))];
   }
   async broadcast(actor:Actor,body:unknown){requirePlatform(actor,'announcements.broadcast');const i=parse(z.object({sanatorium_ids:z.array(uuid).max(100).optional(),title:z.string().min(2).max(150),body:z.string().min(1).max(10000),kind:z.enum(['MESSAGE','WARNING']),asset_ids:z.array(uuid).max(10).default([])}).strict(),body);const members=await this.db.membership.findMany({where:{status:'ACTIVE',...(i.sanatorium_ids?{sanatoriumId:{in:i.sanatorium_ids}}:{})},select:{userId:true}});return this.send(actor,{title:i.title,body:i.body,kind:i.kind,asset_ids:i.asset_ids,recipient_ids:[...new Set(members.map(m=>m.userId))]});}
   async send(actor:Actor,body:unknown){const i=parse(z.object({title:z.string().min(2).max(150),body:z.string().min(1).max(10000),kind:z.enum(['MESSAGE','WARNING']).default('MESSAGE'),asset_ids:z.array(uuid).max(10).default([]),recipient_ids:z.array(uuid).max(1000)}).strict(),body);const ids=await this.recipients(actor,i.recipient_ids);
@@ -96,8 +100,32 @@ export class EngagementService implements OnModuleInit {
   async reviewReply(actor:Actor,id:string,body:unknown){parse(uuid,id);const i=parse(z.object({reply:z.string().trim().min(3).max(3000)}).strict(),body);const r=await this.db.review.findUnique({where:{id}});if(!r)fail('NOT_FOUND','Sharh topilmadi',404);scope(actor,r.sanatoriumId,'reviews.reply');return this.db.atomic(async tx=>{const result=await tx.review.update({where:{id},data:{reply:i.reply}});await audit(tx,actor.id,'review.replied',id,r.sanatoriumId);return result;});}
   async moderateReview(actor:Actor,id:string,body:unknown){requirePlatform(actor,'reviews.moderate');parse(uuid,id);const i=parse(z.object({status:z.enum(['PUBLISHED','HIDDEN']),reason}).strict(),body);return this.db.atomic(async tx=>{const r=await tx.review.update({where:{id},data:{status:i.status,moderationReason:i.reason}});await audit(tx,actor.id,'review.moderated',id,r.sanatoriumId,undefined,i);return r;});}
   async ticket(actor:Actor,body:unknown,key?:string){
-    const i=parse(z.object({title:z.string().min(2).max(150),text:z.string().min(1).max(5000),imageUrl:z.string().max(10_000_000).optional(),booking_id:uuid.optional(),sanatorium_id:uuid.optional()}).strict(),body);let tenant=i.sanatorium_id;if(i.booking_id){const b=await this.db.booking.findUnique({where:{id:i.booking_id}});if(!b)fail('NOT_FOUND','Bron topilmadi',404);if(actor.kind==='CUSTOMER'){if(b.userId!==actor.id)fail('NOT_FOUND','Bron topilmadi',404);}else scope(actor,b.sanatoriumId,'support.read');tenant=b.sanatoriumId;}else if(tenant&&actor.kind!=='CUSTOMER')scope(actor,tenant,'support.read');
-    const run=async(tx:Tx)=>{const t=await tx.supportTicket.create({data:{userId:actor.id,sanatoriumId:tenant,bookingId:i.booking_id,title:i.title}});await tx.supportMessage.create({data:{ticketId:t.id,userId:actor.id,text:i.text,imageUrl:i.imageUrl??null}});await audit(tx,actor.id,'support.opened',t.id,tenant);const admins=await tx.user.findMany({where:{kind:'SUPERADMIN',status:'ACTIVE'},select:{id:true}});await emit(tx,'support.opened',{ticket_id:t.id,recipient_ids:admins.map(a=>a.id)});return t;};
+    const i=parse(z.object({
+      title:z.string().min(2).max(150),
+      text:z.string().min(1).max(5000),
+      imageUrl:z.string().max(10_000_000).optional(),
+      booking_id:uuid.optional(),
+      sanatorium_id:uuid.optional(),
+      target_user_id:uuid.optional()
+    }).strict(),body);
+    let tenant=i.sanatorium_id;
+    if(i.booking_id){
+      const b=await this.db.booking.findUnique({where:{id:i.booking_id}});
+      if(!b)fail('NOT_FOUND','Bron topilmadi',404);
+      if(actor.kind==='CUSTOMER'){
+        if(b.userId!==actor.id)fail('NOT_FOUND','Bron topilmadi',404);
+      }else scope(actor,b.sanatoriumId,'support.read');
+      tenant=b.sanatoriumId;
+    }else if(tenant&&actor.kind!=='CUSTOMER'&&actor.kind!=='SUPERADMIN')scope(actor,tenant,'support.read');
+    const run=async(tx:Tx)=>{
+      const ticketUserId = (actor.kind !== 'CUSTOMER' && i.target_user_id) ? i.target_user_id : actor.id;
+      const t=await tx.supportTicket.create({data:{userId:ticketUserId,sanatoriumId:tenant,bookingId:i.booking_id,title:i.title}});
+      await tx.supportMessage.create({data:{ticketId:t.id,userId:actor.id,text:i.text,imageUrl:i.imageUrl??null}});
+      await audit(tx,actor.id,'support.opened',t.id,tenant);
+      const admins=await tx.user.findMany({where:{kind:'SUPERADMIN',status:'ACTIVE'},select:{id:true}});
+      await emit(tx,'support.opened',{ticket_id:t.id,recipient_ids:admins.map(a=>a.id)});
+      return t;
+    };
     return key?this.db.idempotent(actor.id,'support.open',key,i,run):this.db.atomic(run);
   }
   async tickets(actor:Actor){
@@ -247,7 +275,10 @@ export class EngagementService implements OnModuleInit {
     if(!i.text.trim() && !i.imageUrl) fail('VALIDATION_ERROR','Xabar matni yoki rasm kiritilishi shart',422);
     const t=await this.ticketGet(actor,id);
     if(i.close&&actor.kind!=='SUPERADMIN')fail('PERMISSION_DENIED','Murojaatni support yopadi',403);
-    const msgText = i.text.trim() || (i.imageUrl ? '📷 Rasm' : '');
+    const defaultPlaceholder = i.imageUrl?.startsWith('data:video/')
+      ? '🎬 Video'
+      : (i.imageUrl?.startsWith('data:image/') ? '📷 Rasm' : (i.imageUrl ? '📎 Fayl' : ''));
+    const msgText = i.text.trim() || defaultPlaceholder;
     const run=async(tx:Tx)=>{
       const m=await tx.supportMessage.create({
         data:{
@@ -289,7 +320,7 @@ export class EngagementService implements OnModuleInit {
     return {success:true,messageId};
   }
   async ticketImageUpload(actor:Actor,body:unknown){
-    const i=parse(z.object({base64:z.string().min(10).max(11_000_000),mime:z.enum(['image/png','image/jpeg','image/webp'])}).strict(),body);
+    const i=parse(z.object({base64:z.string().min(10).max(15_000_000),mime:z.string().max(100)}).strict(),body);
     return {url:`data:${i.mime};base64,${i.base64}`};
   }
   async notifications(actor:Actor){return this.db.notificationDelivery.findMany({where:{userId:actor.id,channel:'IN_APP'},take:100,orderBy:{id:'desc'}});}

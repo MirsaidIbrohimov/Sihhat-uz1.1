@@ -67,6 +67,7 @@ flutter:
   uses-material-design: true
   assets:
     - assets/welcome-retreat.png
+    - assets/branding/sihhat-logo.png
     - assets/branding/sihhat-logo.jpg
     - assets/illustrations/wellness-retreat.png
     - assets/licenses/

@@ -148,13 +148,6 @@ const links = [
     icon: FileText,
     admin: true,
   },
-  { id: "tasks", label: "Vazifalar", icon: ClipboardList },
-  {
-    id: "surveys",
-    label: "Anketalar",
-    icon: FileText,
-    permission: "surveys.respond",
-  },
   {
     id: "reviews",
     label: "Sharhlar",
@@ -202,8 +195,6 @@ const navigationGroups = [
     ids: [
       "messages",
       "articles",
-      "tasks",
-      "surveys",
       "reviews",
       "support",
       "notifications",
@@ -716,8 +707,6 @@ export function Portal({
       case "ads":
         return <Billing kind={section} />;
       case "messages":
-      case "tasks":
-      case "surveys":
         return <Communications kind={section} />;
       case "reviews":
         return <Reviews />;

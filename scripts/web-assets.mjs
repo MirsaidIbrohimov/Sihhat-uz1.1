@@ -1,4 +1,4 @@
-import { copyFileSync, mkdirSync } from "node:fs";
+import { copyFileSync, existsSync, mkdirSync } from "node:fs";
 import { join, resolve } from "node:path";
 
 const root = resolve(import.meta.dirname, "..");
@@ -20,6 +20,14 @@ for (const app of ["superadmin-web", "partner-web"]) {
     join(root, "apps/mobile/assets/welcome-retreat.png"),
     join(publicRoot, "branding/welcome-retreat.png"),
   );
+  copyFileSync(
+    join(root, "apps/mobile/assets/illustrations/wellness-retreat.png"),
+    join(publicRoot, "branding/wellness-retreat.png"),
+  );
+  const logoPng = join(root, "apps/mobile/assets/branding/sihhat-logo.png");
+  if (existsSync(logoPng)) {
+    copyFileSync(logoPng, join(publicRoot, "branding/sihhat-logo.png"));
+  }
 }
 console.log(
   "Web panellarning lokal shriftlari va Sihhat illustratsiyasi tayyor.",

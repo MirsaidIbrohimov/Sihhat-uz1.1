@@ -97,11 +97,8 @@ export function enrichOpenApi(document:OpenAPIObject){
     '/superadmin/ad-campaigns/{id}/approve':obj({reason:str,version:integer},[]),'/superadmin/ad-campaigns/{id}/reject':obj({reason,version:integer},['reason']),
     '/messages':obj({title:str,body:str,kind:{type:'string',enum:['MESSAGE','WARNING']},asset_ids:array(id),recipient_ids:array(id)},['title','body','recipient_ids']),
     '/messages/{id}/receipt':obj({accepted:boolean},[]),'/superadmin/announcements':obj({sanatorium_ids:array(id),title:str,body:str,kind:{type:'string',enum:['MESSAGE','WARNING']},asset_ids:array(id)},['title','body','kind']),
-    '/tasks':obj({sanatorium_id:id,assigned_to:id,title:str,body:str,due_at:timestamp}),'/tasks/{id}':obj({version:integer,status:{type:'string',enum:['ACCEPTED','COMPLETED']},reply:str},['version','status']),
-    '/superadmin/surveys':obj({title:str,sanatorium_ids:array(id),recipient_ids:array(id),questions:array(obj({id:str,label:str,type:{type:'string',enum:['TEXT','BOOLEAN','NUMBER']},required:boolean}))},['title','questions']),
-    '/surveys/{id}/responses':obj({version:integer,answers:{type:'object',additionalProperties:{oneOf:[str,boolean,{type:'number'}]}}}),
     '/reviews':obj({booking_id:id,rating:{type:'integer',minimum:1,maximum:5},text:str}),'/partner/reviews/{id}/reply':obj({reply:str}),'/superadmin/reviews/{id}/moderate':obj({status:{type:'string',enum:['PUBLISHED','HIDDEN']},reason:str}),
-    '/support/tickets':obj({title:str,text:str,booking_id:id,sanatorium_id:id},['title','text']),'/support/tickets/{id}/messages':obj({text:str,close:boolean},['text']),
+    '/support/tickets':obj({title:str,text:str,booking_id:id,sanatorium_id:id,target_user_id:id,imageUrl:str},['title','text']),'/support/tickets/{id}/messages':obj({text:str,close:boolean,imageUrl:str},['text']),
     '/customer/favorites/{id}':obj({saved:boolean}),'/catalog/ads/{id}/events':obj({kind:{type:'string',enum:['IMPRESSION','CLICK']}}),
     '/ai/messages':apiSchema(aiInput),
     '/superadmin/articles':apiSchema(articleInput),'/superadmin/articles/{id}':apiSchema(articleUpdate),
@@ -116,7 +113,7 @@ export function enrichOpenApi(document:OpenAPIObject){
   for(const[path,item]of Object.entries(document.paths))for(const method of ['get','post','patch','put','delete'] as const){const operation=(item as any)[method];if(!operation)continue;
     const isPublic=path.startsWith('/health/')||path.startsWith('/catalog/')||['/auth/staff/login','/auth/customer/otp/request','/auth/customer/otp/verify','/telegram/webhook','/payments/tezcheck'].includes(path);
     const customerOnly=path.startsWith('/customer/')||path.startsWith('/auth/customer/phone')||['/ai/messages','/reviews'].includes(path);
-    const staffOnly=path.startsWith('/partner/')||path.startsWith('/superadmin/')||(path.startsWith('/telegram/')&&path!=='/telegram/webhook')||(method==='post'&&['/messages','/tasks'].includes(path));
+    const staffOnly=path.startsWith('/partner/')||path.startsWith('/superadmin/')||(path.startsWith('/telegram/')&&path!=='/telegram/webhook')||(method==='post'&&['/messages'].includes(path));
     const webSecurity={cookie:[],...(method==='get'?{}:{CSRF:[]})};
     operation.security=path==='/payments/tezcheck'?[{TezcheckWebhook:[]}]:path==='/telegram/webhook'?[{TelegramWebhook:[]}]:path==='/payments/payme'?[{PaymeAuth:[]}]:isPublic?[]:customerOnly?[{bearer:[]}]:staffOnly?[webSecurity]:[webSecurity,{bearer:[]}];
     operation['x-roles']=isPublic||path==='/payments/payme'?[]:path.startsWith('/superadmin/')?['SUPERADMIN']:customerOnly?['CUSTOMER']:staffOnly?['STAFF','SUPERADMIN']:['SUPERADMIN','STAFF','CUSTOMER'];
@@ -170,7 +167,7 @@ export function enrichOpenApi(document:OpenAPIObject){
     if(path==='/catalog/news/{id}')response.content['application/json'].schema=ref('PublicArticle');
     if(path==='/ai/messages')response.content['application/json'].schema=ref('AiReply');
     if(path==='/superadmin/articles'&&method==='get')response.content['application/json'].schema=ref('Page');
-    if(method==='get'&&['/catalog/entries','/catalog/ads','/catalog/compare','/customer/favorites','/tasks','/surveys','/support/tickets','/notifications','/superadmin/subscriptions','/superadmin/subscription-plans','/partner/ad-campaigns','/superadmin/ad-campaigns','/superadmin/reconciliation/differences'].includes(path))response.content['application/json'].schema=array({type:'object',additionalProperties:true});
+    if(method==='get'&&['/catalog/entries','/catalog/ads','/catalog/compare','/customer/favorites','/support/tickets','/notifications','/superadmin/subscriptions','/superadmin/subscription-plans','/partner/ad-campaigns','/superadmin/ad-campaigns','/superadmin/reconciliation/differences'].includes(path))response.content['application/json'].schema=array({type:'object',additionalProperties:true});
     if(path==='/customer/quotes'||path==='/partner/quotes')response.content['application/json'].schema={$ref:'#/components/schemas/Quote'};
     else if(path.endsWith('/hold')||path.endsWith('/manual'))response.content['application/json'].schema={$ref:'#/components/schemas/Booking'};
     else if(path.endsWith('/checkout'))response.content['application/json'].schema={$ref:'#/components/schemas/Checkout'};

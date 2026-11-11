@@ -1,6 +1,45 @@
 # Sihhat uz — amalga oshirish holati
 
-Yangilangan: 2026-11-08. Asos: ISHLAB_CHIQISH_REJASI.md va SIHHAT_UZ_ARXITEKTURA.md.
+Yangilangan: 2026-11-11. Asos: ISHLAB_CHIQISH_REJASI.md va SIHHAT_UZ_ARXITEKTURA.md.
+
+## 2026-11-11 Sihhat.uz veb-dizayni (APK UI asosida) va yuklanish animatsiyalari
+
+- **Yagona dizayn tizimi (`@sihhat/ui/landing`)**:
+  - `packages/ui/src/landing.tsx` va `packages/ui/src/landing.css` fayllari Android APK ilovasining 2026-11 Neon Emerald Glass uslubidan (`design.dart`, `neon.dart`, `motion.dart`, `concept_ui.dart`) ilhomlanib to‘liq yangilandi.
+  - `apps/superadmin-web/app/landing.tsx` va `apps/partner-web/app/landing.tsx` ikkala veb-panelda ham bitta yagona `@sihhat/ui/landing` komponentiga birlashtirildi, takroriy `landing.css` nusxalari tozalandi.
+  - `scripts/web-assets.mjs` orqali `sihhat-logo.png` va `wellness-retreat.png` rasmiy illyustratsiyalari ikkala veb-ilovaning `public/branding/` papkalariga sinxronlashtirildi.
+- **Tungi neon va Kunduzgi yorqin rejim (`dark` / `light`)**:
+  - Tungi rejim (standart, APK uslubida): `#021a17`–`#03201c` chuqur zumrad fon, diagonal yorug‘lik nurlari (`LightStreaks`), suzuvchi neon to‘lqinlar (`NeonWaves`) va `#3ee6bf` neon urg‘ular.
+  - Kunduzgi rejim: `#f6faf9`–`#e6f5f0` yalpiz fon va `#00866c` yuqori kontrastli tugmalar (foydalanuvchi tanlovi `localStorage`da saqlanadi).
+- **Saytdagi yuklanish va jonli animatsiyalar**:
+  - Kirishda rasmiy logo, aylanuvchi neon halqa (`NeonRing`), progress chiziq va `TypingDots` bilan **Splash yuklanish oynasi**.
+  - Yuqori sahifa chegarasida so‘rovlar va scroll holatini ko‘rsatuvchi **neon progress chizig‘i**.
+  - Katalog yuklanayotganda 4 ta **Glass Shimmer Skeleton** kartochka hamda modal tariflar va rasmlar uchun yuklanish shimmeri (`ShimmeryImage`).
+  - `NeonHero` (sekin Ken Burns yaqinlashuvi + diagonal yorug‘lik o‘tishi), ko‘z pirpiratuvchi suzuvchi `RobotFace` AI vidjeti, `TypingDots`, QR skanerlash nuri va mobil qurilmalarda pastki suzuvchi navigatsiya paneli.
+  - Barcha mavjud API funksionalligi (`/api/catalog/sanatoriums`, `/api/catalog/ads`, `TezCheck` `/api/payments/quick-checkout`, `Bronlarim`, `/api/download/apk`) va `prefers-reduced-motion` qo‘llab-quvvatlashi saqlandi.
+
+## 2026-11-09 Keraksiz bo‘limlarni tozalash, Murojaat qabul qiluvchi tanlovi, Telegram uslubidagi biriktirish va Rasmiy mobil reliz
+
+- **Keraksiz bo‘limlarni olib tashlash («Vazifalar» va «Anketalar»)**:
+  - Frontend (packages/ui/src/portal.tsx): Menyu bo‘limlari (tasks, surveys), Aloqa guruhi va ularning sahifa rendering qismlari to‘liq olib tashlandi.
+  - Backend (apps/api/src/engagement/engagement.controller.ts): /tasks, /tasks/:id, /superadmin/surveys, /surveys, /surveys/:id/responses yo‘nalishlari butunlay tozalandi.
+  - OpenAPI (apps/api/src/common/openapi.ts): Barcha bog‘liq sxemalar, marshrutlar va ruxsat tekshiruvlari o‘chirildi.
+  - Telegram bot xizmatidan ham vazifalar tugmasi va komandasi chiqarib tashlandi.
+- **«Xabarlar» bo‘limi xatosini tuzatish**:
+  - DataPanel komponentida URL tuzishdagi takroriy so‘rov belgisi (/messages?box=sent?page=1...) bartaraf etildi; ? mavjudligi tekshirilib parametrlar & orqali to‘g‘ri birlashtiriladigan qilindi.
+  - apps/api/src/engagement/engagement.service.ts dagi recipients() funksiyasida xodimlar ro‘yxati bo‘sh bo‘lgan holatda RECIPIENT_INVALID 422 xatosi berishi to‘g‘rilandi.
+- **Yordam xizmati (Chat) — «+ Yangi» qabul qiluvchi tanlovi modal oynasi**:
+  - packages/ui/src/communication.tsx da «+ Yangi» yoki «Murojaat yaratish» tugmasi bosilganda qulay modal oyna ochiladi.
+  - Qabul qiluvchi turi bo‘yicha alohida tablar: 📱 Ilova foydalanuvchisi (/superadmin/customers) va 🏥 Hamkor sanatoriya (/sanatoriums).
+  - Tanlangan qabul qiluvchiga to‘g‘ridan-to‘g‘ri murojaat ochiladi (target_user_id orqali mobil mijozga yoki sanatorium_id orqali hamkorga).
+- **Telegram uslubidagi «+» tugmasi va ko‘p formatli biriktirish**:
+  - Chat kiritish maydonida oddiy rasm tugmasi o‘rniga aylanuvchi zamonaviy Telegram uslubidagi + tugmasi va uning yuqori popup menyusi (📷 Rasm, 🎬 Video, 📎 Fayl/Hujjat) o‘rnatildi.
+  - Chat pufakchalarida video pleer (<video controls>), yuklab olish fayl kartochkasi va kattalashuvchi rasm qo‘llab-quvvatlanadi.
+  - Mobil ilovada ham biriktirish tugmasi Icons.add_rounded ga yangilandi.
+- **Mobil ilovaning rasmiy logosi, neon animatsiyasi va Reliz APK**:
+  - Rasmiy Sihhat.uz logosi assets/branding/sihhat-logo.png ga joylashtirilib pubspec.yaml da ro‘yxatga olindi.
+  - NeonHeartLogo rasmiy logo va neon yog‘dusi bilan yangilandi.
+  - Rasmiy reliz APK yig‘ilib (.local/releases/sihhat-uz-release.apk) va ilova/Songgi UI/yangi versiya.apk ga ko‘chirildi.
 
 ## 2026-11-08 Chat tahrirlash, o‘chirish (audit saqlash), rasm biriktirish va Superadmin ko‘rinishi
 

@@ -14,11 +14,11 @@ import { updateInput, callback as b, navigation, localDate, localHour, plusDays,
 
 const buttons: Record<string, string> = {
   '📅 Bugun': 'today', '📖 Bronlar': 'bookings:all:0', '🔎 Bron qidirish': 'search', '🛏 Bo‘sh xonalar': 'rooms:1',
-  '📊 Hisobot': 'report:month', '✅ Vazifalar': 'tasks:0', '💳 Moliya': 'finance', '💬 Aloqa': 'communication',
+  '📊 Hisobot': 'report:month', '💳 Moliya': 'finance', '💬 Aloqa': 'communication',
   '👥 Boshqaruv': 'management', '⚙️ Sozlamalar': 'settings', '🏥 Sanatoriya': 'tenants:0', '🖥 Sayt': 'site:dashboard',
   '❓ Yordam': 'help', '🏠 Bosh menyu': 'menu', '⬅️ Orqaga': 'menu', '🔗 Hisobni ulash': 'linkhelp',
 };
-const commands: Record<string, string> = { start: 'menu', menu: 'menu', help: 'help', bugun: 'today', bronlar: 'bookings:all:0', hisobot: 'report:month', vazifalar: 'tasks:0', sozlamalar: 'settings', cancel: 'menu' };
+const commands: Record<string, string> = { start: 'menu', menu: 'menu', help: 'help', bugun: 'today', bronlar: 'bookings:all:0', hisobot: 'report:month', sozlamalar: 'settings', cancel: 'menu' };
 const boolSettings = ['notificationsEnabled', 'notifyBookings', 'notifyPayments', 'notifyTasks', 'notifySupport', 'notifyBilling', 'dailyDigest', 'quietHours'] as const;
 const numeric = (value: string | undefined, max = 10000) => {
   if (!value || !/^\d{1,5}$/.test(value) || Number(value) > max) fail('BUTTON_INVALID', 'Tugma eskirgan. Bosh menyudan qayta oching.', 422);

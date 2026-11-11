@@ -591,12 +591,15 @@ export function DataPanel({
   const [page, setPage] = useState(1);
   const signature = JSON.stringify(params);
   useEffect(() => setPage(1), [path, signature]);
-  const remote = useRemote(
-    path
-      ? path + query({ ...params, ...(paged ? { page, limit: 15 } : {}) })
-      : null,
-    epoch,
-  );
+  const computedUrl = path
+    ? (() => {
+        const qObj = { ...params, ...(paged ? { page, limit: 15 } : {}) };
+        const qStr = query(qObj);
+        if (!qStr || qStr === "?") return path;
+        return path.includes("?") ? path + "&" + qStr.slice(1) : path + qStr;
+      })()
+    : null;
+  const remote = useRemote(computedUrl, epoch);
   const rows = list(remote.data).filter(filter ?? (() => true));
   const titles: Record<string, string> = {
     payments: "Onlayn to‘lovlar",

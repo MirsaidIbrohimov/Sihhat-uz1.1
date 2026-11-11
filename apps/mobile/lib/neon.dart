@@ -19,7 +19,7 @@ const neonGradient = LinearGradient(
 bool isDark(BuildContext context) =>
     Theme.of(context).brightness == Brightness.dark;
 
-/// Brand mark from the design: a neon heart holding a leaf.
+/// Brand mark from the design: Sihhat.uz official logo with neon glow.
 class NeonHeartLogo extends StatelessWidget {
   final double size;
   const NeonHeartLogo({this.size = 40, super.key});
@@ -27,27 +27,33 @@ class NeonHeartLogo extends StatelessWidget {
   Widget build(BuildContext context) => Semantics(
     label: 'Sihhat uz logosi',
     image: true,
-    child: SizedBox.square(
-      dimension: size,
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          ShaderMask(
-            shaderCallback: neonGradient.createShader,
-            child: Icon(
-              Icons.favorite_rounded,
-              size: size,
-              color: Colors.white,
-              shadows: [
-                Shadow(color: neon.withValues(alpha: .6), blurRadius: 14),
-              ],
-            ),
-          ),
-          Padding(
-            padding: EdgeInsets.only(top: size * .06),
-            child: Icon(Icons.spa_rounded, size: size * .44, color: abyss),
+    child: Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(size * .24),
+        boxShadow: [
+          BoxShadow(
+            color: neon.withValues(alpha: .5),
+            blurRadius: size * .28,
+            spreadRadius: 1,
           ),
         ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(size * .24),
+        child: Image.asset(
+          'assets/branding/sihhat-logo.png',
+          width: size,
+          height: size,
+          fit: BoxFit.contain,
+          errorBuilder: (_, _, _) => Image.asset(
+            'assets/branding/sihhat-logo.jpg',
+            width: size,
+            height: size,
+            fit: BoxFit.contain,
+          ),
+        ),
       ),
     ),
   );
