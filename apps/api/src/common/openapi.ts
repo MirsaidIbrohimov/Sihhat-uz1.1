@@ -98,7 +98,7 @@ export function enrichOpenApi(document:OpenAPIObject){
     '/messages':obj({title:str,body:str,kind:{type:'string',enum:['MESSAGE','WARNING']},asset_ids:array(id),recipient_ids:array(id)},['title','body','recipient_ids']),
     '/messages/{id}/receipt':obj({accepted:boolean},[]),'/superadmin/announcements':obj({sanatorium_ids:array(id),title:str,body:str,kind:{type:'string',enum:['MESSAGE','WARNING']},asset_ids:array(id)},['title','body','kind']),
     '/reviews':obj({booking_id:id,rating:{type:'integer',minimum:1,maximum:5},text:str}),'/partner/reviews/{id}/reply':obj({reply:str}),'/superadmin/reviews/{id}/moderate':obj({status:{type:'string',enum:['PUBLISHED','HIDDEN']},reason:str}),
-    '/support/tickets':obj({title:str,text:str,booking_id:id,sanatorium_id:id,target_user_id:id,imageUrl:str},['title','text']),'/support/tickets/{id}/messages':obj({text:str,close:boolean,imageUrl:str},['text']),
+    '/support/tickets':obj({title:str,text:str,booking_id:id,sanatorium_id:id,target_user_id:id,imageUrl:str},['title']),'/support/tickets/{id}/messages':obj({text:str,close:boolean,imageUrl:str},[]),
     '/customer/favorites/{id}':obj({saved:boolean}),'/catalog/ads/{id}/events':obj({kind:{type:'string',enum:['IMPRESSION','CLICK']}}),
     '/ai/messages':apiSchema(aiInput),
     '/superadmin/articles':apiSchema(articleInput),'/superadmin/articles/{id}':apiSchema(articleUpdate),

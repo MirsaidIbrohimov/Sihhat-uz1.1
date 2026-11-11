@@ -1,18 +1,55 @@
-import { Inject,Injectable,OnModuleInit } from '@nestjs/common';
+import { Inject, Injectable, OnModuleInit, Optional } from '@nestjs/common';
 import { z } from 'zod';
 import { Db,audit,emit,lock,bodyHash,type Tx } from '../common/db';
 import { parse,uuid,version,reason,fail,pageQuery,paged } from '../common/errors';
 import { Actor,scope,tenantIds,requirePlatform } from '../auth/permissions';
+import { EmailService } from '../auth/email';
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 @Injectable()
 export class EngagementService implements OnModuleInit {
-  constructor(@Inject(Db) readonly db:Db){}
+  constructor(
+    @Inject(Db) readonly db: Db,
+    @Optional() @Inject(EmailService) private readonly email?: EmailService,
+  ) {}
+
+  private extractDeliverableEmail(value?: string | null): string | null {
+    const clean = value?.trim().toLowerCase();
+    return clean && EMAIL_RE.test(clean) ? clean : null;
+  }
+
+  private async notifyUserSupportReply(params: {
+    id: string;
+    email?: string | null;
+    recipientName?: string | null;
+    ticketTitle: string;
+    messageText: string;
+    hasAttachment?: boolean;
+  }) {
+    const to = this.extractDeliverableEmail(params.email);
+    if (!to || !this.email) return;
+    try {
+      await this.email.sendSupportReplyNotification({
+        id: params.id,
+        email: to,
+        recipientName: params.recipientName,
+        ticketTitle: params.ticketTitle,
+        messageText: params.messageText,
+        hasAttachment: params.hasAttachment,
+      });
+    } catch (err: any) {
+      console.error('[EngagementService] Support email notification failed:', err?.message || err);
+    }
+  }
   async onModuleInit(){
-    await this.db.$executeRawUnsafe(`
-      ALTER TABLE "SupportMessage" ADD COLUMN IF NOT EXISTS "imageUrl" TEXT;
-      ALTER TABLE "SupportMessage" ADD COLUMN IF NOT EXISTS "isEdited" BOOLEAN NOT NULL DEFAULT false;
-      ALTER TABLE "SupportMessage" ADD COLUMN IF NOT EXISTS "deletedForUser" BOOLEAN NOT NULL DEFAULT false;
-    `).catch(()=>{});
+    for (const stmt of [
+      'ALTER TABLE "SupportMessage" ADD COLUMN IF NOT EXISTS "imageUrl" TEXT',
+      'ALTER TABLE "SupportMessage" ADD COLUMN IF NOT EXISTS "isEdited" BOOLEAN NOT NULL DEFAULT false',
+      'ALTER TABLE "SupportMessage" ADD COLUMN IF NOT EXISTS "deletedForUser" BOOLEAN NOT NULL DEFAULT false',
+    ]) {
+      await this.db.$executeRawUnsafe(stmt).catch(()=>{});
+    }
   }
   private async recipients(actor:Actor,ids:string[]){
     if(actor.kind==='CUSTOMER')fail('PERMISSION_DENIED','Ruxsat yo‘q',403);
@@ -101,14 +138,19 @@ export class EngagementService implements OnModuleInit {
   async moderateReview(actor:Actor,id:string,body:unknown){requirePlatform(actor,'reviews.moderate');parse(uuid,id);const i=parse(z.object({status:z.enum(['PUBLISHED','HIDDEN']),reason}).strict(),body);return this.db.atomic(async tx=>{const r=await tx.review.update({where:{id},data:{status:i.status,moderationReason:i.reason}});await audit(tx,actor.id,'review.moderated',id,r.sanatoriumId,undefined,i);return r;});}
   async ticket(actor:Actor,body:unknown,key?:string){
     const i=parse(z.object({
-      title:z.string().min(2).max(150),
-      text:z.string().min(1).max(5000),
-      imageUrl:z.string().max(10_000_000).optional(),
-      booking_id:uuid.optional(),
-      sanatorium_id:uuid.optional(),
-      target_user_id:uuid.optional()
+      title:z.string().trim().min(2).max(150),
+      text:z.string().max(5000).default(''),
+      imageUrl:z.string().max(10_000_000).nullish(),
+      booking_id:uuid.nullish(),
+      sanatorium_id:uuid.nullish(),
+      target_user_id:uuid.nullish()
     }).strict(),body);
-    let tenant=i.sanatorium_id;
+    const defaultPlaceholder = i.imageUrl?.startsWith('data:video/')
+      ? '🎬 Video'
+      : (i.imageUrl?.startsWith('data:image/') ? '📷 Rasm' : (i.imageUrl ? '📎 Fayl' : ''));
+    const msgText = i.text.trim() || defaultPlaceholder;
+    if (!msgText) fail('VALIDATION_ERROR', 'Xabar matni yoki biriktirilgan fayl kiritilishi shart', 422);
+    let tenant=i.sanatorium_id ?? undefined;
     if(i.booking_id){
       const b=await this.db.booking.findUnique({where:{id:i.booking_id}});
       if(!b)fail('NOT_FOUND','Bron topilmadi',404);
@@ -117,16 +159,34 @@ export class EngagementService implements OnModuleInit {
       }else scope(actor,b.sanatoriumId,'support.read');
       tenant=b.sanatoriumId;
     }else if(tenant&&actor.kind!=='CUSTOMER'&&actor.kind!=='SUPERADMIN')scope(actor,tenant,'support.read');
+    let createdInThisCall = false;
     const run=async(tx:Tx)=>{
       const ticketUserId = (actor.kind !== 'CUSTOMER' && i.target_user_id) ? i.target_user_id : actor.id;
-      const t=await tx.supportTicket.create({data:{userId:ticketUserId,sanatoriumId:tenant,bookingId:i.booking_id,title:i.title}});
-      await tx.supportMessage.create({data:{ticketId:t.id,userId:actor.id,text:i.text,imageUrl:i.imageUrl??null}});
+      const t=await tx.supportTicket.create({data:{userId:ticketUserId,sanatoriumId:tenant,bookingId:i.booking_id??undefined,title:i.title}});
+      await tx.supportMessage.create({data:{ticketId:t.id,userId:actor.id,text:msgText,imageUrl:i.imageUrl??null}});
       await audit(tx,actor.id,'support.opened',t.id,tenant);
       const admins=await tx.user.findMany({where:{kind:'SUPERADMIN',status:'ACTIVE'},select:{id:true}});
-      await emit(tx,'support.opened',{ticket_id:t.id,recipient_ids:admins.map(a=>a.id)});
+      const recipients=[...new Set([...admins.map(a=>a.id),...(ticketUserId!==actor.id?[ticketUserId]:[])])];
+      await emit(tx,'support.opened',{ticket_id:t.id,recipient_ids:recipients});
+      createdInThisCall = true;
       return t;
     };
-    return key?this.db.idempotent(actor.id,'support.open',key,i,run):this.db.atomic(run);
+    const ticket = await (key?this.db.idempotent(actor.id,'support.open',key,i,run):this.db.atomic(run));
+    if (createdInThisCall && actor.kind !== 'CUSTOMER' && ticket.userId !== actor.id) {
+      const targetUser = await this.db.user.findUnique({
+        where: { id: ticket.userId },
+        select: { id: true, name: true, login: true },
+      });
+      await this.notifyUserSupportReply({
+        id: ticket.id,
+        email: targetUser?.login,
+        recipientName: targetUser?.name,
+        ticketTitle: ticket.title,
+        messageText: msgText,
+        hasAttachment: Boolean(i.imageUrl),
+      });
+    }
+    return ticket;
   }
   async tickets(actor:Actor){
     const ids=tenantIds(actor,'support.read');
@@ -269,7 +329,7 @@ export class EngagementService implements OnModuleInit {
   async ticketReply(actor:Actor,id:string,body:unknown,key?:string){
     const i=parse(z.object({
       text:z.string().max(5000).default(''),
-      imageUrl:z.string().max(10_000_000).optional(),
+      imageUrl:z.string().max(10_000_000).nullish(),
       close:z.boolean().default(false)
     }).strict(),body);
     if(!i.text.trim() && !i.imageUrl) fail('VALIDATION_ERROR','Xabar matni yoki rasm kiritilishi shart',422);
@@ -279,6 +339,7 @@ export class EngagementService implements OnModuleInit {
       ? '🎬 Video'
       : (i.imageUrl?.startsWith('data:image/') ? '📷 Rasm' : (i.imageUrl ? '📎 Fayl' : ''));
     const msgText = i.text.trim() || defaultPlaceholder;
+    let createdInThisCall = false;
     const run=async(tx:Tx)=>{
       const m=await tx.supportMessage.create({
         data:{
@@ -291,9 +352,21 @@ export class EngagementService implements OnModuleInit {
       if(i.close)await tx.supportTicket.update({where:{id},data:{status:'CLOSED'}});
       const admins=await tx.user.findMany({where:{kind:'SUPERADMIN',status:'ACTIVE'},select:{id:true}});
       await emit(tx,'support.replied',{recipient_ids:[...new Set([t.userId,...(actor.kind==='SUPERADMIN'?[]:admins.map(a=>a.id))])],ticket_id:id});
+      createdInThisCall = true;
       return m;
     };
-    return key?this.db.idempotent(actor.id,'support.reply',key,{id,...i},run):this.db.atomic(run);
+    const msg = await (key?this.db.idempotent(actor.id,'support.reply',key,{id,...i},run):this.db.atomic(run));
+    if (createdInThisCall && actor.kind !== 'CUSTOMER' && t.userId !== actor.id) {
+      await this.notifyUserSupportReply({
+        id: msg.id,
+        email: t.sender?.email ?? t.sender?.login,
+        recipientName: t.sender?.name,
+        ticketTitle: t.title,
+        messageText: msgText,
+        hasAttachment: Boolean(i.imageUrl),
+      });
+    }
+    return msg;
   }
   async ticketMessageEdit(actor:Actor,ticketId:string,messageId:string,body:unknown){
     parse(uuid,ticketId);

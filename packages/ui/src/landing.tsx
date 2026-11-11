@@ -430,6 +430,13 @@ export function LandingPage() {
   // Initial branded APK splash overlay & top scroll progress
   const [splashPhase, setSplashPhase] = useState<"visible" | "leaving" | "hidden">("visible");
   const [scrollProgress, setScrollProgress] = useState(0);
+  const [activeScrollSection, setActiveScrollSection] = useState<
+    "home" | "catalog" | "how" | "app"
+  >("home");
+  const scrollTargetLockRef = useRef<{
+    section: "home" | "catalog" | "how" | "app";
+    until: number;
+  } | null>(null);
 
   // Filters & Favorites (persisted locally like APK Favorites)
   const [searchQuery, setSearchQuery] = useState("");
@@ -536,15 +543,56 @@ export function LandingPage() {
     }
   }, [splashPhase]);
 
+  const scrollToSection = useCallback(
+    (section: "home" | "catalog" | "how" | "app", elementId?: string) => {
+      setActiveModal(null);
+      setNavDropdownOpen(false);
+      setActiveScrollSection(section);
+      scrollTargetLockRef.current = { section, until: Date.now() + 850 };
+      if (!elementId) {
+        window.scrollTo({ top: 0, behavior: "smooth" });
+        return;
+      }
+      document
+        .getElementById(elementId)
+        ?.scrollIntoView({ behavior: "smooth", block: "start" });
+    },
+    [],
+  );
+
   useEffect(() => {
-    const onScroll = () => {
+    const updateScrollState = () => {
       const docHeight =
         document.documentElement.scrollHeight - document.documentElement.clientHeight;
       if (docHeight <= 0) {
         setScrollProgress(0);
-        return;
+      } else {
+        setScrollProgress(
+          Math.min(100, Math.round((window.scrollY / docHeight) * 100)),
+        );
       }
-      setScrollProgress(Math.min(100, Math.round((window.scrollY / docHeight) * 100)));
+
+      const lock = scrollTargetLockRef.current;
+      if (lock) {
+        if (Date.now() < lock.until) return;
+        scrollTargetLockRef.current = null;
+      }
+
+      const triggerY = Math.max(160, Math.min(340, Math.round(window.innerHeight * 0.42)));
+      const nearBottom = docHeight > 0 && window.scrollY >= docHeight - 90;
+      const appEl = document.getElementById("ilovani-yuklash");
+      const howEl = document.getElementById("qanday-ishlaydi");
+      const catalogEl = document.getElementById("muassasalar");
+
+      if (nearBottom || (appEl && appEl.getBoundingClientRect().top <= triggerY)) {
+        setActiveScrollSection("app");
+      } else if (howEl && howEl.getBoundingClientRect().top <= triggerY) {
+        setActiveScrollSection("how");
+      } else if (catalogEl && catalogEl.getBoundingClientRect().top <= triggerY) {
+        setActiveScrollSection("catalog");
+      } else {
+        setActiveScrollSection("home");
+      }
     };
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
@@ -554,13 +602,31 @@ export function LandingPage() {
         dismissSplash();
       }
     };
-    window.addEventListener("scroll", onScroll, { passive: true });
+    updateScrollState();
+    window.addEventListener("scroll", updateScrollState, { passive: true });
+    window.addEventListener("resize", updateScrollState, { passive: true });
     window.addEventListener("keydown", onKeyDown);
     return () => {
-      window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("scroll", updateScrollState);
+      window.removeEventListener("resize", updateScrollState);
       window.removeEventListener("keydown", onKeyDown);
     };
   }, [dismissSplash]);
+
+  const activeMobileTab: "home" | "catalog" | "bookings" | "ai" | "app" =
+    activeModal === "bookings"
+      ? "bookings"
+      : activeModal === "ai"
+        ? "ai"
+        : activeModal === "download"
+          ? "app"
+          : activeModal && typeof activeModal === "object"
+            ? "catalog"
+            : activeScrollSection === "app"
+              ? "app"
+              : activeScrollSection === "catalog" || activeScrollSection === "how"
+                ? "catalog"
+                : "home";
 
   const toggleTheme = () => {
     const next = theme === "dark" ? "light" : "dark";
@@ -975,13 +1041,13 @@ export function LandingPage() {
             <nav className="l-nav-links" aria-label="Asosiy navigatsiya">
               <button
                 type="button"
-                className={`l-nav-btn ${selectedCategory === "Barchasi" && !onlyFavorites ? "active" : ""}`}
+                className={`l-nav-btn ${!activeModal && activeScrollSection === "home" && selectedCategory === "Barchasi" && !onlyFavorites ? "active" : ""}`}
                 onClick={() => {
                   setSelectedCategory("Barchasi");
                   setSelectedRegion("Barchasi");
                   setOnlyFavorites(false);
                   setSearchQuery("");
-                  window.scrollTo({ top: 0, behavior: "smooth" });
+                  scrollToSection("home");
                 }}
               >
                 Bosh sahifa
@@ -990,7 +1056,7 @@ export function LandingPage() {
               <div className="l-dropdown-wrap">
                 <button
                   type="button"
-                  className={`l-nav-btn ${selectedCategory !== "Barchasi" ? "active" : ""}`}
+                  className={`l-nav-btn ${selectedCategory !== "Barchasi" || (!activeModal && activeScrollSection === "catalog") ? "active" : ""}`}
                   onClick={() => setNavDropdownOpen((v) => !v)}
                 >
                   <span>Muassasalar</span>
@@ -1003,10 +1069,7 @@ export function LandingPage() {
                       className="l-dropdown-item"
                       onClick={() => {
                         setSelectedCategory("Barchasi");
-                        setNavDropdownOpen(false);
-                        document
-                          .getElementById("muassasalar")
-                          ?.scrollIntoView({ behavior: "smooth" });
+                        scrollToSection("catalog", "muassasalar");
                       }}
                     >
                       <span>Barcha muassasalar</span>
@@ -1019,10 +1082,7 @@ export function LandingPage() {
                         className="l-dropdown-item"
                         onClick={() => {
                           setSelectedCategory(cat.title);
-                          setNavDropdownOpen(false);
-                          document
-                            .getElementById("muassasalar")
-                            ?.scrollIntoView({ behavior: "smooth" });
+                          scrollToSection("catalog", "muassasalar");
                         }}
                       >
                         <span>{cat.title}</span>
@@ -1035,28 +1095,24 @@ export function LandingPage() {
 
               <button
                 type="button"
-                className="l-nav-btn"
+                className={`l-nav-btn ${activeModal === "ai" ? "active" : ""}`}
                 onClick={() => setActiveModal("ai")}
               >
-                <Sparkles size={15} style={{ color: "var(--l-neon)" }} />
+                <Sparkles size={15} style={{ color: activeModal === "ai" ? "var(--l-on-primary)" : "var(--l-neon)" }} />
                 <span>AI yordamchi</span>
               </button>
 
               <button
                 type="button"
-                className="l-nav-btn"
-                onClick={() =>
-                  document
-                    .getElementById("qanday-ishlaydi")
-                    ?.scrollIntoView({ behavior: "smooth" })
-                }
+                className={`l-nav-btn ${!activeModal && activeScrollSection === "how" ? "active" : ""}`}
+                onClick={() => scrollToSection("how", "qanday-ishlaydi")}
               >
                 Qanday ishlaydi
               </button>
 
               <button
                 type="button"
-                className="l-nav-btn"
+                className={`l-nav-btn ${activeModal === "contact" ? "active" : ""}`}
                 onClick={() => setActiveModal("contact")}
               >
                 Aloqa
@@ -2157,48 +2213,57 @@ export function LandingPage() {
       <nav className="l-mobile-dock" aria-label="Tezkor mobil navigatsiya">
         <button
           type="button"
-          className="l-mobile-dock-item active"
-          onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+          className={`l-mobile-dock-item ${activeMobileTab === "home" ? "active" : ""}`}
+          aria-current={activeMobileTab === "home" ? "page" : undefined}
+          onClick={() => scrollToSection("home")}
         >
           <Sparkles size={17} />
           <span>Bosh sahifa</span>
         </button>
         <button
           type="button"
-          className="l-mobile-dock-item"
-          onClick={() =>
-            document
-              .getElementById("muassasalar")
-              ?.scrollIntoView({ behavior: "smooth" })
-          }
+          className={`l-mobile-dock-item ${activeMobileTab === "catalog" ? "active" : ""}`}
+          aria-current={activeMobileTab === "catalog" ? "page" : undefined}
+          onClick={() => scrollToSection("catalog", "muassasalar")}
         >
           <Building2 size={17} />
           <span>Katalog</span>
         </button>
         <button
           type="button"
-          className="l-mobile-dock-item"
-          onClick={() => setActiveModal("bookings")}
+          className={`l-mobile-dock-item ${activeMobileTab === "bookings" ? "active" : ""}`}
+          aria-current={activeMobileTab === "bookings" ? "page" : undefined}
+          onClick={() => {
+            setNavDropdownOpen(false);
+            setBookingLookupResult(null);
+            setBookingLookupError("");
+            setActiveModal("bookings");
+          }}
         >
           <Calendar size={17} />
           <span>Bronlar</span>
         </button>
         <button
           type="button"
-          className="l-mobile-dock-item"
-          onClick={() => setActiveModal("ai")}
+          className={`l-mobile-dock-item ${activeMobileTab === "ai" ? "active" : ""}`}
+          aria-current={activeMobileTab === "ai" ? "page" : undefined}
+          onClick={() => {
+            setNavDropdownOpen(false);
+            setActiveModal("ai");
+          }}
         >
           <MessageSquare size={17} />
           <span>AI yordam</span>
         </button>
-        <a
-          href="/api/download/apk"
-          download="sihhat-uz.apk"
-          className="l-mobile-dock-item"
+        <button
+          type="button"
+          className={`l-mobile-dock-item ${activeMobileTab === "app" ? "active" : ""}`}
+          aria-current={activeMobileTab === "app" ? "page" : undefined}
+          onClick={() => scrollToSection("app", "ilovani-yuklash")}
         >
           <Download size={17} />
           <span>Ilova</span>
-        </a>
+        </button>
       </nav>
 
       {/* ========================================================

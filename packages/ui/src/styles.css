@@ -892,7 +892,7 @@ td strong {
   color: var(--surface);
   box-shadow: 0 4px 20px #14382b20;
   border-radius: 10px;
-  z-index: 100;
+  z-index: 1500;
   display: flex;
   gap: 10px;
   align-items: center;

@@ -17022,8 +17022,7 @@
                   }
                 },
                 "required": [
-                  "title",
-                  "text"
+                  "title"
                 ],
                 "additionalProperties": false
               }
@@ -17287,9 +17286,7 @@
                     "type": "string"
                   }
                 },
-                "required": [
-                  "text"
-                ],
+                "required": [],
                 "additionalProperties": false
               }
             }

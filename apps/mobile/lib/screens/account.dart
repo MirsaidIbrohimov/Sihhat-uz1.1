@@ -949,7 +949,6 @@ class _SupportThreadState extends State<SupportThread>
     final text = reply.text.trim();
     if (sending ||
         (text.isEmpty && attachedImage == null) ||
-        (attachedImage == null && text.length < 3) ||
         thread?['status'] == 'CLOSED') {
       return;
     }

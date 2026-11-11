@@ -714,7 +714,9 @@ function getSenderDisplay(row?: Row | null) {
   const finalLogin = login;
 
   let primary = "";
-  if (finalName) {
+  if (s?.kind === "SUPERADMIN" && row.sanatoriumName) {
+    primary = row.sanatoriumName;
+  } else if (finalName) {
     primary = finalName;
   } else if (finalPhone) {
     primary = finalPhone;
@@ -736,7 +738,9 @@ function getSenderDisplay(row?: Row | null) {
     login: finalLogin,
     initial,
     isCustomer,
-    badgeText: isCustomer ? "📱 Mobil mijoz" : "🏢 Xodim",
+    badgeText: isCustomer
+      ? "📱 Mobil mijoz"
+      : (s?.kind === "SUPERADMIN" && row.sanatoriumName ? "🏥 Hamkor sanatoriya" : "🏢 Xodim"),
   };
 }
 
@@ -746,6 +750,7 @@ export function Support() {
     [id, setId] = useState<string | null>(null),
     [searchQuery, setSearchQuery] = useState(""),
     [replyText, setReplyText] = useState(""),
+    [replyError, setReplyError] = useState(""),
     [attachedMedia, setAttachedMedia] = useState<{
       name: string;
       url: string;
@@ -758,16 +763,21 @@ export function Support() {
     [sending, setSending] = useState(false),
     // New Ticket Modal State
     [newModalOpen, setNewModalOpen] = useState(false),
-    [recipientType, setRecipientType] = useState<"CUSTOMER" | "PARTNER">("CUSTOMER"),
+    [recipientType, setRecipientType] = useState<"CUSTOMER" | "PARTNER">(
+      ctx.admin ? "CUSTOMER" : "PARTNER",
+    ),
     [customers, setCustomers] = useState<Row[]>([]),
     [partners, setPartners] = useState<Row[]>([]),
     [loadingRecipients, setLoadingRecipients] = useState(false),
     [userSearch, setUserSearch] = useState(""),
     [partnerSearch, setPartnerSearch] = useState(""),
     [selectedUserId, setSelectedUserId] = useState<string | null>(null),
-    [selectedPartnerId, setSelectedPartnerId] = useState<string | null>(ctx.tenant ?? null),
+    [selectedPartnerId, setSelectedPartnerId] = useState<string | null>(
+      ctx.tenant || ctx.tenants[0]?.id || null,
+    ),
     [newTitle, setNewTitle] = useState(""),
     [newText, setNewText] = useState(""),
+    [createError, setCreateError] = useState(""),
     [creatingTicket, setCreatingTicket] = useState(false),
     // Refs
     attachMenuRef = useRef<HTMLDivElement>(null),
@@ -823,27 +833,40 @@ export function Support() {
   useEffect(() => {
     if (!newModalOpen) return;
     let isMounted = true;
+    setCreateError("");
+    setRecipientType(ctx.admin ? "CUSTOMER" : "PARTNER");
+    if (!ctx.admin && (ctx.tenant || ctx.tenants[0]?.id)) {
+      setSelectedPartnerId((prev) => prev || ctx.tenant || ctx.tenants[0]?.id || null);
+    }
     setLoadingRecipients(true);
     Promise.all([
-      api<any>("/superadmin/customers?limit=100").catch(() => []),
-      api<any>((ctx.admin ? "/superadmin" : "/partner") + "/sanatoriums?limit=100").catch(() => []),
+      ctx.admin
+        ? api<any>("/superadmin/customers?limit=100").catch(() => [])
+        : Promise.resolve([]),
+      api<any>((ctx.admin ? "/superadmin" : "/partner") + "/sanatoriums?limit=100").catch(
+        () => ctx.tenants ?? [],
+      ),
     ]).then(([cRes, pRes]) => {
       if (!isMounted) return;
       const cList = Array.isArray(cRes) ? cRes : (cRes?.data ?? cRes?.rows ?? []);
       const pList = Array.isArray(pRes) ? pRes : (pRes?.data ?? pRes?.rows ?? []);
       setCustomers(cList);
       setPartners(pList);
+      if (!ctx.admin) {
+        setSelectedPartnerId((prev) => prev || ctx.tenant || pList[0]?.id || null);
+      }
       setLoadingRecipients(false);
     });
     return () => {
       isMounted = false;
     };
-  }, [newModalOpen, ctx.admin]);
+  }, [newModalOpen, ctx.admin, ctx.tenant, ctx.tenants]);
 
   const selectTicket = (ticketId: string | null) => {
     setId(ticketId);
     setThread(null);
     setAttachedMedia(null);
+    setReplyError("");
     setAttachMenuOpen(false);
     setEditingMessageId(null);
   };
@@ -852,17 +875,32 @@ export function Support() {
     const file = e.target.files?.[0];
     if (!file) return;
     if (!file.type.startsWith("image/")) {
-      ctx.notice("Faqat rasm fayllari (JPEG, PNG, WebP) yuklanishi mumkin");
+      const msg = "Faqat rasm fayllari (JPEG, PNG, WebP) yuklanishi mumkin";
+      setReplyError(msg);
+      ctx.notice(msg);
       return;
     }
-    if (file.size > 8 * 1024 * 1024) {
-      ctx.notice("Rasm hajmi 8 MB dan oshmasligi kerak");
+    if (file.size > 7 * 1024 * 1024) {
+      const msg = "Rasm hajmi 7 MB dan oshmasligi kerak";
+      setReplyError(msg);
+      ctx.notice(msg);
       return;
     }
+    setReplyError("");
     const reader = new FileReader();
+    reader.onerror = () => {
+      const msg = "Rasm faylini o‘qib bo‘lmadi";
+      setReplyError(msg);
+      ctx.notice(msg);
+    };
     reader.onload = () => {
       const raw = reader.result as string;
       const img = new Image();
+      img.onerror = () => {
+        const msg = "Bu rasm formatini brauzer o‘qiy olmadi (JPEG/PNG yuboring)";
+        setReplyError(msg);
+        ctx.notice(msg);
+      };
       img.onload = () => {
         const maxDim = 1280;
         let w = img.width, h = img.height;
@@ -904,14 +942,24 @@ export function Support() {
     const file = e.target.files?.[0];
     if (!file) return;
     if (!file.type.startsWith("video/")) {
-      ctx.notice("Faqat video fayllari (MP4, WebM, MOV) yuklanishi mumkin");
+      const msg = "Faqat video fayllari (MP4, WebM, MOV) yuklanishi mumkin";
+      setReplyError(msg);
+      ctx.notice(msg);
       return;
     }
-    if (file.size > 15 * 1024 * 1024) {
-      ctx.notice("Video hajmi 15 MB dan oshmasligi kerak");
+    if (file.size > 7 * 1024 * 1024) {
+      const msg = "Video hajmi 7 MB dan oshmasligi kerak";
+      setReplyError(msg);
+      ctx.notice(msg);
       return;
     }
+    setReplyError("");
     const reader = new FileReader();
+    reader.onerror = () => {
+      const msg = "Video faylini o‘qib bo‘lmadi";
+      setReplyError(msg);
+      ctx.notice(msg);
+    };
     reader.onload = () => {
       setAttachedMedia({
         name: file.name,
@@ -927,11 +975,19 @@ export function Support() {
   const handleDocSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (file.size > 15 * 1024 * 1024) {
-      ctx.notice("Fayl hajmi 15 MB dan oshmasligi kerak");
+    if (file.size > 7 * 1024 * 1024) {
+      const msg = "Fayl hajmi 7 MB dan oshmasligi kerak";
+      setReplyError(msg);
+      ctx.notice(msg);
       return;
     }
+    setReplyError("");
     const reader = new FileReader();
+    reader.onerror = () => {
+      const msg = "Faylni o‘qib bo‘lmadi";
+      setReplyError(msg);
+      ctx.notice(msg);
+    };
     reader.onload = () => {
       setAttachedMedia({
         name: file.name,
@@ -949,6 +1005,7 @@ export function Support() {
     const text = replyText.trim();
     if ((!text && !attachedMedia) || !id || sending) return;
     setSending(true);
+    setReplyError("");
     try {
       const fallbackPlaceholder = attachedMedia
         ? attachedMedia.type === "video"
@@ -957,16 +1014,40 @@ export function Support() {
             ? `📎 Fayl: ${attachedMedia.name}`
             : "📷 Rasm"
         : "";
-      await api(`/support/tickets/${id}/messages`, "POST", {
-        text: text || fallbackPlaceholder,
-        imageUrl: attachedMedia?.url || undefined,
+      const sentText = text || fallbackPlaceholder;
+      const sentMsg = await api<Row>(`/support/tickets/${id}/messages`, "POST", {
+        text: sentText,
+        ...(attachedMedia?.url ? { imageUrl: attachedMedia.url } : {}),
       });
       setReplyText("");
       setAttachedMedia(null);
-      const fresh = await api<Row>(`/support/tickets/${id}`);
+      if (sentMsg?.id) {
+        setThread((prev) =>
+          prev
+            ? {
+                ...prev,
+                messages: [
+                  ...(Array.isArray(prev.messages) ? prev.messages : []),
+                  {
+                    ...sentMsg,
+                    isMe: true,
+                    userId: sentMsg.userId ?? ctx.actor.id,
+                    text: sentMsg.text ?? sentText,
+                    imageUrl: sentMsg.imageUrl ?? attachedMedia?.url ?? null,
+                    createdAt: sentMsg.createdAt ?? new Date().toISOString(),
+                  },
+                ],
+              }
+            : prev,
+        );
+      }
+      tickets.reload();
+      const fresh = await api<Row>(`/support/tickets/${id}`).catch(() => null);
       if (fresh) setThread(fresh);
     } catch (err: any) {
-      ctx.notice(err.message || "Xabar yuborishda xatolik");
+      const msg = err?.message || "Xabar yuborishda xatolik yuz berdi";
+      setReplyError(msg);
+      ctx.notice(msg);
     } finally {
       setSending(false);
     }
@@ -974,25 +1055,45 @@ export function Support() {
 
   const handleCreateTicket = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newTitle.trim() || !newText.trim() || creatingTicket) return;
-    if (recipientType === "CUSTOMER" && !selectedUserId) {
-      ctx.notice("Iltimos, ilova foydalanuvchisini tanlang");
+    if (creatingTicket) return;
+    const cleanTitle = newTitle.trim();
+    const cleanText = newText.trim();
+    if (cleanTitle.length < 2) {
+      const msg = "Mavzu kamida 2 ta belgidan iborat bo‘lishi kerak";
+      setCreateError(msg);
+      ctx.notice(msg);
       return;
     }
-    if (recipientType === "PARTNER" && !selectedPartnerId) {
-      ctx.notice("Iltimos, hamkor sanatoriyani tanlang");
+    if (!cleanText) {
+      const msg = "Xabar matnini kiriting";
+      setCreateError(msg);
+      ctx.notice(msg);
       return;
     }
+    const partnerId = selectedPartnerId || ctx.tenant || partners[0]?.id || null;
+    if (ctx.admin && recipientType === "CUSTOMER" && !selectedUserId) {
+      const msg = "Iltimos, ilova foydalanuvchisini tanlang";
+      setCreateError(msg);
+      ctx.notice(msg);
+      return;
+    }
+    if ((!ctx.admin || recipientType === "PARTNER") && !partnerId) {
+      const msg = "Iltimos, hamkor sanatoriyani tanlang";
+      setCreateError(msg);
+      ctx.notice(msg);
+      return;
+    }
+    setCreateError("");
     setCreatingTicket(true);
     try {
       const payload: any = {
-        title: newTitle.trim(),
-        text: newText.trim(),
+        title: cleanTitle,
+        text: cleanText,
       };
-      if (recipientType === "CUSTOMER") {
+      if (ctx.admin && recipientType === "CUSTOMER") {
         payload.target_user_id = selectedUserId;
       } else {
-        payload.sanatorium_id = selectedPartnerId;
+        payload.sanatorium_id = partnerId;
       }
       const res = await api<Row>("/support/tickets", "POST", payload);
       ctx.notice("Yangi suhbat muvaffaqiyatli ochildi");
@@ -1005,7 +1106,9 @@ export function Support() {
         selectTicket(res.id);
       }
     } catch (err: any) {
-      ctx.notice(err.message || "Murojaat yaratishda xatolik yuz berdi");
+      const msg = err?.message || "Murojaat yaratishda xatolik yuz berdi";
+      setCreateError(msg);
+      ctx.notice(msg);
     } finally {
       setCreatingTicket(false);
     }
@@ -1117,61 +1220,73 @@ export function Support() {
             </div>
 
             <form onSubmit={handleCreateTicket} style={{ padding: "20px", overflowY: "auto", display: "flex", flexDirection: "column", gap: "16px" }}>
-              {/* Recipient Type Switcher Tabs */}
-              <div>
-                <label style={{ fontSize: "12px", fontWeight: 600, color: "#8ea69d", textTransform: "uppercase", letterSpacing: "0.5px", display: "block", marginBottom: "8px" }}>
-                  Qabul qiluvchi turi
-                </label>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", background: "rgba(0,0,0,0.25)", padding: "4px", borderRadius: "10px" }}>
-                  <button
-                    type="button"
-                    onClick={() => setRecipientType("CUSTOMER")}
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      gap: "8px",
-                      padding: "10px 14px",
-                      borderRadius: "8px",
-                      border: "none",
-                      fontWeight: 600,
-                      fontSize: "13px",
-                      cursor: "pointer",
-                      transition: "all 0.15s ease",
-                      background: recipientType === "CUSTOMER" ? "#25e2a2" : "transparent",
-                      color: recipientType === "CUSTOMER" ? "#041610" : "#a2b8ad",
-                    }}
-                  >
-                    <Smartphone size={16} />
-                    <span>📱 Ilova foydalanuvchisi</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setRecipientType("PARTNER")}
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      gap: "8px",
-                      padding: "10px 14px",
-                      borderRadius: "8px",
-                      border: "none",
-                      fontWeight: 600,
-                      fontSize: "13px",
-                      cursor: "pointer",
-                      transition: "all 0.15s ease",
-                      background: recipientType === "PARTNER" ? "#25e2a2" : "transparent",
-                      color: recipientType === "PARTNER" ? "#041610" : "#a2b8ad",
-                    }}
-                  >
-                    <Building2 size={16} />
-                    <span>🏥 Hamkor sanatoriya</span>
-                  </button>
+              {/* Recipient Type Switcher Tabs (Superadmin) */}
+              {ctx.admin ? (
+                <div>
+                  <label style={{ fontSize: "12px", fontWeight: 600, color: "#8ea69d", textTransform: "uppercase", letterSpacing: "0.5px", display: "block", marginBottom: "8px" }}>
+                    Qabul qiluvchi turi
+                  </label>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", background: "rgba(0,0,0,0.25)", padding: "4px", borderRadius: "10px" }}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setCreateError("");
+                        setRecipientType("CUSTOMER");
+                      }}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        gap: "8px",
+                        padding: "10px 14px",
+                        borderRadius: "8px",
+                        border: "none",
+                        fontWeight: 600,
+                        fontSize: "13px",
+                        cursor: "pointer",
+                        transition: "all 0.15s ease",
+                        background: recipientType === "CUSTOMER" ? "#25e2a2" : "transparent",
+                        color: recipientType === "CUSTOMER" ? "#041610" : "#a2b8ad",
+                      }}
+                    >
+                      <Smartphone size={16} />
+                      <span>📱 Ilova foydalanuvchisi</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setCreateError("");
+                        setRecipientType("PARTNER");
+                      }}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        gap: "8px",
+                        padding: "10px 14px",
+                        borderRadius: "8px",
+                        border: "none",
+                        fontWeight: 600,
+                        fontSize: "13px",
+                        cursor: "pointer",
+                        transition: "all 0.15s ease",
+                        background: recipientType === "PARTNER" ? "#25e2a2" : "transparent",
+                        color: recipientType === "PARTNER" ? "#041610" : "#a2b8ad",
+                      }}
+                    >
+                      <Building2 size={16} />
+                      <span>🏥 Hamkor sanatoriya</span>
+                    </button>
+                  </div>
                 </div>
-              </div>
+              ) : (
+                <div style={{ padding: "10px 14px", borderRadius: "10px", background: "rgba(37,226,162,0.1)", border: "1px solid rgba(37,226,162,0.28)", color: "#a5e9d3", fontSize: "13px" }}>
+                  Murojaatingiz to‘g‘ridan-to‘g‘ri Sihhat.uz Yordam xizmatiga yuboriladi.
+                </div>
+              )}
 
               {/* Customer Picker */}
-              {recipientType === "CUSTOMER" && (
+              {ctx.admin && recipientType === "CUSTOMER" && (
                 <div>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
                     <label style={{ fontSize: "12px", fontWeight: 600, color: "#8ea69d" }}>
@@ -1279,12 +1394,12 @@ export function Support() {
                 </div>
               )}
 
-              {/* Partner Picker */}
-              {recipientType === "PARTNER" && (
+              {/* Partner Picker (Superadmin or multi-tenant partner) */}
+              {(!ctx.admin ? partners.length > 1 : recipientType === "PARTNER") && (
                 <div>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
                     <label style={{ fontSize: "12px", fontWeight: 600, color: "#8ea69d" }}>
-                      Hamkor sanatoriyani tanlang *
+                      {ctx.admin ? "Hamkor sanatoriyani tanlang *" : "Sanatoriyani tanlang *"}
                     </label>
                     {selectedPartner && (
                       <span style={{ fontSize: "11px", color: "#25e2a2", fontWeight: 600 }}>
@@ -1418,6 +1533,12 @@ export function Support() {
                 />
               </div>
 
+              {createError && (
+                <div role="alert" style={{ padding: "10px 12px", borderRadius: "8px", background: "rgba(239,68,68,0.14)", border: "1px solid rgba(239,68,68,0.45)", color: "#fca5a5", fontSize: "13px", fontWeight: 600 }}>
+                  {createError}
+                </div>
+              )}
+
               {/* Modal Buttons */}
               <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px", marginTop: "8px" }}>
                 <button
@@ -1435,8 +1556,8 @@ export function Support() {
                     creatingTicket ||
                     !newTitle.trim() ||
                     !newText.trim() ||
-                    (recipientType === "CUSTOMER" && !selectedUserId) ||
-                    (recipientType === "PARTNER" && !selectedPartnerId)
+                    (ctx.admin && recipientType === "CUSTOMER" && !selectedUserId) ||
+                    ((!ctx.admin || recipientType === "PARTNER") && !(selectedPartnerId || ctx.tenant || partners[0]?.id))
                   }
                 >
                   {creatingTicket ? "Yuborilmoqda..." : "Yuborish"}
@@ -1860,6 +1981,14 @@ export function Support() {
                     title="Birikmani olib tashlash"
                   >
                     <X size={16} />
+                  </button>
+                </div>
+              )}
+              {replyError && (
+                <div role="alert" style={{ padding: "8px 16px", background: "rgba(239,68,68,0.14)", borderTop: "1px solid rgba(239,68,68,0.4)", color: "#fca5a5", fontSize: "12px", fontWeight: 600, display: "flex", justifyContent: "space-between", alignItems: "center", gap: "8px" }}>
+                  <span>{replyError}</span>
+                  <button type="button" onClick={() => setReplyError("")} style={{ background: "transparent", border: "none", color: "#fca5a5", cursor: "pointer", padding: "2px" }} aria-label="Xatoni yopish">
+                    <X size={14} />
                   </button>
                 </div>
               )}
