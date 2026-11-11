@@ -174,7 +174,7 @@ const AI_QUICK_CHIPS = [
 ];
 
 const APK_RELEASE_URL =
-  "https://github.com/MirsaidIbrohimov/Sihhat-uz1.1/tree/main/ilova";
+  "https://github.com/MirsaidIbrohimov/Sihhat-uz1.1/releases/latest";
 
 function safeFallbackImage(e: React.SyntheticEvent<HTMLImageElement>) {
   const img = e.currentTarget;
@@ -1951,7 +1951,7 @@ export function LandingPage() {
                 style={{ marginBottom: "1rem" }}
               >
                 <Smartphone size={14} />
-                <span>Sihhat.uz Rasmiy Android Ilovasi</span>
+                <span>Sihhat.uz Rasmiy Android Ilovasi · v0.2.3</span>
               </div>
 
               <h2

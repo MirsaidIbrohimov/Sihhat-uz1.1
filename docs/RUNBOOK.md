@@ -215,6 +215,16 @@ APK `.gitignore`da qoladi; Gitga source, yo‘riqnoma va SHA-256 manifesti
 kiritiladi. Demo signing kaliti va `.local/releases`dagi tekshiruv dalillari
 private saqlanadi. [Yuklash havolasi](../ilova/README.md).
 
+### `sihhat.uz` va GitHub Releases avtomatik APK relizi (`.github/workflows/android-release.yml`)
+
+- Saytdagi [`/api/download/apk`](../packages/ui/src/apk-download.ts) endpointi va `app-qr.svg` QR-kodi avval `SIHHAT_APK_URL`, so‘ng **GitHub Releases** (`releases/latest/download/sihhat-uz.apk` yoki eng so‘nggi `.apk` asseti), ular mavjud bo‘lmasa lokal/fallback APKni qaytaradi (`Cache-Control: no-store`).
+- Har safar `apps/mobile/**` o‘zgarib `main` tarmog‘iga `git push` qilinganda `.github/workflows/android-release.yml` workflow’i avtomatik APK yig‘ishi va **GitHub Releases**ga chiqarishi uchun GitHub repozitoriyasida (`Settings -> Secrets and variables -> Actions`) quyidagi 4 ta maxfiy o‘zgaruvchi bir marta sozlanishi kerak (`Actions` -> `Workflow permissions: Read and write permissions`):
+  - `ANDROID_KEYSTORE_BASE64` — `.local/android-signing/sihhat-pilot.jks` faylining Base64 ko‘rinishi;
+  - `ANDROID_STORE_PASSWORD` — keystore paroli;
+  - `ANDROID_KEY_PASSWORD` — key paroli;
+  - `ANDROID_KEY_ALIAS` — masalan `sihhat-pilot`.
+- Qo‘lda yig‘ilganda: `npm run mobile:release -- https://sihhat-api.onrender.com` va `python scripts/check-apk-secrets.py .local/releases/sihhat-uz-release.apk` bajarilib, `.local/releases/sihhat-uz.apk` GitHub Releasesga (`sihhat-uz.apk` nomi bilan) yuklanadi.
+
 Server konfiguratsiyasi: `PUBLIC_DEMO_ENABLED=true`, `DEMO_OTP_ENABLED=true`,
 `NODE_ENV=test`, nomi `_demo` bilan tugaydigan **alohida database**,
 alohida `demo-media`, HTTPS origin, lokal SMS/to‘lov/push, katalog AI,

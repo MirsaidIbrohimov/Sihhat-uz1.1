@@ -1,26 +1,29 @@
 # Sihhat uz — Android ilovasi
 
-Joriy versiya: **0.1.1 (build 2)**, 2026-10-22.
+Joriy reliz versiya: **0.2.3 (build 6)**, 2026-11-11.
 
-### 📱 Yuklab olish:
-* **To'g'ridan-to'g'ri yuklab olish havolasi:** [Sihhat-uz-demo-0.1.1.apk](https://github.com/MirsaidIbrohimov/Sihhat-uz1.1/raw/main/ilova/Sihhat-uz-demo-0.1.1.apk)
-* **GitHub sahifasi:** [Sihhat-uz-demo-0.1.1.apk](https://github.com/MirsaidIbrohimov/Sihhat-uz1.1/blob/main/ilova/Sihhat-uz-demo-0.1.1.apk)
-* **SHA-256 nazorat summasi:** [SHA256SUMS.txt](SHA256SUMS.txt)
+### 📱 Yuklab olish
 
-Lokal fayl shu papkada: `Sihhat-uz-demo-0.1.1.apk` (~59.6 MB).
+- **Sayt orqali (har doim eng so‘nggi versiya):** [sihhat.uz/api/download/apk](https://www.sihhat.uz/api/download/apk)
+- **GitHub Releases (rasmiy APK relizlari):** [releases/latest](https://github.com/MirsaidIbrohimov/Sihhat-uz1.1/releases/latest)
+- **SHA-256 nazorat summasi:** [SHA256SUMS.txt](SHA256SUMS.txt)
 
-### 🚀 Yangilanishlar:
-1. **Onlayn API integratsiyasi:** Ilova to'g'ridan-to'g'ri `https://sihhat-api.onrender.com` va `https://sihhat.uz/api` ga ulanadi.
-2. **TezCheck to'lov integratsiyasi:** To'lov qilishda xavfsiz TezCheck to'lov tizimi ochiladi.
-3. **Zomin sanatoriyasi va yangi maskanlar:** Zomin sanatoriyasi to'liq suratlari, arzon tarifi va xonalari bilan katalogda aks etadi.
-4. **Rasmiy aloqa call-markaz:** +998 88 295 20 28.
-5. **Vaucher va QR-kod:** Tasdiqlangan bron ma'lumotlari va qabulxonaga ko'rsatish uchun vaucher hujjati to'liq ishlaydi.
+Lokal reliz nusxalari (`.gitignore`da, Gitga kiritilmaydi):
+- `.local/releases/sihhat-uz-release.apk` (`63,799,955` bayt, ~60.8 MB)
+- `ilova/Songgi UI/yangi versiya.apk`
 
-### 🛠 Faylni tekshirish:
+### 🚀 0.2.3 (build 6) yangilanishlari
+
+1. **Telegram Messenger uslubidagi chat (`Yordam va xabarlar`):** `Ochiq` / `Yopilgan` jildlari, qidiruv maydoni, gradient avatarlar, naqshli fon, sana ajratgichlari (`Bugun`/`Kecha`), qo‘sh tasdiq belgilari va kattalashuvchi rasm ko‘rish.
+2. **Xabarlarni tahrirlash va o‘chirish (audit saqlash bilan):** Foydalanuvchi o‘z xabarini Telegram menyusi orqali tahrirlashi (`tahrirlangan`) va o‘z chatidan o‘chirishi mumkin; foydalanuvchi o‘chirgan xabar **Superadmin** panelida audit uchun saqlanadi va faqat Superadmin uni bazadan butunlay o‘chirishi mumkin.
+3. **Onlayn API va to‘lov:** Ilova `https://sihhat-api.onrender.com` bilan ishlaydi (`demo_otp: false`).
+4. **Avtomatik reliz (`GitHub Actions`):** `.github/workflows/android-release.yml` har `apps/mobile/**` pushida APKni imzolab **GitHub Releases**ga chiqaradi, `sihhat.uz/api/download/apk` esa avtomatik eng so‘nggi relizni tarqatadi.
+
+### 🛠 Faylni tekshirish
 
 ```powershell
-Get-FileHash -Algorithm SHA256 -LiteralPath ilova/Sihhat-uz-demo-0.1.1.apk
+Get-FileHash -Algorithm SHA256 -LiteralPath .local/releases/sihhat-uz.apk
 ```
 
 Natija `ilova/SHA256SUMS.txt`dagi qiymat bilan bir xil bo‘lishi kerak:
-`d37fd43d6516506a1aba8d6c05409ff00f8921ad36dcfd2e05b321d8300a7b1f`
+`60e70fce23e696a257168bbdf4a10e5f28e16d7ad2032b3f235aea9cf4ef99e7`

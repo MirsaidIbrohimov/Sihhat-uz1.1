@@ -37,13 +37,23 @@ const directory = join(root, '.local/releases');
 mkdirSync(directory, {recursive: true});
 const destination = join(directory, demo ? 'sihhat-uz-demo.apk' : 'sihhat-uz-release.apk');
 copyFileSync(apk, destination);
+const sha256 = createHash('sha256').update(readFileSync(destination)).digest('hex');
+if (!demo) {
+  copyFileSync(apk, join(directory, 'sihhat-uz.apk'));
+  writeFileSync(join(directory, 'SHA256SUMS.txt'), `${sha256}  sihhat-uz.apk\n`);
+  if (!url.hostname.endsWith('.invalid')) {
+    const songgiDir = join(root, 'ilova/Songgi UI');
+    mkdirSync(songgiDir, {recursive: true});
+    copyFileSync(apk, join(songgiDir, 'yangi versiya.apk'));
+  }
+}
 const evidence = {
   created_at: new Date().toISOString(), api_base_url: baseUrl,
   api_endpoint_verified: false,
   version_name: version[1], version_code: Number(version[2]),
   pilot_placeholder: url.hostname.endsWith('.invalid'),
   apk: `.local/releases/${demo ? 'sihhat-uz-demo' : 'sihhat-uz-release'}.apk`, demo_otp: demo,
-  apk_sha256: createHash('sha256').update(readFileSync(destination)).digest('hex'),
+  apk_sha256: sha256,
   certificate_sha256: certificate,
   signature_verified: true, debuggable: false, cleartext_allowed: false,
 };
@@ -53,6 +63,10 @@ if (demo) {
   mkdirSync(output, {recursive: true});
   copyFileSync(apk, join(output, apkName));
   writeFileSync(join(output, 'SHA256SUMS.txt'), `${evidence.apk_sha256}  ${apkName}\n`);
+} else if (!url.hostname.endsWith('.invalid')) {
+  const output = join(root, 'ilova');
+  mkdirSync(output, {recursive: true});
+  writeFileSync(join(output, 'SHA256SUMS.txt'), `${evidence.apk_sha256}  sihhat-uz.apk\n`);
 }
 writeFileSync(join(directory, 'apksigner-verify.txt'), signature);
 console.log(demo ? `Imzolangan demo APK: ilova/${apkName}` : 'Imzolangan release APK: .local/releases/sihhat-uz-release.apk');
