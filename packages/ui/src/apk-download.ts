@@ -2,7 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 
 const REPO_SLUG = "MirsaidIbrohimov/Sihhat-uz1.1";
-const GITHUB_LATEST_ASSET_URL = `https://github.com/${REPO_SLUG}/releases/latest/download/sihhat-uz.apk`;
+const CANDIDATE_ASSET_NAMES = ["sihhat-uz.apk", "sihhat-uz-release.apk"] as const;
 const GITHUB_LATEST_API_URL = `https://api.github.com/repos/${REPO_SLUG}/releases/latest`;
 const FALLBACK_RAW_APK_URL = `https://github.com/${REPO_SLUG}/raw/main/ilova/Sihhat-uz-demo-0.1.1.apk`;
 
@@ -34,31 +34,73 @@ function validHttpsUrl(raw: string | undefined): string | null {
 async function resolveGitHubDirectRelease(
   fetchImpl: typeof fetch,
 ): Promise<ApkResolution | null> {
-  try {
-    const res = await fetchImpl(GITHUB_LATEST_ASSET_URL, {
-      method: "HEAD",
-      redirect: "manual",
-      cache: "no-store",
-      signal: AbortSignal.timeout(3500),
-    });
-    const location = res.headers.get("location");
-    if (
-      res.status === 200 ||
-      (res.status >= 300 &&
+  for (const assetName of CANDIDATE_ASSET_NAMES) {
+    try {
+      const candidateUrl = `https://github.com/${REPO_SLUG}/releases/latest/download/${assetName}`;
+      const res = await fetchImpl(candidateUrl, {
+        method: "HEAD",
+        redirect: "manual",
+        cache: "no-store",
+        signal: AbortSignal.timeout(3500),
+      });
+      const location = res.headers.get("location");
+      if (!location) {
+        if (res.status === 200) {
+          return {
+            kind: "redirect",
+            source: "github-release-direct",
+            url: candidateUrl,
+            filename: assetName,
+          };
+        }
+        continue;
+      }
+
+      if (
+        res.status >= 300 &&
         res.status < 400 &&
-        location &&
         (/\/releases\/download\//.test(location) ||
-          /githubusercontent\.com/.test(location)))
-    ) {
-      return {
-        kind: "redirect",
-        source: "github-release-direct",
-        url: location ?? GITHUB_LATEST_ASSET_URL,
-        filename: "sihhat-uz.apk",
-      };
+          /githubusercontent\.com/.test(location))
+      ) {
+        // If already redirected to asset storage, it exists.
+        if (/githubusercontent\.com/.test(location)) {
+          return {
+            kind: "redirect",
+            source: "github-release-direct",
+            url: location,
+            filename: assetName,
+          };
+        }
+
+        // Verify hop 2 to avoid returning a 404 URL when GitHub expands latest/download to a non-existent asset.
+        try {
+          const hop2 = await fetchImpl(location, {
+            method: "HEAD",
+            redirect: "manual",
+            cache: "no-store",
+            signal: AbortSignal.timeout(3500),
+          });
+          if (hop2.status === 200 || (hop2.status >= 300 && hop2.status < 400)) {
+            return {
+              kind: "redirect",
+              source: "github-release-direct",
+              url: location,
+              filename: assetName,
+            };
+          }
+        } catch {
+          // In case of timeout or connection error on hop 2, fall back to returning location
+          return {
+            kind: "redirect",
+            source: "github-release-direct",
+            url: location,
+            filename: assetName,
+          };
+        }
+      }
+    } catch {
+      // Try next candidate
     }
-  } catch {
-    // Fall through to REST API or local fallback.
   }
   return null;
 }

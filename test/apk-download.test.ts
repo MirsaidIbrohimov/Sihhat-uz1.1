@@ -19,7 +19,7 @@ test("apk download: prefers SIHHAT_APK_URL env override when valid HTTPS", async
   }
 });
 
-test("apk download: resolves direct GitHub latest release asset without hitting REST API", async () => {
+test("apk download: resolves direct GitHub latest release asset with verification", async () => {
   const prev = process.env.SIHHAT_APK_URL;
   delete process.env.SIHHAT_APK_URL;
   const called: string[] = [];
@@ -44,7 +44,63 @@ test("apk download: resolves direct GitHub latest release asset without hitting 
     assert.equal(json.source, "github-release-direct");
     assert.equal(json.filename, "sihhat-uz.apk");
     assert.match(String(json.url), /v0\.2\.3-b6\/sihhat-uz\.apk$/);
-    assert.equal(called.length, 1);
+    // Expects initial candidate lookup + verification hop
+    assert.equal(called.length, 2);
+  } finally {
+    if (prev !== undefined) process.env.SIHHAT_APK_URL = prev;
+  }
+});
+
+test("apk download: verifies candidate and falls back to sihhat-uz-release.apk if sihhat-uz.apk is 404", async () => {
+  const prev = process.env.SIHHAT_APK_URL;
+  delete process.env.SIHHAT_APK_URL;
+  const called: string[] = [];
+  const mockFetch = (async (input: string | URL) => {
+    const u = String(input);
+    called.push(u);
+    if (u.includes("latest/download/sihhat-uz.apk")) {
+      return new Response(null, {
+        status: 302,
+        headers: {
+          location: "https://github.com/MirsaidIbrohimov/Sihhat-uz1.1/releases/download/v0.2.4-b7/sihhat-uz.apk",
+        },
+      });
+    }
+    if (u.endsWith("v0.2.4-b7/sihhat-uz.apk")) {
+      return new Response(null, { status: 404 });
+    }
+    if (u.includes("latest/download/sihhat-uz-release.apk")) {
+      return new Response(null, {
+        status: 302,
+        headers: {
+          location: "https://github.com/MirsaidIbrohimov/Sihhat-uz1.1/releases/download/v0.2.4-b7/sihhat-uz-release.apk",
+        },
+      });
+    }
+    if (u.endsWith("v0.2.4-b7/sihhat-uz-release.apk")) {
+      return new Response(null, {
+        status: 302,
+        headers: {
+          location: "https://release-assets.githubusercontent.com/blob-storage-apk",
+        },
+      });
+    }
+    return new Response(null, { status: 404 });
+  }) as typeof fetch;
+
+  try {
+    const res = await handleApkDownload(
+      new Request("https://sihhat.uz/api/download/apk?info=1"),
+      mockFetch,
+    );
+    assert.equal(res.status, 200);
+    const json = (await res.json()) as Record<string, unknown>;
+    assert.equal(json.source, "github-release-direct");
+    assert.equal(json.filename, "sihhat-uz-release.apk");
+    assert.equal(
+      json.url,
+      "https://github.com/MirsaidIbrohimov/Sihhat-uz1.1/releases/download/v0.2.4-b7/sihhat-uz-release.apk",
+    );
   } finally {
     if (prev !== undefined) process.env.SIHHAT_APK_URL = prev;
   }

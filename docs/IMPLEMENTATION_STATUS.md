@@ -51,6 +51,7 @@ Yangilangan: 2026-11-11. Asos: ISHLAB_CHIQISH_REJASI.md va SIHHAT_UZ_ARXITEKTURA
     - `ProfileScreen` da 15 MB tekshiruvi bilan galereya/URL orqali profil rasmi yuklash va o‘chirish qo‘shildi (`Api.saveProfile` `avatarUrl` keshini saqlaydi).
     - Ilova oldingi fonda ochiq turganda `/auth/heartbeat` yuboriladi (`_EntryState`), `SupportScreen` va `SupportThread` da Superadmin avatari va `Onlayn` holati ko‘rinadi (`apps/mobile/test/support_test.dart`).
     - [`apps/mobile/pubspec.yaml`](../apps/mobile/pubspec.yaml) **`0.2.4+7`** ga ko‘tarilib, `https://sihhat-api.onrender.com` uchun yangi imzolangan reliz APK (`.local/releases/sihhat-uz.apk`, `63,898,343` bayt, SHA-256 `90b175ab0767cf9ebd807c510e15f766d8d33716d43aab7c2ccfd4cfc796afa8`, `check-apk-secrets.py` 0 ta moslik) hamda `ilova/Songgi UI/yangi versiya.apk` va [`ilova/SHA256SUMS.txt`](../ilova/SHA256SUMS.txt) yangilandi (`landing.tsx` da `v0.2.4`).
+    - [`packages/ui/src/apk-download.ts`](../packages/ui/src/apk-download.ts) reliz aktivlari nomlarini dinamik nomzodlar (`sihhat-uz.apk` va `sihhat-uz-release.apk`) bo‘yicha 2 bosqichli tekshiruv (hop 2 verification) orqali aniqlaydigan qilindi; GitHub'dagi `sihhat-uz-release.apk` aktiviga 404 siz avtomatik ulanish ta'minlandi (`test/apk-download.test.ts`).
 
 ## 2026-11-09 Keraksiz bo‘limlarni tozalash, Murojaat qabul qiluvchi tanlovi, Telegram uslubidagi biriktirish va Rasmiy mobil reliz
 
