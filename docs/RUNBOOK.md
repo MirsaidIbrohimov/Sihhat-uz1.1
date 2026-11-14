@@ -24,7 +24,7 @@ Render backend yoki Vercel veb-saytida TezCheck to'lovlarini faollashtirish uchu
 
 ## Telegram bot sozlamalari (Render va Webhook)
 
-Render kabi yagona veb-xizmat (`start:api`) ishlayotgan bulutli serverda hamkor/superadmin veb panellarida `@sihhat_admins_bot` ishlashi uchun:
+Render kabi yagona veb-xizmat (`start:api`) ishlayotgan bulutli serverda hamkor/superadmin veb panellarida `@sihhat_admins_bot` hamda muhim hodisalarning Telegram/Email ogohlantirishlari ishlashi uchun:
 1. Render Dashboard (`dashboard.render.com`) -> `sihhat-api` -> **Environment** bo‘limiga quyidagilarni qo‘shing:
    - `TELEGRAM_MODE=webhook`
    - `TELEGRAM_BOT_TOKEN=<@BotFather tokeni>` (mahalliy `.local/secrets/providers.env` da saqlangan, Gitga yuklanmaydi)
@@ -32,9 +32,9 @@ Render kabi yagona veb-xizmat (`start:api`) ishlayotgan bulutli serverda hamkor/
    - `TELEGRAM_WEBHOOK_SECRET=<kamida 32 ta harf/raqam/`_` va `-` dan iborat tasodifiy maxfiy kalit>`
    - `TELEGRAM_ADMIN_URL=https://www.sihhat.uz/superadmin`
    - `TELEGRAM_PARTNER_URL=https://www.sihhat.uz/hamkorlar`
-2. Render xizmati qayta ishga tushgach Telegram webhookini bir marta bog‘lang:
-   `https://api.telegram.org/bot<TELEGRAM_BOT_TOKEN>/setWebhook?url=https://sihhat-api.onrender.com/telegram/webhook&secret_token=<TELEGRAM_WEBHOOK_SECRET>`
-3. Shundan so‘ng veb paneldagi **Telegram bot → Holatni qayta tekshirish** tugmasini bosing (`TELEGRAM_MODE=webhook` rejimida `sihhat-api` kelgan `/start` va tugmalarni alohida `start:telegram` jarayonisiz ham qayta ishlaydi; alohida Background Worker ishlatilsa `TELEGRAM_MODE=polling` va `start:telegram` ham qo‘llanadi).
+   - Email ogohlantirishlari uchun `RESEND_API_KEY=<...>` yoki `SMTP_HOST` / `SMTP_USER` / `SMTP_PASS` / `SMTP_FROM` ni sozlang va Superadmin panelida **Mening hisobim -> Email qo‘shish** orqali superadmin emailini kiriting.
+2. Render xizmati yangilangach, `AuthService.onModuleInit` faol bazada `User.avatarUrl` va `User.email` ustunlarini avtomatik tekshiradi; `TelegramService.startupSync()` esa `RENDER_EXTERNAL_URL` va `TELEGRAM_WEBHOOK_SECRET` asosida `https://sihhat-api.onrender.com/telegram/webhook` webhookini avtomatik bog‘laydi hamda `main.ts` ichki outbox/Telegram navbatini (`OutboxService.tick()`, `TelegramService.flushNotifications()`) alohida worker jarayonisiz ham yuritib turadi.
+3. Shundan so‘ng veb paneldagi **Telegram bot → Holatni qayta tekshirish** tugmasini bosing (qo‘lda webhook sozlash zarur bo‘lsa: `https://api.telegram.org/bot<TELEGRAM_BOT_TOKEN>/setWebhook?url=https://sihhat-api.onrender.com/telegram/webhook&secret_token=<TELEGRAM_WEBHOOK_SECRET>`). Alohida Background Worker ishlatilsa `TELEGRAM_MODE=polling` va `start:telegram` ham qo‘llanadi.
 4. Eslatma: bitta bot tokenida `webhook` yoqilsa Telegram pollingni (`getUpdates`) o‘chiradi; mahalliy ishlab chiqishda boshqa test bot tokeni ishlating yoki `deleteWebhook` bilan pollingga qayting.
 
 ## Web panellar yangi UI

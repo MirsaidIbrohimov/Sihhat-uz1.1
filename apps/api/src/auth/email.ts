@@ -3,13 +3,19 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import nodemailer, { type Transporter } from 'nodemailer';
 import { CONFIG, type Config } from '../common/config';
+import { formatAdminAlert } from '../common/admin-alerts';
 import { fail } from '../common/errors';
 import { Db } from '../common/db';
 
 @Injectable()
 export class EmailService {
   readonly sent = new Map<string, string>();
+  readonly sentAlerts: Array<{ id: string; to: string; topic: string; subject: string; text: string }> = [];
   private transporter: Transporter | null = null;
+
+  get configured(): boolean {
+    return Boolean(this.config.RESEND_API_KEY || this.transporter);
+  }
 
   constructor(@Inject(CONFIG) private readonly config: Config, @Optional() @Inject(Db) private readonly db?: Db) {
     if (this.config.SMTP_HOST) {
@@ -189,6 +195,95 @@ export class EmailService {
       failOnError: false,
       errorMessage: 'Yordam xizmati bildirishnomasini emailga yuborishda xatolik',
     });
+  }
+
+  async sendAdminAlert(params: {
+    id: string;
+    email: string;
+    recipientName?: string | null;
+    topic: string;
+    payload: Record<string, any>;
+    failOnError?: boolean;
+  }): Promise<'SENT' | 'SKIPPED'> {
+    if (this.config.NODE_ENV === 'production' && !this.configured) {
+      return 'SKIPPED';
+    }
+    const alert = formatAdminAlert(params.topic, params.payload);
+    const greeting = params.recipientName?.trim() ? `Assalomu alaykum, ${params.recipientName.trim()}!` : 'Assalomu alaykum, Superadmin!';
+    const detailsText = alert.rows.map(r => `• ${r.label}: ${r.value}`).join('\n');
+    const text = `${greeting}\n\n${alert.headline}\n${alert.summary}\n\n${detailsText}\n\nSihhat.uz Superadmin paneli`;
+
+    const headerBg = alert.severity === 'critical'
+      ? 'linear-gradient(135deg, #b91c1c 0%, #dc2626 100%)'
+      : alert.severity === 'warning'
+        ? 'linear-gradient(135deg, #d97706 0%, #f59e0b 100%)'
+        : 'linear-gradient(135deg, #059669 0%, #0d9488 100%)';
+
+    const rowsHtml = alert.rows
+      .map(
+        r => `<tr><td style="padding: 8px 12px; border-bottom: 1px solid #e2e8f0; font-size: 12px; color: #64748b; width: 38%;">${this.escapeHtml(r.label)}</td><td style="padding: 8px 12px; border-bottom: 1px solid #e2e8f0; font-size: 13px; color: #0f172a; font-weight: 600;">${this.escapeHtml(r.value)}</td></tr>`,
+      )
+      .join('');
+
+    const panelUrl = this.config.TELEGRAM_ADMIN_URL
+      ? `${this.config.TELEGRAM_ADMIN_URL.replace(/\/+$/, '')}/${alert.siteSection || 'dashboard'}`
+      : '';
+    const buttonHtml = panelUrl && /^https:\/\//.test(panelUrl)
+      ? `<div style="margin-top: 20px; text-align: center;"><a href="${this.escapeHtml(panelUrl)}" style="display: inline-block; background: #087d66; color: #ffffff; text-decoration: none; font-weight: 700; font-size: 14px; padding: 11px 22px; border-radius: 10px;">Superadmin panelini ochish</a></div>`
+      : '';
+
+    const html = `
+            <!doctype html>
+            <html lang="uz">
+            <head><meta charset="utf-8"></head>
+            <body style="margin: 0; padding: 0; background-color: #f1f5f9; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+              <table border="0" cellpadding="0" cellspacing="0" width="100%" style="table-layout: fixed;">
+                <tr>
+                  <td align="center" style="padding: 32px 16px;">
+                    <table border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width: 540px; background: #ffffff; border-radius: 20px; box-shadow: 0 4px 16px rgba(15, 23, 42, 0.08); border: 1px solid #e2e8f0; overflow: hidden;">
+                      <tr>
+                        <td style="background: ${headerBg}; padding: 24px 30px; text-align: center;">
+                          <div style="display: inline-block; background: rgba(255,255,255,0.2); color: #ffffff; font-size: 11px; font-weight: 700; letter-spacing: 0.08em; padding: 4px 10px; border-radius: 999px; margin-bottom: 8px;">${this.escapeHtml(alert.badge)}</div>
+                          <h1 style="color: #ffffff; font-size: 24px; font-weight: 800; margin: 0;">Sihhat.uz</h1>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td style="padding: 26px 30px;">
+                          <h2 style="font-size: 19px; font-weight: 800; color: #0f172a; margin: 0 0 10px 0;">${this.escapeHtml(alert.headline)}</h2>
+                          <p style="font-size: 14px; color: #475569; margin: 0 0 18px 0; line-height: 1.6;">${this.escapeHtml(greeting)} ${this.escapeHtml(alert.summary)}</p>
+                          <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden;">
+                            ${rowsHtml}
+                          </table>
+                          ${buttonHtml}
+                        </td>
+                      </tr>
+                      <tr>
+                        <td style="background: #f8fafc; padding: 14px 30px; border-top: 1px solid #f1f5f9; text-align: center;">
+                          <p style="font-size: 12px; color: #94a3b8; margin: 0;">© ${new Date().getFullYear()} Sihhat.uz · Xavfsizlik va monitoring tizimi</p>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+              </table>
+            </body>
+            </html>`;
+
+    if (this.config.NODE_ENV !== 'production') {
+      this.sentAlerts.push({ id: params.id, to: params.email, topic: params.topic, subject: alert.subject, text });
+    }
+
+    await this.deliverEmail({
+      id: `admin-alert-${params.id}`,
+      to: params.email,
+      subject: alert.subject,
+      text,
+      html,
+      devPayload: { email: params.email, topic: params.topic, subject: alert.subject, rows: alert.rows, payload: params.payload },
+      failOnError: params.failOnError ?? false,
+      errorMessage: 'Superadmin email ogohlantirishini yuborishda xatolik',
+    });
+    return 'SENT';
   }
 
   private escapeHtml(value: string): string {

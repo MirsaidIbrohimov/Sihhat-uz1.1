@@ -15,6 +15,7 @@ model User {
   name String
   login String? @unique
   phone String? @unique
+  email String?
   avatarUrl String?
   passwordHash String?
   mustChangePassword Boolean @default(false)

@@ -153,7 +153,19 @@ export class SanatoriumService {
     parse(uuid, id); scope(actor, id, 'bank.request');
     const data = parse(z.object({ legal_name: z.string().min(2).max(150), account: z.string().regex(/^\d{20}$/), mfo: z.string().regex(/^\d{5}$/), stir: z.string().regex(/^\d{9}$/) }).strict(), body);
     return this.db.atomic(async tx => {
-      const r = await tx.bankRevision.create({ data: { sanatoriumId: id, data } }); await audit(tx, actor.id, 'bank.change_requested', r.id, id); return r;
+      const r = await tx.bankRevision.create({ data: { sanatoriumId: id, data } });
+      await audit(tx, actor.id, 'bank.change_requested', r.id, id);
+      const [san, admins] = await Promise.all([
+        tx.sanatorium.findUnique({ where: { id }, select: { name: true } }),
+        tx.user.findMany({ where: { kind: 'SUPERADMIN', status: 'ACTIVE' }, select: { id: true } }),
+      ]);
+      await emit(tx, 'bank.change_requested', {
+        recipient_ids: admins.map(a => a.id),
+        revision_id: r.id,
+        sanatorium_id: id,
+        sanatorium_name: san?.name ?? null,
+      });
+      return r;
     });
   }
   async banks(actor: Actor, id: string) {

@@ -1,22 +1,27 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   ArrowUpRight,
   BedDouble,
   BookOpen,
   CalendarDays,
+  Camera,
   Clock,
   Coins,
   CreditCard,
   Download,
   FileText,
   Info,
+  LogOut,
   RotateCcw,
   Sparkles,
+  Trash2,
   Users,
   Wallet,
+  X,
 } from "lucide-react";
 import { api, formatMoney, query } from "@sihhat/api-client";
+import { prepareAvatarDataUrl, validateAvatarFile } from "./avatar";
 import { ProfileWizard } from "./wizard";
 import { ListFilters, useSavedFilters } from "./list-filters";
 import { newPasswordFields } from "./password-fields";
@@ -1681,23 +1686,324 @@ export function Staff() {
   );
 }
 
+function CustomerManageModal({
+  user,
+  onClose,
+  onRefresh,
+  onToggleStatus,
+  onDelete,
+  notice,
+}: {
+  user: Row;
+  onClose: () => void;
+  onRefresh: () => void;
+  onToggleStatus: (r: Row) => void;
+  onDelete: (r: Row) => void;
+  notice: (msg: string) => void;
+}) {
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [name, setName] = useState(String(user.name || ""));
+  const [phone, setPhone] = useState(String(user.phone || ""));
+  const [login, setLogin] = useState(String(user.login || ""));
+  const [email, setEmail] = useState(String(user.email || ""));
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(
+    user.avatarUrl ?? null,
+  );
+  const [sessionsCount, setSessionsCount] = useState<number>(
+    Number(user.activeSessionsCount ?? 0),
+  );
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && !busy) onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [busy, onClose]);
+
+  const removeAvatar = async () => {
+    setBusy(true);
+    setError("");
+    try {
+      const updated = await api<Row>(
+        `/superadmin/customers/${user.id}`,
+        "PATCH",
+        { remove_avatar: true, avatarUrl: null },
+      );
+      setAvatarUrl(updated.avatarUrl ?? null);
+      notice("Foydalanuvchi profil rasmi o‘chirildi");
+      onRefresh();
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleAvatarPicked = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    const msg = validateAvatarFile(file);
+    if (msg) {
+      setError(msg);
+      return;
+    }
+    setBusy(true);
+    setError("");
+    try {
+      const nextUrl = await prepareAvatarDataUrl(file);
+      const updated = await api<Row>(
+        `/superadmin/customers/${user.id}`,
+        "PATCH",
+        { avatarUrl: nextUrl },
+      );
+      setAvatarUrl(updated.avatarUrl ?? nextUrl);
+      notice("Foydalanuvchi profil rasmi yangilandi");
+      onRefresh();
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const saveProfile = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setBusy(true);
+    setError("");
+    try {
+      await api(`/superadmin/customers/${user.id}`, "PATCH", {
+        name: name.trim(),
+        phone: phone.trim() || null,
+        login: login.trim() || null,
+        email: email.trim() || null,
+      });
+      notice("Foydalanuvchi ma’lumotlari saqlandi");
+      onRefresh();
+      onClose();
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const revokeSessions = async () => {
+    setBusy(true);
+    setError("");
+    try {
+      const res = await api<{ success: boolean; revoked_count?: number }>(
+        `/superadmin/customers/${user.id}/revoke-sessions`,
+        "POST",
+        {},
+      );
+      setSessionsCount(0);
+      notice(
+        res.revoked_count
+          ? `${res.revoked_count} ta faol sessiya yopildi`
+          : "Faol sessiyalar topilmadi",
+      );
+      onRefresh();
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="modal-backdrop">
+      <section
+        className="modal customer-manage-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-label={`${user.name} — Foydalanuvchini boshqarish`}
+      >
+        <div className="modal-heading">
+          <div>
+            <h2>{user.name} — Foydalanuvchini boshqarish</h2>
+            <p className="muted">
+              Profil rasmi, shaxsiy ma’lumotlar, faol sessiyalar va holat nazorati.
+            </p>
+          </div>
+          <button
+            className="icon-button"
+            type="button"
+            aria-label="Yopish"
+            disabled={busy}
+            onClick={onClose}
+          >
+            <X size={20} />
+          </button>
+        </div>
+
+        <input
+          ref={fileRef}
+          type="file"
+          accept="image/*"
+          style={{ display: "none" }}
+          onChange={handleAvatarPicked}
+        />
+
+        <div className="customer-manage-photo">
+          <div className="customer-manage-avatar">
+            {avatarUrl ? (
+              <img src={avatarUrl} alt={user.name} />
+            ) : (
+              <span>{(name || "M").slice(0, 1).toUpperCase()}</span>
+            )}
+          </div>
+          <div className="customer-manage-photo-meta">
+            <strong>Profil surati</strong>
+            <p className="muted">
+              {avatarUrl
+                ? "Foydalanuvchi ilovadan profil suratini o‘rnatgan."
+                : "Foydalanuvchi profil rasmi o‘rnatilmagan yoki o‘chirilgan."}
+            </p>
+            <div className="customer-manage-photo-buttons">
+              <button
+                type="button"
+                className="button secondary"
+                disabled={busy}
+                onClick={() => fileRef.current?.click()}
+              >
+                <Camera size={15} /> {avatarUrl ? "Rasmni almashtirish" : "Rasm yuklash"}
+              </button>
+              {avatarUrl && (
+                <button
+                  type="button"
+                  className="button danger-soft"
+                  disabled={busy}
+                  onClick={removeAvatar}
+                >
+                  <Trash2 size={15} /> Rasmni o‘chirish
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+
+        <form onSubmit={saveProfile} className="customer-manage-form">
+          <div className="form-grid">
+            <label className="field">
+              <span>
+                To‘liq ism <b className="required">*</b>
+              </span>
+              <input
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                required
+                minLength={2}
+                maxLength={120}
+                disabled={busy}
+              />
+            </label>
+            <label className="field">
+              <span>Telefon raqam</span>
+              <input
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                placeholder="+998901234567"
+                disabled={busy}
+              />
+            </label>
+            <label className="field">
+              <span>Login (ilova username)</span>
+              <input
+                value={login}
+                onChange={(e) => setLogin(e.target.value)}
+                placeholder="foydalanuvchi_logini"
+                disabled={busy}
+              />
+            </label>
+            <label className="field">
+              <span>Elektron pochta (Email)</span>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="user@example.com"
+                disabled={busy}
+              />
+            </label>
+          </div>
+
+          <div className="customer-manage-summary">
+            <span>Holat: <strong>{user.status === "ACTIVE" ? "Faol" : "Bloklangan"}</strong></span>
+            <span>Bronlar: <strong>{user.bookingsCount ?? 0} ta</strong></span>
+            <span>Murojaatlar: <strong>{user.ticketsCount ?? 0} ta</strong></span>
+            <span>Faol sessiyalar: <strong>{sessionsCount} ta</strong></span>
+          </div>
+
+          {error && <ErrorBox message={error} />}
+
+          <div className="customer-manage-footer">
+            <div className="customer-manage-actions">
+              <button
+                type="button"
+                className="button secondary"
+                disabled={busy || sessionsCount === 0}
+                onClick={revokeSessions}
+              >
+                <LogOut size={15} /> Sessiyalarni yopish
+              </button>
+              <button
+                type="button"
+                className="button secondary"
+                disabled={busy}
+                onClick={() => {
+                  onClose();
+                  onToggleStatus(user);
+                }}
+              >
+                {user.status === "ACTIVE" ? "Bloklash" : "Faollashtirish"}
+              </button>
+              <button
+                type="button"
+                className="button danger-soft"
+                disabled={busy}
+                onClick={() => {
+                  onClose();
+                  onDelete(user);
+                }}
+              >
+                <Trash2 size={15} /> Hisobni o‘chirish
+              </button>
+            </div>
+            <div className="customer-manage-save">
+              <button
+                type="button"
+                className="button secondary"
+                disabled={busy}
+                onClick={onClose}
+              >
+                Yopish
+              </button>
+              <button type="submit" className="button primary" disabled={busy}>
+                {busy ? "Saqlanmoqda…" : "Saqlash"}
+              </button>
+            </div>
+          </div>
+        </form>
+      </section>
+    </div>
+  );
+}
+
 export function AppUsers() {
   const ctx = usePortal();
   const filters = useSavedFilters("app-users", { status: "" });
   const [search, setSearch] = useState(""),
-    [q, setQ] = useState("");
+    [q, setQ] = useState(""),
+    [manageUser, setManageUser] = useState<Row | null>(null),
+    [previewUser, setPreviewUser] = useState<Row | null>(null),
+    [brokenAvatars, setBrokenAvatars] = useState<Record<string, boolean>>({});
 
   function editUser(r: Row) {
-    ctx.form({
-      title: `${r.name} — Ma'lumotlarni tahrirlash`,
-      description: "Foydalanuvchi ismi yoki telefon raqamini o'zgartiring.",
-      fields: [
-        { key: "name", label: "To'liq ism", required: true, value: r.name },
-        { key: "phone", label: "Telefon", required: false, value: r.phone || "" },
-      ],
-      submit: (v) => api(`/superadmin/customers/${r.id}`, "PATCH", v),
-      done: ctx.refresh,
-    });
+    setManageUser(r);
   }
 
   function toggleStatus(r: Row) {
@@ -1754,7 +2060,7 @@ export function AppUsers() {
         filters={filters.values}
         setFilter={filters.set}
         statuses={["ACTIVE", "BLOCKED"]}
-        placeholder="Mijoz ismi, login yoki telefon"
+        placeholder="Mijoz ismi, login, email yoki telefon"
       />
       <DataPanel
         path="/superadmin/customers"
@@ -1765,30 +2071,52 @@ export function AppUsers() {
         columns={[
           {
             label: "Foydalanuvchi",
-            render: (r) => (
-              <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                <div
-                  style={{
-                    width: "36px",
-                    height: "36px",
-                    borderRadius: "50%",
-                    background: r.status === "ACTIVE" ? "linear-gradient(135deg, #104233, #25e2a2)" : "#3a3a3a",
-                    color: r.status === "ACTIVE" ? "#041610" : "#fff",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    fontWeight: 800,
-                    fontSize: "14px",
-                  }}
-                >
-                  {(r.name || "M").slice(0, 1).toUpperCase()}
+            render: (r) => {
+              const hasAvatar = Boolean(r.avatarUrl) && !brokenAvatars[r.id];
+              return (
+                <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                  <div className="customer-avatar-wrap">
+                    {hasAvatar ? (
+                      <button
+                        type="button"
+                        className="customer-avatar-btn"
+                        title="Profil suratini ko‘rish"
+                        onClick={() => setPreviewUser(r)}
+                      >
+                        <img
+                          src={r.avatarUrl}
+                          alt={r.name}
+                          className="customer-avatar-img"
+                          onError={() =>
+                            setBrokenAvatars((prev) => ({
+                              ...prev,
+                              [r.id]: true,
+                            }))
+                          }
+                        />
+                      </button>
+                    ) : (
+                      <div className="customer-avatar-fallback">
+                        {(r.name || "M").slice(0, 1).toUpperCase()}
+                      </div>
+                    )}
+                    {r.isOnline && (
+                      <span
+                        title="Hozir tizimda (onlayn)"
+                        className="customer-online-dot"
+                      />
+                    )}
+                  </div>
+                  <div>
+                    <strong style={{ color: "var(--ink)" }}>{r.name}</strong>
+                    <span className="subcell">
+                      ID: {r.id.slice(0, 8)}… {r.login ? `· @${r.login}` : ""}
+                      {r.email && r.email !== r.login ? ` · ${r.email}` : ""}
+                    </span>
+                  </div>
                 </div>
-                <div>
-                  <strong style={{ color: "#fff" }}>{r.name}</strong>
-                  <span className="subcell">ID: {r.id.slice(0, 8)}… {r.login ? `· @${r.login}` : ""}</span>
-                </div>
-              </div>
-            ),
+              );
+            },
           },
           {
             label: "Telefon",
@@ -1869,6 +2197,61 @@ export function AppUsers() {
           </>
         )}
       />
+      {manageUser && (
+        <CustomerManageModal
+          user={manageUser}
+          onClose={() => setManageUser(null)}
+          onRefresh={ctx.refresh}
+          onToggleStatus={toggleStatus}
+          onDelete={deleteUser}
+          notice={ctx.notice}
+        />
+      )}
+      {previewUser && (
+        <div
+          className="modal-backdrop"
+          onClick={() => setPreviewUser(null)}
+        >
+          <section
+            className="modal avatar-preview-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-label={`${previewUser.name} surati`}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="modal-heading">
+              <div>
+                <h2>{previewUser.name}</h2>
+                <p className="muted">Foydalanuvchi profil surati</p>
+              </div>
+              <button
+                type="button"
+                className="icon-button"
+                aria-label="Yopish"
+                onClick={() => setPreviewUser(null)}
+              >
+                <X size={20} />
+              </button>
+            </div>
+            <div className="avatar-preview-box">
+              <img src={previewUser.avatarUrl} alt={previewUser.name} />
+            </div>
+            <div className="toolbar" style={{ justifyContent: "flex-end", marginTop: 14 }}>
+              <button
+                type="button"
+                className="button secondary"
+                onClick={() => {
+                  const target = previewUser;
+                  setPreviewUser(null);
+                  editUser(target);
+                }}
+              >
+                Tahrirlash va boshqarish
+              </button>
+            </div>
+          </section>
+        </div>
+      )}
     </>
   );
 }

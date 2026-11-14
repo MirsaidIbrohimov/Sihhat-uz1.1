@@ -12,6 +12,7 @@ import {
   FileSpreadsheet,
   KeyRound,
   Laptop,
+  Mail,
   Megaphone,
   MessageSquare,
   Monitor,
@@ -24,6 +25,7 @@ import {
   Users,
 } from "lucide-react";
 import { api } from "@sihhat/api-client";
+import { prepareAvatarDataUrl, validateAvatarFile } from "./avatar";
 import {
   Act,
   Card,
@@ -63,96 +65,16 @@ export function MyAccount({ changePassword }: { changePassword: () => void }) {
         (m) => m.sanatoriumId === ctx.tenant && m.status === "ACTIVE",
       )?.role ?? ctx.actor.memberships.find((m) => m.status === "ACTIVE")?.role ?? "STAFF");
 
-  const MAX_AVATAR_BYTES = 15 * 1024 * 1024;
-
-  const prepareAvatarDataUrl = (file: File): Promise<string> =>
-    new Promise((resolve, reject) => {
-      if (file.type === "image/gif") {
-        const reader = new FileReader();
-        reader.onerror = () => reject(new Error("Rasm faylini o‘qib bo‘lmadi"));
-        reader.onload = () => resolve(String(reader.result));
-        reader.readAsDataURL(file);
-        return;
-      }
-      const reader = new FileReader();
-      reader.onerror = () => reject(new Error("Rasm faylini o‘qib bo‘lmadi"));
-      reader.onload = () => {
-        const img = new Image();
-        img.onerror = () => {
-          const fallback = String(reader.result || "");
-          if (
-            /^data:image\/(png|jpeg|jpg|webp|gif);base64,/i.test(fallback) &&
-            file.size <= MAX_AVATAR_BYTES
-          ) {
-            resolve(fallback);
-          } else {
-            reject(
-              new Error(
-                "Bu rasm formatini brauzer o‘qiy olmadi. PNG, JPEG yoki WEBP tanlang.",
-              ),
-            );
-          }
-        };
-        img.onload = () => {
-          const maxDim = 512;
-          let { width, height } = img;
-          if (width <= maxDim && height <= maxDim && file.size <= 350 * 1024) {
-            resolve(String(reader.result));
-            return;
-          }
-          if (width > maxDim || height > maxDim) {
-            if (width >= height) {
-              height = Math.max(1, Math.round((height * maxDim) / width));
-              width = maxDim;
-            } else {
-              width = Math.max(1, Math.round((width * maxDim) / height));
-              height = maxDim;
-            }
-          }
-          const canvas = document.createElement("canvas");
-          canvas.width = width;
-          canvas.height = height;
-          const context2d = canvas.getContext("2d");
-          if (!context2d) {
-            resolve(String(reader.result));
-            return;
-          }
-          context2d.drawImage(img, 0, 0, width, height);
-          const outMime = file.type === "image/png" ? "image/png" : "image/jpeg";
-          resolve(canvas.toDataURL(outMime, 0.86));
-        };
-        img.src = String(reader.result);
-      };
-      reader.readAsDataURL(file);
-    });
-
   const handleAvatarSelected = async (
     e: React.ChangeEvent<HTMLInputElement>,
   ) => {
     const file = e.target.files?.[0];
     e.target.value = "";
     if (!file) return;
-    const rawType = (file.type || "").trim().toLowerCase();
-    const isSvg = rawType === "image/svg+xml" || /\.svg$/i.test(file.name);
-    if (isSvg) {
-      const msg = "SVG rasm xavfsizlik sababli qabul qilinmaydi";
-      setAvatarError(msg);
-      ctx.notice(msg);
-      return;
-    }
-    const isImage =
-      rawType.startsWith("image/") ||
-      /\.(png|jpe?g|jfif|webp|gif|bmp|heic|heif|avif)$/i.test(file.name);
-    if (!isImage) {
-      const msg = "Faqat rasm fayli (PNG, JPEG, WEBP, GIF) yuklash mumkin";
-      setAvatarError(msg);
-      ctx.notice(msg);
-      return;
-    }
-    if (file.size > MAX_AVATAR_BYTES) {
-      const msg = "Profil rasmi hajmi 15 MB dan oshmasligi kerak";
-      setAvatarError(msg);
-      ctx.notice(msg);
+    const validationError = validateAvatarFile(file);
+    if (validationError) {
+      setAvatarError(validationError);
+      ctx.notice(validationError);
       return;
     }
     setAvatarBusy(true);
@@ -251,6 +173,33 @@ export function MyAccount({ changePassword }: { changePassword: () => void }) {
           {},
         ),
       done: ctx.refresh,
+    });
+
+  const editEmail = () =>
+    ctx.form({
+      title: ctx.actor.email ? "Email manzilni tahrirlash" : "Email manzil qo‘shish",
+      description: ctx.admin
+        ? "Parolni unutgan hamkorlar, 1 soatda 5 marta xato parol urinishlari va boshqa muhim xavfsizlik/platforma xabarlari ushbu emailga hamda Telegram botga yuboriladi."
+        : "Shaxsiy aloqa va bildirishnomalar uchun elektron pochta manzilingizni kiriting.",
+      fields: [
+        {
+          key: "email",
+          label: "Elektron pochta (Email)",
+          type: "email",
+          required: false,
+          maxLength: 120,
+          value: ctx.actor.email ?? "",
+          hint: "To‘g‘ri email kiriting (masalan: admin@sihhat.uz). O‘chirish uchun bo‘sh qoldirib saqlang.",
+        },
+      ],
+      submit: (values) =>
+        api("/auth/profile", "PATCH", {
+          email: typeof values.email === "string" && values.email.trim() ? values.email.trim() : null,
+        }),
+      done: () => {
+        ctx.reloadActor?.();
+        ctx.refresh();
+      },
     });
 
   const tenantName =
@@ -402,6 +351,13 @@ export function MyAccount({ changePassword }: { changePassword: () => void }) {
             <Edit3 size={15} /> Ismni o‘zgartirish
           </button>
           <button
+            className="button secondary"
+            style={{ display: "inline-flex", alignItems: "center", gap: "8px" }}
+            onClick={editEmail}
+          >
+            <Mail size={15} /> {ctx.actor.email ? "Emailni tahrirlash" : "Email qo‘shish"}
+          </button>
+          <button
             className="button primary"
             style={{ display: "inline-flex", alignItems: "center", gap: "8px" }}
             onClick={changePassword}
@@ -410,6 +366,20 @@ export function MyAccount({ changePassword }: { changePassword: () => void }) {
           </button>
         </div>
       </div>
+
+      {ctx.admin && !ctx.actor.email && (
+        <div className="account-email-banner" role="status">
+          <div>
+            <strong>Bildirishnomalar uchun email qo‘shilmagan</strong>
+            <p className="muted" style={{ margin: "4px 0 0" }}>
+              Parolni tiklash so‘rovlari, 1 soatda 5+ xato parol urinishlari va tizimdagi muhim hodisalarni pochtangizga olish uchun email kiriting.
+            </p>
+          </div>
+          <button type="button" className="button primary" onClick={editEmail}>
+            <Mail size={15} /> Email qo‘shish
+          </button>
+        </div>
+      )}
 
       {/* Profile Details Grid */}
       <div className="profile-stats-grid">
@@ -420,6 +390,10 @@ export function MyAccount({ changePassword }: { changePassword: () => void }) {
         <div className="profile-stat-card">
           <span className="profile-stat-label">Tizim logini</span>
           <div className="profile-stat-value">{ctx.actor.login ?? "—"}</div>
+        </div>
+        <div className="profile-stat-card">
+          <span className="profile-stat-label">Elektron pochta (Xabarlar)</span>
+          <div className="profile-stat-value">{ctx.actor.email ?? "Kiritilmagan"}</div>
         </div>
         <div className="profile-stat-card">
           <span className="profile-stat-label">Telefon raqam</span>

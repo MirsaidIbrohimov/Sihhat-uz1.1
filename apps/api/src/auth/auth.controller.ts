@@ -2,7 +2,7 @@ import { Body, Controller, Get, Inject, Param, Patch, Post, Req, Res } from '@ne
 import { ApiBody, ApiTags, ApiOperation } from '@nestjs/swagger';
 import type { Request, Response } from 'express';
 import { z } from 'zod';
-import { AuthService, staffLoginInput, otpRequestInput, otpVerifyInput, changePasswordInput } from './auth.service';
+import { AuthService, staffLoginInput, otpRequestInput, otpVerifyInput, changePasswordInput, partnerForgotPasswordInput } from './auth.service';
 import { Public, CurrentActor, Roles, AccountantAccess, type ApiRequest } from './guard';
 import type { Actor } from './permissions';
 import { parse } from '../common/errors';
@@ -22,6 +22,8 @@ export class AuthController {
   }
   @Public() @Post('staff/login') @ApiOperation({ summary: 'Xodim login; superadmin uchun MFA' }) @ApiBody({ schema: apiSchema(staffLoginInput) })
   async login(@Body() body: unknown, @Req() req: Request, @Res({ passthrough: true }) res: Response) { return this.web(res, await this.auth.login(body, req.ip ?? 'unknown', req.header('User-Agent'))); }
+  @Public() @Post('partner-forgot-password') @ApiOperation({ summary: 'Hamkor parolni tiklash so‘rovi' }) @ApiBody({ schema: apiSchema(partnerForgotPasswordInput) })
+  partnerForgotPassword(@Body() body: unknown, @Req() req: Request) { return this.auth.partnerForgotPassword(body, req.ip ?? 'unknown'); }
   @Public() @Post('customer/otp/request') @ApiBody({ schema: apiSchema(otpRequestInput) })
   requestOtp(@Body() body: unknown, @Req() req: Request) { return this.auth.requestOtp(body, req.ip ?? 'unknown'); }
   @Public() @Post('customer/otp/verify') @ApiBody({ schema: apiSchema(otpVerifyInput) })

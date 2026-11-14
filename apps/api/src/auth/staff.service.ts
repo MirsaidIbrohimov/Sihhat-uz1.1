@@ -3,7 +3,8 @@ import { z } from 'zod';
 import { Db, audit, emit, lock, type Tx } from '../common/db';
 import { fail, parse, uuid, version, reason, pageQuery, paged } from '../common/errors';
 import { passwordHash, opaque } from '../common/crypto';
-import { loginSchema, passwordSchema, phoneSchema } from './auth.service';
+import { loginSchema, optionalEmailSchema, passwordSchema, phoneSchema } from './auth.service';
+import { normalizeAvatarInput } from './avatar.util';
 import { Actor, ACCOUNTANT, DELEGATABLE, DIRECTOR, effective, requirePlatform, scope, tenantIds } from './permissions';
 
 export const staffInput = z.object({ sanatorium_id: uuid, name: z.string().trim().min(2).max(120), login: loginSchema, phone: phoneSchema, temporary_password: passwordSchema.optional(), grants: z.array(z.enum(DELEGATABLE)).max(30).default([]) }).strict();
@@ -279,7 +280,8 @@ export class StaffService {
       where.OR = [
         { name: { contains: q, mode: 'insensitive' } },
         ...(digits.length > 2 ? [{ phone: { contains: digits } }] : []),
-        { login: { contains: q, mode: 'insensitive' } }
+        { login: { contains: q, mode: 'insensitive' } },
+        { email: { contains: q, mode: 'insensitive' } }
       ];
     }
     const [users, total] = await Promise.all([
@@ -292,6 +294,7 @@ export class StaffService {
           id: true,
           name: true,
           phone: true,
+          email: true,
           login: true,
           avatarUrl: true,
           status: true,
@@ -303,7 +306,8 @@ export class StaffService {
     ]);
 
     const userIds = users.map(u => u.id);
-    const [bookingCounts, ticketCounts, lastSessions] = await Promise.all([
+    const nowDate = new Date();
+    const [bookingCounts, ticketCounts, lastSessions, activeSessionCounts] = await Promise.all([
       userIds.length ? this.db.booking.groupBy({
         by: ['userId'],
         where: {
@@ -322,12 +326,18 @@ export class StaffService {
         orderBy: { lastActivityAt: 'desc' },
         select: { userId: true, lastActivityAt: true, revokedAt: true, refreshExpiresAt: true, deviceLabel: true, channel: true },
         distinct: ['userId'],
-      }) : []
+      }) : [],
+      userIds.length ? this.db.session.groupBy({
+        by: ['userId'],
+        where: { userId: { in: userIds }, revokedAt: null, refreshExpiresAt: { gt: nowDate } },
+        _count: { id: true },
+      }) : [],
     ]);
 
     const bookingMap = new Map(bookingCounts.filter(b => b.userId !== null).map(b => [b.userId!, b._count.id]));
     const ticketMap = new Map(ticketCounts.map(t => [t.userId, t._count.id]));
     const sessionMap = new Map(lastSessions.map(s => [s.userId, s]));
+    const activeSessionMap = new Map(activeSessionCounts.map(s => [s.userId, s._count.id]));
     const now = Date.now();
 
     const data = users.map(u => {
@@ -340,8 +350,10 @@ export class StaffService {
       );
       return {
         ...u,
+        email: u.email ?? (u.login?.includes('@') ? u.login : null),
         avatarUrl: u.avatarUrl ?? null,
         isOnline,
+        activeSessionsCount: activeSessionMap.get(u.id) || 0,
         bookingsCount: bookingMap.get(u.id) || 0,
         ticketsCount: ticketMap.get(u.id) || 0,
         lastSeenAt: s?.lastActivityAt ?? u.updatedAt,
@@ -378,20 +390,111 @@ export class StaffService {
   async updateCustomer(actor: Actor, id: string, body: unknown) {
     if (actor.kind !== 'SUPERADMIN') fail('PERMISSION_DENIED', 'Faqat superadmin tahrirlay oladi', 403);
     parse(uuid, id);
-    const input = parse(z.object({ name: z.string().trim().min(2).max(120).optional(), phone: phoneSchema.optional() }).strict(), body);
+    const rawBody = body && typeof body === 'object' ? (body as Record<string, unknown>) : null;
+    const clearField = (val: unknown) => val === null || val === '';
+    const normalizedBody = rawBody
+      ? {
+          ...rawBody,
+          ...(rawBody.avatarUrl === undefined && rawBody.avatar_url !== undefined ? { avatarUrl: rawBody.avatar_url } : {}),
+          ...(rawBody.remove_avatar === true ? { avatarUrl: null } : {}),
+          ...(clearField(rawBody.phone) && rawBody.phone !== undefined ? { phone: null } : {}),
+          ...(clearField(rawBody.login) && rawBody.login !== undefined ? { login: null } : {}),
+          ...(clearField(rawBody.email) && rawBody.email !== undefined ? { email: null } : {}),
+        }
+      : body;
+    const input = parse(
+      z.object({
+        name: z.string().trim().min(2).max(120).optional(),
+        phone: phoneSchema.nullable().optional(),
+        login: loginSchema.nullable().optional(),
+        email: optionalEmailSchema.nullable().optional(),
+        avatarUrl: z.string().max(25_000_000).nullable().optional(),
+        remove_avatar: z.boolean().optional(),
+      }).passthrough().refine(
+        v =>
+          v.name !== undefined ||
+          v.phone !== undefined ||
+          v.login !== undefined ||
+          v.email !== undefined ||
+          v.avatarUrl !== undefined ||
+          v.remove_avatar !== undefined,
+        { message: 'Kamida bitta maydon kiriting' },
+      ),
+      normalizedBody,
+    );
+    const normalizedAvatar = input.remove_avatar ? null : normalizeAvatarInput(input.avatarUrl);
     return this.db.atomic(async tx => {
       await lock(tx, `user:${id}`);
       const target = await tx.user.findUnique({ where: { id } });
       if (!target || target.kind !== 'CUSTOMER') fail('NOT_FOUND', 'Ilova foydalanuvchisi topilmadi', 404);
+      const nextPhone = input.phone !== undefined ? input.phone : target.phone;
+      const nextLogin = input.login !== undefined ? input.login : target.login;
+      const nextEmail = input.email !== undefined ? input.email : target.email;
+      if (!nextPhone && !nextLogin && !nextEmail) {
+        fail('CONTACT_REQUIRED', 'Foydalanuvchida kamida telefon, login yoki email bo‘lishi kerak', 422);
+      }
+      if (input.login) {
+        const takenLogin = await tx.user.findFirst({
+          where: { login: { equals: input.login, mode: 'insensitive' }, id: { not: id } },
+          select: { id: true },
+        });
+        if (takenLogin) fail('LOGIN_IN_USE', 'Bu login allaqachon band. Boshqa login kiriting', 409);
+      }
+      if (input.phone) {
+        const takenPhone = await tx.user.findFirst({
+          where: { phone: input.phone, id: { not: id } },
+          select: { id: true },
+        });
+        if (takenPhone) fail('PHONE_IN_USE', 'Bu telefon raqami boshqa foydalanuvchiga biriktirilgan', 409);
+      }
       const updated = await tx.user.update({
         where: { id },
         data: {
-          ...(input.name ? { name: input.name } : {}),
-          ...(input.phone ? { phone: input.phone } : {})
-        }
+          ...(input.name !== undefined ? { name: input.name } : {}),
+          ...(input.phone !== undefined ? { phone: input.phone } : {}),
+          ...(input.login !== undefined ? { login: input.login } : {}),
+          ...(input.email !== undefined ? { email: input.email } : {}),
+          ...(normalizedAvatar !== undefined ? { avatarUrl: normalizedAvatar } : {}),
+        },
+        select: {
+          id: true,
+          kind: true,
+          status: true,
+          name: true,
+          phone: true,
+          email: true,
+          login: true,
+          avatarUrl: true,
+          updatedAt: true,
+        },
       });
-      await audit(tx, actor.id, 'customer.profile_updated', id, undefined, { name: target.name, phone: target.phone }, { name: updated.name, phone: updated.phone });
+      const avatarRemoved = normalizedAvatar === null && Boolean(target.avatarUrl);
+      await audit(
+        tx,
+        actor.id,
+        avatarRemoved ? 'customer.avatar_removed' : 'customer.profile_updated',
+        id,
+        undefined,
+        { name: target.name, phone: target.phone, login: target.login, email: target.email, hasAvatar: Boolean(target.avatarUrl) },
+        { name: updated.name, phone: updated.phone, login: updated.login, email: updated.email, hasAvatar: Boolean(updated.avatarUrl) },
+      );
       return updated;
+    });
+  }
+
+  async revokeCustomerSessions(actor: Actor, id: string) {
+    if (actor.kind !== 'SUPERADMIN') fail('PERMISSION_DENIED', 'Faqat superadmin bajara oladi', 403);
+    parse(uuid, id);
+    return this.db.atomic(async tx => {
+      await lock(tx, `user:${id}`);
+      const target = await tx.user.findUnique({ where: { id } });
+      if (!target || target.kind !== 'CUSTOMER') fail('NOT_FOUND', 'Ilova foydalanuvchisi topilmadi', 404);
+      const res = await tx.session.updateMany({
+        where: { userId: id, revokedAt: null },
+        data: { revokedAt: new Date() },
+      });
+      await audit(tx, actor.id, 'customer.sessions_revoked', id, undefined, undefined, { revoked_count: res.count });
+      return { success: true, revoked_count: res.count };
     });
   }
 

@@ -4,6 +4,7 @@ export type Actor = {
   kind: "SUPERADMIN" | "STAFF" | "CUSTOMER";
   name: string;
   login?: string | null;
+  email?: string | null;
   phone?: string | null;
   avatarUrl?: string | null;
   sessionId?: string;

@@ -2642,13 +2642,32 @@ export function Notifications() {
     "survey.created": "Yangi anketa",
     "booking.created": "Yangi bron",
     "payment.succeeded": "Bron to‘lovi tasdiqlandi",
+    "payment.exception": "To‘lovda favqulodda holat",
     "ad.requested": "Yangi reklama arizasi",
     "ad.moderated": "Reklama moderatsiyasi",
     "support.opened": "Yangi murojaat",
     "support.replied": "Murojaatga javob",
+    "sanatorium.submitted": "Sanatoriya anketasi tekshiruvda",
     "sanatorium.moderated": "Profil tekshirildi",
     "staff.invited": "Yangi xodim taklifi",
+    "refund.requested": "Pul qaytarish so‘rovi",
     "refund.succeeded": "Pul qaytarildi",
+    "partner.password_reset_requested": "Hamkor parolini tiklash so‘rovi",
+    "auth.bruteforce_alert": "Xavfsizlik: 1 soatda 5+ xato parol urinishi",
+    "provider.sms.failed": "SMS xizmatida uzilish",
+    "system.health.issue": "Tizim holati ogohlantirishi",
+    "bank.change_requested": "Bank rekviziti o‘zgartirish so‘rovi",
+  };
+  const detailText = (payload: any): string => {
+    if (!payload) return "";
+    if (payload.topic === "partner.password_reset_requested") {
+      return `Login: @${payload.attempted_login || "—"} · IP: ${payload.ip || "—"}`;
+    }
+    if (payload.topic === "auth.bruteforce_alert") {
+      return `Login: @${payload.attempted_login || "—"} · ${payload.attempts || 5} marta · IP: ${payload.ip || "—"}`;
+    }
+    if (payload.reason) return String(payload.reason);
+    return "";
   };
   return (
     <>
@@ -2685,7 +2704,11 @@ export function Notifications() {
                 {r.readAt ? "O‘qilgan" : "Yangi"}
               </span>
             }
-            meta={dateTime(r.createdAt)}
+            meta={
+              detailText(r.payload)
+                ? `${detailText(r.payload)} · ${dateTime(r.createdAt)}`
+                : dateTime(r.createdAt)
+            }
             actions={
               !r.readAt && (
                 <button

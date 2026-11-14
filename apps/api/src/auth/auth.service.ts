@@ -8,11 +8,18 @@ import { decrypt, encrypt, matchTotp, opaque, passwordHash, passwordMatches } fr
 import { Sms } from './sms';
 import { EmailService } from './email';
 import { Actor, effective } from './permissions';
+import { normalizeAvatarInput } from './avatar.util';
 
 export const phoneSchema = z.string().transform(v => v.replace(/[\s()-]/g, '')).pipe(z.string().regex(/^\+998\d{9}$/));
 export const loginSchema = z.string().trim().toLowerCase().min(3).max(64).regex(/^[a-z0-9._@-]+$/);
+export const optionalEmailSchema = z.string().trim().toLowerCase().email('To‘g‘ri email manzil kiriting').max(120);
 export const passwordSchema = z.string().min(8).max(128).refine(v => /[a-z]/.test(v) && /[A-Z]/.test(v) && /[0-9]/.test(v), 'Parolda katta/kichik harf va raqam bo‘lsin');
 export const staffLoginInput = z.object({ login: loginSchema, password: z.string().min(1).max(128), mfa_code: z.string().optional() }).passthrough();
+export const partnerForgotPasswordInput = z.object({
+  login: loginSchema,
+  phone: z.string().trim().max(30).optional(),
+  note: z.string().trim().max(300).optional(),
+}).strict();
 export const otpRequestInput = z.object({
   email: z.string().email('To‘g‘ri email manzil kiriting').max(120).toLowerCase().trim().optional(),
   phone: phoneSchema.optional(),
@@ -43,19 +50,62 @@ export class AuthService implements OnModuleInit {
   async onModuleInit() {
     if (typeof (this.db as unknown as { $executeRawUnsafe?: unknown })?.$executeRawUnsafe !== 'function') return;
     try {
-      await this.db.$executeRawUnsafe('ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "avatarUrl" TEXT');
+      await this.db.$executeRawUnsafe('ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "avatarUrl" TEXT, ADD COLUMN IF NOT EXISTS "email" TEXT');
     } catch {
       // Schema already migrated or test mock without DDL support
     }
   }
-  async limit(key: string, max: number, seconds: number) {
+  async incrementCounter(key: string, seconds: number): Promise<number> {
     const id = hash(key);
     const rows = await this.db.$queryRaw<{ count: number }[]>`
       INSERT INTO "RateLimit" (id, count, "expiresAt") VALUES (${id}, 1, now() + (${seconds} * interval '1 second'))
       ON CONFLICT (id) DO UPDATE SET count = CASE WHEN "RateLimit"."expiresAt" <= now() THEN 1 ELSE "RateLimit".count + 1 END,
       "expiresAt" = CASE WHEN "RateLimit"."expiresAt" <= now() THEN now() + (${seconds} * interval '1 second') ELSE "RateLimit"."expiresAt" END
       RETURNING count`;
-    if (rows[0].count > max) fail('RATE_LIMITED', 'Urinishlar ko‘p. Birozdan keyin qayta urinib ko‘ring', 429);
+    return Number(rows[0]?.count ?? 1);
+  }
+  async limit(key: string, max: number, seconds: number) {
+    const count = await this.incrementCounter(key, seconds);
+    if (count > max) fail('RATE_LIMITED', 'Urinishlar ko‘p. Birozdan keyin qayta urinib ko‘ring', 429);
+  }
+  private async recordFailedLoginAttempt(
+    searchLogin: string,
+    user: { id: string; name: string; kind: string } | null,
+    ip: string,
+    userAgent: string,
+  ) {
+    if (typeof (this.db as unknown as { $queryRaw?: unknown })?.$queryRaw !== 'function') return;
+    try {
+      const loginFails = await this.incrementCounter(`failed-login-1h:${searchLogin}`, 3600);
+      const ipFails = await this.incrementCounter(`failed-login-ip-1h:${ip}`, 3600);
+      const loginTrigger = loginFails >= 5 && loginFails % 5 === 0;
+      const ipTrigger = !loginTrigger && ipFails >= 5 && ipFails % 5 === 0;
+      if (!loginTrigger && !ipTrigger) return;
+      const attempts = loginTrigger ? loginFails : ipFails;
+      await this.db.atomic(async tx => {
+        const admins = await tx.user.findMany({ where: { kind: 'SUPERADMIN', status: 'ACTIVE' }, select: { id: true } });
+        const payload = {
+          recipient_ids: admins.map(a => a.id),
+          attempted_login: searchLogin,
+          user_id: user?.id ?? null,
+          user_name: user?.name ?? null,
+          user_kind: user?.kind ?? null,
+          attempts,
+          window_minutes: 60,
+          ip,
+          device: webDeviceLabel(userAgent),
+          occurred_at: new Date().toISOString(),
+        };
+        await audit(tx, user?.id ?? null, 'auth.bruteforce_alert', user?.id ?? searchLogin, undefined, undefined, {
+          attempted_login: searchLogin,
+          attempts,
+          ip,
+        });
+        await emit(tx, 'auth.bruteforce_alert', payload);
+      });
+    } catch {
+      // Failed-login telemetry must never mask the 401 LOGIN_FAILED response or crash mocked tests
+    }
   }
   private otpHash(id: string, code: string) { return createHmac('sha256', this.config.AUTH_SECRET).update(`${id}:${code}`).digest('hex'); }
   async login(body: unknown, ip: string, userAgent = '') {
@@ -74,7 +124,10 @@ export class AuthService implements OnModuleInit {
       }
     });
     const valid = await passwordMatches(input.password, user?.passwordHash ?? null);
-    if (!user || !valid || user.status !== 'ACTIVE' || user.kind === 'CUSTOMER') fail('LOGIN_FAILED', 'Login yoki parol noto‘g‘ri', 401);
+    if (!user || !valid || user.status !== 'ACTIVE' || user.kind === 'CUSTOMER') {
+      await this.recordFailedLoginAttempt(searchLogin, user ? { id: user.id, name: user.name, kind: user.kind } : null, ip, userAgent);
+      fail('LOGIN_FAILED', 'Login yoki parol noto‘g‘ri', 401);
+    }
     return this.db.atomic(async tx => {
       await lock(tx, `user:${user.id}`);
       const current = await tx.user.findUniqueOrThrow({ where: { id: user.id } });
@@ -87,6 +140,65 @@ export class AuthService implements OnModuleInit {
       await audit(tx, current.id, 'auth.login', current.id);
       return { ...session, user: this.publicUser(current) };
     });
+  }
+  async partnerForgotPassword(body: unknown, ip: string) {
+    if (this.config.PUBLIC_DEMO_ENABLED) fail('DEMO_ACCESS_DENIED', 'Demo serverda parol tiklash yopiq', 403);
+    const input = parse(partnerForgotPasswordInput, body);
+    const searchLogin = input.login.trim().toLowerCase();
+    await this.limit(`forgot-ip:${ip}`, 10, 3600);
+    await this.limit(`forgot-login:${searchLogin}`, 5, 3600);
+    const usernamePart = searchLogin.includes('@') ? searchLogin.split('@')[0] : searchLogin;
+
+    await this.db.atomic(async tx => {
+      const target = await tx.user.findFirst({
+        where: {
+          kind: { not: 'CUSTOMER' },
+          OR: [{ login: searchLogin }, { login: usernamePart }],
+        },
+        select: { id: true, name: true, login: true, phone: true, kind: true, status: true },
+      });
+      let sanatoriumName: string | null = null;
+      if (target) {
+        const m = await tx.membership.findFirst({
+          where: { userId: target.id },
+          orderBy: { createdAt: 'asc' },
+          select: { sanatoriumId: true },
+        });
+        if (m) {
+          const san = await tx.sanatorium.findUnique({ where: { id: m.sanatoriumId }, select: { name: true } });
+          sanatoriumName = san?.name ?? null;
+        }
+      }
+      const admins = await tx.user.findMany({
+        where: { kind: 'SUPERADMIN', status: 'ACTIVE' },
+        select: { id: true },
+      });
+      const cleanPhone = input.phone?.trim() || null;
+      const cleanNote = input.note?.trim() || null;
+      await audit(tx, target?.id ?? null, 'auth.partner_forgot_password', target?.id ?? searchLogin, undefined, undefined, {
+        attempted_login: searchLogin,
+        user_found: Boolean(target),
+        ip,
+      });
+      await emit(tx, 'partner.password_reset_requested', {
+        recipient_ids: admins.map(a => a.id),
+        attempted_login: searchLogin,
+        user_found: Boolean(target),
+        user_id: target?.id ?? null,
+        user_name: target?.name ?? null,
+        user_phone: target?.phone ?? null,
+        sanatorium_name: sanatoriumName,
+        contact_phone: cleanPhone,
+        note: cleanNote,
+        ip,
+        requested_at: new Date().toISOString(),
+      });
+    });
+
+    return {
+      success: true,
+      message: 'Parolni tiklash so‘rovi superadminga yuborildi. Tez orada administrator siz bilan bog‘lanadi.',
+    };
   }
   async requestOtp(body: unknown, ip: string) {
     const input = parse(otpRequestInput, body);
@@ -193,7 +305,7 @@ export class AuthService implements OnModuleInit {
       await this.db.session.updateMany({ where: { id: session.id, revokedAt: null }, data: { lastActivityAt: now } });
       lastActivityAt = now;
     }
-    return { id: user.id, name: user.name, phone:user.phone, login:user.login, avatarUrl: user.avatarUrl ?? null, kind: user.kind, sessionId: session.id, idleTimeoutSeconds: channel === 'WEB' ? webIdleTimeoutSeconds(user.kind) : null, lastActivityAt: lastActivityAt.toISOString(), mustChangePassword: user.mustChangePassword, memberships: memberships.map(m => ({ id: m.id, sanatoriumId: m.sanatoriumId, role: m.role, status: m.status, permissions: m.status === 'ACTIVE' ? effective(m) : [], version: m.version })) };
+    return { id: user.id, name: user.name, phone:user.phone, email: user.email ?? (user.login?.includes('@') ? user.login : null), login:user.login, avatarUrl: user.avatarUrl ?? null, kind: user.kind, sessionId: session.id, idleTimeoutSeconds: channel === 'WEB' ? webIdleTimeoutSeconds(user.kind) : null, lastActivityAt: lastActivityAt.toISOString(), mustChangePassword: user.mustChangePassword, memberships: memberships.map(m => ({ id: m.id, sanatoriumId: m.sanatoriumId, role: m.role, status: m.status, permissions: m.status === 'ACTIVE' ? effective(m) : [], version: m.version })) };
   }
   async csrf(sessionId: string, token: string | undefined, origin: string | undefined) {
     if (!token || !origin || !this.config.CORS_ORIGINS.split(',').includes(origin)) fail('CSRF_INVALID', 'Sahifani yangilab qayta urinib ko‘ring', 403);
@@ -283,8 +395,8 @@ export class AuthService implements OnModuleInit {
     });
   }
   async profile(actor: Actor, body: unknown) {
-    const MAX_AVATAR_BYTES = 15 * 1024 * 1024;
     const rawBody = body && typeof body === 'object' ? (body as Record<string, unknown>) : null;
+    const clearEmailRequested = rawBody !== null && (rawBody.email === null || rawBody.email === '');
     const normalizedBody = rawBody
       ? {
           ...rawBody,
@@ -292,6 +404,7 @@ export class AuthService implements OnModuleInit {
           ...(rawBody.phone === null || rawBody.phone === '' ? { phone: undefined } : {}),
           ...(rawBody.login === null || rawBody.login === '' ? { login: undefined } : {}),
           ...(rawBody.name === null || rawBody.name === '' ? { name: undefined } : {}),
+          ...(clearEmailRequested ? { email: null } : {}),
         }
       : body;
     const input = parse(
@@ -299,43 +412,21 @@ export class AuthService implements OnModuleInit {
         name: z.string().trim().min(2).max(120).optional(),
         phone: phoneSchema.optional(),
         login: loginSchema.optional(),
+        email: optionalEmailSchema.nullable().optional(),
         avatarUrl: z.string().max(25_000_000).nullable().optional(),
       }).passthrough().refine(
-        v => v.name !== undefined || v.phone !== undefined || v.login !== undefined || v.avatarUrl !== undefined,
+        v => v.name !== undefined || v.phone !== undefined || v.login !== undefined || v.email !== undefined || v.avatarUrl !== undefined,
         { message: 'Kamida bitta profil maydonini kiriting' },
       ),
       normalizedBody,
     );
     if (actor.kind === 'CUSTOMER' && input.login) fail('PERMISSION_DENIED', 'Mijoz login bilan kirmaydi', 403);
-    let normalizedAvatar: string | null | undefined = undefined;
-    if (input.avatarUrl !== undefined) {
-      const raw = input.avatarUrl?.trim() ?? '';
-      if (!raw) {
-        normalizedAvatar = null;
-      } else if (raw.startsWith('data:')) {
-        const m = /^data:(image\/(?:png|jpeg|jpg|pjpeg|x-png|webp|gif))(?:;[^;,]+)*;base64,([A-Za-z0-9+/=\s]+)$/i.exec(raw);
-        if (!m) fail('INVALID_AVATAR', 'Faqat PNG, JPEG, WEBP yoki GIF rasm yuklash mumkin', 422);
-        const cleanB64 = m[2].replace(/\s+/g, '');
-        const decodedBytes = Buffer.from(cleanB64, 'base64').byteLength;
-        if (!decodedBytes) fail('INVALID_AVATAR', 'Rasm ma’lumoti yaroqsiz', 422);
-        if (decodedBytes > MAX_AVATAR_BYTES) fail('AVATAR_TOO_LARGE', 'Rasm hajmi 15 MB dan oshmasligi kerak', 422);
-        let mime = m[1].toLowerCase();
-        if (mime === 'image/jpg' || mime === 'image/pjpeg') mime = 'image/jpeg';
-        if (mime === 'image/x-png') mime = 'image/png';
-        normalizedAvatar = `data:${mime};base64,${cleanB64}`;
-      } else {
-        let parsed: URL | null = null;
-        try { parsed = new URL(raw); } catch { parsed = null; }
-        if (!parsed || parsed.protocol !== 'https:' || raw.length > 2048) {
-          fail('INVALID_AVATAR', 'Rasm havolasi to‘g‘ri HTTPS manzil bo‘lishi kerak', 422);
-        }
-        normalizedAvatar = parsed.href;
-      }
-    }
-    const data: { name?: string; phone?: string; login?: string; avatarUrl?: string | null } = {
+    const normalizedAvatar = normalizeAvatarInput(input.avatarUrl);
+    const data: { name?: string; phone?: string; login?: string; email?: string | null; avatarUrl?: string | null } = {
       ...(input.name !== undefined ? { name: input.name } : {}),
       ...(input.phone !== undefined ? { phone: input.phone } : {}),
       ...(input.login !== undefined ? { login: input.login } : {}),
+      ...(input.email !== undefined ? { email: input.email } : {}),
       ...(normalizedAvatar !== undefined ? { avatarUrl: normalizedAvatar } : {}),
     };
     return this.db.atomic(async tx => {
@@ -358,6 +449,7 @@ export class AuthService implements OnModuleInit {
         name: user.name,
         login: user.login,
         phone: user.phone,
+        email: user.email,
         avatarUpdated: normalizedAvatar !== undefined,
       });
       return this.publicUser(user);
@@ -393,14 +485,14 @@ export class AuthService implements OnModuleInit {
       await audit(tx, user.id, 'auth.bootstrap', user.id); return this.publicUser(user);
     });
   }
-  publicUser(user: { id: string; kind: string; name: string; phone: string | null; login: string | null; avatarUrl?: string | null; mustChangePassword: boolean }) {
+  publicUser(user: { id: string; kind: string; name: string; phone: string | null; email?: string | null; login: string | null; avatarUrl?: string | null; mustChangePassword: boolean }) {
     const isEmail = user.login?.includes('@');
     return {
       id: user.id,
       kind: user.kind,
       name: user.name,
       phone: user.phone,
-      email: isEmail ? user.login : null,
+      email: user.email ?? (isEmail ? user.login : null),
       login: user.login,
       avatarUrl: user.avatarUrl ?? null,
       must_change_password: user.mustChangePassword,

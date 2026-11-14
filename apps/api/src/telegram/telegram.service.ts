@@ -1,6 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { timingSafeEqual, randomUUID } from 'node:crypto';
 import { CONFIG, type Config } from '../common/config';
+import { formatAdminAlert, URGENT_TELEGRAM_TOPICS } from '../common/admin-alerts';
 import { Db, emit, lock } from '../common/db';
 import { encrypt, decrypt } from '../common/crypto';
 import { AppError, fail, parse, uuid } from '../common/errors';
@@ -53,6 +54,27 @@ export class TelegramService {
     await this.client.call('setMyShortDescription', { short_description: 'Sihhat uz · sanatoriya xodimlari yordamchisi' });
     await this.client.call('setChatMenuButton', { menu_button: { type: 'commands' } });
     return info;
+  }
+  async startupSync() {
+    if (!this.client.enabled || this.config.NODE_ENV === 'test' || this.config.PUBLIC_DEMO_ENABLED) return;
+    try {
+      await this.identity();
+      const base = (process.env.RENDER_EXTERNAL_URL || '').trim().replace(/\/+$/, '');
+      if (this.config.TELEGRAM_MODE === 'webhook' && /^https:\/\/(?!localhost\b|127\.)/i.test(base) && this.config.TELEGRAM_WEBHOOK_SECRET.length >= 32) {
+        const expectedUrl = `${base}/telegram/webhook`;
+        const info = await this.client.call<{ url?: string }>('getWebhookInfo');
+        if (info.url !== expectedUrl) {
+          await this.client.call('setWebhook', {
+            url: expectedUrl,
+            secret_token: this.config.TELEGRAM_WEBHOOK_SECRET,
+            allowed_updates: ['message', 'callback_query'],
+          });
+          await this.configure();
+        }
+      }
+    } catch {
+      // Bot startup sync is best-effort and must never fail API server readiness
+    }
   }
   async enqueue(raw: unknown, advanceOffset = false) {
     const raws = Array.isArray(raw) ? raw : [raw];
@@ -364,6 +386,14 @@ export class TelegramService {
       const placementText = payload.placement === 'POPUP' ? 'Qalqib chiquvchi (POPUP)' : 'Asosiy sahifada';
       return this.views.page(`📢 Yangi reklama arizasi!\nSarlavha: ${payload.title}\nJoylashuv: ${placementText}`, [[this.views.site(ctx, 'billing', '🖥 E‘lonlarni saytda ko‘rish')]]);
     }
+    if (topic === 'partner.password_reset_requested' || topic === 'auth.bruteforce_alert' || topic === 'bank.change_requested') {
+      if (ctx.actor.kind !== 'SUPERADMIN') return null;
+      const alert = formatAdminAlert(topic, payload);
+      return this.views.page(
+        alert.telegramText,
+        alert.siteSection ? [[this.views.site(ctx, alert.siteSection, alert.siteLabel || '🖥 Ochish')]] : [],
+      );
+    }
     return null;
   }
   async flushNotifications(limit = 20) {
@@ -381,7 +411,7 @@ export class TelegramService {
           await this.db.notificationDelivery.update({ where: { id: row.id }, data: { status: 'CANCELLED', leaseUntil: null } }); continue;
         }
         const actor = await this.links.actor(account.userId), payload = row.payload as any, topic = String(payload.topic || '');
-        const urgent = ['payment.exception', 'system.health.issue', 'provider.sms.failed', 'support.opened', 'support.replied'].includes(topic);
+        const urgent = URGENT_TELEGRAM_TOPICS.has(topic);
         const hour = localHour();
         if (!urgent && account.quietHours && (hour >= 22 || hour < 7)) {
           const morning = `${plusDays(localDate(), hour >= 22 ? 1 : 0)}T07:00:00+05:00`;

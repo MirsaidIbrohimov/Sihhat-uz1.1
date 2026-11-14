@@ -2,6 +2,24 @@
 
 Yangilangan: 2026-11-14. Asos: ISHLAB_CHIQISH_REJASI.md va SIHHAT_UZ_ARXITEKTURA.md.
 
+## 2026-11-14 Ilova foydalanuvchilari boshqaruvi, Hamkor «Parolni unutdingizmi?», Superadmin email/xavfsizlik xabarlari va Render Telegram avtomatik sozlamasi
+
+- **Render + faol baza mosligi va fon outbox nasosi**:
+  - `apps/api/prisma/schema.prisma` va `apps/api/prisma/migrations/202611140001_user_email/migration.sql` orqali `User.email` maydoni qo‘shildi; `AuthService.onModuleInit()` startup vaqtida `avatarUrl` va `email` ustunlarini idempotent tarzda tekshiradi/qo‘shadi.
+  - `TelegramService.startupSync()` (`apps/api/src/telegram/telegram.service.ts`) `TELEGRAM_MODE=webhook` va `RENDER_EXTERNAL_URL` (yoki tashqi HTTPS URL) mavjud bo‘lganda `/telegram/webhook` ni avtomatik ro‘yxatdan o‘tkazadi hamda `TelegramBotState` ni yangilaydi.
+  - `apps/api/src/main.ts` va `apps/api/src/common/db.ts` (`registerAfterEmitCommit`) yagona API servis rejimida (`Render` Web Service) `OutboxService.tick()` (`IN_APP`, `TELEGRAM`, `EMAIL`) va `TelegramService.flushNotifications()` ni avtomatik yurgizadi. Render Dashboard muhit o‘zgaruvchilari (`TELEGRAM_MODE=webhook`, `TELEGRAM_BOT_TOKEN`, `TELEGRAM_BOT_USERNAME`, `TELEGRAM_WEBHOOK_SECRET`, `RESEND_API_KEY` yoki `SMTP_*`) foydalanuvchi tomonidan kiritilib qayta deploy qilinishi kerak (lokalda Render boshqaruv tokeni mavjud emas).
+- **«Ilova foydalanuvchilari» (`/superadmin/customers`)**:
+  - Jadvalda foydalanuvchilarning profil suratlari (`avatarUrl`) va kattalashtirib ko‘rish (lightbox) qo‘shildi.
+  - «Tahrirlash» modalida (`CustomerManageModal`) rasmni ko‘rish/almashtirish, **«Rasmni o‘chirish»** (`remove_avatar: true`), `name`/`phone`/`login`/`email` tahrirlash, faol sessiyalarni tugatish (`POST /superadmin/customers/:id/revoke-sessions`), bloklash/faollashtirish va hisobni o‘chirish funksiyalari qo‘shildi.
+- **Hamkorlar loginida «Parolni unutdingizmi?» va Superadmin email + Telegram ogohlantirishlari**:
+  - `Login` sahifasiga (`mode === 'partner'`) «Parolni unutdingizmi?» oynasi va rate-limit bilan himoyalangan `POST /auth/partner-forgot-password` endpointi qo‘shildi (login mavjudligini oshkor qilmasdan `partner.password_reset_requested` yuboradi).
+  - Superadmin **«Mening hisobim»** (`PATCH /auth/profile`) orqali shaxsiy `email` kiritishi/tahrirlashi mumkin.
+  - 1 soatda 5 marta xato parol bilan kirish urinishlari (`recordFailedLoginAttempt`, `401 LOGIN_FAILED` javobini berkitmasdan) `auth.bruteforce_alert` hodisasini yaratadi; shuningdek `bank.change_requested`, `payment.exception`, `refund.requested`, `provider.sms.failed`, `system.health.issue`, `sanatorium.submitted`, `staff.invited`, `ad.requested`, `support.opened` muhim hodisalari `OutboxService` (`IN_APP`, `EMAIL` -> `EmailService.sendAdminAlert`, `TELEGRAM` -> `TelegramService`) orqali faol superadminlarga yuboriladi.
+- **Tekshirilgan natijalar (`2026-11-14`)**:
+  - `npm run db:migrate -w @sihhat/api` va `npm --workspace @sihhat/api exec -- tsx scripts/test-db.ts` (`sihhat` va `sihhat_test` bazalarida `202611140001_user_email` qo‘llandi) — muvaffaqiyatli.
+  - `npm run check` (`5` workspace typecheck), `npm run build:api`, `npm run build:web`, `npm run check:secrets` (`412` fayl, `24` maxfiy qiymat, `matches: []`) — muvaffaqiyatli.
+  - `npm run test:contract -w @sihhat/api` (`1/1` passed), UI/portal route testlari (`5/5` passed), va 7 ta tegishli API test fayli (`test/security-alerts-customers.test.ts`, `test/telegram.test.ts`, `test/telegram-availability.test.ts`, `test/staff-login-availability.test.ts`, `test/avatar-presence.test.ts`, `test/profile-media-upload.test.ts`, `test/support-email.test.ts`: `33/33` passed, `0` failed). (Eslatma: avvalgi `ec16b3e` commitida Superadmin MFA olib tashlangani sababli eski `test/auth.test.ts:18` `MFA_REQUIRED` asserti avvaldan muvaffaqiyatsiz.)
+
 ## 2026-11-14 Veb-panellarda Telegram bot holati tuzatilishi va «Hamkor shartlari»
 
 - **Telegram bot holati (`apps/api` va `packages/ui`)**:

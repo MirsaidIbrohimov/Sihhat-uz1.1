@@ -288,7 +288,9 @@ function Login({
   const [busy, setBusy] = useState(false),
     [error, setError] = useState(""),
     [showPassword, setShowPassword] = useState(false),
-    [termsOpen, setTermsOpen] = useState(false);
+    [termsOpen, setTermsOpen] = useState(false),
+    [forgotOpen, setForgotOpen] = useState(false),
+    [forgotSuccess, setForgotSuccess] = useState("");
   async function login(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setBusy(true);
@@ -399,6 +401,11 @@ function Login({
             </span>
           </label>
           {error && <ErrorBox message={error} />}
+          {forgotSuccess && (
+            <p className="alert-note" role="status">
+              {forgotSuccess}
+            </p>
+          )}
           <button className="button primary" disabled={busy}>
             {busy ? "Tekshirilmoqda…" : "Kirish"}
             <ArrowRight size={16} />
@@ -409,18 +416,72 @@ function Login({
               : "Kirish ma’lumotlarini direktoringiz yoki administratordan oling."}
           </p>
           {mode === "partner" && (
-            <button
-              type="button"
-              className="terms-inline-link"
-              onClick={() => setTermsOpen(true)}
-            >
-              Hamkor shartlari bilan tanishish ↗
-            </button>
+            <div className="login-partner-links">
+              <button
+                type="button"
+                className="terms-inline-link"
+                onClick={() => {
+                  setForgotSuccess("");
+                  setForgotOpen(true);
+                }}
+              >
+                Parolni unutdingizmi?
+              </button>
+              <button
+                type="button"
+                className="terms-inline-link"
+                onClick={() => setTermsOpen(true)}
+              >
+                Hamkor shartlari bilan tanishish ↗
+              </button>
+            </div>
           )}
         </form>
       </div>
       {termsOpen && (
         <PartnerTermsDialog onClose={() => setTermsOpen(false)} />
+      )}
+      {forgotOpen && (
+        <FormDialog
+          onClose={() => setForgotOpen(false)}
+          notice={() => undefined}
+          spec={{
+            title: "Parolni unutdingizmi?",
+            description:
+              "Tizimga kiradigan loginingizni kiriting. Xabar darhol superadminning elektron pochtasi va Telegram botiga yuboriladi.",
+            button: "Superadminga xabar yuborish",
+            fields: [
+              {
+                key: "login",
+                label: "Loginingiz",
+                required: true,
+                minLength: 3,
+                maxLength: 64,
+                hint: "Masalan: zomin.direktor yoki resepsion logini",
+              },
+              {
+                key: "phone",
+                label: "Bog‘lanish telefoni (ixtiyoriy)",
+                maxLength: 30,
+                hint: "Masalan: +998901234567",
+              },
+              {
+                key: "note",
+                label: "Qo‘shimcha izoh (ixtiyoriy)",
+                type: "textarea",
+                maxLength: 300,
+                hint: "Sanatoriya nomi yoki qo‘shimcha ma’lumot yozishingiz mumkin",
+              },
+            ],
+            submit: async (values) =>
+              api("/auth/partner-forgot-password", "POST", values),
+            done: () => {
+              setForgotSuccess(
+                "So‘rov superadminga yuborildi. Administrator tez orada siz bilan bog‘lanib vaqtinchalik parol beradi.",
+              );
+            },
+          }}
+        />
       )}
     </div>
   );

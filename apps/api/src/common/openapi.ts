@@ -44,7 +44,7 @@ export function enrichOpenApi(document:OpenAPIObject){
     WebSession:obj({user:ref('PublicUser'),expires_at:timestamp,csrf_token:str}),
     MobileSession:obj({user:ref('PublicUser'),access_token:str,refresh_token:str,csrf_token:str,expires_at:timestamp,refresh_expires_at:timestamp,session_id:id}),
     OtpChallenge:obj({challenge_id:id,expires_at:timestamp,resend_after:{...integer,description:'Seconds until another OTP may be requested.'}}),
-    Actor:obj({id,kind:{...str,enum:['SUPERADMIN','STAFF','CUSTOMER']},name:str,phone:{...str,nullable:true},login:{...str,nullable:true},avatarUrl:{...str,nullable:true},sessionId:id,idleTimeoutSeconds:{...integer,nullable:true,description:'Web idle limit: superadmin 7200, staff 14400 seconds. Mobile has no panel idle limit.'},lastActivityAt:timestamp,mustChangePassword:boolean,memberships:array(obj({id,sanatoriumId:id,role:str,status:str,permissions:array(str),version:integer})),csrf_token:{...str,nullable:true}}),
+    Actor:obj({id,kind:{...str,enum:['SUPERADMIN','STAFF','CUSTOMER']},name:str,phone:{...str,nullable:true},email:{...str,nullable:true},login:{...str,nullable:true},avatarUrl:{...str,nullable:true},sessionId:id,idleTimeoutSeconds:{...integer,nullable:true,description:'Web idle limit: superadmin 7200, staff 14400 seconds. Mobile has no panel idle limit.'},lastActivityAt:timestamp,mustChangePassword:boolean,memberships:array(obj({id,sanatoriumId:id,role:str,status:str,permissions:array(str),version:integer})),csrf_token:{...str,nullable:true}}),
     PaymentOrder:obj({id,sanatoriumId:id,userId:id,bookingId:{...id,nullable:true},invoiceId:{...id,nullable:true},purpose:{...str,enum:['BOOKING','SUBSCRIPTION','AD']},amount:money,status:{...str,enum:['CREATED','SUCCEEDED','CANCELLED']},paidAt:{...timestamp,nullable:true},createdAt:timestamp}),
     RefundRequest:obj({id,bookingId:id,sanatoriumId:id,requestedBy:id,amount:money,status:{...str,enum:['REQUESTED','APPROVED','REJECTED','PROCESSING','SUCCEEDED']},reason:str,decisionReason:{...str,nullable:true},reserveAccount:str,createdAt:timestamp,completedAt:{...timestamp,nullable:true}}),
     BookingItem:obj({id,sanatoriumId:id,bookingId:id,roomId:id,roomTypeId:id,ratePlanId:id,adults:integer,childrenAges:array(integer),amount:money}),
@@ -104,14 +104,17 @@ export function enrichOpenApi(document:OpenAPIObject){
     '/superadmin/articles':apiSchema(articleInput),'/superadmin/articles/{id}':apiSchema(articleUpdate),
     '/superadmin/catalog/entries':obj({kind:{type:'string',enum:['REGION','AMENITY','SERVICE']},name:str,code:str}),
     '/auth/customer/phone-change/request':obj({new_phone:str}),'/auth/customer/phone-change/confirm':obj({old_challenge_id:id,new_challenge_id:id,old_code:str,new_code:str}),
-    '/auth/profile':obj({name:str,phone:str,login:str,avatarUrl:{...str,nullable:true}},[]),'/auth/refresh':obj({refresh_token:str},[]),'/auth/heartbeat':obj({}),
+    '/auth/partner-forgot-password':obj({login:str,phone:str,note:str},['login']),
+    '/auth/profile':obj({name:str,phone:str,login:str,email:{...str,nullable:true},avatarUrl:{...str,nullable:true}},[]),'/auth/refresh':obj({refresh_token:str},[]),'/auth/heartbeat':obj({}),
+    '/superadmin/customers/{id}':obj({name:str,phone:{...str,nullable:true},login:{...str,nullable:true},email:{...str,nullable:true},avatarUrl:{...str,nullable:true},remove_avatar:boolean},[]),
+    '/superadmin/customers/{id}/revoke-sessions':obj({},[]),
     '/superadmin/reconciliation/imports':obj({kind:{type:'string',enum:['PROVIDER','BANK']},evidence_asset_id:id,rows:array(obj({provider:{...str,enum:['PAYME','TEZCHECK'],default:'PAYME'},provider_id:str,order_id:id,amount:money,state:integer,bank_reference:str,fee:money},['provider_id','order_id','amount','state']))},['kind','rows']),
     '/payments/tezcheck':{type:'object',properties:{id:str,type:str,schema_version:{...integer,enum:[1]},data:{type:'object',properties:{bill_id:str,external_reference:{...str,nullable:true}},required:['bill_id','external_reference'],additionalProperties:true}},required:['id','type','schema_version','data'],additionalProperties:true},
     '/payments/payme':obj({jsonrpc:{type:'string',enum:['2.0']},id:{oneOf:[str,{type:'number'}]},method:{type:'string',enum:['CheckPerformTransaction','CreateTransaction','PerformTransaction','CancelTransaction','CheckTransaction','GetStatement','SetFiscalData']},params:{type:'object',additionalProperties:true}},['method','params']),
     '/telegram/link':obj({}),'/telegram/disconnect':obj({}),'/telegram/link/{id}/confirm':obj({telegram_user_id:{...str,pattern:'^[1-9][0-9]{0,19}$'}}),'/telegram/webhook':apiSchema(updateInput),
   };
   for(const[path,item]of Object.entries(document.paths))for(const method of ['get','post','patch','put','delete'] as const){const operation=(item as any)[method];if(!operation)continue;
-    const isPublic=path.startsWith('/health/')||path.startsWith('/catalog/')||['/auth/staff/login','/auth/customer/otp/request','/auth/customer/otp/verify','/telegram/webhook','/payments/tezcheck'].includes(path);
+    const isPublic=path.startsWith('/health/')||path.startsWith('/catalog/')||['/auth/staff/login','/auth/partner-forgot-password','/auth/customer/otp/request','/auth/customer/otp/verify','/telegram/webhook','/payments/tezcheck'].includes(path);
     const customerOnly=path.startsWith('/customer/')||path.startsWith('/auth/customer/phone')||['/ai/messages','/reviews'].includes(path);
     const staffOnly=path.startsWith('/partner/')||path.startsWith('/superadmin/')||(path.startsWith('/telegram/')&&path!=='/telegram/webhook')||(method==='post'&&['/messages'].includes(path));
     const webSecurity={cookie:[],...(method==='get'?{}:{CSRF:[]})};
@@ -164,7 +167,7 @@ export function enrichOpenApi(document:OpenAPIObject){
     if(path==='/catalog/home')response.content['application/json'].schema=ref('HomeFeed');
     if(path==='/telegram/account')response.content['application/json'].schema=ref('TelegramConnection');
     if(path==='/telegram/link')response.content['application/json'].schema=ref('TelegramLink');
-    if(['/telegram/disconnect','/telegram/webhook','/telegram/link/{id}/confirm'].includes(path))response.content['application/json'].schema=ref('Success');
+    if(['/telegram/disconnect','/telegram/webhook','/telegram/link/{id}/confirm','/auth/partner-forgot-password','/superadmin/customers/{id}/revoke-sessions'].includes(path))response.content['application/json'].schema=ref('Success');
     if(path==='/catalog/news/{id}')response.content['application/json'].schema=ref('PublicArticle');
     if(path==='/ai/messages')response.content['application/json'].schema=ref('AiReply');
     if(path==='/superadmin/articles'&&method==='get')response.content['application/json'].schema=ref('Page');
