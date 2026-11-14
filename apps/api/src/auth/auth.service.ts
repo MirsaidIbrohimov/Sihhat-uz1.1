@@ -1,4 +1,4 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, type OnModuleInit } from '@nestjs/common';
 import { z } from 'zod';
 import { createHmac, randomInt } from 'node:crypto';
 import { CONFIG, type Config } from '../common/config';
@@ -33,13 +33,21 @@ export function webDeviceLabel(userAgent = '') {
 }
 
 @Injectable()
-export class AuthService {
+export class AuthService implements OnModuleInit {
   constructor(
     @Inject(Db) readonly db: Db,
     @Inject(CONFIG) readonly config: Config,
     @Inject(Sms) readonly sms: Sms,
     @Inject(EmailService) readonly email: EmailService,
   ) {}
+  async onModuleInit() {
+    if (typeof (this.db as unknown as { $executeRawUnsafe?: unknown })?.$executeRawUnsafe !== 'function') return;
+    try {
+      await this.db.$executeRawUnsafe('ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "avatarUrl" TEXT');
+    } catch {
+      // Schema already migrated or test mock without DDL support
+    }
+  }
   async limit(key: string, max: number, seconds: number) {
     const id = hash(key);
     const rows = await this.db.$queryRaw<{ count: number }[]>`
@@ -276,17 +284,27 @@ export class AuthService {
   }
   async profile(actor: Actor, body: unknown) {
     const MAX_AVATAR_BYTES = 15 * 1024 * 1024;
+    const rawBody = body && typeof body === 'object' ? (body as Record<string, unknown>) : null;
+    const normalizedBody = rawBody
+      ? {
+          ...rawBody,
+          ...(rawBody.avatarUrl === undefined && rawBody.avatar_url !== undefined ? { avatarUrl: rawBody.avatar_url } : {}),
+          ...(rawBody.phone === null || rawBody.phone === '' ? { phone: undefined } : {}),
+          ...(rawBody.login === null || rawBody.login === '' ? { login: undefined } : {}),
+          ...(rawBody.name === null || rawBody.name === '' ? { name: undefined } : {}),
+        }
+      : body;
     const input = parse(
       z.object({
         name: z.string().trim().min(2).max(120).optional(),
         phone: phoneSchema.optional(),
         login: loginSchema.optional(),
-        avatarUrl: z.string().max(22_000_000).nullable().optional(),
-      }).strict().refine(
+        avatarUrl: z.string().max(25_000_000).nullable().optional(),
+      }).passthrough().refine(
         v => v.name !== undefined || v.phone !== undefined || v.login !== undefined || v.avatarUrl !== undefined,
         { message: 'Kamida bitta profil maydonini kiriting' },
       ),
-      body,
+      normalizedBody,
     );
     if (actor.kind === 'CUSTOMER' && input.login) fail('PERMISSION_DENIED', 'Mijoz login bilan kirmaydi', 403);
     let normalizedAvatar: string | null | undefined = undefined;
@@ -295,13 +313,16 @@ export class AuthService {
       if (!raw) {
         normalizedAvatar = null;
       } else if (raw.startsWith('data:')) {
-        const m = /^data:(image\/(?:png|jpeg|jpg|webp|gif));base64,([A-Za-z0-9+/=\r\n]+)$/i.exec(raw);
+        const m = /^data:(image\/(?:png|jpeg|jpg|pjpeg|x-png|webp|gif))(?:;[^;,]+)*;base64,([A-Za-z0-9+/=\s]+)$/i.exec(raw);
         if (!m) fail('INVALID_AVATAR', 'Faqat PNG, JPEG, WEBP yoki GIF rasm yuklash mumkin', 422);
-        const cleanB64 = m[2].replace(/[\r\n]/g, '');
+        const cleanB64 = m[2].replace(/\s+/g, '');
         const decodedBytes = Buffer.from(cleanB64, 'base64').byteLength;
         if (!decodedBytes) fail('INVALID_AVATAR', 'Rasm ma’lumoti yaroqsiz', 422);
         if (decodedBytes > MAX_AVATAR_BYTES) fail('AVATAR_TOO_LARGE', 'Rasm hajmi 15 MB dan oshmasligi kerak', 422);
-        normalizedAvatar = `data:${m[1].toLowerCase()};base64,${cleanB64}`;
+        let mime = m[1].toLowerCase();
+        if (mime === 'image/jpg' || mime === 'image/pjpeg') mime = 'image/jpeg';
+        if (mime === 'image/x-png') mime = 'image/png';
+        normalizedAvatar = `data:${mime};base64,${cleanB64}`;
       } else {
         let parsed: URL | null = null;
         try { parsed = new URL(raw); } catch { parsed = null; }

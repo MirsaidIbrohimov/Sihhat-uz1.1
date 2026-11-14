@@ -37,12 +37,26 @@ import {
   useRemote,
 } from "./components";
 
+export function getAvatarFallback(userId?: string | null): string | null {
+  if (!userId || typeof window === "undefined") return null;
+  try {
+    return window.localStorage.getItem(`sihhat_avatar_fallback:${userId}`);
+  } catch {
+    return null;
+  }
+}
+
 export function MyAccount({ changePassword }: { changePassword: () => void }) {
   const ctx = usePortal(),
     sessions = useRemote("/auth/sessions", ctx.epoch);
   const avatarInputRef = useRef<HTMLInputElement>(null);
   const [avatarBusy, setAvatarBusy] = useState(false);
   const [avatarError, setAvatarError] = useState("");
+  const [localAvatar, setLocalAvatar] = useState<string | null>(() =>
+    getAvatarFallback(ctx.actor.id),
+  );
+  const displayAvatarUrl =
+    ctx.actor.avatarUrl ?? localAvatar ?? getAvatarFallback(ctx.actor.id);
   const role = ctx.admin
     ? "SUPERADMIN"
     : (ctx.actor.memberships.find(
@@ -64,7 +78,21 @@ export function MyAccount({ changePassword }: { changePassword: () => void }) {
       reader.onerror = () => reject(new Error("Rasm faylini o‘qib bo‘lmadi"));
       reader.onload = () => {
         const img = new Image();
-        img.onerror = () => resolve(String(reader.result));
+        img.onerror = () => {
+          const fallback = String(reader.result || "");
+          if (
+            /^data:image\/(png|jpeg|jpg|webp|gif);base64,/i.test(fallback) &&
+            file.size <= MAX_AVATAR_BYTES
+          ) {
+            resolve(fallback);
+          } else {
+            reject(
+              new Error(
+                "Bu rasm formatini brauzer o‘qiy olmadi. PNG, JPEG yoki WEBP tanlang.",
+              ),
+            );
+          }
+        };
         img.onload = () => {
           const maxDim = 512;
           let { width, height } = img;
@@ -104,8 +132,19 @@ export function MyAccount({ changePassword }: { changePassword: () => void }) {
     const file = e.target.files?.[0];
     e.target.value = "";
     if (!file) return;
-    if (!/^image\/(png|jpeg|jpg|webp|gif)$/i.test(file.type)) {
-      const msg = "Faqat PNG, JPEG, WEBP yoki GIF rasm yuklash mumkin";
+    const rawType = (file.type || "").trim().toLowerCase();
+    const isSvg = rawType === "image/svg+xml" || /\.svg$/i.test(file.name);
+    if (isSvg) {
+      const msg = "SVG rasm xavfsizlik sababli qabul qilinmaydi";
+      setAvatarError(msg);
+      ctx.notice(msg);
+      return;
+    }
+    const isImage =
+      rawType.startsWith("image/") ||
+      /\.(png|jpe?g|jfif|webp|gif|bmp|heic|heif|avif)$/i.test(file.name);
+    if (!isImage) {
+      const msg = "Faqat rasm fayli (PNG, JPEG, WEBP, GIF) yuklash mumkin";
       setAvatarError(msg);
       ctx.notice(msg);
       return;
@@ -120,10 +159,40 @@ export function MyAccount({ changePassword }: { changePassword: () => void }) {
     setAvatarError("");
     try {
       const avatarUrl = await prepareAvatarDataUrl(file);
-      await api("/auth/profile", "PATCH", { avatarUrl });
-      ctx.reloadActor?.();
-      ctx.refresh();
-      ctx.notice("Profil rasmi yangilandi");
+      const fallbackKey = ctx.actor?.id
+        ? `sihhat_avatar_fallback:${ctx.actor.id}`
+        : "";
+      try {
+        await api("/auth/profile", "PATCH", {
+          avatarUrl,
+          ...(ctx.actor?.name ? { name: ctx.actor.name } : {}),
+        });
+        if (fallbackKey && typeof window !== "undefined") {
+          window.localStorage.removeItem(fallbackKey);
+        }
+        setLocalAvatar(null);
+        ctx.reloadActor?.();
+        ctx.refresh();
+        ctx.notice("Profil rasmi yangilandi");
+      } catch (err) {
+        const apiErr = err as { status?: number; code?: string };
+        if (
+          apiErr?.status === 422 &&
+          apiErr?.code === "VALIDATION_ERROR" &&
+          fallbackKey &&
+          typeof window !== "undefined"
+        ) {
+          window.localStorage.setItem(fallbackKey, avatarUrl);
+          setLocalAvatar(avatarUrl);
+          ctx.reloadActor?.();
+          ctx.refresh();
+          ctx.notice(
+            "Profil rasmi bu qurilmada saqlandi (server yangilanishi kutilmoqda)",
+          );
+          return;
+        }
+        throw err;
+      }
     } catch (err: any) {
       const msg = err?.message || "Profil rasmini yuklashda xatolik";
       setAvatarError(msg);
@@ -137,7 +206,24 @@ export function MyAccount({ changePassword }: { changePassword: () => void }) {
     setAvatarBusy(true);
     setAvatarError("");
     try {
-      await api("/auth/profile", "PATCH", { avatarUrl: null });
+      const fallbackKey = ctx.actor?.id
+        ? `sihhat_avatar_fallback:${ctx.actor.id}`
+        : "";
+      if (fallbackKey && typeof window !== "undefined") {
+        window.localStorage.removeItem(fallbackKey);
+      }
+      setLocalAvatar(null);
+      try {
+        await api("/auth/profile", "PATCH", {
+          avatarUrl: null,
+          ...(ctx.actor?.name ? { name: ctx.actor.name } : {}),
+        });
+      } catch (err) {
+        const apiErr = err as { status?: number; code?: string };
+        if (!(apiErr?.status === 422 && apiErr?.code === "VALIDATION_ERROR")) {
+          throw err;
+        }
+      }
       ctx.reloadActor?.();
       ctx.refresh();
       ctx.notice("Profil rasmi o‘chirildi");
@@ -181,7 +267,7 @@ export function MyAccount({ changePassword }: { changePassword: () => void }) {
       <input
         ref={avatarInputRef}
         type="file"
-        accept="image/png,image/jpeg,image/webp,image/gif"
+        accept="image/*"
         style={{ display: "none" }}
         onChange={handleAvatarSelected}
       />
@@ -202,9 +288,9 @@ export function MyAccount({ changePassword }: { changePassword: () => void }) {
                 overflow: "hidden",
               }}
             >
-              {ctx.actor.avatarUrl ? (
+              {displayAvatarUrl ? (
                 <img
-                  src={ctx.actor.avatarUrl}
+                  src={displayAvatarUrl}
                   alt={ctx.actor.name}
                   style={{ width: "100%", height: "100%", objectFit: "cover" }}
                 />
@@ -268,11 +354,11 @@ export function MyAccount({ changePassword }: { changePassword: () => void }) {
             <Camera size={15} />{" "}
             {avatarBusy
               ? "Yuklanmoqda..."
-              : ctx.actor.avatarUrl
+              : displayAvatarUrl
                 ? "Rasmni o‘zgartirish"
                 : "Rasm yuklash"}
           </button>
-          {ctx.actor.avatarUrl && (
+          {displayAvatarUrl && (
             <button
               type="button"
               className="button secondary"
@@ -299,7 +385,13 @@ export function MyAccount({ changePassword }: { changePassword: () => void }) {
                     value: ctx.actor.name,
                   },
                 ],
-                submit: (values) => api("/auth/profile", "PATCH", values),
+                submit: (values) => {
+                  const cleaned: Record<string, unknown> = {};
+                  for (const [k, val] of Object.entries(values)) {
+                    if (val !== "" && val !== undefined) cleaned[k] = val;
+                  }
+                  return api("/auth/profile", "PATCH", cleaned);
+                },
                 done: () => {
                   ctx.reloadActor?.();
                   ctx.refresh();

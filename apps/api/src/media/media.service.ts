@@ -18,9 +18,36 @@ export class MediaService {
   private s3(){return new S3Client({endpoint:this.config.S3_ENDPOINT||undefined,region:this.config.S3_REGION,forcePathStyle:!!this.config.S3_ENDPOINT,credentials:{accessKeyId:this.config.S3_ACCESS_KEY,secretAccessKey:this.config.S3_SECRET_KEY}});}
   private path(key:string){const root=resolve(this.config.STORAGE_PATH);const target=resolve(root,key);if(!target.startsWith(root+sep))throw new Error('Storage path escaped');return target;}
   async upload(actor:Actor,body:unknown){
-    const i=parse(z.object({sanatorium_id:uuid,revision_id:uuid.optional(),visibility:z.enum(['PUBLIC','PRIVATE']),mime:z.enum(['image/png','image/jpeg','image/webp','application/pdf']),base64:z.string().min(8).max(11_184_812)}).strict(),body);scope(actor,i.sanatorium_id,'sanatorium.profile.edit');await this.auth.limit(`media:${actor.id}`,40,3600);
+    const rawBody = body && typeof body === 'object' ? (body as Record<string, unknown>) : null;
+    const normalizedBody = rawBody
+      ? (() => {
+          let mime: unknown = typeof rawBody.mime === 'string' ? rawBody.mime.trim().toLowerCase() : rawBody.mime;
+          if (mime === 'image/jpg' || mime === 'image/pjpeg') mime = 'image/jpeg';
+          if (mime === 'image/x-png') mime = 'image/png';
+          let base64: unknown = rawBody.base64;
+          if (typeof rawBody.base64 === 'string') {
+            let clean = rawBody.base64.trim();
+            const match = /^data:([^;,]+)(?:;[^;,]+)*;base64,(.+)$/is.exec(clean);
+            if (match) {
+              if (!mime) {
+                const fromData = match[1].trim().toLowerCase();
+                mime = fromData === 'image/jpg' || fromData === 'image/pjpeg' ? 'image/jpeg' : fromData === 'image/x-png' ? 'image/png' : fromData;
+              }
+              clean = match[2];
+            }
+            base64 = clean.replace(/\s+/g, '');
+          }
+          return {
+            ...rawBody,
+            mime,
+            base64,
+            revision_id: rawBody.revision_id === null || rawBody.revision_id === '' ? undefined : rawBody.revision_id,
+          };
+        })()
+      : body;
+    const i=parse(z.object({sanatorium_id:uuid,revision_id:uuid.optional(),visibility:z.enum(['PUBLIC','PRIVATE']),mime:z.enum(['image/png','image/jpeg','image/webp','image/gif','application/pdf']),base64:z.string().min(8).max(12_000_000)}).passthrough(),normalizedBody);scope(actor,i.sanatorium_id,'sanatorium.profile.edit');await this.auth.limit(`media:${actor.id}`,40,3600);
     const bytes=Buffer.from(i.base64,'base64');if(bytes.length>8*1024*1024||bytes.length<8)fail('FILE_SIZE_INVALID','Fayl 8 MBdan oshmasin',422);
-    const valid=i.mime==='image/png'?bytes.subarray(0,8).equals(Buffer.from([137,80,78,71,13,10,26,10])):i.mime==='image/jpeg'?bytes[0]===255&&bytes[1]===216&&bytes[2]===255:i.mime==='image/webp'?bytes.subarray(0,4).toString()==='RIFF'&&bytes.subarray(8,12).toString()==='WEBP':bytes.subarray(0,5).toString()==='%PDF-';
+    const valid=i.mime==='image/png'?bytes.subarray(0,8).equals(Buffer.from([137,80,78,71,13,10,26,10])):i.mime==='image/jpeg'?bytes[0]===255&&bytes[1]===216&&bytes[2]===255:i.mime==='image/webp'?bytes.subarray(0,4).toString()==='RIFF'&&bytes.subarray(8,12).toString()==='WEBP':i.mime==='image/gif'?(bytes.subarray(0,6).toString()==='GIF87a'||bytes.subarray(0,6).toString()==='GIF89a'):bytes.subarray(0,5).toString()==='%PDF-';
     if(!valid||(i.mime==='application/pdf'&&i.visibility==='PUBLIC'))fail('FILE_TYPE_INVALID','Fayl turi yoki ko‘rinish darajasi noto‘g‘ri',422);
     if(i.revision_id){const r=await this.db.sanatoriumRevision.findFirst({where:{id:i.revision_id,sanatoriumId:i.sanatorium_id,status:{in:['DRAFT','CHANGES_REQUESTED']}}});if(!r)fail('NOT_FOUND','Tahrir topilmadi',404);}
     const id=randomUUID();const key=`${i.sanatorium_id}/${id}`;

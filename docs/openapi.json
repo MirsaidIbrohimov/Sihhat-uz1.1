@@ -1868,6 +1868,9 @@
                   "name": {
                     "type": "string"
                   },
+                  "phone": {
+                    "type": "string"
+                  },
                   "login": {
                     "type": "string"
                   },
@@ -10061,13 +10064,14 @@
                       "image/png",
                       "image/jpeg",
                       "image/webp",
+                      "image/gif",
                       "application/pdf"
                     ]
                   },
                   "base64": {
                     "type": "string",
                     "format": "byte",
-                    "maxLength": 11184812
+                    "maxLength": 12000000
                   }
                 },
                 "required": [

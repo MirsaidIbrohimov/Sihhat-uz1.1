@@ -17,6 +17,7 @@ const fieldNames: Record<string, string> = {
   directions: 'Yetib borish', required_documents: 'Mehmon hujjatlari', photo_ids: 'Sanatoriya rasmlari',
   document_ids: 'Sanatoriya hujjatlari', terms_accepted: 'Platforma xizmat shartlari', account: 'Hisob raqami', mfo: 'MFO',
   sanatorium_id: 'Sanatoriya', login: 'Login', password: 'Parol', current_password: 'Joriy parol', new_password: 'Yangi parol',
+  avatarUrl: 'Profil rasmi', avatar_url: 'Profil rasmi', mime: 'Fayl turi', base64: 'Fayl ma’lumoti', imageUrl: 'Rasm',
 };
 export function validationDetail(issue: z.core.$ZodIssue) {
   const key = issue.path.filter(p => typeof p === 'string').at(-1) as string | undefined;

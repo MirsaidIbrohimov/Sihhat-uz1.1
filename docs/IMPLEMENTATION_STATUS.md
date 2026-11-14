@@ -1,6 +1,22 @@
 # Sihhat uz — amalga oshirish holati
 
-Yangilangan: 2026-11-11. Asos: ISHLAB_CHIQISH_REJASI.md va SIHHAT_UZ_ARXITEKTURA.md.
+Yangilangan: 2026-11-14. Asos: ISHLAB_CHIQISH_REJASI.md va SIHHAT_UZ_ARXITEKTURA.md.
+
+## 2026-11-14 Profil rasmi yuklash (`VALIDATION_ERROR`) tuzatishlari va v0.2.5 (build 8) APK relizi
+
+- **Muammo tahlili (`Kiritilgan ma’lumotni tekshiring` / `VALIDATION_ERROR`, 422)**:
+  - Jonli `https://sihhat-api.onrender.com` (Render) xizmati `e61f93b` (`avatarUrl`) dan oldingi commit holatida qolgani uchun `PATCH /auth/profile` so‘rovida `{ avatarUrl }` yuborilganda Zod `.strict()` validatsiyasi 422 `VALIDATION_ERROR` qaytargan. Shuningdek, sanatoriya profilida (`POST /partner/media`) `image/jpg` / bo‘sh `file.type` / HEIC / 8 MB dan katta kamera rasmlari ham Zod validatsiyadan o‘tmagan.
+- **Backend tuzatishlari (`apps/api`)**:
+  - [`auth.service.ts`](../apps/api/src/auth/auth.service.ts): `AuthService` `OnModuleInit` ni amalga oshirib startda xavfsiz tarzda `ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "avatarUrl" TEXT` bajaradi (migratsiyasiz startda ham ustun yo‘qligi xatosi chiqmasligi uchun); `profile()` `.passthrough()`, `avatar_url`, bo‘sh ixtiyoriy `phone`/`login`, `image/jpg`/`pjpeg`/`x-png` hamda `25_000_000` belgi chegarasini qabul qiladi.
+  - [`media.service.ts`](../apps/api/src/media/media.service.ts): `POST /partner/media` `image/jpg` / `x-png`, `image/gif` (magic byte tekshiruvi bilan), `data:...;base64,` prefiksi va bo‘sh `revision_id` ni moslab qabul qiladi.
+  - [`errors.ts`](../apps/api/src/common/errors.ts) va [`openapi.ts`](../apps/api/src/common/openapi.ts): o‘zbekcha maydon nomlari (`avatarUrl`, `mime`, `base64`, `imageUrl`) va OpenAPI (`docs/openapi.json`) yangilandi (`profile-media-upload.test.ts` + `avatar-presence.test.ts` **4/4**, `apk-download.test.ts` **4/4** o‘tdi; PostgreSQL `127.0.0.1:55432` lokal xizmati ishga tushirilmagani sababli DB-integratsiya testlari bajarilmadi).
+- **Veb portallar va Landing (`packages/ui`)**:
+  - [`components.tsx`](../packages/ui/src/components.tsx): `uploadAsset` endi sanatoriya UUID sini tekshiradi, rasm kengaytmasi/`file.type` ni aniqlaydi hamda nostandart/katta rasmlarni canvas orqali JPEG/PNG ko‘rinishiga optimallashtiradi.
+  - [`account.tsx`](../packages/ui/src/account.tsx) va [`portal.tsx`](../packages/ui/src/portal.tsx): barcha rasm turlari (`accept="image/*"`), canvas fallback hamda eski backend `422 VALIDATION_ERROR` qaytargan hollarda brauzerda `localStorage` zaxirasi qo‘llandi.
+  - [`landing.tsx`](../packages/ui/src/landing.tsx): `v0.2.5` ko‘rsatkichi va `/api/download/apk` havolasi yangilandi; `npm run check` (5 workspace) va `npm run build:web` (`superadmin-web` va `partner-web`) muvaffaqiyatli yakunlandi.
+- **Mobil ilova va Release APK (`apps/mobile`)**:
+  - [`account.dart`](../apps/mobile/lib/screens/account.dart) (`ProfileScreen._saveAvatar`): `PATCH /auth/profile` da `name` birga yuboriladi va eski serverdan `422 VALIDATION_ERROR` qaytsa validatsiyadan o‘tgan avatar lokal profilda saqlanadi (`apps/mobile/test/support_test.dart` **6/6** o‘tdi; `flutter analyze` **0 ta xato**; to‘liq `flutter test` da 67 o‘tgan, `appearance_test.dart`, `demo_otp_test.dart`, `login_gate_test.dart` dagi email-OTP / scroll bilan bog‘liq 4 ta avvaldan mavjud test o‘tmadi).
+  - [`apps/mobile/pubspec.yaml`](../apps/mobile/pubspec.yaml) **`0.2.5+8`** ga ko‘tarildi va `https://sihhat-api.onrender.com` uchun imzolangan release APK (`.local/releases/sihhat-uz-release.apk`, `63,898,347` bayt, SHA-256 `84574cfb28e69c46167b08b56b56c4aefd237629319f52267852e938f2e13d85`, `check-apk-secrets.py` 66 namunada **0** ta moslik) yig‘ildi; [`ilova/SHA256SUMS.txt`](../ilova/SHA256SUMS.txt) va [`ilova/README.md`](../ilova/README.md) yangilandi.
 
 ## 2026-11-11 Sihhat.uz veb-dizayni (APK UI asosida) va yuklanish animatsiyalari
 

@@ -20,7 +20,7 @@ Render backend yoki Vercel veb-saytida TezCheck to'lovlarini faollashtirish uchu
 5. Superadmin-web `SIHHAT_API_URL` orqali `/payments/quick-checkout`ni backendga
    yuboradi; backend javob bermasa to‘g‘ridan-to‘g‘ri Tezcheck hisobi yaratiladi.
    Kalit nomi sifatida `TEZCHECK_API_TOKEN` ham qabul qilinadi.
-6. Eslatma: kalitlar kiritilmagan taqdirda ham Render backend bootstrapda crash bo'lmaydi, qolgan barcha APIlar (katalog, bron, avtorizatsiya) odatdagidek ishlayveradi.
+6. Eslatma: kalitlar kiritilmagan taqdirda ham Render backend bootstrapda crash bo'lmaydi, qolgan barcha APIlar (katalog, bron, avtorizatsiya) odatdagidek ishlayveradi. Agar Render (`sihhat-api`) oxirgi GitHub commitini avtomatik deploy qilmagan bo‘lsa, Render Dashboarddan **Manual Deploy -> Deploy latest commit** bajaring (`AuthService.onModuleInit` startda `User.avatarUrl` ustuni mavjudligini ham avtomatik tekshiradi).
 
 ## Web panellar yangi UI
 

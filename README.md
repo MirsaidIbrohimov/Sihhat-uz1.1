@@ -415,7 +415,12 @@ Batafsil misollar [mobil README](apps/mobile/README.md) va
 
 ## Tayyor APK
 
-Joriy **0.1.1 (build 2)** imzolangan demo:
+Rasmiy online release: **[0.2.5 (build 8)](ilova/README.md)** (`2026-11-14`, `https://sihhat-api.onrender.com`):
+- **Sayt orqali (doim eng so‘nggi versiya):** [sihhat.uz/api/download/apk](https://www.sihhat.uz/api/download/apk)
+- **GitHub Releases:** [releases/latest](https://github.com/MirsaidIbrohimov/Sihhat-uz1.1/releases/latest)
+- **SHA-256 nazorat summasi:** [ilova/SHA256SUMS.txt](ilova/SHA256SUMS.txt) (`84574cfb28e69c46167b08b56b56c4aefd237629319f52267852e938f2e13d85`)
+
+Oldingi **0.1.1 (build 2)** imzolangan demo:
 **[APKni yuklab olish](https://github.com/MirsaidIbrohimov/Sihhat-uz1.1/releases/download/v0.1.1-demo/Sihhat-uz-demo-0.1.1.apk)**.
 Lokal nusxa: `ilova/Sihhat-uz-demo-0.1.1.apk`;
 [foydalanish tartibi va SHA-256](ilova/README.md).

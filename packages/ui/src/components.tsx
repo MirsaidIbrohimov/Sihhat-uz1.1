@@ -749,6 +749,73 @@ export function useAction() {
       },
     });
 }
+const UPLOAD_MIMES = new Set([
+  "image/png",
+  "image/jpeg",
+  "image/webp",
+  "image/gif",
+  "application/pdf",
+]);
+
+function normalizeUploadMime(file: File): string {
+  const raw = (file.type || "").trim().toLowerCase();
+  if (raw === "image/jpg" || raw === "image/pjpeg") return "image/jpeg";
+  if (raw === "image/x-png") return "image/png";
+  if (raw) return raw;
+  const ext = file.name.split(".").pop()?.toLowerCase() ?? "";
+  if (ext === "jpg" || ext === "jpeg" || ext === "jfif") return "image/jpeg";
+  if (ext === "png") return "image/png";
+  if (ext === "webp") return "image/webp";
+  if (ext === "gif") return "image/gif";
+  if (ext === "bmp") return "image/bmp";
+  if (ext === "heic" || ext === "heif") return "image/heic";
+  if (ext === "avif") return "image/avif";
+  if (ext === "svg") return "image/svg+xml";
+  if (ext === "pdf") return "application/pdf";
+  return "";
+}
+
+async function transcodeUploadImage(file: File, detectedMime: string): Promise<{ mime: string; base64: string } | null> {
+  if (typeof document === "undefined") return null;
+  const dataUrl = await new Promise<string>((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(String(r.result || ""));
+    r.onerror = reject;
+    r.readAsDataURL(file);
+  });
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      try {
+        const tryEncode = (maxDim: number, outMime: string, quality: number) => {
+          const scale = Math.min(1, maxDim / Math.max(img.width || 1, img.height || 1));
+          const canvas = document.createElement("canvas");
+          canvas.width = Math.max(1, Math.round((img.width || 1) * scale));
+          canvas.height = Math.max(1, Math.round((img.height || 1) * scale));
+          const context = canvas.getContext("2d");
+          if (!context) return null;
+          context.drawImage(img, 0, 0, canvas.width, canvas.height);
+          const encoded = canvas.toDataURL(outMime, quality);
+          const b64 = encoded.split(",")[1] ?? "";
+          if (!b64 || b64.length > 10_500_000) return null;
+          return { mime: outMime, base64: b64 };
+        };
+        const preferPng = detectedMime === "image/png" && file.size <= 3 * 1024 * 1024;
+        const result =
+          (preferPng ? tryEncode(2048, "image/png", 0.92) : null) ??
+          tryEncode(2048, "image/jpeg", 0.88) ??
+          tryEncode(1600, "image/jpeg", 0.78) ??
+          tryEncode(1280, "image/jpeg", 0.68);
+        resolve(result);
+      } catch {
+        resolve(null);
+      }
+    };
+    img.onerror = () => resolve(null);
+    img.src = dataUrl;
+  });
+}
+
 export async function uploadAsset(
   file: File,
   tenant: string,
@@ -756,19 +823,56 @@ export async function uploadAsset(
   visibility = "PRIVATE",
 ) {
   if (!file || !file.size) throw new Error("Faylni tanlang.");
-  if (file.size > 8 * 1024 * 1024)
-    throw new Error("Fayl hajmi 8 MB dan oshmasin.");
-  const base64 = await new Promise<string>((resolve, reject) => {
-    const r = new FileReader();
-    r.onload = () => resolve(String(r.result).split(",")[1]);
-    r.onerror = reject;
-    r.readAsDataURL(file);
-  });
+  if (
+    !tenant ||
+    !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+      tenant,
+    )
+  ) {
+    throw new Error("Avval sanatoriyani tanlang.");
+  }
+  const detectedMime = normalizeUploadMime(file);
+  if (detectedMime === "image/svg+xml") {
+    throw new Error("SVG rasm xavfsizlik sababli qabul qilinmaydi.");
+  }
+  const looksLikeImage =
+    detectedMime.startsWith("image/") ||
+    /\.(png|jpe?g|jfif|webp|gif|bmp|heic|heif|avif)$/i.test(file.name);
+  if (!looksLikeImage && detectedMime !== "application/pdf") {
+    throw new Error("Faqat PNG, JPEG, WEBP, GIF rasm yoki PDF yuklash mumkin.");
+  }
+  if (detectedMime === "application/pdf" && file.size > 8 * 1024 * 1024) {
+    throw new Error("PDF fayl hajmi 8 MB dan oshmasin.");
+  }
+  let mime = detectedMime;
+  let base64 = "";
+  if (looksLikeImage && (!UPLOAD_MIMES.has(detectedMime) || file.size > 4.5 * 1024 * 1024)) {
+    const transcoded = await transcodeUploadImage(file, detectedMime);
+    if (transcoded) {
+      mime = transcoded.mime;
+      base64 = transcoded.base64;
+    }
+  }
+  if (!base64) {
+    if (file.size > 8 * 1024 * 1024)
+      throw new Error("Fayl hajmi 8 MB dan oshmasin.");
+    if (!UPLOAD_MIMES.has(mime)) {
+      throw new Error(
+        "Bu rasm formatini o‘qib bo‘lmadi. PNG, JPEG, WEBP yoki GIF tanlang.",
+      );
+    }
+    base64 = await new Promise<string>((resolve, reject) => {
+      const r = new FileReader();
+      r.onload = () => resolve(String(r.result).split(",")[1] ?? "");
+      r.onerror = reject;
+      r.readAsDataURL(file);
+    });
+  }
   return api("/partner/media", "POST", {
     sanatorium_id: tenant,
     ...(revision ? { revision_id: revision } : {}),
     visibility,
-    mime: file.type,
+    mime,
     base64,
   });
 }

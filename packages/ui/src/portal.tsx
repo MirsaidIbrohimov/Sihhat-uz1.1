@@ -43,7 +43,7 @@ import { ThemeToggle } from "./appearance";
 import { PublicArticles } from "./articles";
 import { TelegramSettings } from "./telegram";
 import { AccountantReports } from "./accounting";
-import { MyAccount, RoleGuide } from "./account";
+import { getAvatarFallback, MyAccount, RoleGuide } from "./account";
 import { TodayWork } from "./today";
 import { newPasswordFields } from "./password-fields";
 import "./portal-enhancements.css";
@@ -862,8 +862,11 @@ export function Portal({
                 title="Mening hisobim va profil rasmi"
               >
                 <div className="avatar">
-                  {actor.avatarUrl ? (
-                    <img src={actor.avatarUrl} alt={actor.name} />
+                  {actor.avatarUrl ?? getAvatarFallback(actor.id) ? (
+                    <img
+                      src={actor.avatarUrl ?? getAvatarFallback(actor.id) ?? ""}
+                      alt={actor.name}
+                    />
                   ) : (
                     actor.name.slice(0, 1).toUpperCase()
                   )}

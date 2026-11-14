@@ -1830,11 +1830,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
       } catch (_) {}
     }
     setState(() => avatarBusy = true);
+    final cached = await widget.api.cachedProfile();
     try {
+      final profileName = '${cached?['name'] ?? ''}'.trim();
       await widget.api.send(
         '/auth/profile',
         method: 'PATCH',
-        body: {'avatarUrl': nextAvatar},
+        body: {
+          'avatarUrl': nextAvatar,
+          if (profileName.isNotEmpty) 'name': profileName,
+        },
       );
       await widget.api.refreshProfile();
       if (!mounted) return;
@@ -1849,6 +1854,30 @@ class _ProfileScreenState extends State<ProfileScreen> {
           duration: const Duration(seconds: 2),
         ),
       );
+    } on ApiException catch (e) {
+      if (e.status == 422 &&
+          e.code == 'VALIDATION_ERROR' &&
+          cached?['id'] is String) {
+        await widget.api.saveProfile({
+          'id': cached!['id'],
+          'avatarUrl': nextAvatar,
+        });
+        if (!mounted) return;
+        setState(() => epoch++);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              nextAvatar == null ? 'Profil rasmi bu qurilmadan o‘chirildi' : 'Profil rasmi qurilmada saqlandi (server yangilanishi kutilmoqda)',
+            ),
+            duration: const Duration(seconds: 3),
+          ),
+        );
+        return;
+      }
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(e.toString())));
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context)

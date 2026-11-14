@@ -385,4 +385,70 @@ void main() {
       api.client.close();
     },
   );
+
+  testWidgets(
+    'ProfileScreen keeps valid avatar locally if remote server returns 422 VALIDATION_ERROR for avatarUrl',
+    (tester) async {
+      final api = Api(
+        baseUrl: 'http://localhost',
+        store: MemoryStore(),
+        client: MockClient((r) async {
+          if (r.method == 'GET' && r.url.path == '/auth/me') {
+            return reply({
+              'id': 'cust-old-api',
+              'kind': 'CUSTOMER',
+              'name': 'Mijoz Hasan',
+              'phone': '+998901234567',
+            });
+          }
+          if (r.method == 'PATCH' && r.url.path == '/auth/profile') {
+            return http.Response.bytes(
+              utf8.encode(
+                jsonEncode({
+                  'code': 'VALIDATION_ERROR',
+                  'message': 'Kiritilgan ma’lumotni tekshiring',
+                }),
+              ),
+              422,
+              headers: {'content-type': 'application/json; charset=utf-8'},
+            );
+          }
+          return reply({});
+        }),
+      );
+      await api.tokens({
+        'access_token': 'acc-token-123456',
+        'refresh_token': 'ref-token-12345678901234567890123456789012',
+      });
+
+      await tester.pumpWidget(
+        MaterialApp(home: Scaffold(body: ProfileScreen(api, () {}))),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Profil rasmini o‘zgartirish'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Rasm havolasi (URL)'));
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.byType(TextField),
+        'https://example.com/hasan.png',
+      );
+      await tester.tap(find.text('Saqlash'));
+      await tester.pumpAndSettle();
+
+      expect(
+        find.text(
+          'Profil rasmi qurilmada saqlandi (server yangilanishi kutilmoqda)',
+        ),
+        findsOneWidget,
+      );
+      final cached = await api.cachedProfile();
+      expect(cached?['avatarUrl'], 'https://example.com/hasan.png');
+      expect(tester.takeException(), isNull);
+
+      await tester.pumpWidget(const SizedBox.shrink());
+      api.client.close();
+    },
+  );
 }
