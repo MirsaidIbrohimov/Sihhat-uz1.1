@@ -22,6 +22,21 @@ Render backend yoki Vercel veb-saytida TezCheck to'lovlarini faollashtirish uchu
    Kalit nomi sifatida `TEZCHECK_API_TOKEN` ham qabul qilinadi.
 6. Eslatma: kalitlar kiritilmagan taqdirda ham Render backend bootstrapda crash bo'lmaydi, qolgan barcha APIlar (katalog, bron, avtorizatsiya) odatdagidek ishlayveradi. Agar Render (`sihhat-api`) oxirgi GitHub commitini avtomatik deploy qilmagan bo‘lsa, Render Dashboarddan **Manual Deploy -> Deploy latest commit** bajaring (`AuthService.onModuleInit` startda `User.avatarUrl` ustuni mavjudligini ham avtomatik tekshiradi).
 
+## Telegram bot sozlamalari (Render va Webhook)
+
+Render kabi yagona veb-xizmat (`start:api`) ishlayotgan bulutli serverda hamkor/superadmin veb panellarida `@sihhat_admins_bot` ishlashi uchun:
+1. Render Dashboard (`dashboard.render.com`) -> `sihhat-api` -> **Environment** bo‘limiga quyidagilarni qo‘shing:
+   - `TELEGRAM_MODE=webhook`
+   - `TELEGRAM_BOT_TOKEN=<@BotFather tokeni>` (mahalliy `.local/secrets/providers.env` da saqlangan, Gitga yuklanmaydi)
+   - `TELEGRAM_BOT_USERNAME=sihhat_admins_bot`
+   - `TELEGRAM_WEBHOOK_SECRET=<kamida 32 ta harf/raqam/`_` va `-` dan iborat tasodifiy maxfiy kalit>`
+   - `TELEGRAM_ADMIN_URL=https://www.sihhat.uz/superadmin`
+   - `TELEGRAM_PARTNER_URL=https://www.sihhat.uz/hamkorlar`
+2. Render xizmati qayta ishga tushgach Telegram webhookini bir marta bog‘lang:
+   `https://api.telegram.org/bot<TELEGRAM_BOT_TOKEN>/setWebhook?url=https://sihhat-api.onrender.com/telegram/webhook&secret_token=<TELEGRAM_WEBHOOK_SECRET>`
+3. Shundan so‘ng veb paneldagi **Telegram bot → Holatni qayta tekshirish** tugmasini bosing (`TELEGRAM_MODE=webhook` rejimida `sihhat-api` kelgan `/start` va tugmalarni alohida `start:telegram` jarayonisiz ham qayta ishlaydi; alohida Background Worker ishlatilsa `TELEGRAM_MODE=polling` va `start:telegram` ham qo‘llanadi).
+4. Eslatma: bitta bot tokenida `webhook` yoqilsa Telegram pollingni (`getUpdates`) o‘chiradi; mahalliy ishlab chiqishda boshqa test bot tokeni ishlating yoki `deleteWebhook` bilan pollingga qayting.
+
 ## Web panellar yangi UI
 
 Amaldagi ikkala Next.js panel umumiy `packages/ui/src` dizaynini ishlatadi.

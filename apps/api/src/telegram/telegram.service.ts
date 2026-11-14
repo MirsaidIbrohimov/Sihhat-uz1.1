@@ -27,6 +27,7 @@ const numeric = (value: string | undefined, max = 10000) => {
 
 @Injectable()
 export class TelegramService {
+  private draining = false;
   constructor(@Inject(Db) readonly db: Db, @Inject(CONFIG) readonly config: Config,
     @Inject(TelegramClient) readonly client: TelegramClient, @Inject(TelegramLinkService) readonly links: TelegramLinkService,
     @Inject(TelegramViews) readonly views: TelegramViews, @Inject(EngagementService) readonly engagement: EngagementService,
@@ -68,10 +69,28 @@ export class TelegramService {
     });
     return { success: true };
   }
+  async drainInline() {
+    if (this.draining || !this.client.enabled) return;
+    this.draining = true;
+    try {
+      while ((await this.runPending()) > 0) {
+        // Barcha kutilayotgan webhook xabarlarini ketma-ket qayta ishlaymiz.
+      }
+      await this.flushNotifications();
+    } finally {
+      this.draining = false;
+    }
+  }
   async webhook(secret: string | undefined, body: unknown) {
     const expected = Buffer.from(this.config.TELEGRAM_WEBHOOK_SECRET), received = Buffer.from(secret || '');
     if (this.config.TELEGRAM_MODE !== 'webhook' || expected.length < 32 || received.length !== expected.length || !timingSafeEqual(expected, received)) fail('TELEGRAM_WEBHOOK_DENIED', 'Webhook ruxsati yo‘q.', 401);
-    return this.enqueue(body);
+    const result = await this.enqueue(body);
+    if (this.config.NODE_ENV !== 'test') {
+      setImmediate(() => {
+        void this.drainInline().catch(() => undefined);
+      });
+    }
+    return result;
   }
   async runPending(limit = 20) {
     let processed = 0;
