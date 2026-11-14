@@ -2,6 +2,20 @@
 
 Yangilangan: 2026-11-14. Asos: ISHLAB_CHIQISH_REJASI.md va SIHHAT_UZ_ARXITEKTURA.md.
 
+## 2026-11-14 Superadmin va Hamkorlar panellari uchun `sihhat.uz` uslubidagi Neon Emerald Glass dizayn tizimi
+
+- **Yagona veb-panel dizayn tizimi (`packages/ui`)**:
+  - [`packages/ui/src/styles.css`](../packages/ui/src/styles.css): `:root` (kunduzgi `#f6faf9`–`#ebf6f2` / `#00866c` / `#083f38`) va `:root[data-theme="dark"]` (tungi `#03201c`–`#021613` / `#3ee6bf` / `#8ff5dc`) tokenlari `sihhat.uz` (`landing.css`) bilan uyg‘unlashtirildi; shisha (`glass`) qatlamlar (`backdrop-filter: blur`), yumshoq kontur va zumrad shu’la (`--glow-sm`/`md`/`lg`), table & bar-chart gradientlari, 9999px pill tugmalar/tablar/badge’lar, yon menyuning neon-gradient faol tugmalari, sticky topbar va diagonal yorug‘lik nurli split kirish (`login-art` + shisha `login-form`) bezagi qo‘shildi (`@media print` va `prefers-reduced-motion` saqlandi).
+  - [`packages/ui/src/portal.tsx`](../packages/ui/src/portal.tsx): `Login` sahifasiga `sihhat.uz` puls nuqtali portal belgisi (`login-status-pill`), `.brand-logo-tile` neon halqasi, `.brand-uz` urg‘usi hamda portalga mos 3 ta qisqa afzallik chipi (`login-highlights`) qo‘shildi; `Portal` yon menyusida `.brand-logo-tile` va `.brand-sub` jonli holat nuqtasi joriy etildi.
+  - [`packages/ui/src/portal-enhancements.css`](../packages/ui/src/portal-enhancements.css): «Mening hisobim» (`.profile-hero`, `.profile-stat-card`), «Foydalanish yo‘riqnomasi» (`.guide-controls`, `.guide-card`, `.guide-chip`), to‘lov shlyuzi holati (`.gateway-status-card`, `.method-tag`) hamda zamonaviy sana filtrlari (`.modern-date-input`, `.chip-btn`) ichidagi qotirilgan to‘q ranglar CSS mavzu o‘zgaruvchilariga (`--glass`, `--surface`, `--soft`, `--ink`, `--muted`, `--green`) ko‘chirilib, kunduzgi va tungi rejimlarga to‘liq moslashtirildi.
+- **Tekshirilgan natijalar (`2026-11-14`)**:
+  - `npm run check` (`5/5` workspace TypeScript tekshiruvi) — 0 xato.
+  - `npx tsx --test packages/ui/test/avatar.test.ts packages/ui/test/partner-terms.test.ts packages/ui/test/login-availability.test.ts test/portal-routes.test.ts` — **5/5 pass**.
+  - `npm run build:web` (`@sihhat/superadmin-web` va `@sihhat/partner-web`) — muvaffaqiyatli yig‘ildi.
+  - `npm run check:secrets` — `412` fayl, `24` maxfiy qiymat tekshirildi, `0` moslik (`matches: []`).
+  - Playwright `test/web/panel-paths.spec.ts` (`superadmin-web` :3000 va `partner-web` :3001): **6/8 pass** (rol va panel ajratish hamda navigatsiya/reload testlari o‘tdi; eski MFA TOTP kodi bilan bog‘liq avvaldan mavjud 2 ta test muvaffaqiyatsiz).
+  - Headless Chromium (`1440x900` hamda `390x844` mobil) orqali lokal `superadmin-web` va `partner-web` ning kirish, boshqaruv (`Dashboard` mock hisobot ma’lumotlari bilan), «Bronlar», «Mening hisobim» va «Foydalanish yo‘riqnomasi» sahifalari kunduzgi/tungi rejimlarda tekshirildi: barcha skrinshotlarda `scrollWidth <= innerWidth` (`overflow: false`) va JavaScript xatolar (`errors: []`) aniqlanmadi.
+
 ## 2026-11-14 Ilova foydalanuvchilari boshqaruvi, Hamkor «Parolni unutdingizmi?», Superadmin email/xavfsizlik xabarlari va Render Telegram avtomatik sozlamasi
 
 - **Render + faol baza mosligi va fon outbox nasosi**:

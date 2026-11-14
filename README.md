@@ -14,6 +14,8 @@ quyida berilgan.
 
 ## Web panellar yangi UI
 
+2026-11-14: Superadmin (`apps/superadmin-web`, `/superadmin`) va Hamkorlar (`apps/partner-web`, `/hamkorlar`) boshqaruv panellari `sihhat.uz` bosh sahifasidagi **Neon Emerald Glass** uslubiga moslashtirildi: kunduzgi (`#f6faf9` / `#00866c`) va tungi (`#03201c` / `#3ee6bf`) mavzu o‘zgaruvchilari, shisha kartalar, 9999px pill tugmalar/tablar, neon-gradient faol menyu bandi, sticky topbar, puls holat belgili split kirish sahifasi hamda «Mening hisobim» / «Foydalanish yo‘riqnomasi» sahifalarining kunduzgi-tungi mosligi joriy etildi (`packages/ui/src/styles.css`, `packages/ui/src/portal.tsx`, `packages/ui/src/portal-enhancements.css`).
+
 2026-10-10: [UI/web galereyasi](UI/web/index.html)da **32 ta yangi dizayn**
 va **26 ta amaldagi panel rasmi** tayyorlandi. Superadmin, direktor va
 hisobchi sahifalari, tungi ko‘rinish va telefon namunalari bor. Galereya

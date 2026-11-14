@@ -320,16 +320,24 @@ function Login({
       </div>
       <div className="login-art">
         <div className="brand">
-          <img
-            className="brand-logo"
-            src="/branding/sihhat-logo.jpg"
-            alt="Sihhat uz logosi"
-            width={56}
-            height={56}
-          />
-          <span>
-            sihhat<span style={{ fontWeight: 400 }}>.uz</span>
+          <span className="brand-logo-tile">
+            <img
+              className="brand-logo"
+              src="/branding/sihhat-logo.jpg"
+              alt="Sihhat uz logosi"
+              width={56}
+              height={56}
+            />
           </span>
+          <span>
+            sihhat<span className="brand-uz">.uz</span>
+          </span>
+        </div>
+        <div className="login-status-pill">
+          <span className="status-pulse" aria-hidden="true" />
+          {mode === "admin"
+            ? "SIHHAT.UZ · SUPERADMIN PORTALI"
+            : "SIHHAT.UZ · HAMKORLAR PORTALI"}
         </div>
         <div className="login-story">
           <p className="eyebrow">SOG‘LOM DAM OLISH, OSON BOSHQARUV</p>
@@ -342,6 +350,16 @@ function Login({
             Sanatoriya ish jarayoni, bronlar va jamoangiz bilan aloqani
             Sihhat.uz orqali boshqaring.
           </p>
+          <div className="login-highlights">
+            {(mode === "admin"
+              ? ["Barcha sanatoriylar", "Hamkor nazorati", "Telegram & AI"]
+              : ["Real-vaqt bronlar", "Xonalar & narxlar", "Moliya hisoboti"]
+            ).map((item) => (
+              <span className="login-highlight-chip" key={item}>
+                {item}
+              </span>
+            ))}
+          </div>
           <img
             className="login-illustration"
             src="/branding/welcome-retreat.png"
@@ -856,24 +874,33 @@ export function Portal({
               go("dashboard");
             }}
           >
-            <img
-              className="brand-logo"
-              src="/branding/sihhat-logo.jpg"
-              alt="Sihhat uz logosi"
-              width={56}
-              height={56}
-            />
+            <span className="brand-logo-tile">
+              <img
+                className="brand-logo"
+                src="/branding/sihhat-logo.jpg"
+                alt="Sihhat uz logosi"
+                width={56}
+                height={56}
+              />
+            </span>
             <span>
-              sihhat<span style={{ fontWeight: 400 }}>.uz</span>
+              sihhat<span className="brand-uz">.uz</span>
             </span>
           </a>
           <div className="brand-sub">
             <ShieldCheck size={17} aria-hidden="true" />
-            {admin
-              ? "Platforma boshqaruvi"
-              : accountant
-                ? "Hisobchi paneli"
-                : "Sanatoriya boshqaruvi"}
+            <span>
+              {admin
+                ? "Platforma boshqaruvi"
+                : accountant
+                  ? "Hisobchi paneli"
+                  : "Sanatoriya boshqaruvi"}
+            </span>
+            <span
+              className="status-pulse"
+              aria-hidden="true"
+              style={{ marginLeft: "auto" }}
+            />
           </div>
           <SidebarNavigation
             items={menuLinks}
