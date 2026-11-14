@@ -51,7 +51,11 @@ function failure(message: string, status: number, code?: string) {
 
 // Preferred path: the API creates a real booking, a Tezcheck bill and confirms it via webhook/polling.
 async function viaBackend(body: unknown) {
-  const base = process.env.SIHHAT_API_URL;
+  const base =
+    process.env.SIHHAT_API_URL ||
+    (process.env.VERCEL || process.env.RENDER
+      ? "https://sihhat-api.onrender.com"
+      : "");
   if (!base) return null;
   try {
     const response = await fetch(`${base.replace(/\/$/, "")}/payments/quick-checkout`, {

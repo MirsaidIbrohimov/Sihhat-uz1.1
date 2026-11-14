@@ -1,5 +1,12 @@
 import type { NextConfig } from "next";
 
+const apiUrl = (
+  process.env.SIHHAT_API_URL ||
+  (process.env.VERCEL || process.env.RENDER
+    ? "https://sihhat-api.onrender.com"
+    : "http://127.0.0.1:4000")
+).replace(/\/$/, "");
+
 const config: NextConfig = {
   output: "standalone",
   transpilePackages: ["@sihhat/ui", "@sihhat/api-client"],
@@ -12,7 +19,7 @@ const config: NextConfig = {
       },
       {
         source: "/api/:path*",
-        destination: `${process.env.SIHHAT_API_URL ?? "http://127.0.0.1:4000"}/:path*`,
+        destination: `${apiUrl}/:path*`,
       },
     ];
   },
