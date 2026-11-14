@@ -830,10 +830,10 @@ const profileFields: Field[] = [
   },
   {
     key: "terms_accepted",
-    label: "Platforma xizmat shartlari",
+    label: "Hamkor shartlari",
     type: "checkbox",
     required: true,
-    hint: "Xizmat shartlarini qabul qilaman",
+    hint: "Sihhat.uz Hamkor shartlarini o‘qidim va qabul qilaman",
   },
 ];
 export function Profile({ id }: { id?: string }) {
@@ -1053,6 +1053,15 @@ export function Profile({ id }: { id?: string }) {
           <div className="toolbar" style={{ marginBottom: 20 }}>
             <Badge value={r.status} />
             <span className="muted">Tahrir {r.version}</span>
+            {!ctx.admin && (
+              <button
+                type="button"
+                className="button secondary"
+                onClick={() => ctx.go("partner-terms")}
+              >
+                Hamkor shartlari
+              </button>
+            )}
             {r.reason && <span className="danger-text">{r.reason}</span>}
             {ctx.admin && r.status === "SUBMITTED" && (
               <>

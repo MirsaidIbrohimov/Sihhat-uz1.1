@@ -51,7 +51,7 @@ async function main() {
         await bot.runPending();
         // This process can dispatch notifications even while the API is offline.
         for (const id of await outbox.claim()) try { await outbox.process(id); } catch { /* Persisted outbox retries remain scheduled. */ }
-        if (Date.now() - maintenance > 60000) { await bot.schedule(); await bot.monitor(); maintenance = Date.now(); }
+        if (Date.now() - maintenance > 60000) { await bot.heartbeat(); await bot.schedule(); await bot.monitor(); maintenance = Date.now(); }
         await bot.flushNotifications();
       } catch { console.error('Telegram worker davri bajarilmadi; keyingi davrda qayta urinadi.'); }
       await new Promise(resolve => setTimeout(resolve, 1000));

@@ -41,6 +41,7 @@ import { useIdleSession } from "./session-idle";
 import { portalSection, portalUrl } from "./portal-routes";
 import { ThemeToggle } from "./appearance";
 import { PublicArticles } from "./articles";
+import { PartnerTerms, PartnerTermsDialog } from "./partner-terms";
 import { TelegramSettings } from "./telegram";
 import { AccountantReports } from "./accounting";
 import { getAvatarFallback, MyAccount, RoleGuide } from "./account";
@@ -157,6 +158,12 @@ const links = [
   { id: "notifications", label: "Bildirishnomalar", icon: Bell },
   { id: "telegram", label: "Telegram bot", icon: Mail },
   {
+    id: "partner-terms",
+    label: "Hamkor shartlari",
+    icon: FileCheck,
+    partner: true,
+  },
+  {
     id: "audit",
     label: "Amallar tarixi",
     icon: ShieldCheck,
@@ -198,7 +205,10 @@ const navigationGroups = [
       "notifications",
     ],
   },
-  { label: "Sozlamalar", ids: ["account", "telegram", "audit", "guide"] },
+  {
+    label: "Sozlamalar",
+    ids: ["account", "telegram", "partner-terms", "audit", "guide"],
+  },
 ];
 function SidebarNavigation({
   items,
@@ -277,7 +287,8 @@ function Login({
 }) {
   const [busy, setBusy] = useState(false),
     [error, setError] = useState(""),
-    [showPassword, setShowPassword] = useState(false);
+    [showPassword, setShowPassword] = useState(false),
+    [termsOpen, setTermsOpen] = useState(false);
   async function login(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setBusy(true);
@@ -397,8 +408,20 @@ function Login({
               ? "Platforma administratori xavfsiz kirish tizimi."
               : "Kirish ma’lumotlarini direktoringiz yoki administratordan oling."}
           </p>
+          {mode === "partner" && (
+            <button
+              type="button"
+              className="terms-inline-link"
+              onClick={() => setTermsOpen(true)}
+            >
+              Hamkor shartlari bilan tanishish ↗
+            </button>
+          )}
         </form>
       </div>
+      {termsOpen && (
+        <PartnerTermsDialog onClose={() => setTermsOpen(false)} />
+      )}
     </div>
   );
 }
@@ -637,7 +660,7 @@ export function Portal({
     (l) =>
       (!l.admin || admin) &&
       (!l.partner || !admin) &&
-      (!accountant || ["dashboard", "account", "guide"].includes(l.id)) &&
+      (!accountant || ["dashboard", "account", "partner-terms", "guide"].includes(l.id)) &&
       (accountant && l.id === "dashboard"
         ? allowed("reports.operational.read") ||
           allowed("reports.financial.read")
@@ -679,6 +702,8 @@ export function Portal({
         return <MyAccount changePassword={changePassword} />;
       case "guide":
         return <RoleGuide />;
+      case "partner-terms":
+        return <PartnerTerms onNavigate={go} allowed={allowed} />;
       case "today":
         return <TodayWork />;
       case "telegram":
@@ -801,6 +826,17 @@ export function Portal({
               <strong>Bron uchun komissiya — 0%</strong>
               <br />
               Sanatoriyalar bilan ochiq hamkorlik
+              {!admin && (
+                <div>
+                  <button
+                    type="button"
+                    className="sidebar-foot-link"
+                    onClick={() => go("partner-terms")}
+                  >
+                    Hamkor shartlari <ArrowRight size={13} />
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </aside>

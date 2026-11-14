@@ -40,6 +40,7 @@ import {
   LoginAvailabilityInput,
   normalizeLoginInput,
 } from "./login-availability";
+import { PartnerTermsDialog } from "./partner-terms";
 
 export type Row = Record<string, any>;
 export type Field = {
@@ -900,6 +901,7 @@ function FormField({
     "string-list",
     "time",
     "datetime-local",
+    "checkbox",
   ].includes(type ?? "")
     ? "div"
     : "label";
@@ -916,7 +918,8 @@ export function FormDialog({
 }) {
   const [busy, setBusy] = useState(false),
     [error, setError] = useState<string | null>(null),
-    [details, setDetails] = useState<Row[]>([]);
+    [details, setDetails] = useState<Row[]>([]),
+    [termsOpen, setTermsOpen] = useState(false);
   const formRef = useRef<HTMLFormElement>(null),
     id = useId(),
     busyRef = useRef(false),
@@ -1133,15 +1136,26 @@ export function FormDialog({
                         ))}
                       </select>
                     ) : f.type === "checkbox" ? (
-                      <div className="check-field">
-                        <input
-                          name={f.key}
-                          type="checkbox"
-                          defaultChecked={!!f.value}
-                          required={f.required}
-                        />
-                        <span>{f.hint ?? "Ha"}</span>
-                      </div>
+                      <>
+                        <label className="check-field">
+                          <input
+                            name={f.key}
+                            type="checkbox"
+                            defaultChecked={!!f.value}
+                            required={f.required}
+                          />
+                          <span>{f.hint ?? "Ha"}</span>
+                        </label>
+                        {f.key === "terms_accepted" && (
+                          <button
+                            type="button"
+                            className="terms-inline-link"
+                            onClick={() => setTermsOpen(true)}
+                          >
+                            Hamkor shartlarini o‘qish ↗
+                          </button>
+                        )}
+                      </>
                     ) : f.loginAvailabilityCheck ? (
                       <LoginAvailabilityInput
                         name={f.key}
@@ -1222,6 +1236,9 @@ export function FormDialog({
           </div>
         </form>
       </section>
+      {termsOpen && (
+        <PartnerTermsDialog onClose={() => setTermsOpen(false)} />
+      )}
     </div>
   );
 }

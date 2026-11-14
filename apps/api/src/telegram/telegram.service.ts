@@ -34,8 +34,12 @@ export class TelegramService {
   async identity() {
     const info = await this.client.call<{ id: number; username: string; is_bot: boolean }>('getMe');
     if (!info.is_bot || String(info.id) !== this.client.botId && this.config.NODE_ENV !== 'test') throw new TelegramError(401);
-    await this.db.telegramBotState.upsert({ where: { botId: this.client.botId }, create: { botId: this.client.botId, username: info.username }, update: { username: info.username } });
+    await this.db.telegramBotState.upsert({ where: { botId: this.client.botId }, create: { botId: this.client.botId, username: info.username, lastPollAt: new Date() }, update: { username: info.username, lastPollAt: new Date() } });
     return { id: info.id, username: info.username };
+  }
+  async heartbeat() {
+    if (!this.client.enabled) return;
+    await this.db.telegramBotState.upsert({ where: { botId: this.client.botId }, create: { botId: this.client.botId, username: this.config.TELEGRAM_BOT_USERNAME || undefined, lastPollAt: new Date() }, update: { lastPollAt: new Date() } });
   }
   async configure() {
     const info = await this.identity();

@@ -36,7 +36,31 @@ export function TelegramSettings() {
     <div className="page-heading"><div><p className="eyebrow">XODIMLAR YORDAMCHISI</p><h1>Telegram bot</h1><p className="muted">Bronlar, vazifalar va muhim xabarlarni Telegramda kuzating.</p></div></div>
     {error && <ErrorBox message={error} retry={reload} />}
     {!data ? error ? null : <Loading /> : <div className="card telegram-connection" style={{ maxWidth: 760, padding: 24 }}>
-      {!data.enabled ? <p>Bot hali yoqilmagan. Administrator bilan bog‘laning.</p> : <>
+      {!data.enabled ? (
+        <div className="telegram-disabled-box">
+          {data.bot_username && <p><strong>@{data.bot_username}</strong></p>}
+          <p>
+            Joriy API serverida Telegram bot xizmati yoqilmagan yoki faol Telegram worker ulanishi aniqlanmadi.
+          </p>
+          <p className="muted">
+            Administrator server muhitida <code>TELEGRAM_MODE</code>,{" "}
+            <code>TELEGRAM_BOT_TOKEN</code> va{" "}
+            <code>TELEGRAM_BOT_USERNAME</code> sozlamalari yoqilganini hamda{" "}
+            <code>start:telegram</code> xizmati ishlayotganini tekshirishi kerak.
+          </p>
+          <div className="toolbar" style={{ marginTop: 12 }}>
+            <button
+              type="button"
+              className="button secondary"
+              onClick={() => {
+                void reload();
+              }}
+            >
+              Holatni qayta tekshirish
+            </button>
+          </div>
+        </div>
+      ) : <>
         {data.bot_username && <p><strong>@{data.bot_username}</strong></p>}
         {data.account && <div role="status">
           <h2>Hisob bog‘langan</h2>

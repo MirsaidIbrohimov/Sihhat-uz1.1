@@ -521,6 +521,23 @@ export function RoleGuide() {
       ],
       section: "account",
     },
+    ...(!ctx.admin
+      ? [
+          {
+            category: "security",
+            categoryLabel: "Xavfsizlik",
+            title: "Hamkor shartlari va platforma qoidalari",
+            icon: <ShieldCheck size={22} />,
+            text: "Sanatoriya profili, xona kvotasi, to‘g‘ridan-to‘g‘ri to‘lovlar, refund intizomi va xodimlar mas’uliyati bo‘yicha rasmiy qoidalar.",
+            steps: [
+              "Litsenziya, suratlar va tariflar haqiqiy holatga mos bo‘lishini nazorat qiling.",
+              "Overbooking oldini olish uchun tashqi bronlarni darhol «Qo‘lda bron»ga kiriting.",
+              "Direktor, resepsion va hisobchi uchun xavfsizlik hamda maxfiylik tartibiga amal qiling.",
+            ],
+            section: "partner-terms",
+          },
+        ]
+      : []),
     ...(ctx.allowed("bookings.read")
       ? [
           {

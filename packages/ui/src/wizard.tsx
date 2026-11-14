@@ -9,7 +9,8 @@ import {
   type Row,
 } from "./components";
 import { SelectionGroup } from "./selections";
-import {TimePicker} from './date-time';
+import { TimePicker } from "./date-time";
+import { PartnerTermsDialog } from "./partner-terms";
 
 function fieldError(f: Field, data: Row): string | null {
   const v = data[f.key];
@@ -89,7 +90,8 @@ export function ProfileWizard({
     [state, setState] = useState("Qoralama"),
     [error, setError] = useState(""),
     [validation, setValidation] = useState<Record<string, string>>({}),
-    [moving, setMoving] = useState(false);
+    [moving, setMoving] = useState(false),
+    [termsOpen, setTermsOpen] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
   const current = useRef(data),
     version = useRef(revision.version),
@@ -303,6 +305,37 @@ export function ProfileWizard({
                       onChange={(values) => update(f, values)}
                       hint={f.hint}
                     />
+                  ) : f.type === "checkbox" ? (
+                    <div key={f.key} className="field">
+                      <span>
+                        {f.label}
+                        {f.required ? " *" : ""}
+                      </span>
+                      <label className="check-field">
+                        <input
+                          type="checkbox"
+                          name={f.key}
+                          aria-invalid={!!validation[f.key]}
+                          checked={!!data[f.key]}
+                          onChange={(e) => update(f, e.target.checked)}
+                        />
+                        <span>{f.hint}</span>
+                      </label>
+                      {f.key === "terms_accepted" && (
+                        <button
+                          type="button"
+                          className="terms-inline-link"
+                          onClick={() => setTermsOpen(true)}
+                        >
+                          Hamkor shartlarini o‘qish ↗
+                        </button>
+                      )}
+                      {validation[f.key] && (
+                        <span className="field-error" role="alert">
+                          {f.label}: {validation[f.key]}
+                        </span>
+                      )}
+                    </div>
                   ) : (
                     <label
                       key={f.key}
@@ -312,18 +345,7 @@ export function ProfileWizard({
                         {f.label}
                         {f.required ? " *" : ""}
                       </span>
-                      {f.type === "checkbox" ? (
-                        <div className="check-field">
-                          <input
-                            type="checkbox"
-                            name={f.key}
-                            aria-invalid={!!validation[f.key]}
-                            checked={!!data[f.key]}
-                            onChange={(e) => update(f, e.target.checked)}
-                          />
-                          <span>{f.hint}</span>
-                        </div>
-                      ) : f.type === "time" ? (
+                      {f.type === "time" ? (
                         <TimePicker name={f.key} label={f.label} value={data[f.key]??""} required={f.required} onChange={value=>update(f,value)}/>
                       ) : f.type === "textarea" ? (
                         <textarea
@@ -354,7 +376,7 @@ export function ProfileWizard({
                           maxLength={f.maxLength}
                         />
                       )}{" "}
-                      {f.hint && f.type !== "checkbox" && (
+                      {f.hint && (
                         <small>{f.hint}</small>
                       )}
                       {validation[f.key] && (
@@ -407,6 +429,9 @@ export function ProfileWizard({
           )}
         </div>
       </Card>
+      {termsOpen && (
+        <PartnerTermsDialog onClose={() => setTermsOpen(false)} />
+      )}
     </>
   );
 }

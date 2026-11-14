@@ -37,6 +37,10 @@ import {
   Zap,
 } from "lucide-react";
 import "./landing.css";
+import {
+  PARTNER_TERMS_SECTIONS,
+  PARTNER_TERMS_VERSION,
+} from "./partner-terms";
 
 export type RatePlanItem = {
   id: string;
@@ -457,6 +461,7 @@ export function LandingPage() {
     | "oferta"
     | "maxfiylik"
     | "qaytarish"
+    | "hamkor"
     | { type: "details"; item: SanatoriumCardData }
     | { type: "checkout"; item: SanatoriumCardData; ratePlan?: RatePlanItem }
   >(null);
@@ -2176,6 +2181,19 @@ export function LandingPage() {
               >
                 Qaytarish shartlari
               </button>
+              <button
+                type="button"
+                onClick={() => setActiveModal("hamkor")}
+                style={{
+                  background: "none",
+                  border: "none",
+                  color: "var(--l-muted)",
+                  cursor: "pointer",
+                  textDecoration: "underline",
+                }}
+              >
+                Hamkor shartlari
+              </button>
               <a
                 href="/api/download/apk"
                 download="sihhat-uz.apk"
@@ -3479,12 +3497,72 @@ export function LandingPage() {
                 <span>Hamkorlar paneli (Direktor & Resepshn)</span>
                 <ArrowRight size={16} />
               </a>
+              <button
+                type="button"
+                className="l-btn-ghost"
+                onClick={() => setActiveModal("hamkor")}
+                style={{
+                  padding: "0.75rem 1.25rem",
+                  justifyContent: "center",
+                  fontSize: "0.9rem",
+                }}
+              >
+                <span>Hamkor shartlari bilan tanishish</span>
+              </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* 9.7 LEGAL MODALS (OFERTA, MAXFIYLIK, QAYTARISH) */}
+      {/* 9.7 LEGAL MODALS (HAMKOR, OFERTA, MAXFIYLIK, QAYTARISH) */}
+      {activeModal === "hamkor" && (
+        <div
+          className="l-modal-backdrop"
+          onClick={() => setActiveModal(null)}
+        >
+          <div className="l-modal-card" onClick={(e) => e.stopPropagation()}>
+            <div className="l-modal-header">
+              <h3 className="l-modal-title">Sihhat.uz · Hamkor shartlari</h3>
+              <button
+                type="button"
+                className="l-modal-close"
+                aria-label="Yopish"
+                onClick={() => setActiveModal(null)}
+              >
+                <X size={20} />
+              </button>
+            </div>
+            <div className="l-modal-body">
+              <p>
+                <em>Amaldagi tahrir: {PARTNER_TERMS_VERSION}</em>
+              </p>
+              {PARTNER_TERMS_SECTIONS.map((rule) => (
+                <div key={rule.id} style={{ marginBottom: 14 }}>
+                  <h4>
+                    {rule.number}. {rule.title}
+                  </h4>
+                  <p>{rule.summary}</p>
+                  <ul>
+                    {rule.items.map((item) => (
+                      <li key={item}>{item}</li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
+              <div style={{ marginTop: 16 }}>
+                <a
+                  href="/hamkorlar/partner-terms"
+                  className="l-btn-primary"
+                  style={{ display: "inline-flex", alignItems: "center", gap: 8 }}
+                >
+                  <span>Hamkor panelida ochish</span>
+                  <ArrowRight size={16} />
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
       {activeModal === "oferta" && (
         <div
           className="l-modal-backdrop"

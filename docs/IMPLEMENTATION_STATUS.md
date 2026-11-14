@@ -2,6 +2,23 @@
 
 Yangilangan: 2026-11-14. Asos: ISHLAB_CHIQISH_REJASI.md va SIHHAT_UZ_ARXITEKTURA.md.
 
+## 2026-11-14 Veb-panellarda Telegram bot holati tuzatilishi va «Hamkor shartlari»
+
+- **Telegram bot holati (`apps/api` va `packages/ui`)**:
+  - Mahalliy `.local/secrets/providers.env` dagi `TELEGRAM_MODE=disabled` qiymati `TELEGRAM_MODE=polling` va `TELEGRAM_BOT_USERNAME=sihhat_admins_bot` ga yangilandi, shu sababli `start:api` / `dev:api` oddiy ishga tushirilganda ham bot yoqilgan holatda ochiladi.
+  - `apps/api/src/telegram/telegram.service.ts` (`identity()`, `heartbeat()`) va `apps/api/src/telegram-worker.ts` ishga tushishda hamda har 60 soniyali davrda `TelegramBotState.lastPollAt` ni yangilab boradi (polling hamda webhook rejimlari uchun).
+  - `apps/api/src/telegram/link.service.ts` (`availability()`): `PUBLIC_DEMO_ENABLED=true` holatida demo cheklovi saqlangan holda, API jarayonida `TELEGRAM_MODE=disabled` bo‘lgan alohida API + worker muhitlarida ham oxirgi 5 daqiqa ichida faol `TelegramBotState` (`lastPollAt` / `workerHeartbeatAt` va `username`) mavjud bo‘lsa `/telegram/account` hamda `/telegram/link` ishlashi ta’minlandi (`client.enabled` holatida esa zarurat bo‘lsa `getMe` zaxira aniqlash qo‘shildi).
+  - `packages/ui/src/telegram.tsx` (`TelegramSettings`): bot o‘chiq bo‘lgan muhitda (`!data.enabled`, masalan, env kiritilmagan bulutli serverda) tushunarli yo‘riqnoma va «Holatni qayta tekshirish» tugmasi qo‘shildi.
+- **«Hamkor shartlari» va hamkor panellariga bog‘lash (`packages/ui`)**:
+  - `packages/ui/src/partner-terms.tsx` (`PARTNER_TERMS_VERSION = "2026-11-14"`, `PARTNER_TERMS_SECTIONS`, `<PartnerTerms />`, `<PartnerTermsDialog />`) yaratildi: 6 bo‘limli qoidalar (umumiy maqom va 0% komissiya, hujjatlar/litsenziya haqqoniyligi, xonalar kvotasi va overbookingni oldini olish, to‘lov/refund/abonent intizomi, xodimlar/xavfsizlik/maxfiylik, aloqa/`@sihhat_admins_bot` va qoidabuzarlik oqibatlari), bo‘limlarga tezkor o‘tish va chop etish imkoniyati bilan.
+  - Barcha hamkor rollari (**Direktor**, **Resepsion**, **Hisobchi**) uchun `packages/ui/src/portal.tsx` yon menyusida (`Sozlamalar -> Hamkor shartlari`, `.sidebar-foot` tezkor havolasi hamda partner kirish oynasi), `packages/ui/src/account.tsx` (`RoleGuide`), `packages/ui/src/governance.tsx` (`Sanatoriya profili` va `terms_accepted`), `packages/ui/src/components.tsx` (`FormDialog`), `packages/ui/src/wizard.tsx` (`Sanatoriya anketasi` `terms_accepted` bandi) hamda `packages/ui/src/landing.tsx` (footer va Hamkor modalida) «Hamkor shartlari»ga bog‘landi; kunduzgi/tungi tema stillari `packages/ui/src/styles.css` ga qo‘shildi.
+- **Tekshiruvlar (`2026-11-14`)**:
+  - `npm run check` (5 ta workspace): **0 ta xato**.
+  - `npx --workspace @sihhat/api tsx --test test/telegram-availability.test.ts test/staff-login-availability.test.ts test/avatar-presence.test.ts test/profile-media-upload.test.ts`: **13/13 pass** (0 fail, 0 skip).
+  - `npx tsx --test packages/ui/test/partner-terms.test.ts packages/ui/test/login-availability.test.ts test/portal-routes.test.ts`: **4/4 pass**.
+  - Real `sihhat_test` bazasida `npx --workspace @sihhat/api tsx --test test/telegram.test.ts test/telegram-availability.test.ts` (**17/17 pass**) va `npm run test:contract -w @sihhat/api` (`B10: OpenAPI`, **1/1 pass**).
+  - `npm run build:api` hamda `npm run build:web` (`@sihhat/superadmin-web`, `@sihhat/partner-web`) muvaffaqiyatli yig‘ildi. Eslatma: agar bulutli server (masalan, Render `https://sihhat-api.onrender.com`) lokal bazadan alohida ishlasa, uning env sozlamalarida ham `TELEGRAM_MODE`, `TELEGRAM_BOT_TOKEN` va `TELEGRAM_BOT_USERNAME` yoqilishi kerak.
+
 ## 2026-11-14 Xodim va direktor logini uchun Telegram uslubidagi jonli tekshiruv
 
 - **Backend (`apps/api`)**:

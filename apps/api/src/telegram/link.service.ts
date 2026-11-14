@@ -18,25 +18,62 @@ export class TelegramLinkService {
     return { id: user.id, kind: user.kind, name: user.name, phone: user.phone, login: user.login, sessionId: 'telegram', mustChangePassword: false,
       memberships: memberships.map(m => ({ id: m.id, sanatoriumId: m.sanatoriumId, role: m.role, status: m.status, version: m.version, permissions: m.status === 'ACTIVE' ? effective(m) : [] })) };
   }
+  private async availability(): Promise<{ enabled: boolean; username: string }> {
+    if (this.config.PUBLIC_DEMO_ENABLED) return { enabled: false, username: '' };
+    if (this.client.enabled) {
+      let username = this.config.TELEGRAM_BOT_USERNAME
+        || (await this.db.telegramBotState.findUnique({ where: { botId: this.client.botId } }))?.username
+        || '';
+      if (!username && this.config.NODE_ENV !== 'test') {
+        try {
+          const info = await this.client.call<{ id: number; username?: string; is_bot: boolean }>('getMe');
+          if (info.is_bot && info.username && String(info.id) === this.client.botId) {
+            username = info.username;
+            await this.db.telegramBotState.upsert({
+              where: { botId: this.client.botId },
+              create: { botId: this.client.botId, username: info.username, lastPollAt: new Date() },
+              update: { username: info.username },
+            });
+          }
+        } catch {
+          // Telegram API vaqtincha mavjud bo‘lmasa ham mavjud holatni saqlab qolamiz.
+        }
+      }
+      return { enabled: true, username };
+    }
+    const activeSince = new Date(Date.now() - 5 * 60_000);
+    const activeBot = await this.db.telegramBotState.findFirst({
+      where: {
+        username: { not: null },
+        OR: [{ lastPollAt: { gt: activeSince } }, { workerHeartbeatAt: { gt: activeSince } }],
+      },
+      orderBy: [{ lastPollAt: 'desc' }, { workerHeartbeatAt: 'desc' }],
+    });
+    if (activeBot?.username) {
+      return { enabled: true, username: this.config.TELEGRAM_BOT_USERNAME || activeBot.username };
+    }
+    return { enabled: false, username: this.config.TELEGRAM_BOT_USERNAME || '' };
+  }
   async username() {
-    return this.config.TELEGRAM_BOT_USERNAME || (await this.db.telegramBotState.findUnique({ where: { botId: this.client.botId } }))?.username || '';
+    return (await this.availability()).username;
   }
   async status(actor: Actor) {
     await this.actor(actor.id);
-    const [account, link, username] = await Promise.all([
+    const [account, link, bot] = await Promise.all([
       this.db.telegramAccount.findUnique({ where: { userId: actor.id } }),
       this.db.telegramLinkRequest.findFirst({ where: { userId: actor.id, consumedAt: null, expiresAt: { gt: new Date() } }, orderBy: { createdAt: 'desc' } }),
-      this.username(),
+      this.availability(),
     ]);
-    return { enabled: this.client.enabled, bot_username: username,
+    return { enabled: bot.enabled, bot_username: bot.username,
       account: account ? { telegram_user_id: account.telegramUserId, display_name: account.displayName, username: account.username, connected_at: account.createdAt, blocked: !!account.blockedAt } : null,
       link: link ? { id: link.id, expires_at: link.expiresAt, claimed: !!link.claimedAt, telegram_user_id: link.telegramUserId, display_name: link.displayName, username: link.username } : null };
   }
   async start(actor: Actor) {
     await this.actor(actor.id);
-    if (!this.client.enabled) fail('TELEGRAM_DISABLED', 'Telegram bot hali yoqilmagan.', 503);
-    const username = await this.username();
-    if (!username) fail('TELEGRAM_NOT_READY', 'Telegram bot sozlamalari tayyorlanmoqda. Birozdan keyin qayta urining.', 503);
+    const bot = await this.availability();
+    if (!bot.enabled) fail('TELEGRAM_DISABLED', 'Telegram bot hali yoqilmagan.', 503);
+    if (!bot.username) fail('TELEGRAM_NOT_READY', 'Telegram bot sozlamalari tayyorlanmoqda. Birozdan keyin qayta urining.', 503);
+    const username = bot.username;
     const token = opaque();
     return this.db.atomic(async tx => {
       await lock(tx, `telegram-link:${actor.id}`);
