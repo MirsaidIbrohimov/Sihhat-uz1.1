@@ -3503,6 +3503,76 @@ td strong {
     white-space: normal;
   }
 }
+.login-check-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.login-check-input-box {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+.login-check-input-box input {
+  width: 100%;
+  padding-right: 40px;
+  transition: border-color 0.16s ease, box-shadow 0.16s ease;
+}
+.login-check-wrap.is-available .login-check-input-box input {
+  border-color: var(--success-ink);
+}
+.login-check-wrap.is-taken .login-check-input-box input,
+.login-check-wrap.is-invalid .login-check-input-box input {
+  border-color: var(--error-ink);
+}
+.login-check-icon {
+  position: absolute;
+  right: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  color: var(--muted);
+}
+.login-check-icon.is-available {
+  color: var(--success-ink);
+}
+.login-check-icon.is-taken,
+.login-check-icon.is-invalid {
+  color: var(--error-ink);
+}
+.login-check-icon.is-error {
+  color: var(--warning-ink);
+}
+.login-check-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 11px;
+  border-radius: 9px;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+.login-check-status.is-checking {
+  background: var(--soft);
+  color: var(--muted);
+}
+.login-check-status.is-available {
+  background: var(--success-bg);
+  color: var(--success-ink);
+  border: 1px solid var(--success-ink);
+}
+.login-check-status.is-taken,
+.login-check-status.is-invalid {
+  background: var(--error-bg);
+  color: var(--error-ink);
+  border: 1px solid var(--error-ink);
+}
+.login-check-status.is-error {
+  background: var(--warning-bg);
+  color: var(--warning-ink);
+}
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

@@ -10,6 +10,7 @@ export class StaffController {
   constructor(@Inject(StaffService) private readonly staff: StaffService) {}
   @Get('partner/staff') list(@CurrentActor() a: Actor, @Query() q: unknown) { return this.staff.list(a, q); }
   @Get('superadmin/staff') @Roles('SUPERADMIN') adminList(@CurrentActor() a: Actor, @Query() q: unknown) { return this.staff.list(a, q); }
+  @Get('partner/staff/login-availability') loginAvailability(@CurrentActor() a: Actor, @Query() q: unknown) { return this.staff.checkLoginAvailability(a, q); }
   @Post('superadmin/director-assignments') @Roles('SUPERADMIN') @ApiBody({ schema: apiSchema(staffInput) })
   assign(@CurrentActor() a: Actor, @Body() b: unknown) { return this.staff.assignDirector(a, b); }
   @Post('partner/staff-invitations') @ApiBody({ schema: apiSchema(staffInvitationInput) })

@@ -2,6 +2,22 @@
 
 Yangilangan: 2026-11-14. Asos: ISHLAB_CHIQISH_REJASI.md va SIHHAT_UZ_ARXITEKTURA.md.
 
+## 2026-11-14 Xodim va direktor logini uchun Telegram uslubidagi jonli tekshiruv
+
+- **Backend (`apps/api`)**:
+  - `GET /partner/staff/login-availability` (`StaffController.loginAvailability`, `StaffService.checkLoginAvailability`): `SUPERADMIN` hamda `staff.invite` huquqiga ega xodimlar uchun kiritilgan loginni format (`^[a-z0-9._@-]{3,64}$`, `trim().toLowerCase()`) va `User` jadvali (katta-kichik harfni farqlamasdan) bo‘yicha tekshiradi (`available: true/false`, `reason`: `EMPTY | INVALID_FORMAT | TAKEN | null`).
+  - `StaffService.findOrCreateStaffUser` (`invite` va `assignDirector`): `invite` orqali yangi resepsion/hisobchi qo‘shishda band login (`409 LOGIN_IN_USE`) yoki boshqa hisobdagi telefon (`409 PHONE_IN_USE`) mavjud foydalanuvchini ustidan yozib yuborishining oldi olindi. `assignDirector` faqat shu sanatoriyaning mavjud `STAFF` a’zosini («Direktor qilish» oqimi) direktor etib tayinlashga ruxsat beradi; boshqa band loginlar `409 LOGIN_IN_USE` qaytaradi. `AuthService.profile` ham band login/telefon uchun `409` (`LOGIN_IN_USE` / `PHONE_IN_USE`) qaytaradi.
+  - `apps/api/src/common/openapi.ts` (`login` va `exclude_user_id` query parametrlari) va `docs/openapi.json` yangilandi.
+- **Frontend (`packages/ui`)**:
+  - `packages/ui/src/login-rules.ts` va `packages/ui/src/login-availability.tsx` (`LoginAvailabilityInput`), `packages/ui/src/components.tsx` (`FormDialog` va `Field.loginAvailabilityCheck`), `packages/ui/src/governance.tsx` (`Xodim taklif qilish` hamda `Direktor tayinlash` formalari) va `packages/ui/src/styles.css` (kunduzgi/tungi tema uchun status ko‘rinishlari) yangilandi.
+  - Foydalanuvchi login yozishi bilan format tekshiruvi va `320ms` debounce orqali `/partner/staff/login-availability` chaqiriladi: bazada bo‘lmasa yashil tasdiq (`@login — bo‘sh, tasdiqlandi`), bazada mavjud bo‘lsa qizil ogohlantirish (`@login — bazada band, boshqa login kiriting`) ko‘rinadi; band yoki noto‘g‘ri login bilan forma yuborish bloklanadi (tez bosilganda saqlashdan oldin jonli tekshiruv bajariladi).
+- **Tekshiruvlar, bot va cheklovlar (2026-11-14)**:
+  - `npx --workspace @sihhat/api tsx --test test/staff-login-availability.test.ts test/avatar-presence.test.ts test/profile-media-upload.test.ts`: **9/9 pass**.
+  - `npx tsx --test packages/ui/test/login-availability.test.ts`: **1/1 pass**.
+  - `npm run check`, `npm run build:api`, `npm run build:web`, `npm run openapi`, `npm run check:secrets`: xatosiz yakunlandi (`403` fayl, `0` moslik).
+  - Mahalliy PostgreSQL (`127.0.0.1:55432`) ishga tushirilib `npm test` (`sihhat_test`) bajarildi: **112/126 pass** (jumladan `B10: OpenAPI`, `staff-login-availability`, barcha 13 ta `Telegram`, `avatar-presence`, `profile-media-upload` o‘tdi; avvalgi kodga oid `accountant` direct API, `auth` MFA, `survey`/`history`, `B4`/`B8`, `deployment` va `public-demo` bo‘yicha 14 ta test muvaffaqiyatsiz). `npm run test:web` (Playwright) bajarilmadi.
+  - Mahalliy `sihhat` bazasiga 16/16 migratsiyalar (`db:migrate`) qo‘llandi; `TELEGRAM_MODE=polling` bilan `@sihhat_admins_bot` (`start:telegram`), domen worker (`start:worker`) va API (`http://127.0.0.1:4000`) mahalliy fonda ishga tushirildi. Haqiqiy serverda ham yangi `/partner/staff/login-availability` endpointi deploy qilingan bo‘lishi kerak.
+
 ## 2026-11-14 Profil rasmi yuklash (`VALIDATION_ERROR`) tuzatishlari va v0.2.5 (build 8) APK relizi
 
 - **Muammo tahlili (`Kiritilgan ma’lumotni tekshiring` / `VALIDATION_ERROR`, 422)**:

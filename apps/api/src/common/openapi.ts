@@ -133,6 +133,7 @@ export function enrichOpenApi(document:OpenAPIObject){
       if(['/partner/bookings','/customer/bookings','/superadmin/bookings'].includes(path))addParameters([query('status',{...str,maxLength:30})]);
       if(path==='/catalog/sanatoriums')addParameters([query('q',{...str,maxLength:100}),query('region',{...str,maxLength:80}),query('amenity',{...str,maxLength:80}),query('max_price',money),query('sort',{...str,enum:['NAME','PRICE'],default:'NAME'})]);
       if(path==='/catalog/compare')addParameters([query('ids',{...str,pattern:'^[0-9a-fA-F-]{36}(,[0-9a-fA-F-]{36}){0,2}$',description:'One to three comma-separated sanatorium UUIDs.'},true)]);
+      if(path==='/partner/staff/login-availability')addParameters([query('login',{...str,maxLength:128}),query('exclude_user_id',id)]);
       if(['/partner/reports','/superadmin/reports','/partner/reports/export','/partner/reports/export.xlsx'].includes(path))addParameters([query('sanatorium_id',id),query('from',date,true),query('to',date,true),query('booking_basis',{...str,enum:['CREATED','PAYMENT','SERVICE'],default:'SERVICE'}),query('financial',{...str,enum:['true','false'],default:'false'})]);
     }
     if(path==='/auth/refresh'){

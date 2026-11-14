@@ -4,6 +4,7 @@ import {
   Children,
   Fragment,
   isValidElement,
+  useCallback,
   useContext,
   useEffect,
   useId,
@@ -35,6 +36,10 @@ import {
 import { SelectionGroup } from "./selections";
 import { DateTimePicker, TimePicker } from "./date-time";
 import { AgeList, ChildPrices, TextList } from "./value-editors";
+import {
+  LoginAvailabilityInput,
+  normalizeLoginInput,
+} from "./login-availability";
 
 export type Row = Record<string, any>;
 export type Field = {
@@ -72,6 +77,8 @@ export type Field = {
   accept?: string;
   multiple?: boolean;
   step?: number | string;
+  loginAvailabilityCheck?: boolean;
+  loginCheckExcludeUserId?: string;
 };
 export type FormSpec = {
   title: string;
@@ -912,7 +919,15 @@ export function FormDialog({
     [details, setDetails] = useState<Row[]>([]);
   const formRef = useRef<HTMLFormElement>(null),
     id = useId(),
-    busyRef = useRef(false);
+    busyRef = useRef(false),
+    fieldVerifiersRef = useRef(new Map<string, () => Promise<string | null>>());
+  const registerFieldVerifier = useCallback(
+    (key: string, verifier: (() => Promise<string | null>) | null) => {
+      if (verifier) fieldVerifiersRef.current.set(key, verifier);
+      else fieldVerifiersRef.current.delete(key);
+    },
+    [],
+  );
   useEffect(() => {
     const previous = document.activeElement as HTMLElement;
     const listener = (e: KeyboardEvent) => {
@@ -992,8 +1007,14 @@ export function FormDialog({
                       .filter(Boolean)
                   : f.type === "datetime-local"
                     ? new Date(String(v) + "+05:00").toISOString()
-                    : String(v);
+                    : f.loginAvailabilityCheck
+                      ? normalizeLoginInput(String(v))
+                      : String(v);
         } else if (f.required) values[f.key] = "";
+      }
+      for (const verify of fieldVerifiersRef.current.values()) {
+        const message = await verify();
+        if (message) throw new Error(message);
       }
       await spec.submit(values);
       notice("Muvaffaqiyatli bajarildi");
@@ -1121,6 +1142,17 @@ export function FormDialog({
                         />
                         <span>{f.hint ?? "Ha"}</span>
                       </div>
+                    ) : f.loginAvailabilityCheck ? (
+                      <LoginAvailabilityInput
+                        name={f.key}
+                        defaultValue={String(f.value ?? "")}
+                        required={f.required}
+                        minLength={f.minLength}
+                        maxLength={f.maxLength}
+                        hint={f.hint}
+                        excludeUserId={f.loginCheckExcludeUserId}
+                        onRegisterVerifier={registerFieldVerifier}
+                      />
                     ) : (
                       <input
                         name={f.key}
@@ -1148,7 +1180,9 @@ export function FormDialog({
                         }
                       />
                     )}{" "}
-                    {f.hint && f.type !== "checkbox" && <small>{f.hint}</small>}
+                    {f.hint && f.type !== "checkbox" && !f.loginAvailabilityCheck && (
+                      <small>{f.hint}</small>
+                    )}
                   </FormField>
                 ),
               )}

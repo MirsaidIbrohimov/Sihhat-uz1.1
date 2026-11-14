@@ -8,6 +8,7 @@ import { Actor, ACCOUNTANT, DELEGATABLE, DIRECTOR, effective, requirePlatform, s
 
 export const staffInput = z.object({ sanatorium_id: uuid, name: z.string().trim().min(2).max(120), login: loginSchema, phone: phoneSchema, temporary_password: passwordSchema.optional(), grants: z.array(z.enum(DELEGATABLE)).max(30).default([]) }).strict();
 export const staffInvitationInput = staffInput.extend({role: z.enum(['RECEPTION', 'ACCOUNTANT']).default('RECEPTION')});
+export const loginAvailabilityQuery = z.object({ login: z.string().max(128).optional().default(''), exclude_user_id: uuid.optional() }).strict();
 export const resetPasswordInput = z.object({ new_password: passwordSchema, confirm_password: z.string().max(128) }).strict().refine(v => v.new_password === v.confirm_password, { message: 'Yangi parollar bir xil bo‘lsin', path: ['confirm_password'] });
 @Injectable()
 export class StaffService {
@@ -22,18 +23,68 @@ export class StaffService {
     const users = await this.db.user.findMany({ where: { id: { in: memberships.map(m => m.userId) } }, select: { id: true, name: true, login: true, phone: true, avatarUrl: true, status: true, mustChangePassword: true } });
     return paged(memberships.map(m => ({ ...m, user: users.find(u => u.id === m.userId), permissions: effective(m) })), total, page, limit);
   }
-  private async findOrCreateStaffUser(tx: Tx, input: z.infer<typeof staffInput>, password: string) {
-    const existing = await tx.user.findFirst({
+  async checkLoginAvailability(actor: Actor, query: unknown) {
+    if (actor.kind !== 'SUPERADMIN' && !actor.memberships.some(m => m.permissions.includes('staff.invite'))) {
+      fail('PERMISSION_DENIED', 'Xodim taklif qilish huquqi yo‘q', 403);
+    }
+    const q = parse(loginAvailabilityQuery, query);
+    const normalized = q.login.trim().toLowerCase();
+    if (!normalized) {
+      return { login: '', valid: false, available: false, reason: 'EMPTY' as const };
+    }
+    if (!loginSchema.safeParse(normalized).success) {
+      return { login: normalized, valid: false, available: false, reason: 'INVALID_FORMAT' as const };
+    }
+    const existing = await this.db.user.findFirst({
       where: {
-        OR: [
-          { login: input.login },
-          { phone: input.phone }
-        ]
-      }
+        login: { equals: normalized, mode: 'insensitive' },
+        ...(q.exclude_user_id ? { id: { not: q.exclude_user_id } } : {}),
+      },
+      select: { id: true },
     });
-    if (existing) {
+    return {
+      login: normalized,
+      valid: true,
+      available: !existing,
+      reason: existing ? ('TAKEN' as const) : null,
+    };
+  }
+  private async findOrCreateStaffUser(
+    tx: Tx,
+    input: z.infer<typeof staffInput>,
+    password: string,
+    options: { allowSameSanatoriumPromotion?: boolean } = {},
+  ) {
+    const existingByLogin = await tx.user.findFirst({
+      where: { login: { equals: input.login, mode: 'insensitive' } },
+    });
+    const existingByPhone = await tx.user.findFirst({
+      where: { phone: input.phone },
+    });
+    if (existingByLogin) {
+      const canPromote =
+        Boolean(options.allowSameSanatoriumPromotion) &&
+        existingByLogin.kind === 'STAFF' &&
+        (!existingByLogin.phone || existingByLogin.phone === input.phone) &&
+        Boolean(
+          await tx.membership.findUnique({
+            where: {
+              userId_sanatoriumId: {
+                userId: existingByLogin.id,
+                sanatoriumId: input.sanatorium_id,
+              },
+            },
+            select: { id: true },
+          }),
+        );
+      if (!canPromote) {
+        fail('LOGIN_IN_USE', 'Bu login allaqachon band. Boshqa login kiriting', 409);
+      }
+      if (existingByPhone && existingByPhone.id !== existingByLogin.id) {
+        fail('PHONE_IN_USE', 'Bu telefon raqami boshqa foydalanuvchiga biriktirilgan', 409);
+      }
       return tx.user.update({
-        where: { id: existing.id },
+        where: { id: existingByLogin.id },
         data: {
           kind: 'STAFF',
           name: input.name,
@@ -42,10 +93,22 @@ export class StaffService {
           status: 'ACTIVE',
           passwordHash: await passwordHash(password),
           mustChangePassword: true,
-        }
+        },
       });
     }
-    return tx.user.create({ data: { kind: 'STAFF', name: input.name, login: input.login, phone: input.phone, passwordHash: await passwordHash(password), mustChangePassword: true } });
+    if (existingByPhone) {
+      fail('PHONE_IN_USE', 'Bu telefon raqami boshqa foydalanuvchiga biriktirilgan', 409);
+    }
+    return tx.user.create({
+      data: {
+        kind: 'STAFF',
+        name: input.name,
+        login: input.login,
+        phone: input.phone,
+        passwordHash: await passwordHash(password),
+        mustChangePassword: true,
+      },
+    });
   }
   async assignDirector(actor: Actor, body: unknown) {
     requirePlatform(actor, 'sanatoriums.manage');
@@ -56,7 +119,7 @@ export class StaffService {
       const previous = await tx.membership.findMany({ where: { sanatoriumId: input.sanatorium_id, role: 'DIRECTOR', status: 'ACTIVE' } });
       await tx.membership.updateMany({ where: { id: { in: previous.map(m => m.id) } }, data: { status: 'REVOKED', version: { increment: 1 } } });
       await tx.session.updateMany({ where: { userId: { in: previous.map(m => m.userId) }, revokedAt: null }, data: { revokedAt: new Date() } });
-      const user = await this.findOrCreateStaffUser(tx, input, password);
+      const user = await this.findOrCreateStaffUser(tx, input, password, { allowSameSanatoriumPromotion: true });
       const existingMembership = await tx.membership.findUnique({
         where: { userId_sanatoriumId: { userId: user.id, sanatoriumId: input.sanatorium_id } }
       });

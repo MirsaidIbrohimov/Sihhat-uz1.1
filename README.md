@@ -65,9 +65,9 @@ sanatoriyalar ko‘rinadi. Joriy APK va USB orqali ishlatish tartibi
 
 | Qism | Bajarilgan |
 | --- | --- |
-| Backend | MFA/OTP, rollar va sanatoriya ruxsatlari, 2/4 soatlik panel faolsizligi, katalog, inventar, narx hisobi, ko‘p xonali bron, Payme/Tezcheck, ledger, refund/payout, bepul tasdiqlangan reklama, xabarlar va hisobotlar; 14 migratsiya |
-| Superadmin | Sanatoriyalar jadvalidagi Mashhur tick tanlovi, jamoa/ruxsatlar, moliya va operatsion sahifalar; yangilik va tavsiya yaratish, tahrirlash, e’lon qilish va arxivga olish |
-| Hamkorlar sayti | Direktor/resepsion ruxsatlari, xona va tariflar, kalendar, qo‘lda bron, check-in/out; hisobchiga faqat o‘z sanatoriyasining kunlik/7/30/90 kun/oy hisobotlari, CSV va chop etish |
+| Backend | MFA/OTP, rollar va sanatoriya ruxsatlari, yangi xodim/direktor logini bandligini jonli tekshirish (`GET /partner/staff/login-availability`), 2/4 soatlik panel faolsizligi, katalog, inventar, narx hisobi, ko‘p xonali bron, Payme/Tezcheck, ledger, refund/payout, bepul tasdiqlangan reklama, xabarlar va hisobotlar; 14 migratsiya |
+| Superadmin | Sanatoriyalar jadvalidagi Mashhur tick tanlovi, jamoa/ruxsatlar (direktor/xodim qo‘shishda Telegram uslubida jonli login tekshiruvi), moliya va operatsion sahifalar; yangilik va tavsiya yaratish, tahrirlash, e’lon qilish va arxivga olish |
+| Hamkorlar sayti | Direktor/resepsion ruxsatlari (yangi xodim qo‘shishda loginni baza bilan jonli tekshirish va tasdiqlash), xona va tariflar, kalendar, qo‘lda bron, check-in/out; hisobchiga faqat o‘z sanatoriyasining kunlik/7/30/90 kun/oy hisobotlari, CSV va chop etish |
 | Telegram bot | Admin/direktor/resepsion menyulari, sayt orqali tasdiqlangan hisob, bron/qidiruv/check-in-out, xonalar, hisobot, vazifa va murojaatlar; bildirishnoma, kunlik ma’lumot va abonent eslatmalari |
 | Android | Yangi UI va telefon/SMS kirish, +998 ortidan 9 raqam va inline xato, yagona ikonkalar, reklama/tanlangan sanatoriyalar joyi, kunduzgi/tungi rejim, offline katalog/bron/QR; 61/61 mobil test |
 | Gemini | Haqiqiy ulanish, rozilik, raqam/email niqobi, katalog/FAQ, limit va token sarfi; admin uchun davr/model bo‘yicha sarf va sozlangan narxga asoslangan taxminiy USD hisobot |

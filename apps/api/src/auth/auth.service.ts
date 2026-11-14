@@ -339,6 +339,20 @@ export class AuthService implements OnModuleInit {
       ...(normalizedAvatar !== undefined ? { avatarUrl: normalizedAvatar } : {}),
     };
     return this.db.atomic(async tx => {
+      if (input.login !== undefined) {
+        const takenLogin = await tx.user.findFirst({
+          where: { login: { equals: input.login, mode: 'insensitive' }, id: { not: actor.id } },
+          select: { id: true },
+        });
+        if (takenLogin) fail('LOGIN_IN_USE', 'Bu login allaqachon band. Boshqa login kiriting', 409);
+      }
+      if (input.phone !== undefined) {
+        const takenPhone = await tx.user.findFirst({
+          where: { phone: input.phone, id: { not: actor.id } },
+          select: { id: true },
+        });
+        if (takenPhone) fail('PHONE_IN_USE', 'Bu telefon raqami boshqa foydalanuvchiga biriktirilgan', 409);
+      }
       const user = await tx.user.update({ where: { id: actor.id }, data });
       await audit(tx, actor.id, 'account.profile_updated', actor.id, undefined, undefined, {
         name: user.name,

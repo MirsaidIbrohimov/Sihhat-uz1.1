@@ -1362,7 +1362,10 @@ export function Staff() {
           key: "login",
           label: "Login",
           required: true,
-          hint: "Lotin harflari, raqam, nuqta, pastki chiziq.",
+          minLength: 3,
+          maxLength: 64,
+          loginAvailabilityCheck: true,
+          hint: "Kamida 3 belgi: lotin harflari, raqam, nuqta, pastki chiziq.",
         },
         {
           key: "phone",
