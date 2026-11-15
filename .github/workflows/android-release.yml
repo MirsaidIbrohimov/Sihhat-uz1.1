@@ -77,7 +77,7 @@ jobs:
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
         run: |
-          echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/sihhat-release.jks"
+          printf '%s' "$ANDROID_KEYSTORE_BASE64" | tr -d '[:space:]' | base64 --decode > "$RUNNER_TEMP/sihhat-release.jks"
           cat <<EOF > apps/mobile/android/key.properties
           storeFile=$RUNNER_TEMP/sihhat-release.jks
           storePassword=$ANDROID_STORE_PASSWORD

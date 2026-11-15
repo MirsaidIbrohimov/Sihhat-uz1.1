@@ -41,7 +41,7 @@ export function buildTool(name) {
 }
 
 export function runTool(executable, args, options = {}) {
-  const {capture = false, env = mobileEnv, cwd = mobile, ...rest} = options;
+  const {capture = false, includeStderr = false, env = mobileEnv, cwd = mobile, ...rest} = options;
   let command = executable, commandArgs = args;
   if (process.platform === 'win32' && /\.(bat|cmd)$/i.test(executable)) {
     const values = [executable, ...args];
@@ -60,5 +60,6 @@ export function runTool(executable, args, options = {}) {
     const detail = capture ? `${result.stdout ?? ''}${result.stderr ?? ''}` : '';
     throw new Error(`${executable.split(/[\\/]/).at(-1)} bajarilmadi (${result.status}). ${detail}`.trim());
   }
-  return result.stdout ?? '';
+  if (!includeStderr) return result.stdout ?? '';
+  return `${result.stdout ?? ''}\n${result.stderr ?? ''}`.trim();
 }

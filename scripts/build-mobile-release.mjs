@@ -20,9 +20,13 @@ if (!existsSync(join(mobile, 'android/key.properties'))) throw new Error('Avval 
 // --no-pub can retain the integration_test registrant from a debug build.
 runTool(flutter, ['build', 'apk', '--release', '--target=lib/main.dart', `--dart-define=API_BASE_URL=${baseUrl}`, ...(demo ? ['--dart-define=DEMO_OTP_ENABLED=true'] : [])]);
 const apk = join(mobile, 'build/app/outputs/flutter-apk/app-release.apk');
-const signature = runTool(buildTool('apksigner'), ['verify', '--verbose', '--print-certs', apk], {capture: true});
-const certificate = /Signer #1 certificate SHA-256 digest:\s*(\S+)/.exec(signature)?.[1];
-if (!certificate || /Android Debug/i.test(signature)) throw new Error('APK release kaliti bilan imzolanmagan.');
+const apksignerPath = buildTool('apksigner');
+const signature = runTool(apksignerPath, ['verify', '--verbose', '--print-certs', apk], {capture: true, includeStderr: true});
+const certificate = /Signer #1 certificate SHA-256 digest:\s*(\S+)/i.exec(signature)?.[1];
+if (!certificate || /Android Debug/i.test(signature)) {
+  const summary = signature.split(/\r?\n/).slice(0, 15).join('\n');
+  throw new Error(`APK release kaliti bilan imzolanmagan (${apksignerPath}).\n${summary}`.trim());
+}
 const manifest = runTool(buildTool('aapt'), ['dump', 'xmltree', apk, 'AndroidManifest.xml'], {capture: true});
 const debuggable = /android:debuggable[^\n]*\(type 0x12\)(0x[0-9a-f]+)/i.exec(manifest)?.[1];
 const cleartext = /android:usesCleartextTraffic[^\n]*\(type 0x12\)(0x[0-9a-f]+)/i.exec(manifest)?.[1];
