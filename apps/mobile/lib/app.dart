@@ -7,6 +7,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 
 import 'data/api.dart';
+import 'data/app_update.dart';
 import 'data/booking_cache.dart';
 import 'data/catalog_cache.dart';
 import 'appearance.dart';
@@ -40,6 +41,7 @@ class _SihhatAppState extends State<SihhatApp> {
   }
 
   void _syncNativeNotifications() {
+    AppUpdateService.syncNativeConfig(widget.api.baseUrl);
     try {
       if (widget.api.signedIn && widget.api.accessToken != null) {
         const MethodChannel('uz.sihhat/notifications').invokeMethod(
@@ -285,6 +287,9 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
   Timer? catalogTimer;
   StreamSubscription<dynamic>? connection;
   bool active = true, unread = false;
+  AppUpdateInfo? availableUpdate;
+  bool _checkingUpdate = false, _updateDialogShown = false;
+  DateTime? _lastUpdateCheckAt;
   @override
   void initState() {
     super.initState();
@@ -308,8 +313,10 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
     error = widget.sessionError;
     restore().then((_) {
       if (!mounted || widget.sessionError != null) return;
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) showEntranceAdvertisement(context, widget.api);
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
+        if (!mounted) return;
+        await showEntranceAdvertisement(context, widget.api);
+        if (mounted) await _checkAppUpdate();
       });
       WidgetsBinding.instance.ensureVisualUpdate();
     });
@@ -367,7 +374,10 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     active = state == AppLifecycleState.resumed;
-    if (active) refreshDownloads();
+    if (active) {
+      refreshDownloads();
+      _checkAppUpdate(promptDialog: true);
+    }
   }
 
   void refreshDownloads() {
@@ -376,6 +386,41 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
       BookingCache(widget.api).sync();
       widget.api.refreshProfile().catchError((_) => <String, dynamic>{});
       refreshUnread();
+    }
+  }
+
+  Future<void> _checkAppUpdate({
+    bool force = false,
+    bool promptDialog = true,
+  }) async {
+    if (_checkingUpdate) return;
+    final now = DateTime.now();
+    if (!force &&
+        _lastUpdateCheckAt != null &&
+        now.difference(_lastUpdateCheckAt!) < const Duration(minutes: 10)) {
+      return;
+    }
+    _checkingUpdate = true;
+    try {
+      final res = await AppUpdateService.checkForUpdate(widget.api);
+      _lastUpdateCheckAt = now;
+      if (!mounted) return;
+      final update = res.update;
+      if (update != availableUpdate) {
+        setState(() => availableUpdate = update);
+      }
+      if (promptDialog &&
+          update != null &&
+          !_updateDialogShown &&
+          await AppUpdateService.shouldShowPrompt(widget.api, update) &&
+          mounted) {
+        _updateDialogShown = true;
+        await showAppUpdateDialog(context, widget.api, update);
+      }
+    } catch (_) {
+      // Update checks are strictly non-blocking.
+    } finally {
+      _checkingUpdate = false;
     }
   }
 
@@ -642,6 +687,14 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                                 child: const Text('Qayta urinish'),
                               ),
                             ],
+                          ),
+                        if (availableUpdate != null && (tab == 0 || tab == 4))
+                          AppUpdateBanner(
+                            update: availableUpdate!,
+                            onDownload: () => AppUpdateService.launchDownload(
+                              context,
+                              availableUpdate!.downloadUrl,
+                            ),
                           ),
                         Expanded(
                           // Content fades out under the fixed tab header.

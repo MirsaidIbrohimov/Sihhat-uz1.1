@@ -42,6 +42,9 @@ String requestKey() {
 }
 
 class Api {
+  static String? appBuildHeader;
+  static String? appVersionHeader;
+
   final String baseUrl;
   final TokenStore store;
   final http.Client client;
@@ -191,6 +194,8 @@ class Api {
       request.headers.addAll({
         'Content-Type': 'application/json',
         if (accessToken != null) 'Authorization': 'Bearer $accessToken',
+        'X-App-Build': ?appBuildHeader,
+        'X-App-Version': ?appVersionHeader,
         'Idempotency-Key': ?key,
       });
       if (body != null) request.body = jsonEncode(body);
@@ -206,6 +211,8 @@ class Api {
           redirectReq.headers.addAll({
             'Content-Type': 'application/json',
             if (accessToken != null) 'Authorization': 'Bearer $accessToken',
+            'X-App-Build': ?appBuildHeader,
+            'X-App-Version': ?appVersionHeader,
             'Idempotency-Key': ?key,
           });
           if (body != null) redirectReq.body = jsonEncode(body);

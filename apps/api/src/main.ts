@@ -3,6 +3,7 @@ import { registerAfterEmitCommit } from './common/db';
 import { OutboxService } from './outbox/outbox.service';
 import { TelegramService } from './telegram/telegram.service';
 import { TelegramClient } from './telegram/client';
+import { AppVersionService } from './catalog/app-version';
 
 async function main() {
   const { app, config } = await createApp();
@@ -12,6 +13,7 @@ async function main() {
   const outbox = app.get(OutboxService);
   const bot = app.get(TelegramService);
   const tgClient = app.get(TelegramClient);
+  const appVersion = app.get(AppVersionService);
 
   let pumping = false;
   let pumpAgain = false;
@@ -48,9 +50,12 @@ async function main() {
     let maintenanceAt = 0;
     const timer = setInterval(() => {
       void pump();
-      if (config.TELEGRAM_MODE === 'webhook' && tgClient.enabled && Date.now() - maintenanceAt > 60_000) {
+      if (Date.now() - maintenanceAt > 60_000) {
         maintenanceAt = Date.now();
-        void bot.heartbeat().then(() => bot.schedule()).then(() => bot.monitor()).catch(() => undefined);
+        void appVersion.checkAndAnnounceNewRelease().catch(() => undefined);
+        if (config.TELEGRAM_MODE === 'webhook' && tgClient.enabled) {
+          void bot.heartbeat().then(() => bot.schedule()).then(() => bot.monitor()).catch(() => undefined);
+        }
       }
     }, 10_000);
     timer.unref();

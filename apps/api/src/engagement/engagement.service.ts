@@ -753,8 +753,17 @@ export class EngagementService implements OnModuleInit {
     const i=parse(z.object({base64:z.string().min(10).max(15_000_000),mime:z.string().max(100)}).strict(),body);
     return {url:`data:${i.mime};base64,${i.base64}`};
   }
-  async notifications(actor:Actor){
-    const rows = await this.db.notificationDelivery.findMany({where:{userId:actor.id,channel:'IN_APP'},take:100,orderBy:{id:'desc'}});
+  async notifications(actor:Actor, appBuildHeader?: string){
+    const rawRows = await this.db.notificationDelivery.findMany({where:{userId:actor.id,channel:'IN_APP'},take:100,orderBy:{id:'desc'}});
+    const clientBuild = typeof appBuildHeader === 'string' && /^\d{1,9}$/.test(appBuildHeader.trim()) ? Number(appBuildHeader.trim()) : null;
+    const rows = clientBuild && clientBuild > 0
+      ? rawRows.filter(r => {
+          const p = (r.payload ?? {}) as Record<string, any>;
+          if (p.topic !== 'app.update') return true;
+          const targetBuild = Number(p.target_build ?? p.build_number ?? 0);
+          return !Number.isFinite(targetBuild) || targetBuild > clientBuild;
+        })
+      : rawRows;
     if (!rows.length) return [];
 
     const bookingIds = new Set<string>();
@@ -873,6 +882,7 @@ export class EngagementService implements OnModuleInit {
       'partner.password_reset_requested': 'Hamkor parolni tiklashni so‘radi',
       'auth.bruteforce_alert': 'Xavfsizlik ogohlantirishi: ko‘p martalik xato parol urinishi',
       'telegram.linked': 'Telegram bot hisobingizga ulandi',
+      'app.update': 'Ilovaning yangi versiyasi mavjud',
     };
 
     return rows.map(r => {
@@ -929,6 +939,10 @@ export class EngagementService implements OnModuleInit {
       if (p.attempted_login) details.push({ label: 'Login', value: `@${p.attempted_login}` });
       if (p.contact_phone || p.user_phone) details.push({ label: 'Aloqa telefoni', value: String(p.contact_phone || p.user_phone) });
       if (p.reason) details.push({ label: 'Sabab / Izoh', value: String(p.reason) });
+      if (topic === 'app.update') {
+        if (p.target_version || p.version) details.push({ label: 'Yangi versiya', value: `v${p.target_version || p.version}` });
+        if (p.target_build || p.build_number) details.push({ label: 'Build raqami', value: String(p.target_build || p.build_number) });
+      }
 
       let bodyText = p.body || m?.body || p.text || tm?.text || '';
       if (!bodyText) {

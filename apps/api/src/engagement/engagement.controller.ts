@@ -22,7 +22,7 @@ export class EngagementController{
   @Patch('support/tickets/:id/messages/:messageId') ticketMessageEdit(@CurrentActor() a:Actor,@Param('id') id:string,@Param('messageId') messageId:string,@Body() b:unknown){return this.s.ticketMessageEdit(a,id,messageId,b);}
   @Delete('support/tickets/:id/messages/:messageId') ticketMessageDelete(@CurrentActor() a:Actor,@Param('id') id:string,@Param('messageId') messageId:string){return this.s.ticketMessageDelete(a,id,messageId);}
   @Post('support/upload') ticketImageUpload(@CurrentActor() a:Actor,@Body() b:unknown){return this.s.ticketImageUpload(a,b);}
-  @Get('notifications') notifications(@CurrentActor() a:Actor){return this.s.notifications(a);}
+  @Get('notifications') notifications(@CurrentActor() a:Actor,@Headers('x-app-build') appBuild?:string){return this.s.notifications(a,appBuild);}
   @Post('notifications/read-all') notificationReadAll(@CurrentActor() a:Actor){return this.s.notificationReadAll(a);}
   @Post('notifications/:id/read') notificationRead(@CurrentActor() a:Actor,@Param('id') id:string){return this.s.notificationRead(a,id);}
 }

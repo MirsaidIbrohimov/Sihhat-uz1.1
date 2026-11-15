@@ -53,6 +53,7 @@ export function enrichOpenApi(document:OpenAPIObject){
     Success:obj({success:{...boolean,enum:[true]}}),
     TelegramLink:obj({id,expires_at:timestamp,url:{...str,format:'uri',description:'One-time Telegram linking URL. Never log or share it.'}}),
     TelegramConnection:obj({enabled:boolean,bot_username:str,account:{type:'object',nullable:true,properties:{telegram_user_id:str,display_name:str,username:{...str,nullable:true},connected_at:timestamp,blocked:boolean}},link:{type:'object',nullable:true,properties:{id,expires_at:timestamp,claimed:boolean,telegram_user_id:{...str,nullable:true},display_name:{...str,nullable:true},username:{...str,nullable:true}}}}),
+    MobileAppVersion:obj({platform:{...str,enum:['android']},available:boolean,version:{...str,nullable:true},build_number:integer,tag:{...str,nullable:true},download_url:str,web_download_url:str,release_notes:{...str,nullable:true},published_at:{...timestamp,nullable:true},source:{...str,enum:['env','github-release-api','unavailable']},checked_at:timestamp,current_build:{...integer,nullable:true},update_available:boolean,title:str,message:str}),
   });
   const bookingSchema=schemas.Booking as any;
   schemas.BookingDetail=obj({...bookingSchema.properties,items:array(ref('BookingItem')),events:array(ref('BookingEvent')),payment:{...schemas.PaymentOrder,nullable:true},refund:{...schemas.RefundRequest,nullable:true},offline_payments:array(ref('OfflinePayment')),history_preserved:boolean,sanatorium_name:{...str,nullable:true}});
@@ -112,9 +113,10 @@ export function enrichOpenApi(document:OpenAPIObject){
     '/payments/tezcheck':{type:'object',properties:{id:str,type:str,schema_version:{...integer,enum:[1]},data:{type:'object',properties:{bill_id:str,external_reference:{...str,nullable:true}},required:['bill_id','external_reference'],additionalProperties:true}},required:['id','type','schema_version','data'],additionalProperties:true},
     '/payments/payme':obj({jsonrpc:{type:'string',enum:['2.0']},id:{oneOf:[str,{type:'number'}]},method:{type:'string',enum:['CheckPerformTransaction','CreateTransaction','PerformTransaction','CancelTransaction','CheckTransaction','GetStatement','SetFiscalData']},params:{type:'object',additionalProperties:true}},['method','params']),
     '/telegram/link':obj({}),'/telegram/disconnect':obj({}),'/telegram/link/{id}/confirm':obj({telegram_user_id:{...str,pattern:'^[1-9][0-9]{0,19}$'}}),'/telegram/webhook':apiSchema(updateInput),
+    '/superadmin/app-version/announce':obj({},[]),
   };
   for(const[path,item]of Object.entries(document.paths))for(const method of ['get','post','patch','put','delete'] as const){const operation=(item as any)[method];if(!operation)continue;
-    const isPublic=path.startsWith('/health/')||path.startsWith('/catalog/')||['/auth/staff/login','/auth/partner-forgot-password','/auth/customer/otp/request','/auth/customer/otp/verify','/telegram/webhook','/payments/tezcheck'].includes(path);
+    const isPublic=path.startsWith('/health/')||path.startsWith('/catalog/')||['/mobile/app-version','/auth/staff/login','/auth/partner-forgot-password','/auth/customer/otp/request','/auth/customer/otp/verify','/telegram/webhook','/payments/tezcheck'].includes(path);
     const customerOnly=path.startsWith('/customer/')||path.startsWith('/auth/customer/phone')||['/ai/messages','/reviews'].includes(path);
     const staffOnly=path.startsWith('/partner/')||path.startsWith('/superadmin/')||(path.startsWith('/telegram/')&&path!=='/telegram/webhook')||(method==='post'&&['/messages'].includes(path));
     const webSecurity={cookie:[],...(method==='get'?{}:{CSRF:[]})};
@@ -165,6 +167,7 @@ export function enrichOpenApi(document:OpenAPIObject){
     if(path==='/superadmin/integrations/tezcheck')response.content['application/json'].schema=ref('TezcheckOverview');
     if(path==='/superadmin/ai/usage')response.content['application/json'].schema=ref('AiUsageReport');
     if(path==='/catalog/home')response.content['application/json'].schema=ref('HomeFeed');
+    if(path==='/mobile/app-version'||path==='/catalog/app-version')response.content['application/json'].schema=ref('MobileAppVersion');
     if(path==='/telegram/account')response.content['application/json'].schema=ref('TelegramConnection');
     if(path==='/telegram/link')response.content['application/json'].schema=ref('TelegramLink');
     if(['/telegram/disconnect','/telegram/webhook','/telegram/link/{id}/confirm','/auth/partner-forgot-password','/superadmin/customers/{id}/revoke-sessions'].includes(path))response.content['application/json'].schema=ref('Success');

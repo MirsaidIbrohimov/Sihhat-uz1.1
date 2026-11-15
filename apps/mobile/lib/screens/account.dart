@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../data/api.dart';
+import '../data/app_update.dart';
 import '../widgets.dart';
 import '../design.dart';
 import '../appearance.dart';
@@ -454,6 +455,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         'support.replied': 'Yordam xizmatidan javob',
         'ad.requested': 'Yangi reklama arizasi',
         'ad.moderated': 'Reklama moderatsiyasi',
+        'app.update': 'Ilovaning yangi versiyasi chiqdi',
       }[topic] ??
       'Platforma yangilanishi';
   int refreshKey = 0;
@@ -631,6 +633,26 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
               ),
             ],
             const SizedBox(height: 24),
+            if (payload['topic'] == 'app.update' &&
+                Uri.tryParse(payload['download_url']?.toString() ?? '')
+                        ?.scheme ==
+                    'https') ...[
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton.icon(
+                  onPressed: () {
+                    Navigator.pop(ctx);
+                    AppUpdateService.launchDownload(
+                      context,
+                      payload['download_url'].toString(),
+                    );
+                  },
+                  icon: const Icon(Icons.download_rounded, size: 18),
+                  label: const Text('Eng so‘nggi versiyani yuklab olish'),
+                ),
+              ),
+              const SizedBox(height: 10),
+            ],
             SizedBox(
               width: double.infinity,
               child: OutlinedButton(
@@ -2115,6 +2137,43 @@ class ProfileScreen extends StatefulWidget {
 class _ProfileScreenState extends State<ProfileScreen> {
   int epoch = 0;
   bool avatarBusy = false;
+  bool _checkingVersion = false;
+  InstalledAppVersion? _installedVersion;
+
+  @override
+  void initState() {
+    super.initState();
+    AppUpdateService.readInstalledVersion().then((v) {
+      if (mounted && v != null) setState(() => _installedVersion = v);
+    });
+  }
+
+  Future<void> _checkUpdateFromProfile() async {
+    if (_checkingVersion) return;
+    setState(() => _checkingVersion = true);
+    try {
+      final result = await AppUpdateService.checkForUpdate(widget.api);
+      if (!mounted) return;
+      if (result.installed != null) {
+        setState(() => _installedVersion = result.installed);
+      }
+      if (result.update != null) {
+        await showAppUpdateDialog(context, widget.api, result.update!);
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              result.installed == null
+                  ? 'Yangilanish tekshirildi'
+                  : 'Sizda eng so‘nggi versiya (${result.installed!.displayLabel}) o‘rnatilgan',
+            ),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _checkingVersion = false);
+    }
+  }
 
   Future<void> edit(Json p) async {
     final saved = await showModalBottomSheet<bool>(
@@ -2514,14 +2573,31 @@ class _ProfileScreenState extends State<ProfileScreen> {
             const SizedBox(height: 10),
             ConceptCard(
               padding: EdgeInsets.zero,
-              child: ConceptMenuRow(
-                'shield-check',
-                'Foydalanuvchi shartlari va nizomlar',
-                glyph: Icons.gavel_rounded,
-                onTap: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const LegalTermsScreen()),
-                ),
+              child: Column(
+                children: [
+                  ConceptMenuRow(
+                    'shield-check',
+                    'Foydalanuvchi shartlari va nizomlar',
+                    glyph: Icons.gavel_rounded,
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const LegalTermsScreen(),
+                      ),
+                    ),
+                  ),
+                  const Divider(height: 1, indent: 18, endIndent: 18),
+                  ConceptMenuRow(
+                    'sparkles',
+                    _checkingVersion
+                        ? 'Yangilanish tekshirilmoqda…'
+                        : (_installedVersion == null
+                              ? 'Ilova yangilanishini tekshirish'
+                              : 'Ilova versiyasi: ${_installedVersion!.displayLabel}'),
+                    glyph: Icons.system_update_rounded,
+                    onTap: _checkingVersion ? () {} : _checkUpdateFromProfile,
+                  ),
+                ],
               ),
             ),
             const SizedBox(height: 10),

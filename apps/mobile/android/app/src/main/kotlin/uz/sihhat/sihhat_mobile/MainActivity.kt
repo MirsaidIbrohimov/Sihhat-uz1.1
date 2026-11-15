@@ -45,6 +45,36 @@ class MainActivity : FlutterActivity() {
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "uz.sihhat/notifications")
             .setMethodCallHandler { call, result ->
                 when (call.method) {
+                    "getAppVersion" -> {
+                        try {
+                            val info = packageManager.getPackageInfo(packageName, 0)
+                            val versionCode = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                                info.longVersionCode
+                            } else {
+                                @Suppress("DEPRECATION")
+                                info.versionCode.toLong()
+                            }
+                            result.success(
+                                mapOf(
+                                    "versionName" to (info.versionName ?: ""),
+                                    "buildNumber" to versionCode
+                                )
+                            )
+                        } catch (_: Exception) {
+                            result.success(null)
+                        }
+                    }
+                    "syncConfig" -> {
+                        val baseUrl = call.argument<String>("baseUrl")
+                        if (!baseUrl.isNullOrBlank()) {
+                            val prefs = getSharedPreferences(NotificationSyncJobService.PREFS_NAME, Context.MODE_PRIVATE)
+                            prefs.edit()
+                                .putString(NotificationSyncJobService.KEY_BASE_URL, baseUrl)
+                                .apply()
+                            scheduleNotificationJob()
+                        }
+                        result.success(true)
+                    }
                     "syncCredentials" -> {
                         val baseUrl = call.argument<String>("baseUrl")
                         val token = call.argument<String>("token")
@@ -64,10 +94,15 @@ class MainActivity : FlutterActivity() {
                             .remove(NotificationSyncJobService.KEY_AUTH_TOKEN)
                             .remove(NotificationSyncJobService.KEY_LAST_NOTIF_ID)
                             .apply()
-                        try {
-                            val scheduler = getSystemService(Context.JOB_SCHEDULER_SERVICE) as JobScheduler
-                            scheduler.cancel(NOTIFICATION_JOB_ID)
-                        } catch (_: Exception) {}
+                        val hasBaseUrl = !prefs.getString(NotificationSyncJobService.KEY_BASE_URL, null).isNullOrBlank()
+                        if (hasBaseUrl) {
+                            scheduleNotificationJob()
+                        } else {
+                            try {
+                                val scheduler = getSystemService(Context.JOB_SCHEDULER_SERVICE) as JobScheduler
+                                scheduler.cancel(NOTIFICATION_JOB_ID)
+                            } catch (_: Exception) {}
+                        }
                         result.success(true)
                     }
                     "showNotification" -> {

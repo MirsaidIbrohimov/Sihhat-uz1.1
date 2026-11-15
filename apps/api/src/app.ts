@@ -42,6 +42,7 @@ import { CatalogService } from './catalog/catalog.service';
 import { CatalogController } from './catalog/catalog.controller';
 import { HomeService } from './catalog/home.service';
 import { HomeController } from './catalog/home.controller';
+import { AppVersionController, AppVersionService } from './catalog/app-version';
 import { ReportsService } from './reports/reports.service';
 import { ReportsController } from './reports/reports.controller';
 import { AiService } from './ai/ai.service';
@@ -64,7 +65,7 @@ export class SanatoriumModule {}
 export class BookingModule {}
 @Global() @Module({providers:[PaymentService,FinanceService,TezcheckClient,TezcheckService,AiUsageService],controllers:[PaymentController,FinanceController],exports:[PaymentService,FinanceService,TezcheckService,AiUsageService]})
 export class FinanceModule {}
-@Global() @Module({providers:[BillingService,EngagementService,CatalogService,HomeService,ReportsService,AiService,OutboxService,TelegramClient,TelegramLinkService,TelegramViews,TelegramService],controllers:[BillingController,EngagementController,CatalogController,HomeController,ReportsController,TelegramController],exports:[BillingService,EngagementService,CatalogService,ReportsService,AiService,OutboxService,TelegramClient,TelegramLinkService,TelegramService]})
+@Global() @Module({providers:[BillingService,EngagementService,CatalogService,HomeService,AppVersionService,ReportsService,AiService,OutboxService,TelegramClient,TelegramLinkService,TelegramViews,TelegramService],controllers:[BillingController,EngagementController,CatalogController,HomeController,AppVersionController,ReportsController,TelegramController],exports:[BillingService,EngagementService,CatalogService,AppVersionService,ReportsService,AiService,OutboxService,TelegramClient,TelegramLinkService,TelegramService]})
 export class OperationsModule {}
 @Controller('health') @Public()
 class HealthController {
