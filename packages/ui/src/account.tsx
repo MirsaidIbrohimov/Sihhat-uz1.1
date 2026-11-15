@@ -189,12 +189,14 @@ export function MyAccount({ changePassword }: { changePassword: () => void }) {
           required: false,
           maxLength: 120,
           value: ctx.actor.email ?? "",
-          hint: "To‘g‘ri email kiriting (masalan: admin@sihhat.uz). O‘chirish uchun bo‘sh qoldirib saqlang.",
+          emailAvailabilityCheck: true,
+          emailCheckExcludeUserId: ctx.actor.id,
+          hint: "Faqat boshqa hisobga ulanmagan email manzil kiritilishi mumkin. O‘chirish uchun bo‘sh qoldirib saqlang.",
         },
       ],
       submit: (values) =>
         api("/auth/profile", "PATCH", {
-          email: typeof values.email === "string" && values.email.trim() ? values.email.trim() : null,
+          email: typeof values.email === "string" && values.email.trim() ? values.email.trim().toLowerCase() : null,
         }),
       done: () => {
         ctx.reloadActor?.();
@@ -625,19 +627,6 @@ export function RoleGuide() {
     },
     ...(ctx.admin
       ? [
-          {
-            category: "communication",
-            categoryLabel: "Aloqa",
-            title: "Yangilik va tavsiyalar",
-            icon: <Newspaper size={22} />,
-            text: "Mobil ilova bosh sahifasida mijozlarga ko‘rinadigan foydali maqola va yangiliklarni nashr etish hamda boshqarish.",
-            steps: [
-              "«Maqola yozish» orqali yangilik yoki salomatlik tavsiyasini kiriting.",
-              "Ilovada ko‘rinishi uchun «E’lon qilish» holatini belgilang.",
-              "Eskirgan yoki xato yangiliklarni «O‘chirish» tugmasi orqali o‘chirib tashlang.",
-            ],
-            section: "articles",
-          },
           {
             category: "communication",
             categoryLabel: "Aloqa",

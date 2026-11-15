@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ArrowUpRight,
   BedDouble,
@@ -26,6 +26,7 @@ import { ProfileWizard } from "./wizard";
 import { ListFilters, useSavedFilters } from "./list-filters";
 import { newPasswordFields } from "./password-fields";
 import { XlsxDownload } from "./report-download";
+import { EmailAvailabilityInput } from "./login-availability";
 import { MerchantSetupPanel } from "./merchant-setup";
 import { PhotoGallery } from "./photo-gallery";
 import {
@@ -1714,6 +1715,13 @@ function CustomerManageModal({
   );
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const emailVerifierRef = useRef<(() => Promise<string | null>) | null>(null);
+  const registerEmailVerifier = useCallback(
+    (_name: string, verifier: (() => Promise<string | null>) | null) => {
+      emailVerifierRef.current = verifier;
+    },
+    [],
+  );
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -1775,11 +1783,18 @@ function CustomerManageModal({
     setBusy(true);
     setError("");
     try {
+      if (emailVerifierRef.current) {
+        const emailErr = await emailVerifierRef.current();
+        if (emailErr) {
+          setError(emailErr);
+          return;
+        }
+      }
       await api(`/superadmin/customers/${user.id}`, "PATCH", {
         name: name.trim(),
         phone: phone.trim() || null,
         login: login.trim() || null,
-        email: email.trim() || null,
+        email: email.trim() ? email.trim().toLowerCase() : null,
       });
       notice("Foydalanuvchi ma’lumotlari saqlandi");
       onRefresh();
@@ -1921,12 +1936,14 @@ function CustomerManageModal({
             </label>
             <label className="field">
               <span>Elektron pochta (Email)</span>
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
+              <EmailAvailabilityInput
+                name="email"
+                defaultValue={String(user.email || "")}
                 placeholder="user@example.com"
                 disabled={busy}
+                excludeUserId={String(user.id)}
+                onValueChange={setEmail}
+                onRegisterVerifier={registerEmailVerifier}
               />
             </label>
           </div>

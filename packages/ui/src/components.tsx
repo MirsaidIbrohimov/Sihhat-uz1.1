@@ -37,6 +37,7 @@ import { SelectionGroup } from "./selections";
 import { DateTimePicker, TimePicker } from "./date-time";
 import { AgeList, ChildPrices, TextList } from "./value-editors";
 import {
+  EmailAvailabilityInput,
   LoginAvailabilityInput,
   normalizeLoginInput,
 } from "./login-availability";
@@ -80,6 +81,8 @@ export type Field = {
   step?: number | string;
   loginAvailabilityCheck?: boolean;
   loginCheckExcludeUserId?: string;
+  emailAvailabilityCheck?: boolean;
+  emailCheckExcludeUserId?: string;
 };
 export type FormSpec = {
   title: string;
@@ -1167,6 +1170,16 @@ export function FormDialog({
                         excludeUserId={f.loginCheckExcludeUserId}
                         onRegisterVerifier={registerFieldVerifier}
                       />
+                    ) : f.emailAvailabilityCheck ? (
+                      <EmailAvailabilityInput
+                        name={f.key}
+                        defaultValue={String(f.value ?? "")}
+                        required={f.required}
+                        maxLength={f.maxLength}
+                        hint={f.hint}
+                        excludeUserId={f.emailCheckExcludeUserId}
+                        onRegisterVerifier={registerFieldVerifier}
+                      />
                     ) : (
                       <input
                         name={f.key}
@@ -1194,7 +1207,7 @@ export function FormDialog({
                         }
                       />
                     )}{" "}
-                    {f.hint && f.type !== "checkbox" && !f.loginAvailabilityCheck && (
+                    {f.hint && f.type !== "checkbox" && !f.loginAvailabilityCheck && !f.emailAvailabilityCheck && (
                       <small>{f.hint}</small>
                     )}
                   </FormField>

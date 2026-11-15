@@ -2,7 +2,30 @@
 
 Yangilangan: 2026-11-15. Asos: ISHLAB_CHIQISH_REJASI.md va SIHHAT_UZ_ARXITEKTURA.md.
 
-## 2026-11-15 Foydalanuvchi shartlari (Ommaviy oferta), Hamkorlik nizomi va barcha asosiy nizomlar
+## 2026-11-15 Portallar, Bildirishnomalar, Jonli chat va Xavfsizlik yangilanishi
+
+- **Hamkorlar va Superadmin veb-panellari (`packages/ui`)**:
+  - Hamkorlar portalida (`!admin`) yuqoridagi sanatoriyalar filtri olib tashlandi, har bir hamkor faqat o‘z sanatoriyasi kontekstida ishlaydi.
+  - Superadmin panelida «To‘lovlar» (`payments`) bo‘limiga yuqoridagi sanatoriyalar filtri qo‘shildi, «Sanatoriya» ustuni ulandi. Filtrda «Barchasi» (`""`) tanlanganda bo‘limlar aro o‘tishda tanlov saqlanib qolishi (`tenantInitRef`) ta’minlandi; sanatoriya tanlanmaganda ma’lumotlar barcha sanatoriyalar bo‘yicha ko‘rsatiladi.
+  - Superadmin sahifasidagi «Yangiliklar va tavsiyalar» (`articles`) bo‘limi to‘liq olib tashlandi (navigatsiya, marshrutlar va qo‘llanmadan).
+  - «E’lon va xabarlar» (`announcements`) 2 bosqichli yangi oqim asosida qayta qurildi:
+    1-bosqich: Auditoriya tanlash — «Butun tizimga» (`ALL`), «Foydalanuvchilarga» (`CUSTOMERS`), «Hamkorlarga» (`PARTNERS` + ixtiyoriy sanatoriyalar tanlovi).
+    2-bosqich: E’lon ma’lumotlari (sarlavha, matn, xabar yoki ogohlantirish turi).
+- **Email unikal tekshiruvi (Superadmin va Hamkorlar)**:
+  - Superadmin va hamkorlar profilida email kiritish/tahrirlashda hamda xodim qo‘shishda (`EmailAvailabilityInput` va backend `AuthService.profile`, `StaffService.checkLoginAvailability`) email boshqa hisobga ulanmaganligi tekshiriladi; agar mavjud bo‘lsa `EMAIL_IN_USE` (409) xatosi qaytariladi va kiritish bloklanadi.
+- **Amallar tarixi (`AuditLog`)**:
+  - Foydalanuvchilar o‘chirilishi (`customer.deleted`) va barcha hisoblar tozalanishi (`superadmin.all_accounts_cleared`) auditi to‘liq qayd etiladi va «Amallar tarixi» sahifasida o‘chirilgan foydalanuvchi ma’lumotlari (ism, telefon, login, email) tafsilot ustunida aks ettiriladi.
+- **Bildirishnomalar tizimi (Web, Mobile va To‘lov triggeri)**:
+  - Web va Mobile bildirishnomalar lentasida har bir xabar boyitilgan ma’lumotlar (`title`, `summary`, `body`, `details` jadvali — sanatoriya, bron raqami, mehmon, muddat, summa, holat) bilan ta’minlandi. Ustiga bosilganda batafsil modal (veb) yoki pastdan ochiluvchi varaq (mobile bottom sheet) orqali to‘liq ko‘rsatiladi va o‘qilgan deb belgilanadi.
+  - Bron bildirishnomalari faqat to‘lov muvaffaqiyatli amalga oshirilganda (`payment.succeeded`) yoki qo‘lda tasdiqlangan bronlarda yuboriladi; to‘lanmagan `HOLD` yaratilganda foydalanuvchini chalg‘ituvchi bildirishnoma chiqarilmaydi.
+  - Mobil ilovada Android tizim darajasidagi bildirishnomalar (`NotificationChannel`, `JobScheduler`, `MethodChannel("uz.sihhat/notifications")`) joriy qilindi; ilova yopiq bo‘lganda ham fonda tizim bildirishnomasi keladi.
+- **Live chat (Yordam / Support)**:
+  - Mobil ilovada va veb panellarda yangi murojaat ochishda qabul qiluvchini tanlash imkoniyati yaratildi: Admin / Platforma bilan birga bevosita Sanatoriya xodimiga (masalan, Resepshn, Direktor) murojaat yuborish qo‘shildi.
+- **Tekshirilgan natijalar**:
+  - `npm run check` (`5/5` workspace: `@sihhat/api`, `@sihhat/partner-web`, `@sihhat/superadmin-web`, `@sihhat/api-client`, `@sihhat/ui` TypeScript tekshiruvi) — **0 xato**.
+  - `npm run openapi` (`docs/openapi.json`) — muvaffaqiyatli yangilandi.
+  - `npm run build:api` va `npm run build:web` — muvaffaqiyatli yig‘ildi.
+  - `npm run check:secrets` — `419` fayl, `24` maxfiy qiymat tekshirildi, `0` moslik (`matches: []`).
 
 - **Yangi to‘liq normativ hujjatlar (`docs/`)**:
   - [`docs/FOYDALANUVCHI_SHARTLARI_VA_NIZOMLAR.md`](./FOYDALANUVCHI_SHARTLARI_VA_NIZOMLAR.md) (`2026-11-15`): 12 bobdan iborat mijozlar uchun yagona hujjat — Ommaviy oferta, Email OTP kirish va qo‘sh-OTP telefon almashtirish, 15 MB avatar, offline kesh vs jonli `pricingVersion`/`availableRooms`, 5 daqiqalik `HOLD` (avto-bekor va muddati o‘tgan to‘lanmagan holdlarni ro‘yxatdan yashirish), TezCheck / direct merchant (`MERCHANT_NOT_READY`, `PAYMENT_EXCEPTION`), QR-vaucher, `CHECKED_IN`/`CHECKED_OUT`/`NO_SHOW`, `FULL_BEFORE_CUTOFF` vs `NON_REFUNDABLE` / `PAYOUT_RESERVED` / 1–5 ish kunlik qaytarish, Maxfiylik siyosati, AI yordamchi nizomi (`30 so‘rov/soat` + kunlik provayder kvotasi, 12 xabar konteksti, `redactMessage`, tibbiy/moliyaviy cheklovlar), Tekshirilgan sharhlar (`CHECKED_OUT`, 1–5★, 3–3000 belgi), Support chat (`deletedForUser` Superadmin auditi), fors-major va nizolar tartibi.

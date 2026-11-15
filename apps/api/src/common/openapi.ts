@@ -96,9 +96,9 @@ export function enrichOpenApi(document:OpenAPIObject){
     '/partner/ad-campaigns/{id}/archive':obj({version:integer},[]),
     '/superadmin/ad-campaigns/{id}/approve':obj({reason:str,version:integer},[]),'/superadmin/ad-campaigns/{id}/reject':obj({reason,version:integer},['reason']),
     '/messages':obj({title:str,body:str,kind:{type:'string',enum:['MESSAGE','WARNING']},asset_ids:array(id),recipient_ids:array(id)},['title','body','recipient_ids']),
-    '/messages/{id}/receipt':obj({accepted:boolean},[]),'/superadmin/announcements':obj({sanatorium_ids:array(id),title:str,body:str,kind:{type:'string',enum:['MESSAGE','WARNING']},asset_ids:array(id)},['title','body','kind']),
+    '/messages/{id}/receipt':obj({accepted:boolean},[]),'/superadmin/announcements':obj({target:{type:'string',enum:['ALL','CUSTOMERS','PARTNERS']},sanatorium_ids:array(id),title:str,body:str,kind:{type:'string',enum:['MESSAGE','WARNING']},asset_ids:array(id)},['title','body','kind']),
     '/reviews':obj({booking_id:id,rating:{type:'integer',minimum:1,maximum:5},text:str}),'/partner/reviews/{id}/reply':obj({reply:str}),'/superadmin/reviews/{id}/moderate':obj({status:{type:'string',enum:['PUBLISHED','HIDDEN']},reason:str}),
-    '/support/tickets':obj({title:str,text:str,booking_id:id,sanatorium_id:id,target_user_id:id,imageUrl:str},['title']),'/support/tickets/{id}/messages':obj({text:str,close:boolean,imageUrl:str},[]),
+    '/support/tickets':obj({title:str,text:str,booking_id:id,sanatorium_id:id,target_user_id:id,target_role:{type:'string',enum:['RECEPTION','DIRECTOR','ACCOUNTANT']},imageUrl:str},['title']),'/support/tickets/{id}/messages':obj({text:str,close:boolean,imageUrl:str},[]),
     '/customer/favorites/{id}':obj({saved:boolean}),'/catalog/ads/{id}/events':obj({kind:{type:'string',enum:['IMPRESSION','CLICK']}}),
     '/ai/messages':apiSchema(aiInput),
     '/superadmin/articles':apiSchema(articleInput),'/superadmin/articles/{id}':apiSchema(articleUpdate),
@@ -136,7 +136,7 @@ export function enrichOpenApi(document:OpenAPIObject){
       if(['/partner/bookings','/customer/bookings','/superadmin/bookings'].includes(path))addParameters([query('status',{...str,maxLength:30})]);
       if(path==='/catalog/sanatoriums')addParameters([query('q',{...str,maxLength:100}),query('region',{...str,maxLength:80}),query('amenity',{...str,maxLength:80}),query('max_price',money),query('sort',{...str,enum:['NAME','PRICE'],default:'NAME'})]);
       if(path==='/catalog/compare')addParameters([query('ids',{...str,pattern:'^[0-9a-fA-F-]{36}(,[0-9a-fA-F-]{36}){0,2}$',description:'One to three comma-separated sanatorium UUIDs.'},true)]);
-      if(path==='/partner/staff/login-availability')addParameters([query('login',{...str,maxLength:128}),query('exclude_user_id',id)]);
+      if(path==='/partner/staff/login-availability')addParameters([query('login',{...str,maxLength:128}),query('email',{...str,maxLength:128}),query('exclude_user_id',id)]);
       if(['/partner/reports','/superadmin/reports','/partner/reports/export','/partner/reports/export.xlsx'].includes(path))addParameters([query('sanatorium_id',id),query('from',date,true),query('to',date,true),query('booking_basis',{...str,enum:['CREATED','PAYMENT','SERVICE'],default:'SERVICE'}),query('financial',{...str,enum:['true','false'],default:'false'})]);
     }
     if(path==='/auth/refresh'){

@@ -23,9 +23,9 @@ export function TodayWork() {
     action = useAction(),
     [day, setDay] = useState(localDate());
   const remote = useRemote(
-    ctx.tenant
+    ctx.admin || ctx.tenant
       ? "/partner/bookings/daily" +
-          query({ sanatorium_id: ctx.tenant, date: day })
+          query({ sanatorium_id: ctx.tenant || undefined, date: day })
       : null,
     ctx.epoch,
   );

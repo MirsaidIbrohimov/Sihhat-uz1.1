@@ -41,7 +41,7 @@ export class BookingService {
       await tx.roomAllocation.create({data:{sanatoriumId:s.id,bookingId:booking.id,roomId:picked[index].id,checkIn:booking.checkIn,checkOut:booking.checkOut,kind:manual?'BOOKING':'HOLD'}});
     }
     await tx.bookingEvent.create({data:{bookingId:booking.id,actorId:actor.id,status:booking.status}});await audit(tx,actor.id,manual?'booking.manual_created':'booking.hold_created',booking.id,s.id);
-    await emit(tx,'booking.created',{booking_id:booking.id,recipient_ids:[actor.id]});return json(booking);
+    if(manual)await emit(tx,'booking.created',{booking_id:booking.id,recipient_ids:[actor.id]});return json(booking);
   }
   async manual(actor:Actor,body:unknown,key:string|undefined){
     const i=parse(z.object({quote:quoteInput,guest:guestInput,source:z.enum(['PHONE','WALK_IN','PARTNER_MANUAL']),accepted_policy_versions:z.array(uuid).min(1),guaranteed:z.literal(true),quoted_amount:money.optional()}).strict(),body);
@@ -74,23 +74,33 @@ export class BookingService {
     const sanatoriums=await this.db.sanatorium.findMany({where:{id:{in:[...new Set(data.map(b=>b.sanatoriumId))]}},select:{id:true,name:true}});
     return paged(data.map(b=>{const order=orders.find(p=>p.bookingId===b.id);return {...b,payment_status:order?.status??null,history_preserved:!!order&&(['SUCCEEDED','REFUNDED'].includes(order.status)||performed.some(p=>p.orderId===order.id)),sanatorium_name:sanatoriums.find(s=>s.id===b.sanatoriumId)?.name??null};}),total,i.page,i.limit);}
   async daily(actor: Actor, query: unknown) {
-    const i = parse(z.object({ sanatorium_id: uuid, date: z.iso.date() }).strict(), query);
-    scope(actor, i.sanatorium_id, 'bookings.read');
+    const i = parse(z.object({ sanatorium_id: uuid.optional(), date: z.iso.date() }).strict(), query);
+    if (!i.sanatorium_id && actor.kind !== 'SUPERADMIN') fail('VALIDATION_ERROR', 'Sanatoriya tanlanishi shart', 422);
+    if (i.sanatorium_id) scope(actor, i.sanatorium_id, 'bookings.read');
     const range = dateFilter(i.date, i.date);
-    const arrivalsWhere = { sanatoriumId: i.sanatorium_id, checkIn: range, status: { in: ['CONFIRMED', 'CHECKED_IN'] } };
-    const departuresWhere = { sanatoriumId: i.sanatorium_id, checkOut: range, status: { in: ['CHECKED_IN', 'CHECKED_OUT'] } };
-    const unpaidIds = await this.db.$queryRaw<{ id: string; remaining: bigint }[]>`
-      SELECT b.id, b.amount - COALESCE(CASE WHEN p.status = 'SUCCEEDED' THEN p.amount END, 0)
-        - COALESCE((SELECT sum(o.amount) FROM "OfflinePayment" o WHERE o."bookingId" = b.id AND o.status = 'VERIFIED'), 0) AS remaining
-      FROM "Booking" b LEFT JOIN "PaymentOrder" p ON p."bookingId" = b.id
-      WHERE b."sanatoriumId" = ${i.sanatorium_id}::uuid
-        AND b.status IN ('CONFIRMED', 'CHECKED_IN', 'PAYMENT_PENDING', 'PAYMENT_EXCEPTION')
-        AND b.amount > COALESCE(CASE WHEN p.status = 'SUCCEEDED' THEN p.amount END, 0)
-          + COALESCE((SELECT sum(o.amount) FROM "OfflinePayment" o WHERE o."bookingId" = b.id AND o.status = 'VERIFIED'), 0)`;
+    const tenantFilter = i.sanatorium_id ? { sanatoriumId: i.sanatorium_id } : {};
+    const arrivalsWhere = { ...tenantFilter, checkIn: range, status: { in: ['CONFIRMED', 'CHECKED_IN'] } };
+    const departuresWhere = { ...tenantFilter, checkOut: range, status: { in: ['CHECKED_IN', 'CHECKED_OUT'] } };
+    const unpaidIds = i.sanatorium_id
+      ? await this.db.$queryRaw<{ id: string; remaining: bigint }[]>`
+          SELECT b.id, b.amount - COALESCE(CASE WHEN p.status = 'SUCCEEDED' THEN p.amount END, 0)
+            - COALESCE((SELECT sum(o.amount) FROM "OfflinePayment" o WHERE o."bookingId" = b.id AND o.status = 'VERIFIED'), 0) AS remaining
+          FROM "Booking" b LEFT JOIN "PaymentOrder" p ON p."bookingId" = b.id
+          WHERE b."sanatoriumId" = ${i.sanatorium_id}::uuid
+            AND b.status IN ('CONFIRMED', 'CHECKED_IN', 'PAYMENT_PENDING', 'PAYMENT_EXCEPTION')
+            AND b.amount > COALESCE(CASE WHEN p.status = 'SUCCEEDED' THEN p.amount END, 0)
+              + COALESCE((SELECT sum(o.amount) FROM "OfflinePayment" o WHERE o."bookingId" = b.id AND o.status = 'VERIFIED'), 0)`
+      : await this.db.$queryRaw<{ id: string; remaining: bigint }[]>`
+          SELECT b.id, b.amount - COALESCE(CASE WHEN p.status = 'SUCCEEDED' THEN p.amount END, 0)
+            - COALESCE((SELECT sum(o.amount) FROM "OfflinePayment" o WHERE o."bookingId" = b.id AND o.status = 'VERIFIED'), 0) AS remaining
+          FROM "Booking" b LEFT JOIN "PaymentOrder" p ON p."bookingId" = b.id
+          WHERE b.status IN ('CONFIRMED', 'CHECKED_IN', 'PAYMENT_PENDING', 'PAYMENT_EXCEPTION')
+            AND b.amount > COALESCE(CASE WHEN p.status = 'SUCCEEDED' THEN p.amount END, 0)
+              + COALESCE((SELECT sum(o.amount) FROM "OfflinePayment" o WHERE o."bookingId" = b.id AND o.status = 'VERIFIED'), 0)`;
     const [arrivals, departures, unpaid, arrivalCount, departureCount] = await Promise.all([
       this.db.booking.findMany({ where: arrivalsWhere, orderBy: { createdAt: 'desc' }, take: 100 }),
       this.db.booking.findMany({ where: departuresWhere, orderBy: { createdAt: 'desc' }, take: 100 }),
-      this.db.booking.findMany({ where: { id: { in: unpaidIds.map(b => b.id) }, sanatoriumId: i.sanatorium_id }, orderBy: { createdAt: 'desc' }, take: 100 }),
+      this.db.booking.findMany({ where: { id: { in: unpaidIds.map(b => b.id) }, ...tenantFilter }, orderBy: { createdAt: 'desc' }, take: 100 }),
       this.db.booking.count({ where: arrivalsWhere }), this.db.booking.count({ where: departuresWhere }),
     ]);
     return { date: i.date, arrivals, departures, unpaid: unpaid.map(b => ({ ...b, remaining_amount: String(unpaidIds.find(p => p.id === b.id)!.remaining) })), counts: { arrivals: arrivalCount, departures: departureCount, unpaid: unpaidIds.length }, limit: 100 };

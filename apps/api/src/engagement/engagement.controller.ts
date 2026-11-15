@@ -14,6 +14,7 @@ export class EngagementController{
   @Get('partner/reviews') @Roles('STAFF','SUPERADMIN') reviews(@CurrentActor() a:Actor,@Query() q:unknown){return this.s.reviewList(a,q);}
   @Post('partner/reviews/:id/reply') @Roles('STAFF','SUPERADMIN') reviewReply(@CurrentActor() a:Actor,@Param('id') id:string,@Body() b:unknown){return this.s.reviewReply(a,id,b);}
   @Post('superadmin/reviews/:id/moderate') @Roles('SUPERADMIN') moderate(@CurrentActor() a:Actor,@Param('id') id:string,@Body() b:unknown){return this.s.moderateReview(a,id,b);}
+  @Get('support/recipients') supportRecipients(@CurrentActor() a:Actor){return this.s.supportRecipients(a);}
   @Get('support/tickets') tickets(@CurrentActor() a:Actor){return this.s.tickets(a);}
   @Post('support/tickets') ticket(@CurrentActor() a:Actor,@Body() b:unknown,@Headers('idempotency-key') key?:string){return this.s.ticket(a,b,key);}
   @Get('support/tickets/:id') ticketGet(@CurrentActor() a:Actor,@Param('id') id:string){return this.s.ticketGet(a,id);}

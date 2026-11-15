@@ -480,6 +480,170 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     }
   }
 
+  void showNotificationDetail(Json n) {
+    mark(n);
+    final payload = (n['payload'] as Map?) ?? const {};
+    final notifTitle = payload['title']?.toString() ?? title(payload['topic']);
+    final summary = payload['summary']?.toString();
+    final body = payload['body']?.toString();
+    final details =
+        (payload['details'] as List?)?.whereType<Map>().toList() ?? const [];
+
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: context.colors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) => DraggableScrollableSheet(
+        expand: false,
+        initialChildSize: 0.6,
+        minChildSize: 0.35,
+        maxChildSize: 0.9,
+        builder: (_, scrollController) => ListView(
+          controller: scrollController,
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+          children: [
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: context.colors.muted.withValues(alpha: 0.3),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                const IconTile('bell', glow: true),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        notifTitle,
+                        style: conceptHeading(context, size: 17),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        eventTime(n['createdAt']),
+                        style: TextStyle(
+                          color: context.colors.muted,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            if (body != null && body.isNotEmpty)
+              Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: context.colors.surface,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: context.colors.border),
+                ),
+                child: Text(
+                  body,
+                  style: const TextStyle(fontSize: 14, height: 1.45),
+                ),
+              )
+            else if (summary != null && summary.isNotEmpty)
+              Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: context.colors.surface,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: context.colors.border),
+                ),
+                child: Text(
+                  summary,
+                  style: const TextStyle(fontSize: 14, height: 1.45),
+                ),
+              ),
+            if (details.isNotEmpty) ...[
+              const SizedBox(height: 16),
+              Text(
+                'Tafsilotlar',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: context.colors.muted,
+                  letterSpacing: 0.5,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Container(
+                decoration: BoxDecoration(
+                  border: Border.all(color: context.colors.border),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Column(
+                  children: [
+                    for (final (idx, d) in details.indexed)
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 10,
+                        ),
+                        decoration: BoxDecoration(
+                          border: idx < details.length - 1
+                              ? Border(
+                                  bottom: BorderSide(
+                                    color: context.colors.border,
+                                  ),
+                                )
+                              : null,
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              d['label']?.toString() ?? '',
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: context.colors.muted,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                d['value']?.toString() ?? '',
+                                textAlign: TextAlign.right,
+                                style: const TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ],
+            const SizedBox(height: 24),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Yopish'),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Future<void> markAll() async {
     try {
       await widget.api.send(
@@ -557,7 +721,9 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                 Reveal(
                   index: i,
                   child: ConceptCard(
-                    onTap: pending.contains(n['id']) ? null : () => mark(n),
+                    onTap: pending.contains(n['id'])
+                        ? null
+                        : () => showNotificationDetail(n),
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -568,9 +734,27 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                title(n['payload']?['topic']),
+                                n['payload']?['title']?.toString() ??
+                                    title(n['payload']?['topic']),
                                 style: conceptHeading(context, size: 17),
                               ),
+                              if (n['payload']?['summary'] != null &&
+                                  n['payload']!['summary']
+                                      .toString()
+                                      .isNotEmpty) ...[
+                                const SizedBox(height: 4),
+                                Text(
+                                  n['payload']!['summary'].toString(),
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    color: context.colors.ink.withValues(
+                                      alpha: 0.8,
+                                    ),
+                                  ),
+                                ),
+                              ],
                               const SizedBox(height: 8),
                               Text(
                                 eventTime(n['createdAt']),
@@ -795,6 +979,35 @@ class _NewSupportTicketScreenState extends State<NewSupportTicketScreen> {
   final text = TextEditingController();
   bool busy = false;
   String? error;
+  String recipientType = 'ADMIN';
+  String? selectedSanatoriumId;
+  List<Json> sanatoriums = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadRecipients();
+  }
+
+  Future<void> _loadRecipients() async {
+    try {
+      final res = await widget.api.send('/support/recipients');
+      if (res is Map && res['sanatoriums'] is List) {
+        final list = (res['sanatoriums'] as List)
+            .whereType<Map<String, dynamic>>()
+            .toList();
+        if (mounted) {
+          setState(() {
+            sanatoriums = list;
+            if (sanatoriums.isNotEmpty && selectedSanatoriumId == null) {
+              selectedSanatoriumId = sanatoriums.first['id']?.toString();
+            }
+          });
+        }
+      }
+    } catch (_) {}
+  }
+
   @override
   void dispose() {
     text.dispose();
@@ -812,16 +1025,33 @@ class _NewSupportTicketScreenState extends State<NewSupportTicketScreen> {
       error = null;
     });
     try {
+      final san = sanatoriums.firstWhere(
+        (s) => s['id'] == selectedSanatoriumId,
+        orElse: () => const {},
+      );
+      final sanName = recipientType != 'ADMIN' ? san['name']?.toString() : null;
+      final roleTitle = recipientType == 'RECEPTION'
+          ? 'Resepshnga murojaat'
+          : recipientType == 'DIRECTOR'
+          ? 'Direktorga murojaat'
+          : 'Ilovadan murojaat';
+      final defaultTitle = sanName != null
+          ? '$sanName ($roleTitle)'
+          : roleTitle;
+
       final created = asJson(
         await widget.api.send(
           '/support/tickets',
           method: 'POST',
           body: {
             'title': widget.bookingId == null
-                ? 'Ilovadan murojaat'
+                ? defaultTitle
                 : 'Bron ${widget.reference ?? ''}',
             'text': text.text.trim(),
             if (widget.bookingId != null) 'booking_id': widget.bookingId,
+            if (recipientType != 'ADMIN' && selectedSanatoriumId != null)
+              'sanatorium_id': selectedSanatoriumId,
+            if (recipientType != 'ADMIN') 'target_role': recipientType,
           },
         ),
       );
@@ -860,6 +1090,71 @@ class _NewSupportTicketScreenState extends State<NewSupportTicketScreen> {
             title: 'Sizga yordam beramiz',
             text: 'Savolingizni murojaat orqali yuboring.',
           ),
+          const SizedBox(height: 18),
+          Text(
+            'Qabul qiluvchi',
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: context.colors.muted,
+              letterSpacing: 0.5,
+            ),
+          ),
+          const SizedBox(height: 8),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: [
+                ChoiceChip(
+                  label: const Text('Admin / Platforma'),
+                  selected: recipientType == 'ADMIN',
+                  onSelected: (v) => setState(() => recipientType = 'ADMIN'),
+                ),
+                const SizedBox(width: 8),
+                ChoiceChip(
+                  label: const Text('Resepshn'),
+                  selected: recipientType == 'RECEPTION',
+                  onSelected: (v) =>
+                      setState(() => recipientType = 'RECEPTION'),
+                ),
+                const SizedBox(width: 8),
+                ChoiceChip(
+                  label: const Text('Direktor'),
+                  selected: recipientType == 'DIRECTOR',
+                  onSelected: (v) => setState(() => recipientType = 'DIRECTOR'),
+                ),
+              ],
+            ),
+          ),
+          if (recipientType != 'ADMIN' && sanatoriums.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+              decoration: BoxDecoration(
+                border: Border.all(color: context.colors.border),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: DropdownButtonHideUnderline(
+                child: DropdownButton<String>(
+                  value: selectedSanatoriumId,
+                  isExpanded: true,
+                  hint: const Text('Sanatoriyani tanlang'),
+                  items: [
+                    for (final s in sanatoriums)
+                      DropdownMenuItem<String>(
+                        value: s['id']?.toString(),
+                        child: Text(
+                          s['name']?.toString() ?? 'Sanatoriya',
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                  ],
+                  onChanged: (val) =>
+                      setState(() => selectedSanatoriumId = val),
+                ),
+              ),
+            ),
+          ],
           const SizedBox(height: 18),
           TextField(
             controller: text,
@@ -1453,17 +1748,35 @@ class _SupportThreadState extends State<SupportThread>
                           style: conceptHeading(context, size: 15),
                         ),
                         const SizedBox(height: 2),
-                        Text(
-                          closed
-                              ? 'Murojaat yopilgan (Arxiv)'
-                              : peerOnline
-                              ? 'Superadmin · Onlayn'
-                              : 'Superadmin · Yordam xizmati',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            color: closed ? c.muted : c.primary,
-                          ),
+                        Builder(
+                          builder: (context) {
+                            final targetRole = thread?['target_role']
+                                ?.toString();
+                            final roleLabel = targetRole == 'RECEPTION'
+                                ? 'Resepshn'
+                                : targetRole == 'DIRECTOR'
+                                ? 'Direktor'
+                                : targetRole == 'ACCOUNTANT'
+                                ? 'Hisobchi'
+                                : null;
+                            final peerSubtitle = closed
+                                ? 'Murojaat yopilgan (Arxiv)'
+                                : roleLabel != null
+                                ? (peerOnline
+                                      ? '$roleLabel · Onlayn'
+                                      : '$roleLabel · Sanatoriya')
+                                : (peerOnline
+                                      ? 'Superadmin · Onlayn'
+                                      : 'Superadmin · Yordam xizmati');
+                            return Text(
+                              peerSubtitle,
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: closed ? c.muted : c.primary,
+                              ),
+                            );
+                          },
                         ),
                       ],
                     ),

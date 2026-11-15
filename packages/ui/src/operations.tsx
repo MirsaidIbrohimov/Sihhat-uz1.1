@@ -41,11 +41,12 @@ const ages = (v: any) => {
 };
 export function Inventory() {
   const ctx = usePortal(),
+    activeTenant = ctx.tenant || ctx.tenants[0]?.id || "",
     action = useAction(),
     [tab, setTab] = useState("calendar"),
     [start, setStart] = useState(localDate()),
     remote = useRemote(
-      ctx.tenant ? `/partner/sanatoriums/${ctx.tenant}/inventory` : null,
+      activeTenant ? `/partner/sanatoriums/${activeTenant}/inventory` : null,
       ctx.epoch,
     );
   const data = remote.data;
@@ -69,7 +70,7 @@ export function Inventory() {
       action(
         "Xona turi qo‘shish",
         "/partner/room-types",
-        { sanatorium_id: ctx.tenant },
+        { sanatorium_id: activeTenant },
         [
           { key: "name", label: "Xona turi nomi", required: true },
           {
@@ -102,7 +103,7 @@ export function Inventory() {
       action(
         "Fizik xona qo‘shish",
         "/partner/rooms",
-        { sanatorium_id: ctx.tenant },
+        { sanatorium_id: activeTenant },
         [
           {
             key: "room_type_id",
@@ -184,7 +185,7 @@ export function Inventory() {
           const child_rules = v.child_prices ?? [];
           const { child_prices, included, ...rest } = v;
           return api("/partner/rate-plans", "POST", {
-            sanatorium_id: ctx.tenant,
+            sanatorium_id: activeTenant,
             ...rest,
             child_rules,
             package_details: { included: included ?? [] },
@@ -196,7 +197,7 @@ export function Inventory() {
       action(
         "Xonani ta’mirga yopish",
         "/partner/inventory-blocks",
-        { sanatorium_id: ctx.tenant },
+        { sanatorium_id: activeTenant },
         [
           {
             key: "room_id",
@@ -275,7 +276,7 @@ export function Inventory() {
         ],
         submit: (v) =>
           api("/partner/discounts", "POST", {
-            sanatorium_id: ctx.tenant,
+            sanatorium_id: activeTenant,
             ...v,
             value: v.kind === "FIXED" ? toMinor(v.value) : String(v.value),
           }),
@@ -702,7 +703,7 @@ export function Inventory() {
                                     ],
                                     submit: (v) =>
                                       api("/partner/daily-rates", "POST", {
-                                        sanatorium_id: ctx.tenant,
+                                        sanatorium_id: activeTenant,
                                         rate_plan_id: r.id,
                                         dates: [v],
                                       }),
@@ -774,12 +775,13 @@ export function Inventory() {
 }
 export function Bookings() {
   const ctx = usePortal(),
+    activeTenant = ctx.tenant || ctx.tenants[0]?.id || "",
     action = useAction(),
     [search, setSearch] = useState(""),
     [q, setQ] = useState(""),
     [selected, setSelected] = useState<string | null>(null),
     inventory = useRemote(
-      ctx.tenant ? `/partner/sanatoriums/${ctx.tenant}/inventory` : null,
+      activeTenant ? `/partner/sanatoriums/${activeTenant}/inventory` : null,
       ctx.epoch,
     ),
     detail = useRemote(
@@ -905,7 +907,7 @@ export function Bookings() {
             });
             payload = {
               quote: {
-                sanatorium_id: ctx.tenant,
+                sanatorium_id: activeTenant,
                 check_in: v.check_in,
                 check_out: v.check_out,
                 items,
@@ -1279,10 +1281,11 @@ export function Bookings() {
         ]}
       />
       <DataPanel
+        key={ctx.tenant}
         path={ctx.admin ? "/superadmin/bookings" : "/partner/bookings"}
         title="Bronlar ro‘yxati"
         params={{
-          sanatorium_id: ctx.tenant,
+          sanatorium_id: ctx.tenant || undefined,
           q: q || undefined,
           status: filters.values.status || undefined,
           from: filters.values.from || undefined,
@@ -1299,6 +1302,17 @@ export function Bookings() {
               </>
             ),
           },
+          ...(ctx.admin
+            ? [
+                {
+                  label: "Sanatoriya",
+                  render: (r: Row) =>
+                    ctx.tenants.find((s) => s.id === r.sanatoriumId)?.name ??
+                    r.sanatorium_name ??
+                    "—",
+                },
+              ]
+            : []),
           {
             label: "Mehmon",
             render: (r) => (
@@ -1410,9 +1424,10 @@ export function Payments() {
         ]}
       />
       <DataPanel
+        key={ctx.tenant}
         path={ctx.admin ? "/superadmin/payments" : "/partner/payments"}
         params={{
-          sanatorium_id: ctx.tenant,
+          sanatorium_id: ctx.tenant || undefined,
           q: q || undefined,
           status: filters.values.status || undefined,
           from: filters.values.from || undefined,
@@ -1423,6 +1438,16 @@ export function Payments() {
             label: "Bron raqami",
             render: (row) => row.booking_reference ?? "—",
           },
+          ...(ctx.admin
+            ? [
+                {
+                  label: "Sanatoriya",
+                  render: (r: Row) =>
+                    ctx.tenants.find((s) => s.id === r.sanatoriumId)?.name ??
+                    "—",
+                },
+              ]
+            : []),
           {
             label: "Maqsad",
             render: (r) => label[r.purpose] ?? "Bron to‘lovi",

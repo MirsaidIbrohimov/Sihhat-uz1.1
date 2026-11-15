@@ -9,7 +9,7 @@ import { Actor, ACCOUNTANT, DELEGATABLE, DIRECTOR, effective, requirePlatform, s
 
 export const staffInput = z.object({ sanatorium_id: uuid, name: z.string().trim().min(2).max(120), login: loginSchema, phone: phoneSchema, temporary_password: passwordSchema.optional(), grants: z.array(z.enum(DELEGATABLE)).max(30).default([]) }).strict();
 export const staffInvitationInput = staffInput.extend({role: z.enum(['RECEPTION', 'ACCOUNTANT']).default('RECEPTION')});
-export const loginAvailabilityQuery = z.object({ login: z.string().max(128).optional().default(''), exclude_user_id: uuid.optional() }).strict();
+export const loginAvailabilityQuery = z.object({ login: z.string().max(128).optional().default(''), email: z.string().max(128).optional(), exclude_user_id: uuid.optional() }).strict();
 export const resetPasswordInput = z.object({ new_password: passwordSchema, confirm_password: z.string().max(128) }).strict().refine(v => v.new_password === v.confirm_password, { message: 'Yangi parollar bir xil bo‘lsin', path: ['confirm_password'] });
 @Injectable()
 export class StaffService {
@@ -25,10 +25,39 @@ export class StaffService {
     return paged(memberships.map(m => ({ ...m, user: users.find(u => u.id === m.userId), permissions: effective(m) })), total, page, limit);
   }
   async checkLoginAvailability(actor: Actor, query: unknown) {
+    const q = parse(loginAvailabilityQuery, query);
+    if (q.email !== undefined) {
+      if (actor.kind !== 'SUPERADMIN' && !actor.memberships.some(m => m.status === 'ACTIVE')) {
+        fail('PERMISSION_DENIED', 'Bu amal uchun ruxsat berilmagan', 403);
+      }
+      const normalizedEmail = q.email.trim().toLowerCase();
+      if (!normalizedEmail) {
+        return { email: '', valid: false, available: false, reason: 'EMPTY' as const };
+      }
+      if (!optionalEmailSchema.safeParse(normalizedEmail).success) {
+        return { email: normalizedEmail, valid: false, available: false, reason: 'INVALID_FORMAT' as const };
+      }
+      const existingEmail = await this.db.user.findFirst({
+        where: {
+          ...(q.exclude_user_id ? { id: { not: q.exclude_user_id } } : {}),
+          OR: [
+            { email: { equals: normalizedEmail, mode: 'insensitive' as const } },
+            { login: { equals: normalizedEmail, mode: 'insensitive' as const } },
+          ],
+        },
+        select: { id: true },
+      });
+      return {
+        login: normalizedEmail,
+        email: normalizedEmail,
+        valid: true,
+        available: !existingEmail,
+        reason: existingEmail ? ('TAKEN' as const) : null,
+      };
+    }
     if (actor.kind !== 'SUPERADMIN' && !actor.memberships.some(m => m.permissions.includes('staff.invite'))) {
       fail('PERMISSION_DENIED', 'Xodim taklif qilish huquqi yo‘q', 403);
     }
-    const q = parse(loginAvailabilityQuery, query);
     const normalized = q.login.trim().toLowerCase();
     if (!normalized) {
       return { login: '', valid: false, available: false, reason: 'EMPTY' as const };
@@ -38,7 +67,10 @@ export class StaffService {
     }
     const existing = await this.db.user.findFirst({
       where: {
-        login: { equals: normalized, mode: 'insensitive' },
+        OR: [
+          { login: { equals: normalized, mode: 'insensitive' as const } },
+          ...(normalized.includes('@') ? [{ email: { equals: normalized, mode: 'insensitive' as const } }] : []),
+        ],
         ...(q.exclude_user_id ? { id: { not: q.exclude_user_id } } : {}),
       },
       select: { id: true },
@@ -57,7 +89,12 @@ export class StaffService {
     options: { allowSameSanatoriumPromotion?: boolean } = {},
   ) {
     const existingByLogin = await tx.user.findFirst({
-      where: { login: { equals: input.login, mode: 'insensitive' } },
+      where: {
+        OR: [
+          { login: { equals: input.login, mode: 'insensitive' as const } },
+          ...(input.login.includes('@') ? [{ email: { equals: input.login, mode: 'insensitive' as const } }] : []),
+        ],
+      },
     });
     const existingByPhone = await tx.user.findFirst({
       where: { phone: input.phone },
@@ -435,10 +472,29 @@ export class StaffService {
       }
       if (input.login) {
         const takenLogin = await tx.user.findFirst({
-          where: { login: { equals: input.login, mode: 'insensitive' }, id: { not: id } },
+          where: {
+            id: { not: id },
+            OR: [
+              { login: { equals: input.login, mode: 'insensitive' as const } },
+              ...(input.login.includes('@') ? [{ email: { equals: input.login, mode: 'insensitive' as const } }] : []),
+            ],
+          },
           select: { id: true },
         });
         if (takenLogin) fail('LOGIN_IN_USE', 'Bu login allaqachon band. Boshqa login kiriting', 409);
+      }
+      if (input.email) {
+        const takenEmail = await tx.user.findFirst({
+          where: {
+            id: { not: id },
+            OR: [
+              { email: { equals: input.email, mode: 'insensitive' as const } },
+              { login: { equals: input.email, mode: 'insensitive' as const } },
+            ],
+          },
+          select: { id: true },
+        });
+        if (takenEmail) fail('EMAIL_IN_USE', 'Bu elektron pochta boshqa hisobga ulangan. Boshqa email kiriting', 409);
       }
       if (input.phone) {
         const takenPhone = await tx.user.findFirst({
@@ -530,7 +586,7 @@ export class StaffService {
       await tx.aiUsage.deleteMany({ where: { userId: id } });
       await tx.idempotencyRecord.deleteMany({ where: { userId: id } });
 
-      await audit(tx, actor.id, 'customer.deleted', id, undefined, { name: target.name, phone: target.phone, login: target.login });
+      await audit(tx, actor.id, 'customer.deleted', id, undefined, { name: target.name, phone: target.phone, login: target.login, email: target.email ?? (target.login?.includes('@') ? target.login : null) });
       await tx.user.delete({ where: { id } });
 
       return { success: true };

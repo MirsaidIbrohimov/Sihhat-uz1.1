@@ -38,8 +38,6 @@ export class OutboxService {
             const staff = await tx.membership.findMany({ where: { sanatoriumId: b.sanatoriumId, status: 'ACTIVE' }, select: { userId: true } });
             ids.push(...staff.map(s => s.userId));
           }
-        }
-        if (this.config.TELEGRAM_MODE !== 'disabled' && payload.booking_id) {
           const admins = await tx.user.findMany({ where: { kind: 'SUPERADMIN', status: 'ACTIVE' }, select: { id: true } });
           ids.push(...admins.map(a => a.id));
         }

@@ -40,7 +40,6 @@ import {
 import { useIdleSession } from "./session-idle";
 import { portalSection, portalUrl } from "./portal-routes";
 import { ThemeToggle } from "./appearance";
-import { PublicArticles } from "./articles";
 import { PartnerTerms, PartnerTermsDialog } from "./partner-terms";
 import { TelegramSettings } from "./telegram";
 import { AccountantReports } from "./accounting";
@@ -144,12 +143,6 @@ const links = [
   },
   { id: "support", label: "Yordam va xabarlar", icon: MessageSquare, group: "Aloqa" },
   {
-    id: "articles",
-    label: "Yangilik va tavsiyalar",
-    icon: FileText,
-    admin: true,
-  },
-  {
     id: "reviews",
     label: "Sharhlar",
     icon: HeartPulse,
@@ -200,7 +193,6 @@ const navigationGroups = [
     label: "Aloqa",
     ids: [
       "support",
-      "articles",
       "reviews",
       "notifications",
     ],
@@ -632,13 +624,21 @@ export function Portal({
     window.addEventListener("popstate", sync);
     return () => window.removeEventListener("popstate", sync);
   }, [basePath]);
+  const tenantInitRef = useRef(false);
   useEffect(() => {
     if (!actor || actor.mustChangePassword) return;
     api((admin ? "/superadmin" : "/partner") + "/sanatoriums?limit=100")
       .then((r) => {
         setTenants(r.data);
         setTenant((id) => {
-          if (id && r.data.some((s: Row) => s.id === id)) return id;
+          if (id && r.data.some((s: Row) => s.id === id)) {
+            tenantInitRef.current = true;
+            return id;
+          }
+          if (admin && tenantInitRef.current && id === "") {
+            return "";
+          }
+          tenantInitRef.current = true;
           const userTenant = actor?.memberships?.find(
             (m) => m.status === "ACTIVE" && r.data.some((s: Row) => s.id === m.sanatoriumId)
           )?.sanatoriumId;
@@ -829,8 +829,6 @@ export function Portal({
         return <Reconciliation />;
       case "notifications":
         return <Notifications />;
-      case "articles":
-        return <PublicArticles />;
       default:
         return null;
     }
@@ -948,12 +946,12 @@ export function Portal({
               >
                 <Menu size={18} />
               </button>
-              {["bookings", "inventory", "staff", "today"].includes(section) && (
+              {admin && ["bookings", "inventory", "staff", "today", "payments"].includes(section) && (
                 <div className="tenant-context">
                   <Building2 size={19} />
                   <div>
                     <span className="context-label">
-                      {admin ? "Platforma boshqaruvi" : "Sanatoriya"}
+                      Platforma boshqaruvi
                     </span>
                     <select
                       className="tenant-select"

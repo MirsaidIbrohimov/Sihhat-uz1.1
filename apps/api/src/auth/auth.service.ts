@@ -432,10 +432,29 @@ export class AuthService implements OnModuleInit {
     return this.db.atomic(async tx => {
       if (input.login !== undefined) {
         const takenLogin = await tx.user.findFirst({
-          where: { login: { equals: input.login, mode: 'insensitive' }, id: { not: actor.id } },
+          where: {
+            id: { not: actor.id },
+            OR: [
+              { login: { equals: input.login, mode: 'insensitive' as const } },
+              ...(input.login.includes('@') ? [{ email: { equals: input.login, mode: 'insensitive' as const } }] : []),
+            ],
+          },
           select: { id: true },
         });
         if (takenLogin) fail('LOGIN_IN_USE', 'Bu login allaqachon band. Boshqa login kiriting', 409);
+      }
+      if (input.email) {
+        const takenEmail = await tx.user.findFirst({
+          where: {
+            id: { not: actor.id },
+            OR: [
+              { email: { equals: input.email, mode: 'insensitive' as const } },
+              { login: { equals: input.email, mode: 'insensitive' as const } },
+            ],
+          },
+          select: { id: true },
+        });
+        if (takenEmail) fail('EMAIL_IN_USE', 'Bu elektron pochta boshqa hisobga ulangan. Boshqa email kiriting', 409);
       }
       if (input.phone !== undefined) {
         const takenPhone = await tx.user.findFirst({

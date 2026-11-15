@@ -35,12 +35,31 @@ class _SihhatAppState extends State<SihhatApp> {
   void initState() {
     super.initState();
     appearance = AppearanceController(widget.api.store)..load();
+    _syncNativeNotifications();
+    widget.api.session.addListener(_syncNativeNotifications);
+  }
+
+  void _syncNativeNotifications() {
+    try {
+      if (widget.api.signedIn && widget.api.accessToken != null) {
+        const MethodChannel('uz.sihhat/notifications').invokeMethod(
+          'syncCredentials',
+          {'baseUrl': widget.api.baseUrl, 'token': widget.api.accessToken},
+        );
+      } else {
+        const MethodChannel('uz.sihhat/notifications')
+            .invokeMethod('clearCredentials');
+      }
+    } catch (_) {}
   }
 
   @override
   void didUpdateWidget(covariant SihhatApp oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.api != widget.api) {
+      oldWidget.api.session.removeListener(_syncNativeNotifications);
+      widget.api.session.addListener(_syncNativeNotifications);
+      _syncNativeNotifications();
       appearance.dispose();
       appearance = AppearanceController(widget.api.store)..load();
     }
@@ -48,6 +67,7 @@ class _SihhatAppState extends State<SihhatApp> {
 
   @override
   void dispose() {
+    widget.api.session.removeListener(_syncNativeNotifications);
     appearance.dispose();
     super.dispose();
   }
