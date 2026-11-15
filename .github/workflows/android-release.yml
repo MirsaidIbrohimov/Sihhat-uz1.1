@@ -98,9 +98,14 @@ jobs:
           flutter test --no-pub test/support_test.dart
 
       - name: Build and verify signed release APK
-        env:
-          ANDROID_HOME: ${{ env.ANDROID_SDK_ROOT }}
         run: |
+          ANDROID_HOME="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}"
+          ANDROID_SDK_ROOT="${ANDROID_SDK_ROOT:-$ANDROID_HOME}"
+          export ANDROID_HOME ANDROID_SDK_ROOT
+          if [ ! -d "$ANDROID_HOME/build-tools" ]; then
+            echo "ERROR: Android SDK build-tools not found under $ANDROID_HOME"
+            exit 1
+          fi
           API_URL="${{ vars.SIHHAT_RELEASE_API_URL || 'https://sihhat-api.onrender.com' }}"
           SIHHAT_FLUTTER_BIN="$(command -v flutter)"
           export SIHHAT_FLUTTER_BIN
