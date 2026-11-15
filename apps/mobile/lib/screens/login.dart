@@ -10,6 +10,7 @@ import '../widgets.dart';
 import '../design.dart';
 import '../appearance.dart';
 import '../demo_otp.dart';
+import 'legal.dart';
 
 class LoginScreen extends StatefulWidget {
   final Api api;
@@ -416,6 +417,35 @@ class _LoginScreenState extends State<LoginScreen> {
                           : demoCode == null
                           ? 'Kod kelishi 1-2 daqiqa olishi mumkin. Spam papkasini ham tekshirib ko‘ring.'
                           : 'Demo koddan faqat sinov uchun foydalaning.',
+                    ),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      alignment: WrapAlignment.center,
+                      spacing: 4,
+                      children: [
+                        TextButton(
+                          onPressed: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const LegalTermsScreen(
+                                initialTab: LegalPolicyTab.oferta,
+                              ),
+                            ),
+                          ),
+                          child: const Text('Ommaviy oferta'),
+                        ),
+                        TextButton(
+                          onPressed: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const LegalTermsScreen(
+                                initialTab: LegalPolicyTab.maxfiylik,
+                              ),
+                            ),
+                          ),
+                          child: const Text('Maxfiylik siyosati'),
+                        ),
+                      ],
                     ),
                   ],
                 ),

@@ -15,6 +15,7 @@ import '../neon.dart';
 import '../catalog_card.dart';
 import '../booking_dates.dart';
 import 'login.dart';
+import 'legal.dart';
 import 'account.dart' show NewSupportTicketScreen, SupportThread;
 
 class BookingComposer extends StatefulWidget {
@@ -585,6 +586,33 @@ class _BookingComposerState extends State<BookingComposer> {
                 'Shartlarni o‘qidim va qabul qilaman',
                 style: TextStyle(fontSize: 14),
               ),
+            ),
+            Wrap(
+              spacing: 4,
+              children: [
+                TextButton(
+                  onPressed: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const LegalTermsScreen(
+                        initialTab: LegalPolicyTab.oferta,
+                      ),
+                    ),
+                  ),
+                  child: const Text('Ommaviy oferta'),
+                ),
+                TextButton(
+                  onPressed: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const LegalTermsScreen(
+                        initialTab: LegalPolicyTab.qaytarish,
+                      ),
+                    ),
+                  ),
+                  child: const Text('Qaytarish nizomi'),
+                ),
+              ],
             ),
           ],
           const SizedBox(height: 20),

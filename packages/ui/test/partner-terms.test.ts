@@ -7,7 +7,7 @@ import {
 
 test("partner terms rules define complete structured Uzbek rules and portal links", () => {
   assert.match(PARTNER_TERMS_VERSION, /^\d{4}-\d{2}-\d{2}$/);
-  assert.equal(PARTNER_TERMS_SECTIONS.length, 6);
+  assert.equal(PARTNER_TERMS_SECTIONS.length, 9);
 
   const ids = new Set<string>();
   const numbers = new Set<string>();
@@ -18,7 +18,11 @@ test("partner terms rules define complete structured Uzbek rules and portal link
     numbers.add(rule.number);
     assert.ok(rule.title.trim().length > 5);
     assert.ok(rule.summary.trim().length > 15);
-    assert.ok(rule.items.length >= 3);
+    assert.ok(rule.items.length >= 4);
+    assert.ok(!rule.summary.includes("`"));
+    for (const item of rule.items) {
+      assert.ok(!item.includes("`"), `Unexpected backtick in rule ${rule.id}`);
+    }
     assert.ok(rule.section && rule.actionLabel);
   }
 });

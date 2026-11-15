@@ -13,6 +13,7 @@ import '../motion.dart';
 import '../neon.dart';
 import '../catalog_card.dart';
 import 'catalog.dart';
+import 'legal.dart';
 import 'login.dart';
 import 'support_telegram.dart';
 
@@ -2065,6 +2066,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
           const SizedBox(height: 24),
           const ConceptAppearanceSettings(),
+          const SizedBox(height: 10),
+          ConceptCard(
+            padding: EdgeInsets.zero,
+            child: ConceptMenuRow(
+              'shield-check',
+              'Foydalanuvchi shartlari va nizomlar',
+              glyph: Icons.gavel_rounded,
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const LegalTermsScreen()),
+              ),
+            ),
+          ),
         ],
       );
     }
@@ -2184,6 +2198,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
             ),
             const Reveal(index: 2, child: ConceptAppearanceSettings()),
+            const SizedBox(height: 10),
+            ConceptCard(
+              padding: EdgeInsets.zero,
+              child: ConceptMenuRow(
+                'shield-check',
+                'Foydalanuvchi shartlari va nizomlar',
+                glyph: Icons.gavel_rounded,
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const LegalTermsScreen()),
+                ),
+              ),
+            ),
             const SizedBox(height: 10),
             OutlinedButton.icon(
               onPressed: () async {

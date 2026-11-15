@@ -15,7 +15,7 @@ import {
   X,
 } from "lucide-react";
 
-export const PARTNER_TERMS_VERSION = "2026-11-14";
+export const PARTNER_TERMS_VERSION = "2026-11-15";
 
 export type PartnerTermRule = {
   id: string;
@@ -32,13 +32,14 @@ export const PARTNER_TERMS_SECTIONS: PartnerTermRule[] = [
   {
     id: "general",
     number: "1",
-    title: "Umumiy qoidalar va hamkorlik maqomi",
+    title: "Umumiy qoidalar, maqom va 0% komissiya tamoyili",
     summary:
-      "Sihhat.uz platformasiga ulangan har bir sanatoriya, profilaktoriya va sog‘lomlashtirish markazi mazkur Hamkor shartlari asosida faoliyat yuritadi.",
+      "Sihhat.uz platformasiga ulangan har bir sanatoriya, profilaktoriya va sog‘lomlashtirish markazi mazkur Hamkor nizomi asosida faoliyat yuritadi.",
     items: [
-      "Hamkorlik sanatoriya anketasi to‘ldirilgach, majburiy litsenziya va yuridik hujjatlar yuklanib, platforma administratori tomonidan tasdiqlanganidan so‘ng kuchga kiradi.",
-      "Sihhat.uz orqali kelgan bronlar uchun platforma komissiyasi 0% ni tashkil etadi; hamkorlik ochiq abonent to‘lovi va ixtiyoriy reklama xizmatlari asosida amalga oshiriladi.",
-      "Hamkor o‘z sanatoriyasi nomidan harakat qiluvchi Direktor, Resepsion va Hisobchi xodimlarining barcha amallari uchun to‘liq javobgar hisoblanadi.",
+      "Hamkorlik sanatoriya anketasi to‘liq to‘ldirilgach, majburiy yuridik hujjatlar hamda tibbiy litsenziya yuklanib, platforma administratori tomonidan tasdiqlanganidan (APPROVED) so‘ng kuchga kiradi.",
+      "Sihhat.uz orqali kelgan bronlar uchun platforma komissiyasi 0% ni tashkil etadi; hamkorlik ochiq abonent to‘lovi rejasi asosida yuritiladi, tasdiqlangan reklama bannerlari esa bepul joylashtiriladi.",
+      "Hamkor o‘z muassasasi nomidan harakat qiluvchi Direktor, Resepsion va Hisobchi xodimlarining barcha harakatlari, bron majburiyatlari hamda kiritilgan ma’lumotlarning haqqoniyligi uchun to‘liq javobgardir.",
+      "Hamkor shartlarining yangilangan tahriri portalda e’lon qilinadi va e’lon qilingan sanadan boshlab joriy hamkorlik faoliyatiga nisbatan tatbiq etiladi.",
     ],
     section: "profile",
     permission: "sanatorium.profile.edit",
@@ -47,13 +48,14 @@ export const PARTNER_TERMS_SECTIONS: PartnerTermRule[] = [
   {
     id: "profile-accuracy",
     number: "2",
-    title: "Ma’lumotlar haqqoniyligi va hujjatlar talabi",
+    title: "Sanatoriya anketasi, litsenziya, suratlar va moderatsiya",
     summary:
-      "Mobil ilova va katalogda ko‘rsatiladigan barcha ma’lumotlar haqiqiy holatga to‘liq mos bo‘lishi shart.",
+      "Katalog va mobil ilovada ko‘rsatiladigan barcha ma’lumotlar amaldagi qonunchilik va haqiqiy holatga to‘liq mos bo‘lishi shart.",
     items: [
-      "Yuridik nom, STIR, haqiqiy manzil, xarita joylashuvi, aloqa telefoni, kirish/chiqish vaqtlari hamda tibbiy faoliyat litsenziyasi amaldagi qonunchilikka muvofiq kiritiladi.",
-      "Xonalar, ovqatlanish, muolajalar va hudud suratlari haqiqiy hamda sifatli bo‘lishi kerak; chalg‘ituvchi yoki uchinchi shaxslarga tegishli rasmlar joylash taqiqlanadi.",
-      "Profilga kiritilgan muhim o‘zgarishlar moderatsiyadan o‘tganidan keyin nashr qilinadi; tuzatish so‘rovi yuborilganda kamchiliklar o‘z vaqtida bartaraf etiladi.",
+      "Yuridik nom, 9 xonali STIR, haqiqiy manzil, xarita joylashuvi, +998 formatdagi aloqa telefoni, kirish/chiqish soatlari hamda amaldagi tibbiy faoliyat litsenziyasi hujjatlari to‘g‘ri kiritiladi.",
+      "Katalogda e’lon qilish uchun kamida 4 tadan 30 tagacha haqiqiy va sifatli surat (har biri 8 MB gacha) yuklanadi; uchinchi shaxslarga tegishli, chalg‘ituvchi yoki begona muassasa rasmlarini joylash taqiqlanadi.",
+      "Shaxsiy yuridik ma’lumotlar (yuridik nom, STIR, yuklangan hujjatlar va ichki aloqa telefoni) ommaviy katalogda yopiq saqlanadi; mijozning telefon raqami hamkorga faqat bron rasmiylashtirilgandan keyin ko‘rinadi.",
+      "Profil DRAFT -> SUBMITTED -> APPROVED yoki CHANGES_REQUESTED bosqichlaridan o‘tadi; muhim o‘zgartirishlar kiritilganda ham moderatsiyadan o‘tishi va tuzatish so‘rovi o‘z vaqtida bajarilishi talab etiladi.",
     ],
     section: "profile",
     permission: "sanatorium.profile.edit",
@@ -62,58 +64,110 @@ export const PARTNER_TERMS_SECTIONS: PartnerTermRule[] = [
   {
     id: "inventory-bookings",
     number: "3",
-    title: "Xonalar fondi, narxlar va bron intizomi",
+    title: "Xonalar fondi, kvota, overbooking taqiqi va bron intizomi",
     summary:
-      "Bron qilingan har bir o‘rin va tasdiqlangan tarif hamkor tomonidan kafolatlanadi.",
+      "Tizimda ochiq ko‘rsatilgan har bir o‘rin, tarif narxi va tasdiqlangan bron hamkor tomonidan kafolatlanadi.",
     items: [
-      "Xona toifalari, umumiy o‘rinlar soni, mavjud kvota va tarif rejalari doimiy ravishda yangilab turiladi; Sihhat.uz foydalanuvchisi uchun narx sun’iy oshirilmaydi.",
-      "Telefon yoki joyidan qabul qilingan bronlar ikki marta sotilishining (overbooking) oldini olish uchun darhol «Qo‘lda bron» orqali tizimga kiritilishi shart.",
-      "Mehmon belgilangan kunda kelganida xona tayyor holda taqdim etiladi, joylashtirish (Check-in) va ketish (Check-out) holatlari o‘z vaqtida belgilanadi.",
+      "Xona toifalari, umumiy o‘rinlar soni, mavjud kunlik kvota, bolalar yosh toifalari va tarif rejalari doimiy yangilab turiladi; Sihhat.uz foydalanuvchilari uchun narxni joyidagiga nisbatan sun’iy oshirish taqiqlanadi.",
+      "Telefon (PHONE), joyidan murojaat (WALK_IN) yoki hamkor tomonidan qabul qilingan (PARTNER_MANUAL) barcha bronlar ikki marta sotilishining (overbooking) oldini olish uchun darhol «Qo‘lda bron» orqali kiritilishi shart.",
+      "Mijoz ilovada bronni boshlaganda xona 5 daqiqaga (HOLD) band qilinadi; belgilangan 5 daqiqa ichida to‘lov amalga oshmasa hold bekor bo‘lib, kvota avtomatik bo‘shaydi.",
+      "Mehmon kelganida QR-vaucher yoki bron kodi tekshirilib CHECKED_IN, ketganida CHECKED_OUT belgilanadi; zaruriyat bo‘lganda xona ko‘chirish qayd etiladi, kelmagan mehmon (NO_SHOW) holati uchun esa majburiy asosli izoh kiritiladi.",
     ],
     section: "bookings",
     permission: "bookings.read",
     actionLabel: "Bronlar bo‘limini ochish",
   },
   {
-    id: "finance-refunds",
+    id: "payments-merchants",
     number: "4",
-    title: "To‘lovlar, qaytarish (Refund) va abonent intizomi",
+    title: "Onlayn to‘lovlar, bank rekvizitlari, Merchant ulanishi va Payoutlar",
     summary:
-      "Moliyaviy hisob-kitoblar hamkorning tasdiqlangan bank rekvizitlari va ochiq qaytarish qoidalari asosida yuritiladi.",
+      "Moliyaviy tushumlar faqat moderatsiyadan o‘tgan bank hisob raqami, alohida merchant ulanishi va ikki bosqichli nazorat orqali yuritiladi.",
     items: [
-      "Onlayn to‘lovlar (Payme, Click, Uzcard, Humo va TezCheck) sanatoriyaning moderatsiyadan o‘tgan bank hisob raqamiga to‘g‘ridan-to‘g‘ri yo‘naltiriladi; kassa yoki bank rekvizitlari o‘zgarsa darhol yangilanishi shart.",
-      "Sanatoriya tomonidan belgilangan «Refund shartlari» mehmon bron qilayotganda ko‘rinadi va hamkor ularga qat’iy rioya etishi, qaytarish so‘rovlarini asossiz kechiktirmasligi kerak.",
-      "Platforma abonent to‘lovi muddati tugashidan avval «Hisob-kitoblar» bo‘limi orqali o‘z vaqtida to‘lanishi lozim; to‘lov kechiksa ilovada ko‘rinish va yangi onlayn bronlar vaqtincha to‘xtatilishi mumkin.",
+      "Onlayn to‘lovlar uchun 20 xonali bank hisob raqami, 5 xonali MFO, 9 xonali STIR va bank nomi tasdiqlanishi shart; rekvizit o‘zgarganda alohida tasdiqlash so‘rovi yuboriladi.",
+      "To‘g‘ridan-to‘g‘ri hisob-kitob (direct) rejimida sanatoriyaning tasdiqlangan bank rekvizitlari va alohida merchant ulanishi tayyor bo‘lmaguncha onlayn to‘lov qabul qilinmaydi; maxfiy API kalitlar profil formasida saqlanmaydi.",
+      "Sanatoriyaga o‘tkazmalar (Payout) bron xizmati yakunlangach (CHECKED_OUT) tasdiqlangan hisob raqamiga bank to‘lov dalili bilan o‘tkaziladi; to‘lovda REVIEW yoki nizo aniqlansa o‘tkazma tekshiruv yakunigacha muzlatiladi.",
+      "Joyida naqd (CASH) yoki terminal (TERMINAL) orqali qabul qilingan to‘lovlar yakka xodim tomonidan tasdiqlanmaydi — ikkinchi vakolatli xodim tasdig‘i talab qilinadi; xato yozuvlar o‘chirilmasdan CORRECTED audit maqomi bilan tuzatiladi.",
     ],
-    section: "refunds",
-    permission: "refunds.read",
-    actionLabel: "Refund shartlarini ko‘rish",
+    section: "payments",
+    permission: "payments.read",
+    actionLabel: "To‘lovlar bo‘limiga o‘tish",
+  },
+  {
+    id: "refunds-disputes",
+    number: "5",
+    title: "Bekor qilish, pulni qaytarish (Refund) va to‘lov nizolari",
+    summary:
+      "Tarif shartlarida belgilangan qaytarish qoidalari mehmon va hamkor uchun teng kuchga ega hamda qat’iy ijro etiladi.",
+    items: [
+      "Har bir tarifda FULL_BEFORE_CUTOFF (kirish kunining 14:00 UTC+5 soatigacha belgilangan cutoff soati oldin bepul qaytarish) yoki NON_REFUNDABLE (qaytarilmaydigan) siyosat aniq ko‘rsatiladi.",
+      "Cutoff muddati ichida berilgan haqli refund so‘rovlari o‘z vaqtida ko‘rib chiqilishi lozim; avtomatik qaytarish mavjud bo‘lmagan provayderlarda (masalan, TezCheck) tasdiqlangan qaytarishlar merchant kabineti orqali bajarilib tizimda tasdiqlanadi.",
+      "NON_REFUNDABLE tariflarda oddiy bekor qilishga qaytarish qo‘llanilmaydi, biroq ikki marta yechish (PAYMENT_EXCEPTION) yoki sanatoriya aybi bilan xizmat ko‘rsatilmagan hollarda pul to‘liq qaytariladi.",
+      "To‘lov va xizmat sifati bo‘yicha nizolar platforma administratsiyasi ishtirokida bron tarixi, to‘lov cheki hamda audit yozuvlari asosida hal qilinadi.",
+    ],
+    section: "payouts",
+    permission: "payouts.read",
+    actionLabel: "O‘tkazma va hisob-kitoblarni ko‘rish",
+  },
+  {
+    id: "billing-ads",
+    number: "6",
+    title: "Abonent to‘lovi rejimi va bepul reklama joylashtirish",
+    summary:
+      "Sanatoriya katalogda faol ko‘rinishi uchun abonent to‘lovini o‘z vaqtida amalga oshiradi va reklama moderatsiyasi qoidalariga rioya qiladi.",
+    items: [
+      "Abonent xizmatlari TRIAL (sinov), ACTIVE (faol), PAST_DUE (imtiyozli muddat) va SUSPENDED bosqichlarida boshqariladi; hisob-fakturalar ko‘rsatilgan muddatda qoplanishi shart.",
+      "Imtiyozli muddat tugaganidan keyin qarzdorlik qoplanmasa hisob SUSPENDED holatiga o‘tadi: sanatoriya katalogdan yashiriladi va yangi onlayn bronlar to‘xtatiladi, biroq avval tasdiqlangan bronlar bo‘yicha majburiyat saqlanadi.",
+      "Bosh sahifa (HOME) va qalqib chiquvchi (POPUP) reklama bannerlari hamkorlar uchun bepul (0 so‘m) taqdim etiladi, ammo faqat Superadmin moderatsiyasidan (APPROVED) keyin efirga chiqadi.",
+      "Reklamada haqiqatga to‘g‘ri kelmaydigan chegirma, tasdiqlanmagan tibbiy va’da yoki raqobatchilarga nisbatan nohalol taqqoslashlar joylashtirish taqiqlanadi.",
+    ],
+    section: "billing",
+    permission: "invoices.read",
+    actionLabel: "Abonent va hisoblarni ochish",
   },
   {
     id: "staff-security",
-    number: "5",
-    title: "Xodimlar boshqaruvi va axborot xavfsizligi",
+    number: "7",
+    title: "Xodimlar, RBAC rollar, Hisobchi ajratmasi va xavfsizlik",
     summary:
-      "Har bir xodim shaxsiy login bilan ishlaydi va mehmonlarning shaxsiy ma’lumotlarini sir saqlaydi.",
+      "Har bir xodim faqat o‘z vakolati doirasida shaxsiy hisob bilan ishlaydi va kirish xavfsizligiga javob beradi.",
     items: [
-      "Bir hisobdan bir nechta kishi foydalanishi hamda login-parollarni begona shaxslarga berish taqiqlanadi; dastlabki parol birinchi kirishdayoq almashtirilishi shart.",
-      "Xodim ishdan bo‘shaganda yoki lavozimi o‘zgarganda Direktor darhol «Jamoa» bo‘limidan uning kirishini cheklashi yoki faoliyatini to‘xtatishi shart.",
-      "Mehmonlarning F.I.Sh., telefon raqami, shaxsiy hujjatlari va sog‘liqqa oid ma’lumotlaridan faqat sanatoriya xizmatini ko‘rsatish maqsadida foydalaniladi va uchinchi shaxslarga uzatilmaydi.",
+      "Hamkor jamoasi uch aniq rolga bo‘linadi: Direktor (to‘liq boshqaruv), Resepsion (bron, xona, check-in/out, joyida to‘lov qabul qilish) va Hisobchi (faqat operatsion/moliyaviy hisobotlar va eksport — mehmon yoki bronlarni tahrirlash huquqisiz).",
+      "Bir hisobdan bir necha kishi foydalanishi va parolni boshqa shaxsga berish qat’iyan taqiqlanadi; berilgan dastlabki parol birinchi kirishdayoq yangilanishi majburiy.",
+      "Veb-portalda 4 soat harakatsizlikdan so‘ng sessiya avtomatik yakunlanadi; 1 soat ichida 5 va undan ko‘p noto‘g‘ri parol kiritilishi xavfsizlik nazoratiga tushib, kirish vaqtincha cheklanishi mumkin.",
+      "Xodim ishdan bo‘shaganda Direktor darhol «Jamoa va ruxsatlar» bo‘limidan uning kirishini to‘xtatishi shart; parol unutilganda tiklash hamda yuklab olinadigan CSV hisobotlarni maxfiy saqlash talab etiladi.",
     ],
     section: "staff",
     permission: "staff.invite",
     actionLabel: "Jamoa va ruxsatlarni boshqarish",
   },
   {
-    id: "communication-compliance",
-    number: "6",
-    title: "Aloqa, Telegram bot va qoidabuzarlik oqibatlari",
+    id: "privacy-reviews-chat",
+    number: "8",
+    title: "Mehmon ma’lumotlari maxfiyligi, sharhlar va Support chat auditi",
     summary:
-      "Tezkor aloqa va halol xizmat platforma ishonchining asosiy mezonidir.",
+      "Mehmonlarning shaxsiy hamda tibbiy ma’lumotlarini asrash, halol sharhlar muhiti va shaffof yozishma intizomi majburiydir.",
     items: [
-      "Direktor va resepsion xodimlari muhim bron hamda murojaatlarni o‘tkazib yubormaslik uchun «Telegram bot» (`@sihhat_admins_bot`) bildirishnomalarini ulashi va «Yordam va xabarlar» bo‘limini muntazam kuzatishi tavsiya etiladi.",
-      "Mijozlarning sharhlari va shikoyatlariga xushmuomalalik bilan javob beriladi; haqoratli munosabat, soxta sharh yozdirish yoki brondan asossiz bosh tortish qat’iyan taqiqlanadi.",
-      "Mazkur Hamkor shartlari muntazam yoki qo‘pol ravishda buzilgan taqdirda Sihhat.uz ma’muriyati ogohlantirish berish, sanatoriyani vaqtincha muzlatish (SUSPENDED) yoki hamkorlikni bekor qilish huquqiga ega.",
+      "Mehmonlarning F.I.Sh., +998 telefoni, elektron pochtasi, bolalar yoshi, tashrif tarixi va sog‘liqqa oid ma’lumotlari «Shaxsga doir ma’lumotlar to‘g‘risida»gi Qonunga muvofiq faqat bron va davolash xizmati uchun ishlatiladi hamda uchinchi shaxslarga uzatilmaydi.",
+      "Platformada sharh faqat haqiqiy yakunlangan tashrif (CHECKED_OUT) dan keyin yoziladi; hamkor sharhlarga odob va dalil bilan javob beradi, soxta sharh uyushtirish yoki mehmonga bosim o‘tkazish taqiqlanadi.",
+      "«Yordam va xabarlar» chatidan xodim yoki foydalanuvchi o‘chirgan xabarlar suhbat oynasidan ko‘rinmasa ham, nizolarni hal etish uchun Superadmin audit jurnalida saqlanadi.",
+      "Barcha muhim moliyaviy va boshqaruv amallari (AuditLog) tizimda o‘zgartirilmas tarix sifatida qayd etib boriladi.",
+    ],
+    section: "reviews",
+    permission: "reviews.reply",
+    actionLabel: "Sharhlar bo‘limini ochish",
+  },
+  {
+    id: "telegram-sanctions-law",
+    number: "9",
+    title: "Telegram bot aloqasi, sanksiyalar, fors-major va nizolar",
+    summary:
+      "Tezkor xabardorlik, halol raqobat va qoidabuzarlik uchun mutanosib javobgarlik tizim barqarorligini ta’minlaydi.",
+    items: [
+      "Direktor va resepsion xodimlari bron, to‘lov va shoshilinch murojaatlarni o‘tkazib yubormaslik uchun @sihhat_admins_bot bildirishnomalarini ulashi va muntazam kuzatishi shart.",
+      "Muntazam overbooking, asossiz bron rad etish, yolg‘on hujjat/surat yuklash, mijoz ma’lumotini tarqatish yoki abonent qarzini yopmaslik holatlarida Sihhat.uz ogohlantirish berish, obyektni to‘xtatish (PAUSED/SUSPENDED) yoki hamkorlikni bekor qilish (ARCHIVED) huquqiga ega.",
+      "Tabiiy ofatlar, davlat organlari cheklovlari, banklararo yoki aloqa tizimidagi favqulodda uzilishlar (fors-major) vaqtida tomonlar zudlik bilan qo‘llab-quvvatlash xizmatiga xabar beradi va bronni ko‘chirish/qaytarish bo‘yicha kelishadi.",
+      "Kelib chiqqan nizolar avvalo platforma moderatsiyasi orqali muzokara yo‘li bilan, kelishuvga erishilmasa O‘zbekiston Respublikasi qonunchiligi va Toshkent shahri vakolatli sudlari tartibida hal qilinadi.",
     ],
     section: "telegram",
     actionLabel: "Telegram botni sozlash",
@@ -123,10 +177,17 @@ export const PARTNER_TERMS_SECTIONS: PartnerTermRule[] = [
 export function PartnerTerms({
   onNavigate,
   allowed,
+  canAccessSection,
 }: {
   onNavigate?: (section: string) => void;
   allowed?: (permission: string) => boolean;
+  canAccessSection?: (section: string, permission?: string) => boolean;
 }) {
+  const canOpen = (targetSection?: string, permission?: string) => {
+    if (!onNavigate || !targetSection) return false;
+    if (canAccessSection) return canAccessSection(targetSection, permission);
+    return !permission || (allowed ? allowed(permission) : true);
+  };
   return (
     <div className="partner-terms-page">
       <div className="page-heading">
@@ -167,8 +228,9 @@ export function PartnerTerms({
           <h2>Ochiq hamkorlik va mas’uliyatli xizmat standarti</h2>
           <p className="muted">
             Sanatoriya anketasi tekshiruvga yuborilganda («Hamkor shartlari»
-            tasdiqlanganda) va hamkor panelidan foydalanish jarayonida quyidagi
-            6 bo‘limdagi barcha qoidalar majburiy hisoblanadi.
+            tasdiqlanganda) va hamkor panelidan foydalanish jarayonida quyidagi{" "}
+            {PARTNER_TERMS_SECTIONS.length} bo‘limdagi barcha qoidalar majburiy
+            hisoblanadi.
           </p>
         </div>
         <div className="partner-terms-quick">
@@ -205,9 +267,7 @@ export function PartnerTerms({
 
       <div className="partner-terms-grid">
         {PARTNER_TERMS_SECTIONS.map((rule) => {
-          const canOpenSection =
-            Boolean(onNavigate && rule.section) &&
-            (!rule.permission || (allowed ? allowed(rule.permission) : true));
+          const canOpenSection = canOpen(rule.section, rule.permission);
           return (
             <article className="card partner-term-card" key={rule.id}>
               <div className="card-head">
@@ -245,7 +305,7 @@ export function PartnerTerms({
         })}
       </div>
 
-      {onNavigate && (
+      {canOpen("support") && (
         <div className="card" style={{ marginTop: 20 }}>
           <div className="card-body partner-terms-support">
             <div>
@@ -258,7 +318,7 @@ export function PartnerTerms({
             <button
               type="button"
               className="button primary"
-              onClick={() => onNavigate("support")}
+              onClick={() => onNavigate?.("support")}
             >
               <MessageSquare size={16} /> Yordam xizmatiga yozish
             </button>

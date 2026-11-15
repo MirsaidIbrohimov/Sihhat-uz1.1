@@ -41,6 +41,12 @@ import {
   PARTNER_TERMS_SECTIONS,
   PARTNER_TERMS_VERSION,
 } from "./partner-terms";
+import {
+  USER_TERMS_DOCS,
+  USER_TERMS_VERSION,
+  getUserPolicyDoc,
+  type UserPolicyKey,
+} from "./user-terms";
 
 export type RatePlanItem = {
   id: string;
@@ -461,6 +467,7 @@ export function LandingPage() {
     | "oferta"
     | "maxfiylik"
     | "qaytarish"
+    | "ai-qoidalar"
     | "hamkor"
     | { type: "details"; item: SanatoriumCardData }
     | { type: "checkout"; item: SanatoriumCardData; ratePlan?: RatePlanItem }
@@ -2183,6 +2190,19 @@ export function LandingPage() {
               </button>
               <button
                 type="button"
+                onClick={() => setActiveModal("ai-qoidalar")}
+                style={{
+                  background: "none",
+                  border: "none",
+                  color: "var(--l-muted)",
+                  cursor: "pointer",
+                  textDecoration: "underline",
+                }}
+              >
+                AI va Chat nizomi
+              </button>
+              <button
+                type="button"
                 onClick={() => setActiveModal("hamkor")}
                 style={{
                   background: "none",
@@ -2951,6 +2971,65 @@ export function LandingPage() {
                       </div>
                     )}
 
+                    <p
+                      style={{
+                        margin: 0,
+                        fontSize: "0.8rem",
+                        color: "var(--l-muted)",
+                        lineHeight: 1.5,
+                      }}
+                    >
+                      To‘lovga o‘tish orqali siz{" "}
+                      <button
+                        type="button"
+                        onClick={() => setActiveModal("oferta")}
+                        style={{
+                          background: "none",
+                          border: "none",
+                          padding: 0,
+                          color: "var(--l-neon)",
+                          cursor: "pointer",
+                          textDecoration: "underline",
+                          font: "inherit",
+                        }}
+                      >
+                        Ommaviy oferta
+                      </button>
+                      ,{" "}
+                      <button
+                        type="button"
+                        onClick={() => setActiveModal("qaytarish")}
+                        style={{
+                          background: "none",
+                          border: "none",
+                          padding: 0,
+                          color: "var(--l-neon)",
+                          cursor: "pointer",
+                          textDecoration: "underline",
+                          font: "inherit",
+                        }}
+                      >
+                        Qaytarish shartlari
+                      </button>{" "}
+                      va{" "}
+                      <button
+                        type="button"
+                        onClick={() => setActiveModal("maxfiylik")}
+                        style={{
+                          background: "none",
+                          border: "none",
+                          padding: 0,
+                          color: "var(--l-neon)",
+                          cursor: "pointer",
+                          textDecoration: "underline",
+                          font: "inherit",
+                        }}
+                      >
+                        Maxfiylik siyosati
+                      </button>{" "}
+                      bilan tanishganingizni tasdiqlaysiz.
+                    </p>
+
                     <button
                       type="submit"
                       disabled={checkoutLoading}
@@ -3514,15 +3593,33 @@ export function LandingPage() {
         </div>
       )}
 
-      {/* 9.7 LEGAL MODALS (HAMKOR, OFERTA, MAXFIYLIK, QAYTARISH) */}
+      {/* 9.7 LEGAL MODALS (HAMKOR, OFERTA, MAXFIYLIK, QAYTARISH, AI VA CHAT) */}
       {activeModal === "hamkor" && (
         <div
           className="l-modal-backdrop"
           onClick={() => setActiveModal(null)}
         >
-          <div className="l-modal-card" onClick={(e) => e.stopPropagation()}>
+          <div
+            className="l-modal-card"
+            style={{ maxWidth: 760 }}
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="l-modal-header">
-              <h3 className="l-modal-title">Sihhat.uz · Hamkor shartlari</h3>
+              <div>
+                <h3 className="l-modal-title">
+                  Sihhat.uz · Hamkorlik nizomi va shartlari
+                </h3>
+                <p
+                  style={{
+                    margin: "4px 0 0",
+                    fontSize: "0.82rem",
+                    color: "var(--l-muted)",
+                  }}
+                >
+                  Amaldagi tahrir: {PARTNER_TERMS_VERSION} ·{" "}
+                  {PARTNER_TERMS_SECTIONS.length} bo‘lim · Bron komissiyasi 0%
+                </p>
+              </div>
               <button
                 type="button"
                 className="l-modal-close"
@@ -3533,180 +3630,186 @@ export function LandingPage() {
               </button>
             </div>
             <div className="l-modal-body">
-              <p>
-                <em>Amaldagi tahrir: {PARTNER_TERMS_VERSION}</em>
-              </p>
               {PARTNER_TERMS_SECTIONS.map((rule) => (
-                <div key={rule.id} style={{ marginBottom: 14 }}>
-                  <h4>
+                <section
+                  key={rule.id}
+                  style={{
+                    marginBottom: 16,
+                    paddingBottom: 14,
+                    borderBottom: "1px solid var(--l-border)",
+                  }}
+                >
+                  <h4 style={{ margin: "0 0 6px" }}>
                     {rule.number}. {rule.title}
                   </h4>
-                  <p>{rule.summary}</p>
-                  <ul>
+                  <p style={{ margin: "0 0 8px", color: "var(--l-muted)" }}>
+                    {rule.summary}
+                  </p>
+                  <ul style={{ margin: 0, paddingLeft: 18 }}>
                     {rule.items.map((item) => (
-                      <li key={item}>{item}</li>
+                      <li key={item} style={{ marginBottom: 4 }}>
+                        {item}
+                      </li>
                     ))}
                   </ul>
-                </div>
+                </section>
               ))}
-              <div style={{ marginTop: 16 }}>
-                <a
-                  href="/hamkorlar/partner-terms"
-                  className="l-btn-primary"
-                  style={{ display: "inline-flex", alignItems: "center", gap: 8 }}
-                >
-                  <span>Hamkor panelida ochish</span>
-                  <ArrowRight size={16} />
-                </a>
+            </div>
+            <div className="l-modal-footer">
+              <a href="/hamkorlar/partner-terms" className="l-btn-ghost">
+                <span>Hamkor panelida ochish</span>
+                <ArrowRight size={16} />
+              </a>
+              <button
+                type="button"
+                className="l-btn-neon"
+                onClick={() => setActiveModal(null)}
+              >
+                Tushunarli
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {(activeModal === "oferta" ||
+        activeModal === "maxfiylik" ||
+        activeModal === "qaytarish" ||
+        activeModal === "ai-qoidalar") &&
+        (() => {
+          const policyKey: UserPolicyKey =
+            activeModal === "ai-qoidalar" ? "ai" : activeModal;
+          const doc = getUserPolicyDoc(policyKey);
+          return (
+            <div
+              className="l-modal-backdrop"
+              onClick={() => setActiveModal(null)}
+            >
+              <div
+                className="l-modal-card"
+                style={{ maxWidth: 760 }}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="l-modal-header">
+                  <div>
+                    <h3 className="l-modal-title">{doc.title}</h3>
+                    <p
+                      style={{
+                        margin: "4px 0 0",
+                        fontSize: "0.82rem",
+                        color: "var(--l-muted)",
+                      }}
+                    >
+                      Amaldagi tahrir: {USER_TERMS_VERSION} · {doc.sections.length}{" "}
+                      bo‘lim
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    className="l-modal-close"
+                    aria-label="Yopish"
+                    onClick={() => setActiveModal(null)}
+                  >
+                    <X size={20} />
+                  </button>
+                </div>
+                <div className="l-modal-body">
+                  <div
+                    style={{
+                      display: "flex",
+                      flexWrap: "wrap",
+                      gap: 8,
+                      marginBottom: 14,
+                    }}
+                  >
+                    {USER_TERMS_DOCS.map((tab) => {
+                      const nextModal =
+                        tab.id === "ai" ? "ai-qoidalar" : tab.id;
+                      const isActive = tab.id === policyKey;
+                      return (
+                        <button
+                          key={tab.id}
+                          type="button"
+                          onClick={() => setActiveModal(nextModal)}
+                          className={isActive ? "l-btn-neon" : "l-btn-ghost"}
+                          style={{
+                            padding: "0.45rem 0.85rem",
+                            fontSize: "0.82rem",
+                          }}
+                        >
+                          {tab.shortLabel}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <p
+                    style={{
+                      margin: "0 0 16px",
+                      color: "var(--l-muted)",
+                    }}
+                  >
+                    {doc.subtitle}
+                  </p>
+                  {doc.sections.map((rule) => (
+                    <section
+                      key={rule.id}
+                      style={{
+                        marginBottom: 16,
+                        paddingBottom: 14,
+                        borderBottom: "1px solid var(--l-border)",
+                      }}
+                    >
+                      <h4 style={{ margin: "0 0 6px" }}>
+                        {rule.number}. {rule.title}
+                      </h4>
+                      <p
+                        style={{
+                          margin: "0 0 8px",
+                          color: "var(--l-muted)",
+                        }}
+                      >
+                        {rule.summary}
+                      </p>
+                      <ul style={{ margin: 0, paddingLeft: 18 }}>
+                        {rule.items.map((item) => (
+                          <li key={item} style={{ marginBottom: 4 }}>
+                            {item}
+                          </li>
+                        ))}
+                      </ul>
+                    </section>
+                  ))}
+                  <p
+                    style={{
+                      margin: "8px 0 0",
+                      fontSize: "0.82rem",
+                      color: "var(--l-muted)",
+                    }}
+                  >
+                    Aloqa va murojaat: +998 88 295 20 28 · Telegram:
+                    @sihhat_support_bot · Toshkent shahri, Shayxontohur tumani,
+                    Navoiy ko‘chasi 11A.
+                  </p>
+                </div>
+                <div className="l-modal-footer">
+                  <button
+                    type="button"
+                    className="l-btn-ghost"
+                    onClick={() => setActiveModal("hamkor")}
+                  >
+                    Hamkor shartlari
+                  </button>
+                  <button
+                    type="button"
+                    className="l-btn-neon"
+                    onClick={() => setActiveModal(null)}
+                  >
+                    Tushunarli
+                  </button>
+                </div>
               </div>
             </div>
-          </div>
-        </div>
-      )}
-      {activeModal === "oferta" && (
-        <div
-          className="l-modal-backdrop"
-          onClick={() => setActiveModal(null)}
-        >
-          <div className="l-modal-card" onClick={(e) => e.stopPropagation()}>
-            <div className="l-modal-header">
-              <h3 className="l-modal-title">
-                Ommaviy Oferta (Foydalanuvchi Shartnomasi)
-              </h3>
-              <button
-                type="button"
-                className="l-modal-close"
-                aria-label="Yopish"
-                onClick={() => setActiveModal(null)}
-              >
-                <X size={20} />
-              </button>
-            </div>
-            <div className="l-modal-body">
-              <p>
-                <em>So‘nggi yangilanish: 2026-yil noyabr</em>
-              </p>
-              <h4>1. Umumiy qoidalar</h4>
-              <p>
-                Ushbu Ommaviy Oferta «Sihhat.uz» axborot platformasi orqali
-                O‘zbekiston Respublikasi hududidagi sanatoriylar, dam olish
-                maskanlari va sog‘lomlashtirish majmualari xizmatlarini bron
-                qilish tartibini belgilaydi.
-              </p>
-              <h4>2. Xizmat predmeti</h4>
-              <p>
-                Platformadagi narxlar Sanatoriyaning rasmiy kassa narxlariga
-                teng bo‘lib, qo‘shimcha yashirin to‘lovlar undirilmaydi.
-              </p>
-              <h4>3. Bron qilish va elektron vaucher</h4>
-              <p>
-                Foydalanuvchi kerakli sanatoriya, tarif va sanalarni tanlab
-                bron rasmiylashtirgach, QR-kodli elektron vaucher taqdim etiladi.
-              </p>
-              <h4>4. To‘lovlar</h4>
-              <p>
-                To‘lovlar TezCheck orqali Click, Payme, Uzcard / Humo
-                vositasida xavfsiz amalga oshiriladi.
-              </p>
-            </div>
-            <div className="l-modal-footer">
-              <button
-                type="button"
-                className="l-btn-neon"
-                onClick={() => setActiveModal(null)}
-              >
-                Tushunarli
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {activeModal === "maxfiylik" && (
-        <div
-          className="l-modal-backdrop"
-          onClick={() => setActiveModal(null)}
-        >
-          <div className="l-modal-card" onClick={(e) => e.stopPropagation()}>
-            <div className="l-modal-header">
-              <h3 className="l-modal-title">Maxfiylik Siyosati</h3>
-              <button
-                type="button"
-                className="l-modal-close"
-                aria-label="Yopish"
-                onClick={() => setActiveModal(null)}
-              >
-                <X size={20} />
-              </button>
-            </div>
-            <div className="l-modal-body">
-              <p>
-                O‘zbekiston Respublikasining «Shaxsga doir ma’lumotlar
-                to‘g‘risida»gi Qonuniga muvofiq foydalanuvchi ma’lumotlari
-                HTTPS/TLS shifrlash orqali himoyalanadi va uchinchi shaxslarga
-                berilmaydi.
-              </p>
-              <h4>1. Ma’lumotlardan foydalanish</h4>
-              <p>
-                Telefon raqami, ism va tashrif sanalari faqat sanatoriyada
-                xonani bron qilish va mijozga xizmat ko‘rsatish uchun ishlatiladi.
-              </p>
-              <h4>2. Hisobni o‘chirish huquqi</h4>
-              <p>
-                Foydalanuvchi istalgan vaqtda mobil ilova ichidan o‘z hisobini va
-                shaxsiy ma’lumotlarini o‘chirishi mumkin.
-              </p>
-            </div>
-            <div className="l-modal-footer">
-              <button
-                type="button"
-                className="l-btn-neon"
-                onClick={() => setActiveModal(null)}
-              >
-                Yopish
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {activeModal === "qaytarish" && (
-        <div
-          className="l-modal-backdrop"
-          onClick={() => setActiveModal(null)}
-        >
-          <div className="l-modal-card" onClick={(e) => e.stopPropagation()}>
-            <div className="l-modal-header">
-              <h3 className="l-modal-title">Pulni qaytarish shartlari</h3>
-              <button
-                type="button"
-                className="l-modal-close"
-                aria-label="Yopish"
-                onClick={() => setActiveModal(null)}
-              >
-                <X size={20} />
-              </button>
-            </div>
-            <div className="l-modal-body">
-              <h4>1. Bepul bekor qilish</h4>
-              <p>
-                Sanatoriyaga kelish sanasidan 24–72 soat oldin (tanlangan tarif
-                qoidasiga ko‘ra) bron bekor qilinsa, to‘langan mablag‘ 1–5 ish
-                kuni ichida to‘liq qaytariladi.
-              </p>
-            </div>
-            <div className="l-modal-footer">
-              <button
-                type="button"
-                className="l-btn-neon"
-                onClick={() => setActiveModal(null)}
-              >
-                Tushunarli
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+          );
+        })()}
 
       {/* 9.8 POPUP AD MODAL (From /api/catalog/ads) */}
       {activePopupAd && (

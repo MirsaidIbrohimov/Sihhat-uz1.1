@@ -782,7 +782,15 @@ export function Portal({
       case "guide":
         return <RoleGuide />;
       case "partner-terms":
-        return <PartnerTerms onNavigate={go} allowed={allowed} />;
+        return (
+          <PartnerTerms
+            onNavigate={go}
+            allowed={allowed}
+            canAccessSection={(s, p) =>
+              menuLinks.some((l) => l.id === s) && (!p || allowed(p))
+            }
+          />
+        );
       case "today":
         return <TodayWork />;
       case "telegram":
