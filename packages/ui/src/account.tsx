@@ -48,6 +48,28 @@ export function getAvatarFallback(userId?: string | null): string | null {
   }
 }
 
+export function formatUserPublicId(user?: {
+  id?: string | null;
+  publicId?: number | string | null;
+  public_id?: number | string | null;
+} | null): string {
+  const raw = user?.publicId ?? user?.public_id;
+  if (typeof raw === "number" && raw >= 100000 && raw <= 999999) {
+    return String(raw);
+  }
+  if (typeof raw === "string" && /^\d{5,8}$/.test(raw.trim())) {
+    return raw.trim();
+  }
+  const id = user?.id;
+  if (!id) return "100000";
+  let h = 2166136261;
+  for (let i = 0; i < id.length; i++) {
+    h ^= id.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return String(100000 + ((h >>> 0) % 900000));
+}
+
 export function MyAccount({ changePassword }: { changePassword: () => void }) {
   const ctx = usePortal(),
     sessions = useRemote("/auth/sessions", ctx.epoch);
@@ -279,6 +301,7 @@ export function MyAccount({ changePassword }: { changePassword: () => void }) {
             <h2 className="profile-hero-name">{ctx.actor.name}</h2>
             <div className="profile-pills">
               <span className="role-pill">{label[role] ?? role}</span>
+              <span className="login-pill">ID: #{formatUserPublicId(ctx.actor)}</span>
               <span className="login-pill">@{ctx.actor.login ?? "user"}</span>
               <span className="status-pill online">
                 <span className="status-dot" /> Onlayn
@@ -385,6 +408,10 @@ export function MyAccount({ changePassword }: { changePassword: () => void }) {
 
       {/* Profile Details Grid */}
       <div className="profile-stats-grid">
+        <div className="profile-stat-card">
+          <span className="profile-stat-label">Foydalanuvchi ID raqami</span>
+          <div className="profile-stat-value">#{formatUserPublicId(ctx.actor)}</div>
+        </div>
         <div className="profile-stat-card">
           <span className="profile-stat-label">To‘liq ism</span>
           <div className="profile-stat-value">{ctx.actor.name}</div>

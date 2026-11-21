@@ -7,6 +7,7 @@ import { decrypt, encrypt } from "../common/crypto";
 import { fail, parse, uuid } from "../common/errors";
 import { type Actor, requirePlatform, scope } from "../auth/permissions";
 import { phoneSchema } from "../auth/auth.service";
+import { allocateUserPublicId } from "../auth/public-id.util";
 import { expireInitialHolds } from "../inventory/inventory.service";
 import { availableRooms } from "../pricing/pricing.service";
 import { PaymentService, financialLock } from "./payment.service";
@@ -286,8 +287,10 @@ export class TezcheckService {
       });
     }
     if (!user) {
+      const publicId = await allocateUserPublicId(this.db);
       user = await this.db.user.create({
         data: {
+          publicId,
           phone: input.guest_phone,
           name: input.guest_name,
           kind: "CUSTOMER",

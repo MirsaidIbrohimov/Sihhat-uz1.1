@@ -10,10 +10,14 @@ import {
   Coins,
   CreditCard,
   Download,
+  Eye,
+  EyeOff,
   FileText,
   Info,
+  KeyRound,
   LogOut,
   RotateCcw,
+  ShieldCheck,
   Sparkles,
   Trash2,
   Users,
@@ -22,11 +26,12 @@ import {
 } from "lucide-react";
 import { api, formatMoney, query } from "@sihhat/api-client";
 import { prepareAvatarDataUrl, validateAvatarFile } from "./avatar";
+import { formatUserPublicId } from "./account";
 import { ProfileWizard } from "./wizard";
 import { ListFilters, useSavedFilters } from "./list-filters";
 import { newPasswordFields } from "./password-fields";
 import { XlsxDownload } from "./report-download";
-import { EmailAvailabilityInput } from "./login-availability";
+import { EmailAvailabilityInput, LoginAvailabilityInput } from "./login-availability";
 import { MerchantSetupPanel } from "./merchant-setup";
 import { PhotoGallery } from "./photo-gallery";
 import {
@@ -1328,7 +1333,10 @@ export function Profile({ id }: { id?: string }) {
 export function Staff() {
   const ctx = usePortal(),
     action = useAction(),
-    [credentials, setCredentials] = useState<Row | null>(null);
+    [credentials, setCredentials] = useState<Row | null>(null),
+    [manageStaff, setManageStaff] = useState<Row | null>(null),
+    [previewStaffUser, setPreviewStaffUser] = useState<{ row: Row; user: Row } | null>(null),
+    [brokenStaffAvatars, setBrokenStaffAvatars] = useState<Record<string, boolean>>({});
   const filters = useSavedFilters("staff", { status: "", role: "" });
   const [search, setSearch] = useState(""),
     [q, setQ] = useState("");
@@ -1383,6 +1391,15 @@ export function Staff() {
           hint: "Kamida 3 belgi: lotin harflari, raqam, nuqta, pastki chiziq.",
         },
         {
+          key: "email",
+          label: "Elektron pochta (Email, ixtiyoriy)",
+          type: "email" as const,
+          required: false,
+          maxLength: 120,
+          emailAvailabilityCheck: true,
+          hint: "Faqat boshqa hisobga ulanmagan email manzil kiritilishi mumkin.",
+        },
+        {
           key: "phone",
           label: "Telefon",
           required: true,
@@ -1391,12 +1408,19 @@ export function Staff() {
       ],
       submit: async (v) => {
         const isDirector = director || v.role === "DIRECTOR";
+        const payload = {
+          sanatorium_id: ctx.tenant,
+          ...v,
+          ...(typeof v.email === "string" && v.email.trim()
+            ? { email: v.email.trim().toLowerCase() }
+            : { email: undefined }),
+        };
         const r = await api(
           isDirector
             ? "/superadmin/director-assignments"
             : "/partner/staff-invitations",
           "POST",
-          { sanatorium_id: ctx.tenant, ...v },
+          payload,
         );
         setCredentials({
           name: v.name,
@@ -1527,7 +1551,7 @@ export function Staff() {
           "REVOKED",
           "BLOCKED",
         ]}
-        placeholder="Xodim ismi, login yoki telefon"
+        placeholder="Xodim ID raqami, ismi, login, email yoki telefon"
       />
       <DataPanel
         key={ctx.tenant}
@@ -1541,12 +1565,80 @@ export function Staff() {
         columns={[
           {
             label: "Xodim",
-            render: (r) => (
-              <>
-                <strong>{r.user?.name}</strong>
-                <span className="subcell">{r.user?.login}</span>
-              </>
-            ),
+            render: (r) => {
+              const u = r.user ?? {};
+              const userId = String(u.id ?? r.userId ?? r.id ?? "");
+              const hasAvatar = Boolean(u.avatarUrl) && !brokenStaffAvatars[userId];
+              return (
+                <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                  <div className="customer-avatar-wrap">
+                    {hasAvatar ? (
+                      <button
+                        type="button"
+                        className="customer-avatar-btn"
+                        title="Xodim profil suratini ko‘rish"
+                        onClick={() => setPreviewStaffUser({ row: r, user: u })}
+                      >
+                        <img
+                          src={u.avatarUrl}
+                          alt={u.name || "Xodim"}
+                          className="customer-avatar-img"
+                          onError={() =>
+                            setBrokenStaffAvatars((prev) => ({
+                              ...prev,
+                              [userId]: true,
+                            }))
+                          }
+                        />
+                      </button>
+                    ) : (
+                      <div className="customer-avatar-fallback">
+                        {(u.name || "X").slice(0, 1).toUpperCase()}
+                      </div>
+                    )}
+                    {u.isOnline && (
+                      <span
+                        title="Hozir tizimda (onlayn)"
+                        className="customer-online-dot"
+                      />
+                    )}
+                  </div>
+                  <div>
+                    <strong style={{ color: "var(--ink)" }}>{u.name ?? "Xodim"}</strong>
+                    <span className="subcell">
+                      ID: #{formatUserPublicId(u)}
+                      {u.login ? ` · @${u.login}` : ""}
+                      {u.email && u.email !== u.login ? ` · ${u.email}` : ""}
+                    </span>
+                  </div>
+                </div>
+              );
+            },
+          },
+          {
+            label: "Telefon / Email",
+            render: (r) => {
+              const u = r.user ?? {};
+              return (
+                <div>
+                  {u.phone ? (
+                    <a
+                      href={`tel:${u.phone}`}
+                      style={{ color: "#25e2a2", textDecoration: "none", fontWeight: 600 }}
+                    >
+                      {u.phone}
+                    </a>
+                  ) : (
+                    <span className="subcell">—</span>
+                  )}
+                  {u.email && (
+                    <span className="subcell" style={{ display: "block" }}>
+                      {u.email}
+                    </span>
+                  )}
+                </div>
+              );
+            },
           },
           {
             label: "Sanatoriya",
@@ -1559,6 +1651,9 @@ export function Staff() {
         ]}
         actions={(r) => (
           <>
+            {ctx.admin && (
+              <Act onClick={() => setManageStaff(r)}>Tahrirlash</Act>
+            )}
             {ctx.admin && r.status === "PENDING_APPROVAL" && (
               <>
                 <Act
@@ -1683,7 +1778,497 @@ export function Staff() {
           </>
         )}
       />
+      {manageStaff && (
+        <StaffManageModal
+          staff={manageStaff}
+          sanatoriumName={
+            ctx.tenants.find((s) => s.id === manageStaff.sanatoriumId)?.name ?? "—"
+          }
+          onClose={() => setManageStaff(null)}
+          onRefresh={ctx.refresh}
+          onEditPermissions={(row) => {
+            setManageStaff(null);
+            permissionEdit(row);
+          }}
+          notice={ctx.notice}
+        />
+      )}
+      {previewStaffUser && (
+        <div
+          className="modal-backdrop"
+          onClick={() => setPreviewStaffUser(null)}
+        >
+          <section
+            className="modal avatar-preview-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-label={`${previewStaffUser.user.name} surati`}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="modal-heading">
+              <div>
+                <h2>
+                  {previewStaffUser.user.name} · ID #{formatUserPublicId(previewStaffUser.user)}
+                </h2>
+                <p className="muted">
+                  Xodim profil surati ({label[previewStaffUser.row.role] ?? previewStaffUser.row.role})
+                </p>
+              </div>
+              <button
+                type="button"
+                className="icon-button"
+                aria-label="Yopish"
+                onClick={() => setPreviewStaffUser(null)}
+              >
+                <X size={20} />
+              </button>
+            </div>
+            <div className="avatar-preview-box">
+              <img
+                src={previewStaffUser.user.avatarUrl}
+                alt={previewStaffUser.user.name}
+              />
+            </div>
+            {ctx.admin && (
+              <div className="toolbar" style={{ justifyContent: "flex-end", marginTop: 14 }}>
+                <button
+                  type="button"
+                  className="button secondary"
+                  onClick={() => {
+                    const target = previewStaffUser.row;
+                    setPreviewStaffUser(null);
+                    setManageStaff(target);
+                  }}
+                >
+                  Tahrirlash va boshqarish
+                </button>
+              </div>
+            )}
+          </section>
+        </div>
+      )}
     </>
+  );
+}
+
+function StaffManageModal({
+  staff,
+  sanatoriumName,
+  onClose,
+  onRefresh,
+  onEditPermissions,
+  notice,
+}: {
+  staff: Row;
+  sanatoriumName: string;
+  onClose: () => void;
+  onRefresh: () => void;
+  onEditPermissions: (r: Row) => void;
+  notice: (msg: string) => void;
+}) {
+  const u = staff.user ?? {};
+  const staffUserId = String(u.id ?? staff.userId ?? "");
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [name, setName] = useState(String(u.name || ""));
+  const [phone, setPhone] = useState(String(u.phone || ""));
+  const [login, setLogin] = useState(String(u.login || ""));
+  const [email, setEmail] = useState(String(u.email || ""));
+  const [role, setRole] = useState(String(staff.role || "RECEPTION"));
+  const [status, setStatus] = useState(String(staff.status || "ACTIVE"));
+  const [newPassword, setNewPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(u.avatarUrl ?? null);
+  const [sessionsCount, setSessionsCount] = useState<number>(
+    Number(u.activeSessionsCount ?? 0),
+  );
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  const loginVerifierRef = useRef<(() => Promise<string | null>) | null>(null);
+  const emailVerifierRef = useRef<(() => Promise<string | null>) | null>(null);
+
+  const registerLoginVerifier = useCallback(
+    (_name: string, verifier: (() => Promise<string | null>) | null) => {
+      loginVerifierRef.current = verifier;
+    },
+    [],
+  );
+  const registerEmailVerifier = useCallback(
+    (_name: string, verifier: (() => Promise<string | null>) | null) => {
+      emailVerifierRef.current = verifier;
+    },
+    [],
+  );
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && !busy) onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [busy, onClose]);
+
+  const removeAvatar = async () => {
+    setBusy(true);
+    setError("");
+    try {
+      const updated = await api<Row>(
+        `/superadmin/staff/${staff.id}`,
+        "PATCH",
+        { remove_avatar: true, avatarUrl: null },
+      );
+      setAvatarUrl(updated.avatarUrl ?? null);
+      notice("Xodim profil rasmi o‘chirildi");
+      onRefresh();
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleAvatarPicked = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    const msg = validateAvatarFile(file);
+    if (msg) {
+      setError(msg);
+      return;
+    }
+    setBusy(true);
+    setError("");
+    try {
+      const nextUrl = await prepareAvatarDataUrl(file);
+      const updated = await api<Row>(
+        `/superadmin/staff/${staff.id}`,
+        "PATCH",
+        { avatarUrl: nextUrl },
+      );
+      setAvatarUrl(updated.avatarUrl ?? nextUrl);
+      notice("Xodim profil rasmi yangilandi");
+      onRefresh();
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const saveStaff = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setBusy(true);
+    setError("");
+    try {
+      if (loginVerifierRef.current) {
+        const loginErr = await loginVerifierRef.current();
+        if (loginErr) {
+          setError(loginErr);
+          return;
+        }
+      }
+      if (emailVerifierRef.current) {
+        const emailErr = await emailVerifierRef.current();
+        if (emailErr) {
+          setError(emailErr);
+          return;
+        }
+      }
+      const trimmedPass = newPassword.trim();
+      if (trimmedPass) {
+        if (
+          trimmedPass.length < 8 ||
+          !/[a-z]/.test(trimmedPass) ||
+          !/[A-Z]/.test(trimmedPass) ||
+          !/[0-9]/.test(trimmedPass)
+        ) {
+          setError(
+            "Yangi parol kamida 8 belgidan iborat bo‘lishi, katta/kichik lotin harfi va raqam qatnashishi kerak.",
+          );
+          return;
+        }
+      }
+      await api(`/superadmin/staff/${staff.id}`, "PATCH", {
+        name: name.trim(),
+        phone: phone.trim() || null,
+        login: login.trim().toLowerCase(),
+        email: email.trim() ? email.trim().toLowerCase() : null,
+        role,
+        status,
+        ...(trimmedPass ? { new_password: trimmedPass } : {}),
+      });
+      notice(
+        trimmedPass
+          ? "Xodim ma’lumotlari va yangi paroli saqlandi"
+          : "Xodim ma’lumotlari saqlandi",
+      );
+      onRefresh();
+      onClose();
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const revokeSessions = async () => {
+    setBusy(true);
+    setError("");
+    try {
+      const res = await api<{ success: boolean; revoked_count?: number }>(
+        `/superadmin/staff/${staff.id}/revoke-sessions`,
+        "POST",
+        {},
+      );
+      setSessionsCount(0);
+      notice(
+        res.revoked_count
+          ? `${res.revoked_count} ta faol sessiya yopildi`
+          : "Faol sessiyalar topilmadi",
+      );
+      onRefresh();
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="modal-backdrop">
+      <section
+        className="modal customer-manage-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-label={`${u.name || "Xodim"} — Xodim hisobini tahrirlash`}
+      >
+        <div className="modal-heading">
+          <div>
+            <h2>
+              {u.name || "Xodim"} · ID #{formatUserPublicId(u)}
+            </h2>
+            <p className="muted">
+              {sanatoriumName} · Xodim profil rasmi, login, parol, email va lavozim tahriri.
+            </p>
+          </div>
+          <button
+            className="icon-button"
+            type="button"
+            aria-label="Yopish"
+            disabled={busy}
+            onClick={onClose}
+          >
+            <X size={20} />
+          </button>
+        </div>
+
+        <input
+          ref={fileRef}
+          type="file"
+          accept="image/*"
+          style={{ display: "none" }}
+          onChange={handleAvatarPicked}
+        />
+
+        <div className="customer-manage-photo">
+          <div className="customer-manage-avatar">
+            {avatarUrl ? (
+              <img src={avatarUrl} alt={name || "Xodim"} />
+            ) : (
+              <span>{(name || "X").slice(0, 1).toUpperCase()}</span>
+            )}
+          </div>
+          <div className="customer-manage-photo-meta">
+            <strong>Xodim profil surati</strong>
+            <p className="muted">
+              {avatarUrl
+                ? "Xodim profil surati o‘rnatilgan (chat va panelda ko‘rinadi)."
+                : "Xodim profil rasmi o‘rnatilmagan yoki o‘chirilgan."}
+            </p>
+            <div className="customer-manage-photo-buttons">
+              <button
+                type="button"
+                className="button secondary"
+                disabled={busy}
+                onClick={() => fileRef.current?.click()}
+              >
+                <Camera size={15} />{" "}
+                {avatarUrl ? "Rasmni almashtirish" : "Rasm yuklash"}
+              </button>
+              {avatarUrl && (
+                <button
+                  type="button"
+                  className="button danger-soft"
+                  disabled={busy}
+                  onClick={removeAvatar}
+                >
+                  <Trash2 size={15} /> Rasmni o‘chirish
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+
+        <form onSubmit={saveStaff} className="customer-manage-form">
+          <div className="form-grid">
+            <label className="field">
+              <span>
+                To‘liq ism va familiya <b className="required">*</b>
+              </span>
+              <input
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                required
+                minLength={2}
+                maxLength={120}
+                disabled={busy}
+              />
+            </label>
+            <label className="field">
+              <span>
+                Login (kirish logini) <b className="required">*</b>
+              </span>
+              <LoginAvailabilityInput
+                name="login"
+                defaultValue={String(u.login || "")}
+                required
+                disabled={busy}
+                excludeUserId={staffUserId}
+                onValueChange={setLogin}
+                onRegisterVerifier={registerLoginVerifier}
+                hint="Kamida 3 belgi: lotin harflari, raqam, . _ -"
+              />
+            </label>
+            <label className="field">
+              <span>Elektron pochta (Email)</span>
+              <EmailAvailabilityInput
+                name="email"
+                defaultValue={String(u.email || "")}
+                placeholder="xodim@sihhat.uz"
+                disabled={busy}
+                excludeUserId={staffUserId}
+                onValueChange={setEmail}
+                onRegisterVerifier={registerEmailVerifier}
+              />
+            </label>
+            <label className="field">
+              <span>Telefon raqam</span>
+              <input
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                placeholder="+998901234567"
+                disabled={busy}
+              />
+            </label>
+            <label className="field">
+              <span>Lavozim</span>
+              <select
+                value={role}
+                onChange={(e) => setRole(e.target.value)}
+                disabled={busy}
+              >
+                <option value="DIRECTOR">Direktor</option>
+                <option value="RECEPTION">Resepshn</option>
+                <option value="ACCOUNTANT">Hisobchi</option>
+              </select>
+            </label>
+            <label className="field">
+              <span>Hisob holati</span>
+              <select
+                value={status}
+                onChange={(e) => setStatus(e.target.value)}
+                disabled={busy}
+              >
+                <option value="ACTIVE">Faol (ACTIVE)</option>
+                <option value="PENDING_APPROVAL">Tasdiq kutilmoqda</option>
+                <option value="BLOCKED">Bloklangan (BLOCKED)</option>
+              </select>
+            </label>
+            <div className="field wide">
+              <span>
+                <KeyRound size={14} style={{ verticalAlign: "middle", marginRight: 6 }} />
+                Yangi parol o‘rnatish (ixtiyoriy)
+              </span>
+              <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+                <input
+                  type={showPassword ? "text" : "password"}
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  placeholder="O‘zgartirish uchun yangi parol kiriting (masalan: Sihhat2026!)"
+                  autoComplete="new-password"
+                  disabled={busy}
+                  style={{ flex: 1 }}
+                />
+                <button
+                  type="button"
+                  className="button secondary"
+                  disabled={busy}
+                  onClick={() => setShowPassword((v) => !v)}
+                  title={showPassword ? "Parolni yashirish" : "Parolni ko‘rsatish"}
+                  style={{ padding: "10px 14px", flexShrink: 0 }}
+                >
+                  {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
+              </div>
+              <small>
+                Bo‘sh qoldirilsa joriy parol o‘zgarmaydi. Kiritilsa kamida 8 belgi (katta/kichik harf va raqam) bo‘lishi kerak.
+              </small>
+            </div>
+          </div>
+
+          <div className="customer-manage-summary">
+            <span>
+              ID: <strong>#{formatUserPublicId(u)}</strong>
+            </span>
+            <span>
+              Sanatoriya: <strong>{sanatoriumName}</strong>
+            </span>
+            <span>
+              Vakolatlar: <strong>{staff.permissions?.length ?? 0} ta</strong>
+            </span>
+            <span>
+              Faol sessiyalar: <strong>{sessionsCount} ta</strong>
+            </span>
+          </div>
+
+          {error && <ErrorBox message={error} />}
+
+          <div className="customer-manage-footer">
+            <div className="customer-manage-actions">
+              <button
+                type="button"
+                className="button secondary"
+                disabled={busy}
+                onClick={() => onEditPermissions(staff)}
+              >
+                <ShieldCheck size={15} /> Ruxsatlarni sozlash
+              </button>
+              <button
+                type="button"
+                className="button secondary"
+                disabled={busy || sessionsCount === 0}
+                onClick={revokeSessions}
+              >
+                <LogOut size={15} /> Sessiyalarni yopish
+              </button>
+            </div>
+            <div className="customer-manage-save">
+              <button
+                type="button"
+                className="button secondary"
+                disabled={busy}
+                onClick={onClose}
+              >
+                Yopish
+              </button>
+              <button type="submit" className="button primary" disabled={busy}>
+                {busy ? "Saqlanmoqda…" : "Saqlash"}
+              </button>
+            </div>
+          </div>
+        </form>
+      </section>
+    </div>
   );
 }
 
@@ -1715,7 +2300,14 @@ function CustomerManageModal({
   );
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const loginVerifierRef = useRef<(() => Promise<string | null>) | null>(null);
   const emailVerifierRef = useRef<(() => Promise<string | null>) | null>(null);
+  const registerLoginVerifier = useCallback(
+    (_name: string, verifier: (() => Promise<string | null>) | null) => {
+      loginVerifierRef.current = verifier;
+    },
+    [],
+  );
   const registerEmailVerifier = useCallback(
     (_name: string, verifier: (() => Promise<string | null>) | null) => {
       emailVerifierRef.current = verifier;
@@ -1783,6 +2375,13 @@ function CustomerManageModal({
     setBusy(true);
     setError("");
     try {
+      if (login.trim() && loginVerifierRef.current) {
+        const loginErr = await loginVerifierRef.current();
+        if (loginErr) {
+          setError(loginErr);
+          return;
+        }
+      }
       if (emailVerifierRef.current) {
         const emailErr = await emailVerifierRef.current();
         if (emailErr) {
@@ -1793,7 +2392,7 @@ function CustomerManageModal({
       await api(`/superadmin/customers/${user.id}`, "PATCH", {
         name: name.trim(),
         phone: phone.trim() || null,
-        login: login.trim() || null,
+        login: login.trim() ? login.trim().toLowerCase() : null,
         email: email.trim() ? email.trim().toLowerCase() : null,
       });
       notice("Foydalanuvchi ma’lumotlari saqlandi");
@@ -1839,7 +2438,9 @@ function CustomerManageModal({
       >
         <div className="modal-heading">
           <div>
-            <h2>{user.name} — Foydalanuvchini boshqarish</h2>
+            <h2>
+              {user.name} · ID #{formatUserPublicId(user)}
+            </h2>
             <p className="muted">
               Profil rasmi, shaxsiy ma’lumotlar, faol sessiyalar va holat nazorati.
             </p>
@@ -1927,11 +2528,14 @@ function CustomerManageModal({
             </label>
             <label className="field">
               <span>Login (ilova username)</span>
-              <input
-                value={login}
-                onChange={(e) => setLogin(e.target.value)}
+              <LoginAvailabilityInput
+                name="login"
+                defaultValue={String(user.login || "")}
                 placeholder="foydalanuvchi_logini"
                 disabled={busy}
+                excludeUserId={String(user.id)}
+                onValueChange={setLogin}
+                onRegisterVerifier={registerLoginVerifier}
               />
             </label>
             <label className="field">
@@ -1949,6 +2553,7 @@ function CustomerManageModal({
           </div>
 
           <div className="customer-manage-summary">
+            <span>ID: <strong>#{formatUserPublicId(user)}</strong></span>
             <span>Holat: <strong>{user.status === "ACTIVE" ? "Faol" : "Bloklangan"}</strong></span>
             <span>Bronlar: <strong>{user.bookingsCount ?? 0} ta</strong></span>
             <span>Murojaatlar: <strong>{user.ticketsCount ?? 0} ta</strong></span>
@@ -2051,7 +2656,7 @@ export function AppUsers() {
   function deleteUser(r: Row) {
     ctx.form({
       title: "Foydalanuvchini butunlay o‘chirish",
-      description: `«${r.name}» (${r.phone || r.login || "ID: " + r.id.slice(0, 8)}) hisobini tizimdan butunlay o‘chirib tashlamoqchimisiz? Barcha faol seanslari, yordam xabarlari va shaxsiy ma’lumotlari to‘liq o‘chiriladi. Ushbu amalni ortga qaytarib bo‘lmaydi.`,
+      description: `«${r.name}» (${r.phone || r.login || "ID: #" + formatUserPublicId(r)}) hisobini tizimdan butunlay o‘chirib tashlamoqchimisiz? Barcha faol seanslari, yordam xabarlari va shaxsiy ma’lumotlari to‘liq o‘chiriladi. Ushbu amalni ortga qaytarib bo‘lmaydi.`,
       fields: [],
       button: "Ha, butunlay o‘chirilsin",
       submit: () => api(`/superadmin/customers/${r.id}`, "DELETE", {}),
@@ -2077,7 +2682,7 @@ export function AppUsers() {
         filters={filters.values}
         setFilter={filters.set}
         statuses={["ACTIVE", "BLOCKED"]}
-        placeholder="Mijoz ismi, login, email yoki telefon"
+        placeholder="Mijoz ID raqami, ismi, login, email yoki telefon"
       />
       <DataPanel
         path="/superadmin/customers"
@@ -2127,7 +2732,7 @@ export function AppUsers() {
                   <div>
                     <strong style={{ color: "var(--ink)" }}>{r.name}</strong>
                     <span className="subcell">
-                      ID: {r.id.slice(0, 8)}… {r.login ? `· @${r.login}` : ""}
+                      ID: #{formatUserPublicId(r)} {r.login ? `· @${r.login}` : ""}
                       {r.email && r.email !== r.login ? ` · ${r.email}` : ""}
                     </span>
                   </div>

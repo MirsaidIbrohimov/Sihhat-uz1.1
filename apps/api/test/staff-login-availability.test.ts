@@ -8,11 +8,13 @@ import { enrichOpenApi } from '../src/common/openapi';
 
 type UserRecord = {
   id: string;
+  publicId?: number | null;
   kind: 'SUPERADMIN' | 'STAFF' | 'CUSTOMER';
   status: string;
   name: string;
   login: string | null;
   phone: string | null;
+  email?: string | null;
   avatarUrl: string | null;
   passwordHash: string | null;
   mustChangePassword: boolean;
@@ -132,13 +134,19 @@ function makeMockDb() {
       : candidate === obj.equals;
   };
 
-  const matchUser = (u: UserRecord, where: Record<string, any> = {}) => {
+  const matchUser = (u: UserRecord, where: Record<string, any> = {}): boolean => {
     if (where.id?.not && u.id === where.id.not) return false;
     if (typeof where.id === 'string' && u.id !== where.id) return false;
+    if (Array.isArray(where.id?.in) && !where.id.in.includes(u.id)) return false;
+    if (where.publicId !== undefined && u.publicId !== where.publicId) return false;
     if (where.login && !matchesLogin(u.login, where.login)) return false;
+    if (where.email && !matchesLogin(u.email ?? null, where.email)) return false;
     if (where.phone && u.phone !== where.phone) return false;
     if (where.kind && u.kind !== where.kind) return false;
     if (where.status && u.status !== where.status) return false;
+    if (Array.isArray(where.OR)) {
+      return where.OR.some((branch: Record<string, any>) => matchUser(u, branch));
+    }
     return true;
   };
 
@@ -163,6 +171,10 @@ function makeMockDb() {
       create: async ({ data }: any) => ({ id: `outbox-${seq++}`, ...data }),
     },
     user: {
+      findUnique: async ({ where }: any) => {
+        const found = users.find((u) => u.id === where.id);
+        return found ? { ...found } : null;
+      },
       findFirst: async ({ where }: any) => {
         const found = users.find((u) => matchUser(u, where));
         return found ? { ...found } : null;
@@ -172,11 +184,13 @@ function makeMockDb() {
       create: async ({ data }: any) => {
         const created: UserRecord = {
           id: `00000000-0000-4000-8000-${String(seq++).padStart(12, '0')}`,
+          publicId: data.publicId ?? null,
           kind: data.kind,
           status: data.status ?? 'ACTIVE',
           name: data.name,
           login: data.login ?? null,
           phone: data.phone ?? null,
+          email: data.email ?? null,
           avatarUrl: data.avatarUrl ?? null,
           passwordHash: data.passwordHash ?? null,
           mustChangePassword: Boolean(data.mustChangePassword),
@@ -329,7 +343,7 @@ test('enrichOpenApi defines query parameters idempotently for /partner/staff/log
     enrichedOnce.paths['/partner/staff/login-availability'].get.parameters ?? [];
   assert.deepEqual(
     params.map((p: any) => p.name),
-    ['login', 'exclude_user_id'],
+    ['login', 'email', 'exclude_user_id'],
   );
   assert.deepEqual(
     enrichedOnce.paths['/partner/staff/login-availability'].get['x-roles'],
@@ -524,4 +538,67 @@ test('AuthService.profile rejects updating login or phone to another existing us
   });
   assert.equal(updated.name, 'Director A Updated');
   assert.equal(updated.login, 'director.a');
+  assert.equal(typeof updated.publicId, 'number');
+  assert.ok(updated.publicId! >= 100000 && updated.publicId! <= 999999);
+});
+
+test('checkLoginAvailability checks email against database for all staff roles and Superadmin updateStaff updates staff account, avatar, login, email, and password', async () => {
+  const db = makeMockDb();
+  const service = new StaffService(db);
+
+  // Reception can check email availability (both via ?email=... and ?login=email)
+  const freeEmail = await service.checkLoginAvailability(receptionActor, {
+    email: 'Reception.A@Sihhat.uz',
+    exclude_user_id: REC_A_ID,
+  });
+  assert.equal(freeEmail.valid, true);
+  assert.equal(freeEmail.available, true);
+
+  // Superadmin updates Reception A account (name, login, email, password, avatar)
+  const onePixelPng =
+    'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=';
+  const updatedStaff = await service.updateStaff(
+    adminActor,
+    'e2222222-2222-4222-8222-222222222222',
+    {
+      name: 'Reception A Edited',
+      login: 'reception.edited',
+      email: 'reception.a@sihhat.uz',
+      phone: '901234567',
+      new_password: 'NewPassword2026',
+      avatarUrl: onePixelPng,
+    },
+  );
+  assert.equal(updatedStaff.name, 'Reception A Edited');
+  assert.equal(updatedStaff.login, 'reception.edited');
+  assert.equal(updatedStaff.email, 'reception.a@sihhat.uz');
+  assert.equal(updatedStaff.phone, '+998901234567');
+  assert.equal(updatedStaff.avatarUrl, onePixelPng);
+  assert.equal(typeof updatedStaff.publicId, 'number');
+  assert.ok(updatedStaff.publicId >= 100000 && updatedStaff.publicId <= 999999);
+
+  // Now checking reception.a@sihhat.uz for a different user returns available: false (TAKEN)
+  const takenByOther = await service.checkLoginAvailability(directorActor, {
+    email: 'RECEPTION.A@SIHHAT.UZ',
+    exclude_user_id: DIR_A_ID,
+  });
+  assert.equal(takenByOther.valid, true);
+  assert.equal(takenByOther.available, false);
+  assert.equal(takenByOther.reason, 'TAKEN');
+
+  // Checking reception.a@sihhat.uz via fallback ?login=... also returns TAKEN
+  const takenViaLoginParam = await service.checkLoginAvailability(receptionActor, {
+    login: 'reception.a@sihhat.uz',
+  });
+  assert.equal(takenViaLoginParam.valid, true);
+  assert.equal(takenViaLoginParam.available, false);
+  assert.equal(takenViaLoginParam.reason, 'TAKEN');
+
+  // Removing staff avatar works
+  const avatarCleared = await service.updateStaff(
+    adminActor,
+    'e2222222-2222-4222-8222-222222222222',
+    { remove_avatar: true },
+  );
+  assert.equal(avatarCleared.avatarUrl, null);
 });

@@ -36,13 +36,23 @@ export async function fetchEmailAvailability(
   email: string,
   excludeUserId?: string,
 ) {
-  return api<LoginAvailabilityResponse>(
-    "/partner/staff/login-availability" +
-      query({
-        email,
-        ...(excludeUserId ? { exclude_user_id: excludeUserId } : {}),
-      }),
-  );
+  try {
+    return await api<LoginAvailabilityResponse>(
+      "/partner/staff/login-availability" +
+        query({
+          email,
+          ...(excludeUserId ? { exclude_user_id: excludeUserId } : {}),
+        }),
+    );
+  } catch {
+    return api<LoginAvailabilityResponse>(
+      "/partner/staff/login-availability" +
+        query({
+          login: email,
+          ...(excludeUserId ? { exclude_user_id: excludeUserId } : {}),
+        }),
+    );
+  }
 }
 
 const EMAIL_FORMAT_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -78,6 +88,7 @@ export function EmailAvailabilityInput({
   const [message, setMessage] = useState<string | null>(null);
 
   const inputRef = useRef<HTMLInputElement>(null);
+  const initialCleanRef = useRef(defaultValue.trim().toLowerCase());
   const valueRef = useRef(defaultValue);
   const statusRef = useRef<LoginAvailabilityStatus>("idle");
   const checkedEmailRef = useRef<string>("");
@@ -128,7 +139,9 @@ export function EmailAvailabilityInput({
           applyStatus(
             "available",
             checked,
-            `${checked} — bo‘sh, boshqa hisobga ulanmagan`,
+            excludeUserId && checked === initialCleanRef.current
+              ? `${checked} — joriy hisobga biriktirilgan`
+              : `${checked} — bo‘sh, boshqa hisobga ulanmagan`,
           );
           return "available";
         }
@@ -141,6 +154,14 @@ export function EmailAvailabilityInput({
       } catch {
         if (!mountedRef.current || seq !== requestSeqRef.current) {
           return statusRef.current;
+        }
+        if (excludeUserId && normalized === initialCleanRef.current) {
+          applyStatus(
+            "available",
+            normalized,
+            `${normalized} — joriy hisobga biriktirilgan`,
+          );
+          return "available";
         }
         applyStatus(
           "error",
@@ -317,21 +338,25 @@ export function LoginAvailabilityInput({
   name,
   defaultValue = "",
   required,
+  disabled,
   minLength = 3,
   maxLength = 64,
   placeholder = "masalan: ali.karimov",
   hint,
   excludeUserId,
+  onValueChange,
   onRegisterVerifier,
 }: {
   name: string;
   defaultValue?: string;
   required?: boolean;
+  disabled?: boolean;
   minLength?: number;
   maxLength?: number;
   placeholder?: string;
   hint?: string;
   excludeUserId?: string;
+  onValueChange?: (value: string) => void;
   onRegisterVerifier?: (
     name: string,
     verifier: (() => Promise<string | null>) | null,
@@ -342,6 +367,7 @@ export function LoginAvailabilityInput({
   const [message, setMessage] = useState<string | null>(null);
 
   const inputRef = useRef<HTMLInputElement>(null);
+  const initialCleanRef = useRef(normalizeLoginInput(defaultValue));
   const valueRef = useRef(defaultValue);
   const statusRef = useRef<LoginAvailabilityStatus>("idle");
   const checkedLoginRef = useRef<string>("");
@@ -390,7 +416,9 @@ export function LoginAvailabilityInput({
           applyStatus(
             "available",
             res.login,
-            `@${res.login} — bo‘sh, tasdiqlandi`,
+            excludeUserId && res.login === initialCleanRef.current
+              ? `@${res.login} — joriy hisob logini`
+              : `@${res.login} — bo‘sh, tasdiqlandi`,
           );
           return "available";
         }
@@ -403,6 +431,14 @@ export function LoginAvailabilityInput({
       } catch {
         if (!mountedRef.current || seq !== requestSeqRef.current) {
           return statusRef.current;
+        }
+        if (excludeUserId && normalized === initialCleanRef.current) {
+          applyStatus(
+            "available",
+            normalized,
+            `@${normalized} — joriy hisob logini`,
+          );
+          return "available";
         }
         applyStatus(
           "error",
@@ -517,9 +553,11 @@ export function LoginAvailabilityInput({
           onChange={(e) => {
             const next = e.target.value;
             setValue(next);
+            onValueChange?.(next);
             scheduleCheck(next);
           }}
           required={required}
+          disabled={disabled}
           minLength={minLength}
           maxLength={maxLength}
           placeholder={placeholder}

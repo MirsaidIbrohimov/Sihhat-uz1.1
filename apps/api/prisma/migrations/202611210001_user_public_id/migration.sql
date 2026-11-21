@@ -1,0 +1,2 @@
+ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "publicId" INTEGER;
+CREATE UNIQUE INDEX IF NOT EXISTS "User_publicId_key" ON "User"("publicId");

@@ -10,6 +10,7 @@ datasource db {
 
 model User {
   id String @id @default(uuid()) @db.Uuid
+  publicId Int? @unique
   kind String
   status String @default("ACTIVE")
   name String

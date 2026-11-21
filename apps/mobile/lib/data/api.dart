@@ -302,7 +302,16 @@ class Api {
     final previous = await cachedProfile();
     final profile = {
       if (previous?['id'] == value['id']) ...?previous,
-      for (final key in ['id', 'name', 'phone', 'kind', 'avatarUrl'])
+      for (final key in [
+        'id',
+        'publicId',
+        'name',
+        'phone',
+        'email',
+        'login',
+        'kind',
+        'avatarUrl',
+      ])
         if (value.containsKey(key)) key: value[key],
     };
     await store.write('profile', jsonEncode(profile));

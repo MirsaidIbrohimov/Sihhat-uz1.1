@@ -2,6 +2,17 @@
 
 Yangilangan: 2026-11-21. Asos: ISHLAB_CHIQISH_REJASI.md va SIHHAT_UZ_ARXITEKTURA.md.
 
+## 2026-11-21 6 xonali tasodifiy raqamli User ID (`publicId`), Superadmin «Jamoa va ruxsatlar» xodim hisobini tahrirlash va Emailni baza bilan tekshirish tuzatishi
+
+- **6 xonali tasodifiy unikal raqamli ID (`User.publicId`, masalan `#482915`)**:
+  - [`apps/api/prisma/schema.prisma`](../apps/api/prisma/schema.prisma), [`apps/api/prisma/migrations/202611210001_user_public_id/migration.sql`](../apps/api/prisma/migrations/202611210001_user_public_id/migration.sql) va [`apps/api/src/auth/public-id.util.ts`](../apps/api/src/auth/public-id.util.ts): ichki `UUID` (`User.id`) saqlangan holda `User.publicId Int? @unique` qo‘shildi; `AuthService.onModuleInit()` mavjud foydalanuvchilarga 6 xonali (`100000`–`999999`) unikal raqam biriktiradi va barcha yangi foydalanuvchilar (`verifyOtp`, `bootstrap`, `findOrCreateStaffUser`, `quickCheckout`) yaratilishida `allocateUserPublicId` ishlatiladi.
+  - Veb-panellar ([`packages/ui/src/account.tsx`](../packages/ui/src/account.tsx), [`packages/ui/src/governance.tsx`](../packages/ui/src/governance.tsx)) va mobil ilova ([`apps/mobile/lib/screens/account.dart`](../apps/mobile/lib/screens/account.dart), [`apps/mobile/lib/data/api.dart`](../apps/mobile/lib/data/api.dart)): «Ilova foydalanuvchilari», «Jamoa va ruxsatlar», «Mening hisobim» va mobil «Profil» sahifalarida `ID: #482915` ko‘rsatiladi hamda ID raqami bo‘yicha qidiruv (`q`) ishlaydi.
+- **Superadmin «Jamoa va ruxsatlar» (`Staff`) bo‘limida xodimlar rasmi va to‘liq tahrirlash (`StaffManageModal`)**:
+  - [`apps/api/src/auth/staff.controller.ts`](../apps/api/src/auth/staff.controller.ts) va [`apps/api/src/auth/staff.service.ts`](../apps/api/src/auth/staff.service.ts): `GET /partner/staff` va `GET /superadmin/staff` endi har bir xodimning `publicId`, `avatarUrl`, `email`, `phone`, `isOnline`, `activeSessionsCount` ma’lumotlarini qaytaradi. Yangi `PATCH /superadmin/staff/:id` va `POST /superadmin/staff/:id/revoke-sessions` endpointlari orqali Superadmin xodimning profil rasmi (`<= 15 MB` yuklash yoki `remove_avatar: true`), ismi, logini, emaili, telefoni, yangi paroli (`new_password`), lavozimi (`DIRECTOR`, `RECEPTION`, `ACCOUNTANT`), holati va faol sessiyalarini boshqaradi.
+  - [`packages/ui/src/governance.tsx`](../packages/ui/src/governance.tsx): «Jamoa va ruxsatlar» jadvalida xodimlarning profil surati (ustiga bosganda kattalashtirib ko‘rish oynasi bilan), onlayn yashil nuqtasi, `#ID`, `@login`, telefon va email ko‘rsatiladi; har bir qatorda Superadmin uchun **«Tahrirlash»** tugmasi va `StaffManageModal` oynasi qo‘shildi.
+- **Emailni baza bilan jonli tekshirish tuzatishi**:
+  - [`apps/api/src/auth/staff.service.ts`](../apps/api/src/auth/staff.service.ts) va [`packages/ui/src/login-availability.tsx`](../packages/ui/src/login-availability.tsx): `loginAvailabilityQuery` `.passthrough()` ga o‘tkazildi, `exclude_user_id` UUID tekshiruvi yumshatildi, barcha xodim rollari (`RECEPTION`, `ACCOUNTANT`, `DIRECTOR`, `SUPERADMIN`) uchun email tekshiruvi ruxsat etildi hamda `fetchEmailAvailability` eski backend tugunlariga tushganda avtomatik `?login=email` zaxira so‘roviga o‘tadigan qilindi.
+
 ## 2026-11-21 Onlayn bron tuzatishlari, Universal Android APK (`v0.2.7-b10`) va iOS (PWA) qo‘llab-quvvatlashi
 
 - **Onlayn bron (`apps/api`, `apps/superadmin-web`, `apps/partner-web`, `packages/ui`, `apps/mobile`)**:

@@ -18,6 +18,8 @@ export class StaffController {
   @Post('superadmin/staff-approvals/:id/approve') @Roles('SUPERADMIN') approve(@CurrentActor() a: Actor, @Param('id') id: string, @Body() b: unknown) { return this.staff.decision(a, id, true, b); }
   @Post('superadmin/staff-approvals/:id/reject') @Roles('SUPERADMIN') reject(@CurrentActor() a: Actor, @Param('id') id: string, @Body() b: unknown) { return this.staff.decision(a, id, false, b); }
   @Patch('partner/staff/:id/permissions') permissions(@CurrentActor() a: Actor, @Param('id') id: string, @Body() b: unknown) { return this.staff.permissions(a, id, b); }
+  @Patch('superadmin/staff/:id') @Roles('SUPERADMIN') updateStaff(@CurrentActor() a: Actor, @Param('id') id: string, @Body() b: unknown) { return this.staff.updateStaff(a, id, b); }
+  @Post('superadmin/staff/:id/revoke-sessions') @Roles('SUPERADMIN') revokeStaffSessions(@CurrentActor() a: Actor, @Param('id') id: string) { return this.staff.revokeStaffSessions(a, id); }
   @Post('superadmin/staff/:id/block') @Roles('SUPERADMIN') block(@CurrentActor() a: Actor, @Param('id') id: string, @Body() b: unknown) { return this.staff.block(a, id, b); }
   @Post('superadmin/staff/:id/reset-password') @Roles('SUPERADMIN') @ApiBody({ schema: apiSchema(resetPasswordInput) }) reset(@CurrentActor() a: Actor, @Param('id') id: string, @Body() b: unknown) { return this.staff.reset(a, id, b); }
   @Post('partner/staff/:id/reset-password') @ApiBody({ schema: apiSchema(resetPasswordInput) }) partnerReset(@CurrentActor() a: Actor, @Param('id') id: string, @Body() b: unknown) { return this.staff.reset(a, id, b, true); }

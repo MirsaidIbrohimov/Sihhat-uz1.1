@@ -2492,15 +2492,85 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         if (phone != null && phone.toString().isNotEmpty)
                           phone.toString(),
                       ];
-                      return Text(
-                        list.isNotEmpty
-                            ? list.join(' · ')
-                            : 'Email orqali tasdiqlangan',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          color: context.colors.muted,
-                          fontSize: 13,
-                        ),
+                      return Column(
+                        children: [
+                          Text(
+                            list.isNotEmpty
+                                ? list.join(' · ')
+                                : 'Email orqali tasdiqlangan',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              color: context.colors.muted,
+                              fontSize: 13,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Builder(
+                            builder: (ctx) {
+                              final rawPub = p['publicId'] ?? p['public_id'];
+                              String pubId;
+                              if (rawPub != null &&
+                                  RegExp(r'^\d{5,8}$')
+                                      .hasMatch(rawPub.toString().trim())) {
+                                pubId = rawPub.toString().trim();
+                              } else {
+                                final uid = (p['id'] ?? '').toString();
+                                int h = 2166136261;
+                                for (int i = 0; i < uid.length; i++) {
+                                  h ^= uid.codeUnitAt(i);
+                                  h = (h * 16777619) & 0xffffffff;
+                                }
+                                pubId = (100000 + (h % 900000)).toString();
+                              }
+                              return InkWell(
+                                borderRadius: BorderRadius.circular(999),
+                                onTap: () {
+                                  Clipboard.setData(ClipboardData(text: pubId));
+                                  ScaffoldMessenger.of(ctx).showSnackBar(
+                                    SnackBar(
+                                      content: Text(
+                                        'ID raqam nusxalandi: #$pubId',
+                                      ),
+                                      duration: const Duration(seconds: 2),
+                                    ),
+                                  );
+                                },
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 5,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: context.colors.soft,
+                                    borderRadius: BorderRadius.circular(999),
+                                    border: Border.all(
+                                      color: context.colors.border,
+                                    ),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Text(
+                                        'ID: #$pubId',
+                                        style: TextStyle(
+                                          fontSize: 12.5,
+                                          fontWeight: FontWeight.w700,
+                                          color: context.colors.primary,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 6),
+                                      Icon(
+                                        Icons.copy_rounded,
+                                        size: 13,
+                                        color: context.colors.primary,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                        ],
                       );
                     },
                   ),

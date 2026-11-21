@@ -1,6 +1,7 @@
 export type Money = string;
 export type Actor = {
   id: string;
+  publicId?: number | null;
   kind: "SUPERADMIN" | "STAFF" | "CUSTOMER";
   name: string;
   login?: string | null;

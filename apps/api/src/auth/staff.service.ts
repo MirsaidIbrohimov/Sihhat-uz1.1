@@ -5,11 +5,12 @@ import { fail, parse, uuid, version, reason, pageQuery, paged } from '../common/
 import { passwordHash, opaque } from '../common/crypto';
 import { loginSchema, optionalEmailSchema, passwordSchema, phoneSchema } from './auth.service';
 import { normalizeAvatarInput } from './avatar.util';
+import { allocateUserPublicId, resolveUserPublicId } from './public-id.util';
 import { Actor, ACCOUNTANT, DELEGATABLE, DIRECTOR, effective, requirePlatform, scope, tenantIds } from './permissions';
 
-export const staffInput = z.object({ sanatorium_id: uuid, name: z.string().trim().min(2).max(120), login: loginSchema, phone: phoneSchema, temporary_password: passwordSchema.optional(), grants: z.array(z.enum(DELEGATABLE)).max(30).default([]) }).strict();
+export const staffInput = z.object({ sanatorium_id: uuid, name: z.string().trim().min(2).max(120), login: loginSchema, phone: phoneSchema, email: optionalEmailSchema.nullable().optional(), temporary_password: passwordSchema.optional(), grants: z.array(z.enum(DELEGATABLE)).max(30).default([]) }).strict();
 export const staffInvitationInput = staffInput.extend({role: z.enum(['RECEPTION', 'ACCOUNTANT']).default('RECEPTION')});
-export const loginAvailabilityQuery = z.object({ login: z.string().max(128).optional().default(''), email: z.string().max(128).optional(), exclude_user_id: uuid.optional() }).strict();
+export const loginAvailabilityQuery = z.object({ login: z.string().max(128).optional().default(''), email: z.string().max(128).optional(), exclude_user_id: z.string().max(128).optional() }).passthrough();
 export const resetPasswordInput = z.object({ new_password: passwordSchema, confirm_password: z.string().max(128) }).strict().refine(v => v.new_password === v.confirm_password, { message: 'Yangi parollar bir xil bo‘lsin', path: ['confirm_password'] });
 @Injectable()
 export class StaffService {
@@ -18,35 +19,131 @@ export class StaffService {
     const { page, limit, sanatorium_id, q, status, role } = parse(pageQuery.extend({ sanatorium_id: uuid.optional(), q: z.string().trim().max(120).optional(), status: z.enum(['ACTIVE', 'PENDING_APPROVAL', 'REJECTED', 'REVOKED', 'BLOCKED']).optional(), role: z.enum(['DIRECTOR', 'RECEPTION', 'ACCOUNTANT']).optional() }).strict(), query);
     if (sanatorium_id) scope(actor, sanatorium_id, 'staff.invite');
     const ids = sanatorium_id ? [sanatorium_id] : tenantIds(actor, 'staff.invite');
-    const matchingUsers = q ? await this.db.user.findMany({ where: { OR: [{ name: { contains: q, mode: 'insensitive' } }, { login: { contains: q, mode: 'insensitive' } }, { phone: { contains: q.replace(/[\s()-]/g, '') } }] }, select: { id: true } }) : null;
+    const cleanIdDigits = q ? q.replace(/^#/, '').trim() : '';
+    const numericPublicId = /^\d{5,8}$/.test(cleanIdDigits) ? Number(cleanIdDigits) : null;
+    const matchingUsers = q
+      ? await this.db.user.findMany({
+          where: {
+            OR: [
+              { name: { contains: q, mode: 'insensitive' } },
+              { login: { contains: q, mode: 'insensitive' } },
+              { email: { contains: q, mode: 'insensitive' } },
+              { phone: { contains: q.replace(/[\s()-]/g, '') } },
+              ...(numericPublicId !== null ? [{ publicId: numericPublicId }] : []),
+            ],
+          },
+          select: { id: true },
+        })
+      : null;
     const where = { ...(ids ? { sanatoriumId: { in: ids } } : {}), ...(matchingUsers ? { userId: { in: matchingUsers.map(u => u.id) } } : {}), ...(status ? { status } : {}), ...(role ? { role } : {}) };
     const [memberships, total] = await Promise.all([this.db.membership.findMany({ where, skip: (page - 1) * limit, take: limit, orderBy: { createdAt: 'desc' } }), this.db.membership.count({ where })]);
-    const users = await this.db.user.findMany({ where: { id: { in: memberships.map(m => m.userId) } }, select: { id: true, name: true, login: true, phone: true, avatarUrl: true, status: true, mustChangePassword: true } });
-    return paged(memberships.map(m => ({ ...m, user: users.find(u => u.id === m.userId), permissions: effective(m) })), total, page, limit);
+    const userIds = [...new Set(memberships.map(m => m.userId))];
+    const nowDate = new Date();
+    const [users, lastSessions, activeSessionCounts] = await Promise.all([
+      userIds.length
+        ? this.db.user.findMany({
+            where: { id: { in: userIds } },
+            select: {
+              id: true,
+              publicId: true,
+              name: true,
+              login: true,
+              phone: true,
+              email: true,
+              avatarUrl: true,
+              status: true,
+              mustChangePassword: true,
+              createdAt: true,
+              updatedAt: true,
+            },
+          })
+        : [],
+      userIds.length && typeof (this.db as any).session?.findMany === 'function'
+        ? this.db.session.findMany({
+            where: { userId: { in: userIds } },
+            orderBy: { lastActivityAt: 'desc' },
+            select: { userId: true, lastActivityAt: true, revokedAt: true, refreshExpiresAt: true, deviceLabel: true, channel: true },
+            distinct: ['userId'],
+          })
+        : [],
+      userIds.length && typeof (this.db as any).session?.groupBy === 'function'
+        ? this.db.session.groupBy({
+            by: ['userId'],
+            where: { userId: { in: userIds }, revokedAt: null, refreshExpiresAt: { gt: nowDate } },
+            _count: { id: true },
+          })
+        : [],
+    ]);
+    const sessionMap = new Map(lastSessions.map(s => [s.userId, s]));
+    const activeSessionMap = new Map(activeSessionCounts.map(s => [s.userId, s._count.id]));
+    const now = Date.now();
+    return paged(
+      memberships.map(m => {
+        const u = users.find(usr => usr.id === m.userId);
+        const s = u ? sessionMap.get(u.id) : undefined;
+        const isOnline = Boolean(
+          s &&
+          !s.revokedAt &&
+          s.refreshExpiresAt.getTime() > now &&
+          now - s.lastActivityAt.getTime() < 180_000,
+        );
+        return {
+          ...m,
+          user: u
+            ? {
+                ...u,
+                publicId: resolveUserPublicId(u),
+                email: u.email ?? (u.login?.includes('@') ? u.login : null),
+                avatarUrl: u.avatarUrl ?? null,
+                isOnline,
+                activeSessionsCount: activeSessionMap.get(u.id) || 0,
+                lastSeenAt: s?.lastActivityAt ?? u.updatedAt,
+                device: s?.deviceLabel || s?.channel || 'Veb panel',
+              }
+            : undefined,
+          permissions: effective(m),
+        };
+      }),
+      total,
+      page,
+      limit,
+    );
   }
   async checkLoginAvailability(actor: Actor, query: unknown) {
     const q = parse(loginAvailabilityQuery, query);
+    const excludeId = q.exclude_user_id && uuid.safeParse(q.exclude_user_id).success ? q.exclude_user_id : undefined;
     if (q.email !== undefined) {
       if (actor.kind !== 'SUPERADMIN' && !actor.memberships.some(m => m.status === 'ACTIVE')) {
         fail('PERMISSION_DENIED', 'Bu amal uchun ruxsat berilmagan', 403);
       }
       const normalizedEmail = q.email.trim().toLowerCase();
       if (!normalizedEmail) {
-        return { email: '', valid: false, available: false, reason: 'EMPTY' as const };
+        return { login: '', email: '', valid: false, available: false, reason: 'EMPTY' as const };
       }
       if (!optionalEmailSchema.safeParse(normalizedEmail).success) {
-        return { email: normalizedEmail, valid: false, available: false, reason: 'INVALID_FORMAT' as const };
+        return { login: normalizedEmail, email: normalizedEmail, valid: false, available: false, reason: 'INVALID_FORMAT' as const };
       }
-      const existingEmail = await this.db.user.findFirst({
-        where: {
-          ...(q.exclude_user_id ? { id: { not: q.exclude_user_id } } : {}),
-          OR: [
-            { email: { equals: normalizedEmail, mode: 'insensitive' as const } },
-            { login: { equals: normalizedEmail, mode: 'insensitive' as const } },
-          ],
-        },
-        select: { id: true },
-      });
+      let existingEmail: { id: string } | null = null;
+      try {
+        existingEmail = await this.db.user.findFirst({
+          where: {
+            ...(excludeId ? { id: { not: excludeId } } : {}),
+            OR: [
+              { email: { equals: normalizedEmail, mode: 'insensitive' as const } },
+              { login: { equals: normalizedEmail, mode: 'insensitive' as const } },
+            ],
+          },
+          select: { id: true },
+        });
+      } catch {
+        existingEmail = await this.db.user.findFirst({
+          where: {
+            ...(excludeId ? { id: { not: excludeId } } : {}),
+            login: { equals: normalizedEmail, mode: 'insensitive' as const },
+          },
+          select: { id: true },
+        });
+      }
       return {
         login: normalizedEmail,
         email: normalizedEmail,
@@ -55,28 +152,47 @@ export class StaffService {
         reason: existingEmail ? ('TAKEN' as const) : null,
       };
     }
-    if (actor.kind !== 'SUPERADMIN' && !actor.memberships.some(m => m.permissions.includes('staff.invite'))) {
+    const normalized = q.login.trim().toLowerCase();
+    const isCheckingOwnEmailOrLogin =
+      (excludeId && excludeId === actor.id) ||
+      (normalized.includes('@') && actor.memberships.some(m => m.status === 'ACTIVE'));
+    if (
+      actor.kind !== 'SUPERADMIN' &&
+      !isCheckingOwnEmailOrLogin &&
+      !actor.memberships.some(m => m.permissions.includes('staff.invite'))
+    ) {
       fail('PERMISSION_DENIED', 'Xodim taklif qilish huquqi yo‘q', 403);
     }
-    const normalized = q.login.trim().toLowerCase();
     if (!normalized) {
       return { login: '', valid: false, available: false, reason: 'EMPTY' as const };
     }
     if (!loginSchema.safeParse(normalized).success) {
       return { login: normalized, valid: false, available: false, reason: 'INVALID_FORMAT' as const };
     }
-    const existing = await this.db.user.findFirst({
-      where: {
-        OR: [
-          { login: { equals: normalized, mode: 'insensitive' as const } },
-          ...(normalized.includes('@') ? [{ email: { equals: normalized, mode: 'insensitive' as const } }] : []),
-        ],
-        ...(q.exclude_user_id ? { id: { not: q.exclude_user_id } } : {}),
-      },
-      select: { id: true },
-    });
+    let existing: { id: string } | null = null;
+    try {
+      existing = await this.db.user.findFirst({
+        where: {
+          OR: [
+            { login: { equals: normalized, mode: 'insensitive' as const } },
+            ...(normalized.includes('@') ? [{ email: { equals: normalized, mode: 'insensitive' as const } }] : []),
+          ],
+          ...(excludeId ? { id: { not: excludeId } } : {}),
+        },
+        select: { id: true },
+      });
+    } catch {
+      existing = await this.db.user.findFirst({
+        where: {
+          login: { equals: normalized, mode: 'insensitive' as const },
+          ...(excludeId ? { id: { not: excludeId } } : {}),
+        },
+        select: { id: true },
+      });
+    }
     return {
       login: normalized,
+      ...(normalized.includes('@') ? { email: normalized } : {}),
       valid: true,
       available: !existing,
       reason: existing ? ('TAKEN' as const) : null,
@@ -137,12 +253,29 @@ export class StaffService {
     if (existingByPhone) {
       fail('PHONE_IN_USE', 'Bu telefon raqami boshqa foydalanuvchiga biriktirilgan', 409);
     }
+    if (input.email) {
+      const existingByEmail = await tx.user.findFirst({
+        where: {
+          OR: [
+            { email: { equals: input.email, mode: 'insensitive' as const } },
+            { login: { equals: input.email, mode: 'insensitive' as const } },
+          ],
+        },
+        select: { id: true },
+      });
+      if (existingByEmail) {
+        fail('EMAIL_IN_USE', 'Bu elektron pochta boshqa hisobga ulangan. Boshqa email kiriting', 409);
+      }
+    }
+    const publicId = await allocateUserPublicId(tx);
     return tx.user.create({
       data: {
+        publicId,
         kind: 'STAFF',
         name: input.name,
         login: input.login,
         phone: input.phone,
+        ...(input.email ? { email: input.email } : {}),
         passwordHash: await passwordHash(password),
         mustChangePassword: true,
       },
@@ -301,6 +434,214 @@ export class StaffService {
       await audit(tx, actor.id, 'staff.password_reset', userId, sanatoriumId); return { success: true };
     });
   }
+  async updateStaff(actor: Actor, id: string, body: unknown) {
+    if (actor.kind !== 'SUPERADMIN') fail('PERMISSION_DENIED', 'Faqat superadmin tahrirlay oladi', 403);
+    parse(uuid, id);
+    const rawBody = body && typeof body === 'object' ? (body as Record<string, unknown>) : null;
+    const clearField = (val: unknown) => val === null || val === '';
+    const rawPhone = typeof rawBody?.phone === 'string' ? rawBody.phone.replace(/[\s()-]/g, '') : rawBody?.phone;
+    const normalizedPhone =
+      typeof rawPhone === 'string' && /^\d{9}$/.test(rawPhone)
+        ? `+998${rawPhone}`
+        : typeof rawPhone === 'string' && /^998\d{9}$/.test(rawPhone)
+          ? `+${rawPhone}`
+          : rawPhone;
+    const rawPassword =
+      typeof rawBody?.new_password === 'string' && rawBody.new_password.trim()
+        ? rawBody.new_password.trim()
+        : typeof rawBody?.password === 'string' && rawBody.password.trim()
+          ? rawBody.password.trim()
+          : undefined;
+    const normalizedBody = rawBody
+      ? {
+          ...rawBody,
+          ...(rawBody.avatarUrl === undefined && rawBody.avatar_url !== undefined ? { avatarUrl: rawBody.avatar_url } : {}),
+          ...(rawBody.remove_avatar === true ? { avatarUrl: null } : {}),
+          ...(clearField(normalizedPhone) && rawBody.phone !== undefined ? { phone: null } : normalizedPhone !== undefined ? { phone: normalizedPhone } : {}),
+          ...(clearField(rawBody.login) && rawBody.login !== undefined ? { login: undefined } : {}),
+          ...(clearField(rawBody.email) && rawBody.email !== undefined ? { email: null } : {}),
+          ...(rawPassword !== undefined ? { new_password: rawPassword } : { new_password: undefined }),
+        }
+      : body;
+    const input = parse(
+      z
+        .object({
+          name: z.string().trim().min(2).max(120).optional(),
+          phone: phoneSchema.nullable().optional(),
+          login: loginSchema.optional(),
+          email: optionalEmailSchema.nullable().optional(),
+          new_password: passwordSchema.optional(),
+          avatarUrl: z.string().max(25_000_000).nullable().optional(),
+          remove_avatar: z.boolean().optional(),
+          role: z.enum(['DIRECTOR', 'RECEPTION', 'ACCOUNTANT']).optional(),
+          status: z.enum(['ACTIVE', 'BLOCKED', 'PENDING_APPROVAL']).optional(),
+        })
+        .passthrough()
+        .refine(
+          v =>
+            v.name !== undefined ||
+            v.phone !== undefined ||
+            v.login !== undefined ||
+            v.email !== undefined ||
+            v.new_password !== undefined ||
+            v.avatarUrl !== undefined ||
+            v.remove_avatar !== undefined ||
+            v.role !== undefined ||
+            v.status !== undefined,
+          { message: 'Kamida bitta maydon kiriting' },
+        ),
+      normalizedBody,
+    );
+    const normalizedAvatar = input.remove_avatar ? null : normalizeAvatarInput(input.avatarUrl);
+    const nextPasswordHash = input.new_password ? await passwordHash(input.new_password) : undefined;
+    return this.db.atomic(async tx => {
+      let membership = await tx.membership.findUnique({ where: { id } });
+      let targetUser = membership
+        ? await tx.user.findUnique({ where: { id: membership.userId } })
+        : await tx.user.findUnique({ where: { id } });
+      if (!targetUser || targetUser.kind === 'CUSTOMER') {
+        fail('NOT_FOUND', 'Xodim hisobi topilmadi', 404);
+      }
+      if (!membership) {
+        membership = await tx.membership.findFirst({
+          where: { userId: targetUser.id },
+          orderBy: { createdAt: 'desc' },
+        });
+      }
+      const userId = targetUser.id;
+      await lock(tx, `user:${userId}`);
+      if (input.login) {
+        const takenLogin = await tx.user.findFirst({
+          where: {
+            id: { not: userId },
+            OR: [
+              { login: { equals: input.login, mode: 'insensitive' as const } },
+              ...(input.login.includes('@') ? [{ email: { equals: input.login, mode: 'insensitive' as const } }] : []),
+            ],
+          },
+          select: { id: true },
+        });
+        if (takenLogin) fail('LOGIN_IN_USE', 'Bu login allaqachon band. Boshqa login kiriting', 409);
+      }
+      if (input.email) {
+        const takenEmail = await tx.user.findFirst({
+          where: {
+            id: { not: userId },
+            OR: [
+              { email: { equals: input.email, mode: 'insensitive' as const } },
+              { login: { equals: input.email, mode: 'insensitive' as const } },
+            ],
+          },
+          select: { id: true },
+        });
+        if (takenEmail) fail('EMAIL_IN_USE', 'Bu elektron pochta boshqa hisobga ulangan. Boshqa email kiriting', 409);
+      }
+      if (input.phone) {
+        const takenPhone = await tx.user.findFirst({
+          where: { phone: input.phone, id: { not: userId } },
+          select: { id: true },
+        });
+        if (takenPhone) fail('PHONE_IN_USE', 'Bu telefon raqami boshqa foydalanuvchiga biriktirilgan', 409);
+      }
+      const updatedUser = await tx.user.update({
+        where: { id: userId },
+        data: {
+          ...(input.name !== undefined ? { name: input.name } : {}),
+          ...(input.phone !== undefined ? { phone: input.phone } : {}),
+          ...(input.login !== undefined ? { login: input.login } : {}),
+          ...(input.email !== undefined ? { email: input.email } : {}),
+          ...(normalizedAvatar !== undefined ? { avatarUrl: normalizedAvatar } : {}),
+          ...(nextPasswordHash !== undefined ? { passwordHash: nextPasswordHash, mustChangePassword: false } : {}),
+          ...(input.status === 'ACTIVE' ? { status: 'ACTIVE' } : {}),
+        },
+        select: {
+          id: true,
+          publicId: true,
+          kind: true,
+          status: true,
+          name: true,
+          phone: true,
+          email: true,
+          login: true,
+          avatarUrl: true,
+          mustChangePassword: true,
+          updatedAt: true,
+        },
+      });
+      if (membership && (input.role !== undefined || input.status !== undefined)) {
+        const nextRole = input.role ?? membership.role;
+        const nextCeiling =
+          input.role === 'DIRECTOR'
+            ? DIRECTOR
+            : input.role === 'ACCOUNTANT'
+              ? [...ACCOUNTANT]
+              : input.role === 'RECEPTION'
+                ? [...DELEGATABLE]
+                : membership.ceiling;
+        membership = await tx.membership.update({
+          where: { id: membership.id },
+          data: {
+            ...(input.role !== undefined ? { role: nextRole, ceiling: nextCeiling } : {}),
+            ...(input.status !== undefined ? { status: input.status } : {}),
+            version: { increment: 1 },
+          },
+        });
+      }
+      if (nextPasswordHash !== undefined || input.status === 'BLOCKED') {
+        await tx.session.updateMany({
+          where: { userId, revokedAt: null },
+          data: { revokedAt: new Date() },
+        });
+      }
+      const avatarRemoved = normalizedAvatar === null && Boolean(targetUser.avatarUrl);
+      await audit(
+        tx,
+        actor.id,
+        avatarRemoved ? 'staff.avatar_removed' : 'staff.profile_updated',
+        userId,
+        membership?.sanatoriumId,
+        {
+          name: targetUser.name,
+          phone: targetUser.phone,
+          login: targetUser.login,
+          email: targetUser.email,
+          hasAvatar: Boolean(targetUser.avatarUrl),
+        },
+        {
+          name: updatedUser.name,
+          phone: updatedUser.phone,
+          login: updatedUser.login,
+          email: updatedUser.email,
+          hasAvatar: Boolean(updatedUser.avatarUrl),
+          passwordChanged: Boolean(nextPasswordHash),
+          role: membership?.role,
+          status: membership?.status,
+        },
+      );
+      return {
+        ...updatedUser,
+        publicId: resolveUserPublicId(updatedUser),
+        membership,
+      };
+    });
+  }
+  async revokeStaffSessions(actor: Actor, id: string) {
+    if (actor.kind !== 'SUPERADMIN') fail('PERMISSION_DENIED', 'Faqat superadmin bajara oladi', 403);
+    parse(uuid, id);
+    return this.db.atomic(async tx => {
+      const membership = await tx.membership.findUnique({ where: { id } });
+      const userId = membership ? membership.userId : id;
+      await lock(tx, `user:${userId}`);
+      const target = await tx.user.findUnique({ where: { id: userId } });
+      if (!target) fail('NOT_FOUND', 'Xodim hisobi topilmadi', 404);
+      const res = await tx.session.updateMany({
+        where: { userId, revokedAt: null },
+        data: { revokedAt: new Date() },
+      });
+      await audit(tx, actor.id, 'staff.sessions_revoked', userId, membership?.sanatoriumId, undefined, { revoked_count: res.count });
+      return { success: true, revoked_count: res.count };
+    });
+  }
   async customers(actor: Actor, query: unknown) {
     if (actor.kind !== 'SUPERADMIN') fail('PERMISSION_DENIED', 'Faqat superadmin ko‘ra oladi', 403);
     const { page, limit, q, status } = parse(
@@ -314,11 +655,14 @@ export class StaffService {
     if (status) where.status = status;
     if (q) {
       const digits = q.replace(/[\s()-]/g, '');
+      const cleanIdDigits = q.replace(/^#/, '').trim();
+      const numericPublicId = /^\d{5,8}$/.test(cleanIdDigits) ? Number(cleanIdDigits) : null;
       where.OR = [
         { name: { contains: q, mode: 'insensitive' } },
         ...(digits.length > 2 ? [{ phone: { contains: digits } }] : []),
         { login: { contains: q, mode: 'insensitive' } },
-        { email: { contains: q, mode: 'insensitive' } }
+        { email: { contains: q, mode: 'insensitive' } },
+        ...(numericPublicId !== null ? [{ publicId: numericPublicId }] : []),
       ];
     }
     const [users, total] = await Promise.all([
@@ -329,6 +673,7 @@ export class StaffService {
         orderBy: { createdAt: 'desc' },
         select: {
           id: true,
+          publicId: true,
           name: true,
           phone: true,
           email: true,
@@ -387,6 +732,7 @@ export class StaffService {
       );
       return {
         ...u,
+        publicId: resolveUserPublicId(u),
         email: u.email ?? (u.login?.includes('@') ? u.login : null),
         avatarUrl: u.avatarUrl ?? null,
         isOnline,
@@ -514,6 +860,7 @@ export class StaffService {
         },
         select: {
           id: true,
+          publicId: true,
           kind: true,
           status: true,
           name: true,
@@ -534,7 +881,7 @@ export class StaffService {
         { name: target.name, phone: target.phone, login: target.login, email: target.email, hasAvatar: Boolean(target.avatarUrl) },
         { name: updated.name, phone: updated.phone, login: updated.login, email: updated.email, hasAvatar: Boolean(updated.avatarUrl) },
       );
-      return updated;
+      return { ...updated, publicId: resolveUserPublicId(updated) };
     });
   }
 

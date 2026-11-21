@@ -9,6 +9,7 @@ import { Sms } from './sms';
 import { EmailService } from './email';
 import { Actor, effective } from './permissions';
 import { normalizeAvatarInput } from './avatar.util';
+import { allocateUserPublicId, resolveUserPublicId } from './public-id.util';
 
 export const phoneSchema = z.string().transform(v => v.replace(/[\s()-]/g, '')).pipe(z.string().regex(/^\+998\d{9}$/));
 export const loginSchema = z.string().trim().toLowerCase().min(3).max(64).regex(/^[a-z0-9._@-]+$/);
@@ -50,7 +51,19 @@ export class AuthService implements OnModuleInit {
   async onModuleInit() {
     if (typeof (this.db as unknown as { $executeRawUnsafe?: unknown })?.$executeRawUnsafe !== 'function') return;
     try {
-      await this.db.$executeRawUnsafe('ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "avatarUrl" TEXT, ADD COLUMN IF NOT EXISTS "email" TEXT');
+      await this.db.$executeRawUnsafe('ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "avatarUrl" TEXT, ADD COLUMN IF NOT EXISTS "email" TEXT, ADD COLUMN IF NOT EXISTS "publicId" INTEGER');
+      if (typeof (this.db as unknown as { user?: { findMany?: unknown; update?: unknown } })?.user?.findMany === 'function') {
+        await this.db.$executeRawUnsafe('CREATE UNIQUE INDEX IF NOT EXISTS "User_publicId_key" ON "User"("publicId")');
+        const missing = await this.db.user.findMany({
+          where: { publicId: null },
+          select: { id: true },
+          take: 500,
+        });
+        for (const row of missing) {
+          const publicId = await allocateUserPublicId(this.db, row.id);
+          await this.db.user.update({ where: { id: row.id }, data: { publicId } }).catch(() => undefined);
+        }
+      }
     } catch {
       // Schema already migrated or test mock without DDL support
     }
@@ -253,12 +266,15 @@ export class AuthService implements OnModuleInit {
         where: isEmail ? { login: identifier } : { phone: identifier },
       });
       if (!user) {
+        const publicId = await allocateUserPublicId(tx);
         user = await tx.user.create({
           data: {
+            publicId,
             kind: 'CUSTOMER',
             name: isEmail ? identifier.split('@')[0] : 'Mijoz',
             login: isEmail ? identifier : null,
             phone: isEmail ? null : identifier,
+            ...(isEmail ? { email: identifier } : {}),
           },
         });
       }
@@ -305,7 +321,7 @@ export class AuthService implements OnModuleInit {
       await this.db.session.updateMany({ where: { id: session.id, revokedAt: null }, data: { lastActivityAt: now } });
       lastActivityAt = now;
     }
-    return { id: user.id, name: user.name, phone:user.phone, email: user.email ?? (user.login?.includes('@') ? user.login : null), login:user.login, avatarUrl: user.avatarUrl ?? null, kind: user.kind, sessionId: session.id, idleTimeoutSeconds: channel === 'WEB' ? webIdleTimeoutSeconds(user.kind) : null, lastActivityAt: lastActivityAt.toISOString(), mustChangePassword: user.mustChangePassword, memberships: memberships.map(m => ({ id: m.id, sanatoriumId: m.sanatoriumId, role: m.role, status: m.status, permissions: m.status === 'ACTIVE' ? effective(m) : [], version: m.version })) };
+    return { id: user.id, publicId: resolveUserPublicId(user), name: user.name, phone:user.phone, email: user.email ?? (user.login?.includes('@') ? user.login : null), login:user.login, avatarUrl: user.avatarUrl ?? null, kind: user.kind, sessionId: session.id, idleTimeoutSeconds: channel === 'WEB' ? webIdleTimeoutSeconds(user.kind) : null, lastActivityAt: lastActivityAt.toISOString(), mustChangePassword: user.mustChangePassword, memberships: memberships.map(m => ({ id: m.id, sanatoriumId: m.sanatoriumId, role: m.role, status: m.status, permissions: m.status === 'ACTIVE' ? effective(m) : [], version: m.version })) };
   }
   async csrf(sessionId: string, token: string | undefined, origin: string | undefined) {
     if (!token || !origin || !this.config.CORS_ORIGINS.split(',').includes(origin)) fail('CSRF_INVALID', 'Sahifani yangilab qayta urinib ko‘ring', 403);
@@ -500,14 +516,16 @@ export class AuthService implements OnModuleInit {
     return this.db.atomic(async tx => {
       await lock(tx, 'bootstrap');
       if (await tx.user.count({ where: { kind: 'SUPERADMIN' } })) fail('BOOTSTRAP_DISABLED', 'Superadmin mavjud. Bootstrap yopilgan', 403);
-      const user = await tx.user.create({ data: { kind: 'SUPERADMIN', name: 'Superadmin', login, passwordHash: encoded, mfaSecret: encrypt(secret, this.config.MFA_ENCRYPTION_KEY) } });
+      const publicId = await allocateUserPublicId(tx);
+      const user = await tx.user.create({ data: { publicId, kind: 'SUPERADMIN', name: 'Superadmin', login, passwordHash: encoded, mfaSecret: encrypt(secret, this.config.MFA_ENCRYPTION_KEY) } });
       await audit(tx, user.id, 'auth.bootstrap', user.id); return this.publicUser(user);
     });
   }
-  publicUser(user: { id: string; kind: string; name: string; phone: string | null; email?: string | null; login: string | null; avatarUrl?: string | null; mustChangePassword: boolean }) {
+  publicUser(user: { id: string; publicId?: number | null; kind: string; name: string; phone: string | null; email?: string | null; login: string | null; avatarUrl?: string | null; mustChangePassword: boolean }) {
     const isEmail = user.login?.includes('@');
     return {
       id: user.id,
+      publicId: resolveUserPublicId(user),
       kind: user.kind,
       name: user.name,
       phone: user.phone,
