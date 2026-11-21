@@ -66,7 +66,8 @@ runTool(
   },
 );
 const signature = runTool(apksignerPath, ['verify', '--min-sdk-version', '21', '--verbose', '--print-certs', apk], {capture: true, includeStderr: true});
-const certificate = /(?:Signer #\d+|V\d+ Signer:)\s+certificate SHA-256 digest:\s*(\S+)/i.exec(signature)?.[1];
+const certificate = /(?:Signer #\d+|V[\d.]+ Signer:)\s*certificate SHA-256 digest:\s*([0-9a-f]{64})/i.exec(signature)?.[1]
+  ?? /certificate SHA-256 digest:\s*([0-9a-f]{64})/i.exec(signature)?.[1];
 if (!certificate || /Android Debug/i.test(signature)) {
   const summary = signature.split(/\r?\n/).slice(0, 15).join('\n');
   throw new Error(`APK release kaliti bilan imzolanmagan (${apksignerPath}).\n${summary}`.trim());
