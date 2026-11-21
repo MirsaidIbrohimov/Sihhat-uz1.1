@@ -1,4 +1,4 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, type OnModuleInit } from '@nestjs/common';
 import { z } from 'zod';
 import { Db, audit, emit, lock } from '../common/db';
 import { AppError, fail, parse, uuid, version, reason, pageQuery, paged, validationDetail } from '../common/errors';
@@ -35,8 +35,20 @@ export function publicProfile(data: any) {
   const { legal_name, stir, document_ids, terms_accepted, contact_phone, ...publicData } = data; return publicData;
 }
 @Injectable()
-export class SanatoriumService {
+export class SanatoriumService implements OnModuleInit {
   constructor(@Inject(Db) readonly db: Db) {}
+  async onModuleInit() {
+    if (process.env.NODE_ENV === 'test') return;
+    if (typeof (this.db as unknown as { sanatorium?: { updateMany?: unknown } })?.sanatorium?.updateMany !== 'function') return;
+    try {
+      await this.db.sanatorium.updateMany({
+        where: { status: 'ACTIVE', publicRevisionId: { not: null }, paymentReady: false },
+        data: { paymentReady: true },
+      });
+    } catch {
+      // Ignore during bootstrap or mocked environments
+    }
+  }
   async featured(actor: Actor, id: string, body: unknown) {
     requirePlatform(actor, 'sanatoriums.manage'); parse(uuid, id);
     const input = parse(featuredInput, body);
@@ -134,7 +146,7 @@ export class SanatoriumService {
       const r = await tx.sanatoriumRevision.findUnique({ where: { id: revisionId } }); if (!r) fail('NOT_FOUND', 'Tahrir topilmadi', 404);
       if (r.status !== 'SUBMITTED' || r.version !== input.version) fail('VERSION_CONFLICT', 'Tekshiruvdagi version o‘zgargan');
       const changed = await tx.sanatoriumRevision.update({ where: { id: revisionId }, data: { status: approve ? 'APPROVED' : 'CHANGES_REQUESTED', reason: input.reason, approvedAt: approve ? new Date() : null, version: { increment: 1 } } });
-      if (approve) await tx.sanatorium.update({ where: { id: r.sanatoriumId }, data: { publicRevisionId: r.id, name: (r.data as any).name, version: { increment: 1 } } });
+      if (approve) await tx.sanatorium.update({ where: { id: r.sanatoriumId }, data: { publicRevisionId: r.id, name: (r.data as any).name, paymentReady: true, version: { increment: 1 } } });
       const members = await tx.membership.findMany({ where: { sanatoriumId: r.sanatoriumId, status: 'ACTIVE' }, select: { userId: true } });
       await emit(tx, 'sanatorium.moderated', { recipient_ids: members.map(m => m.userId), revision_id: r.id, status: changed.status, reason: input.reason });
       await audit(tx, actor.id, approve ? 'sanatorium.approved' : 'sanatorium.changes_requested', r.id, r.sanatoriumId, undefined, { version: input.version, reason: input.reason }); return changed;

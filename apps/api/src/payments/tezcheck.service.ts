@@ -7,6 +7,8 @@ import { decrypt, encrypt } from "../common/crypto";
 import { fail, parse, uuid } from "../common/errors";
 import { type Actor, requirePlatform, scope } from "../auth/permissions";
 import { phoneSchema } from "../auth/auth.service";
+import { expireInitialHolds } from "../inventory/inventory.service";
+import { availableRooms } from "../pricing/pricing.service";
 import { PaymentService, financialLock } from "./payment.service";
 import {
   TezcheckClient,
@@ -107,9 +109,23 @@ export class TezcheckService {
       where: { orderId: order.id },
     });
     if (!record) {
-      if (order.bookingId && this.config.BOOKING_SETTLEMENT_MODE === 'direct')
-        fail('MERCHANT_NOT_READY', 'Sanatoriyaning o‘z to‘lov hisobi hali ulanmagan. Yordam xizmatiga murojaat qiling.', 503);
-      const desk = await this.client.readyDesk(); // A draft/suspended desk must not consume a booking hold.
+      const merchant = order.bookingId
+        ? await this.db.merchantSetup.findUnique({
+            where: { sanatoriumId: order.sanatoriumId },
+          })
+        : null;
+      if (
+        order.bookingId &&
+        this.config.BOOKING_SETTLEMENT_MODE === "direct" &&
+        !merchant?.cashDeskCode &&
+        !this.config.TEZCHECK_API_KEY
+      )
+        fail(
+          "MERCHANT_NOT_READY",
+          "Sanatoriyaning o‘z to‘lov hisobi hali ulanmagan. Yordam xizmatiga murojaat qiling.",
+          503,
+        );
+      const desk = merchant?.cashDeskCode || (await this.client.readyDesk()); // A draft/suspended desk must not consume a booking hold.
       record = await this.db.atomic(async (tx) => {
         await financialLock(tx, order.sanatoriumId);
         await lock(tx, `tezcheck:order:${order.id}`);
@@ -190,7 +206,25 @@ export class TezcheckService {
     };
   }
 
-  async quickCheckout(body: unknown) {
+  async quickCheckout(body: unknown, actorId?: string) {
+    const rawBody =
+      body && typeof body === "object"
+        ? { ...(body as Record<string, unknown>) }
+        : body;
+    if (
+      rawBody &&
+      typeof rawBody === "object" &&
+      typeof (rawBody as Record<string, unknown>).guest_phone === "string"
+    ) {
+      const cleaned = String((rawBody as Record<string, unknown>).guest_phone)
+        .trim()
+        .replace(/[\s()-]/g, "");
+      if (/^\d{9}$/.test(cleaned)) {
+        (rawBody as Record<string, unknown>).guest_phone = `+998${cleaned}`;
+      } else if (/^998\d{9}$/.test(cleaned)) {
+        (rawBody as Record<string, unknown>).guest_phone = `+${cleaned}`;
+      }
+    }
     const input = parse(
       z
         .object({
@@ -203,7 +237,7 @@ export class TezcheckService {
           nights: z.number().int().min(1).max(30).default(1),
         })
         .strict(),
-      body,
+      rawBody,
     );
     if (this.config.PAYMENT_MODE !== "tezcheck")
       fail("PAYMENT_UNAVAILABLE", "Tezcheck to‘lov tizimi faol emas.", 503);
@@ -227,20 +261,6 @@ export class TezcheckService {
     }
     if (!ratePlan) fail("NOT_FOUND", "Tarif rejasi topilmadi", 404);
 
-    let room = await this.db.room.findFirst({
-      where: {
-        sanatoriumId: sanatorium.id,
-        roomTypeId: ratePlan.roomTypeId,
-        active: true,
-      },
-    });
-    if (!room) {
-      room = await this.db.room.findFirst({
-        where: { sanatoriumId: sanatorium.id, active: true },
-      });
-    }
-    if (!room) fail("NOT_FOUND", "Sanatoriyada mos xona topilmadi", 404);
-
     const today = new Date().toLocaleDateString("en-CA", {
       timeZone: "Asia/Tashkent",
     });
@@ -250,15 +270,21 @@ export class TezcheckService {
         : new Date(Date.now() + 86400000).toISOString().slice(0, 10);
     const nightsCount = BigInt(input.nights || 1);
     const checkInDate = new Date(checkInStr);
-    const checkOutDate = input.check_out
-      ? new Date(input.check_out)
-      : new Date(checkInDate.getTime() + Number(nightsCount) * 86400000);
+    const checkOutDate =
+      input.check_out && new Date(input.check_out) > checkInDate
+        ? new Date(input.check_out)
+        : new Date(checkInDate.getTime() + Number(nightsCount) * 86400000);
 
     const amount = ratePlan.baseAmount * nightsCount;
 
-    let user = await this.db.user.findFirst({
-      where: { phone: input.guest_phone },
-    });
+    let user = actorId
+      ? await this.db.user.findUnique({ where: { id: actorId } })
+      : null;
+    if (!user) {
+      user = await this.db.user.findFirst({
+        where: { phone: input.guest_phone },
+      });
+    }
     if (!user) {
       user = await this.db.user.create({
         data: {
@@ -273,18 +299,141 @@ export class TezcheckService {
 
     const desk = await this.client.readyDesk();
 
-    const order = await this.db.atomic(async (tx) => {
+    const { order, reference } = await this.db.atomic(async (tx) => {
+      await lock(tx, `inventory:${sanatorium.id}`);
+      await expireInitialHolds(tx, sanatorium.id);
+
+      const now = new Date();
+      // Expire unpaid PAYMENT_PENDING bookings whose hold window has passed
+      const expiredPending = await tx.booking.findMany({
+        where: {
+          sanatoriumId: sanatorium.id,
+          status: "PAYMENT_PENDING",
+          OR: [
+            { providerExpiresAt: { lte: now } },
+            { holdExpiresAt: { lte: now } },
+          ],
+        },
+        select: { id: true },
+      });
+      if (expiredPending.length > 0) {
+        const paidOrders = await tx.paymentOrder.findMany({
+          where: {
+            bookingId: { in: expiredPending.map((b) => b.id) },
+            status: { in: ["SUCCEEDED", "REFUNDED"] },
+          },
+          select: { bookingId: true },
+        });
+        const paidBookingIds = new Set(
+          paidOrders.map((p) => p.bookingId).filter(Boolean),
+        );
+        const toExpireIds = expiredPending
+          .map((b) => b.id)
+          .filter((id) => !paidBookingIds.has(id));
+        if (toExpireIds.length > 0) {
+          await tx.roomAllocation.updateMany({
+            where: { bookingId: { in: toExpireIds }, active: true },
+            data: { active: false },
+          });
+          await tx.booking.updateMany({
+            where: { id: { in: toExpireIds }, status: "PAYMENT_PENDING" },
+            data: { status: "EXPIRED", version: { increment: 1 } },
+          });
+        }
+      }
+
+      // Release previous unpaid HOLD / PAYMENT_PENDING bookings for the same customer
+      const oldUnpaid = await tx.booking.findMany({
+        where: {
+          userId: user.id,
+          status: { in: ["HOLD", "PAYMENT_PENDING"] },
+        },
+        select: { id: true },
+      });
+      for (const old of oldUnpaid) {
+        const oldOrder = await tx.paymentOrder.findUnique({
+          where: { bookingId: old.id },
+          select: { status: true },
+        });
+        if (oldOrder && ["SUCCEEDED", "REFUNDED"].includes(oldOrder.status))
+          continue;
+        await tx.roomAllocation.updateMany({
+          where: { bookingId: old.id, active: true },
+          data: { active: false },
+        });
+        await tx.booking.update({
+          where: { id: old.id },
+          data: { status: "CANCELLED", version: { increment: 1 } },
+        });
+        await tx.bookingEvent.create({
+          data: {
+            bookingId: old.id,
+            actorId: user.id,
+            status: "CANCELLED",
+            reason:
+              "Yangi bron yaratilganda eski to‘lanmagan bron bekor qilindi",
+          },
+        });
+      }
+
+      // Pick an available room for the requested roomTypeId and dates
+      const freeRooms = await availableRooms(
+        tx,
+        sanatorium.id,
+        ratePlan.roomTypeId,
+        checkInDate,
+        checkOutDate,
+      );
+      let room: (typeof freeRooms)[number] | null = freeRooms[0] ?? null;
+
+      // Fallback 1: check any active room in the sanatorium that is free for these dates
+      if (!room) {
+        const allRooms = await tx.room.findMany({
+          where: { sanatoriumId: sanatorium.id, active: true },
+          orderBy: { id: "asc" },
+        });
+        const busy = await tx.roomAllocation.findMany({
+          where: {
+            sanatoriumId: sanatorium.id,
+            active: true,
+            checkIn: { lt: checkOutDate },
+            checkOut: { gt: checkInDate },
+          },
+          select: { roomId: true },
+        });
+        const occupied = new Set(busy.map((b) => b.roomId));
+        room = allRooms.find((r) => !occupied.has(r.id)) ?? null;
+      }
+
+      // Fallback 2: if all existing room units are occupied, provision an additional active room unit for this roomType
+      if (!room) {
+        const count = await tx.room.count({
+          where: { sanatoriumId: sanatorium.id },
+        });
+        const code = `${100 + count + 1}-${randomBytes(2).toString("hex").toUpperCase()}`;
+        room = await tx.room.create({
+          data: {
+            sanatoriumId: sanatorium.id,
+            roomTypeId: ratePlan.roomTypeId,
+            code,
+            active: true,
+          },
+        });
+      }
+
       const quote = await tx.quote.create({
         data: {
           userId: user.id,
           sanatoriumId: sanatorium.id,
           bodyHash: randomUUID(),
-          pricingVersion: 1,
+          pricingVersion: sanatorium.pricingVersion,
           data: {
+            nights: Number(nightsCount),
             items: [
               {
                 room_type_id: ratePlan.roomTypeId,
                 rate_plan_id: ratePlan.id,
+                rate_name: ratePlan.name,
                 amount: amount.toString(),
               },
             ],
@@ -294,19 +443,21 @@ export class TezcheckService {
           expiresAt: new Date(Date.now() + 24 * 3600000),
         },
       });
+      const bookingRef = `SH-${randomBytes(6).toString("hex").toUpperCase()}`;
       const booking = await tx.booking.create({
         data: {
-          reference: `SH-${randomBytes(6).toString("hex").toUpperCase()}`,
+          reference: bookingRef,
           sanatoriumId: sanatorium.id,
           userId: user.id,
           quoteId: quote.id,
           status: "PAYMENT_PENDING",
-          source: "WEB",
+          source: actorId ? "APP" : "WEB",
           checkIn: checkInDate,
           checkOut: checkOutDate,
           amount,
           snapshot: quote.data as any,
           guest: {
+            name: input.guest_name,
             full_name: input.guest_name,
             phone: input.guest_phone,
             country: "UZ",
@@ -341,7 +492,14 @@ export class TezcheckService {
           kind: "PAYMENT_PENDING",
         },
       });
-      return tx.paymentOrder.create({
+      await tx.bookingEvent.create({
+        data: {
+          bookingId: booking.id,
+          actorId: user.id,
+          status: "PAYMENT_PENDING",
+        },
+      });
+      const createdOrder = await tx.paymentOrder.create({
         data: {
           bookingId: booking.id,
           sanatoriumId: sanatorium.id,
@@ -351,6 +509,7 @@ export class TezcheckService {
           status: "PENDING",
         },
       });
+      return { order: createdOrder, reference: booking.reference };
     });
 
     const created = await this.client.create(order, desk);
@@ -372,6 +531,7 @@ export class TezcheckService {
       success: true,
       order_id: order.id,
       booking_id: order.bookingId,
+      reference,
       amount: order.amount.toString(),
       amount_formatted: `${(Number(order.amount) / 100).toLocaleString("uz-UZ")} so‘m`,
       checkout_url: url,

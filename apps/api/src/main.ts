@@ -1,19 +1,27 @@
 import { createApp } from './app';
-import { registerAfterEmitCommit } from './common/db';
+import { Db, registerAfterEmitCommit } from './common/db';
 import { OutboxService } from './outbox/outbox.service';
 import { TelegramService } from './telegram/telegram.service';
 import { TelegramClient } from './telegram/client';
 import { AppVersionService } from './catalog/app-version';
+import { TezcheckService } from './payments/tezcheck.service';
+import { PaymentService } from './payments/payment.service';
+import { BillingService } from './billing/billing.service';
+import { expireInitialHolds } from './inventory/inventory.service';
 
 async function main() {
   const { app, config } = await createApp();
   await app.listen(config.PORT, '0.0.0.0');
   console.log(`Sihhat uz API: http://0.0.0.0:${config.PORT}; Swagger: /docs`);
 
+  const db = app.get(Db);
   const outbox = app.get(OutboxService);
   const bot = app.get(TelegramService);
   const tgClient = app.get(TelegramClient);
   const appVersion = app.get(AppVersionService);
+  const tez = app.get(TezcheckService);
+  const payments = app.get(PaymentService);
+  const billing = app.get(BillingService);
 
   let pumping = false;
   let pumpAgain = false;
@@ -50,8 +58,21 @@ async function main() {
     let maintenanceAt = 0;
     const timer = setInterval(() => {
       void pump();
+      void tez.tick().catch(() => undefined);
       if (Date.now() - maintenanceAt > 60_000) {
         maintenanceAt = Date.now();
+        void (async () => {
+          const tenants = await db.booking.findMany({
+            where: { status: 'HOLD', holdExpiresAt: { lte: new Date() } },
+            select: { sanatoriumId: true },
+            distinct: ['sanatoriumId'],
+          });
+          for (const tenant of tenants) {
+            await db.atomic(tx => expireInitialHolds(tx, tenant.sanatoriumId));
+          }
+          await payments.expireProvider();
+          await billing.tick();
+        })().catch(() => undefined);
         void appVersion.checkAndAnnounceNewRelease().catch(() => undefined);
         if (config.TELEGRAM_MODE === 'webhook' && tgClient.enabled) {
           void bot.heartbeat().then(() => bot.schedule()).then(() => bot.monitor()).catch(() => undefined);

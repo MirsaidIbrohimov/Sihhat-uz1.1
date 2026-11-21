@@ -62,6 +62,16 @@ android {
         // flag during build.
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+
+        ndk {
+            abiFilters += listOf("armeabi-v7a", "arm64-v8a", "x86_64")
+        }
+    }
+
+    packaging {
+        jniLibs {
+            useLegacyPackaging = true
+        }
     }
 
     signingConfigs {
@@ -71,6 +81,10 @@ android {
                 keyPassword = releaseProperties.getProperty("keyPassword")
                 storeFile = rootProject.file(releaseProperties.getProperty("storeFile"))
                 storePassword = releaseProperties.getProperty("storePassword")
+                enableV1Signing = true
+                enableV2Signing = true
+                enableV3Signing = true
+                enableV4Signing = true
             }
         }
     }

@@ -331,4 +331,84 @@ void main() {
       },
     );
   }
+
+  testWidgets(
+    'falls back to quick-checkout when quote returns ONLINE_BOOKING_UNAVAILABLE and normalizes 9-digit phone',
+    (tester) async {
+      final quickRequests = <Json>[];
+      final api = Api(
+        baseUrl: 'http://localhost',
+        store: MemoryStore(),
+        client: MockClient((request) async {
+          if (request.url.path == '/customer/quotes') {
+            return http.Response(
+              jsonEncode({
+                'code': 'ONLINE_BOOKING_UNAVAILABLE',
+                'message': 'Onlayn bron hozir mavjud emas',
+              }),
+              409,
+            );
+          }
+          if (request.url.path == '/payments/quick-checkout') {
+            quickRequests.add(asJson(jsonDecode(request.body)));
+            return http.Response(
+              jsonEncode({
+                'success': true,
+                'order_id': 'order-quick-1',
+                'booking_id': 'booking-quick-1',
+                'reference': 'SH-QUICK1',
+                'amount': '20000',
+                'checkout_url': 'https://tezcheck.uz/pay/test-link',
+              }),
+              201,
+            );
+          }
+          return http.Response(
+            jsonEncode({
+              'id': 'booking-quick-1',
+              'reference': 'SH-QUICK1',
+              'status': 'PAYMENT_PENDING',
+              'amount': '20000',
+              'checkIn': '2026-10-10',
+              'checkOut': '2026-10-12',
+              'guest': {'name': 'Test mehmon', 'phone': '+998901234567'},
+              'items': <Json>[],
+            }),
+            200,
+          );
+        }),
+      );
+      await api.tokens({
+        'access_token': 'saved-access',
+        'refresh_token': 'saved-refresh',
+        'user': {
+          'id': 'customer',
+          'name': 'Test mehmon',
+          'phone': '901234567',
+        },
+      });
+      await tester.pumpWidget(
+        MaterialApp(home: BookingComposer(api, sanatorium)),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('To‘lovga o‘tish'));
+      await tester.pumpAndSettle();
+      final accept = find.text('Shartlarni o‘qidim va qabul qilaman');
+      await tester.scrollUntilVisible(
+        accept,
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(accept);
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(FilledButton, 'Bronni tasdiqlash'));
+      await tester.pumpAndSettle();
+      expect(quickRequests.length, 1);
+      expect(quickRequests.single['guest_phone'], '+998901234567');
+      expect(find.byType(BookingScreen), findsOneWidget);
+      await tester.pumpWidget(const SizedBox.shrink());
+      api.client.close();
+    },
+  );
 }

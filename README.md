@@ -6,7 +6,7 @@
 
 Sanatoriyalar uchun bron platformasi: NestJS/PostgreSQL backend, superadmin sayti, direktor/resepsion/hisobchi sayti, xodimlar Telegram boti va Flutter Android ilovasi.
 
-Kanonik repozitoriya: [MirsaidIbrohimov/Sihhat-uz1.1](https://github.com/MirsaidIbrohimov/Sihhat-uz1.1). Yangilangan: **2026-11-15**. O‘zgarishlar lokal saqlanadi; GitHubga foydalanuvchining aniq topshirig‘i bilan yuklanadi.
+Kanonik repozitoriya: [MirsaidIbrohimov/Sihhat-uz1.1](https://github.com/MirsaidIbrohimov/Sihhat-uz1.1). Yangilangan: **2026-11-21**. O‘zgarishlar lokal saqlanadi; GitHubga foydalanuvchining aniq topshirig‘i bilan yuklanadi.
 
 [Kerakli dasturlar va kutubxonalar](#kerakli-dasturlar-va-kutubxonalar),
 [ishga tushirish tartibi](#lokal-ishga-tushirish) va [tayyor APK](#tayyor-apk)
@@ -71,7 +71,7 @@ sanatoriyalar ko‘rinadi. Joriy APK va USB orqali ishlatish tartibi
 | Superadmin | Sanatoriyalar jadvalidagi Mashhur tick tanlovi, **Ilova foydalanuvchilari**da mijozlar profil rasmlarini ko‘rish, rasmni o‘chirish/yuklash, ma’lumotlarni tahrirlash va sessiyalarini yopish, **Mening hisobim**da superadmin ogohlantirish emailini qo‘shish/tahrirlash, jamoa/ruxsatlar, moliya va operatsion sahifalar |
 | Hamkorlar sayti | Direktor/resepsion/hisobchi ruxsatlari (yangi xodim qo‘shishda loginni baza bilan jonli tekshirish va tasdiqlash), kirish sahifasida **Parolni unutdingizmi?** (superadmin Email + Telegram botiga darhol xabar), xona va tariflar, kalendar, qo‘lda bron, check-in/out; barcha hamkor rollari va sanatoriya anketasi uchun 9 bo‘limli **Hamkor shartlari** (`2026-11-15`) va rolga ko‘ra ko‘rsatiladigan bo‘lim havolalari (`canAccessSection`) hamda B2C saytda 4 tabli **Foydalanuvchi shartlari va nizomlari** oynasi |
 | Telegram bot | Admin/direktor/resepsion menyulari, sayt orqali tasdiqlangan hisob (API va worker alohida ishlaganda ham, Render `webhook` rejimida `startupSync()` orqali ham), parol tiklash / 5+ xato parol urinishi / to‘lov xatosi / SMS uzilishi / moderatsiya / bank rekviziti ogohlantirishlari, bron/qidiruv/check-in-out, xonalar, hisobot, vazifa va murojaatlar |
-| Android | Yangi UI, Email OTP kirish va qo‘sh-OTP telefon tasdiqlash, yagona ikonkalar, reklama/tanlangan sanatoriyalar joyi, kunduzgi/tungi rejim, offline katalog/bron/QR, kirish/profil/bron sahifalaridan ochiladigan 4 tabli **Shartlar va nizomlar** (`Ommaviy oferta`, `Maxfiylik siyosati`, `Qaytarish shartlari`, `AI va Chat`) ekrani hamda eski ilovalarga avtomatik **«Eng so‘nggi versiyani yuklab oling»** tizim bildirishnomasi + ilova ichidagi yangilanish oynasi va banneri (`NotificationSyncJobService`, `AppUpdateService`, `0.2.6+9`) |
+| Android | Yangi UI, Email OTP kirish va qo‘sh-OTP telefon tasdiqlash, yagona ikonkalar, reklama/tanlangan sanatoriyalar joyi, kunduzgi/tungi rejim, offline katalog/bron/QR, kirish/profil/bron sahifalaridan ochiladigan 4 tabli **Shartlar va nizomlar** (`Ommaviy oferta`, `Maxfiylik siyosati`, `Qaytarish shartlari`, `AI va Chat`) ekrani, eski ilovalarga avtomatik **«Eng so‘nggi versiyani yuklab oling»** tizim bildirishnomasi + ilova ichidagi yangilanish oynasi (`0.2.7+10`), barcha Android telefonlar uchun universal `v1+v2+v3` imzoli `extractNativeLibs` APK (`~30.9 MB`) hamda iPhone (iOS) uchun App Store’siz Safari PWA o‘rnatish |
 | Gemini | Haqiqiy ulanish, rozilik, raqam/email niqobi, katalog/FAQ, limit va token sarfi; admin uchun davr/model bo‘yicha sarf va sozlangan narxga asoslangan taxminiy USD hisobot |
 | Tezcheck | 2026-10-08 rasmiy signed o‘qish tekshiruvida kassa `active`, `accepts_payments=true`; usullar va balans API ishlaydi. Haqiqiy checkout/webhook hamda har sanatoriyaning direct merchant qabuli hali bajarilmagan |
 | Eskiz | SMS API autentifikatsiyasi va standart test SMSi tekshirildi; foydalanuvchi yetib kelganini tasdiqladi. Haqiqiy OTP uchun hisob va matn hali tayyor emas |
@@ -417,10 +417,11 @@ Batafsil misollar [mobil README](apps/mobile/README.md) va
 
 ## Tayyor APK
 
-Rasmiy online release: **[0.2.5 (build 8)](ilova/README.md)** (`2026-11-15`, `v0.2.5-b8`, `https://sihhat-api.onrender.com`; keyingi `0.2.6+9` avtomatik yangilanish xabarnomasi kodi lokalda tayyorlangan):
+Rasmiy online release: **[0.2.7 (build 10)](ilova/README.md)** (`2026-11-21`, `v0.2.7-b10`, `https://sihhat-api.onrender.com`, universal `armeabi-v7a` + `arm64-v8a` + `x86_64`, `v1+v2+v3` imzo, `32,390,782` bayt / ~30.9 MB):
 - **Sayt orqali (doim eng so‘nggi versiya):** [sihhat.uz/api/download/apk](https://www.sihhat.uz/api/download/apk)
 - **GitHub Releases:** [releases/latest](https://github.com/MirsaidIbrohimov/Sihhat-uz1.1/releases/latest)
-- **SHA-256 nazorat summasi:** [ilova/SHA256SUMS.txt](ilova/SHA256SUMS.txt) (`84574cfb28e69c46167b08b56b56c4aefd237629319f52267852e938f2e13d85`)
+- **SHA-256 nazorat summasi:** [ilova/SHA256SUMS.txt](ilova/SHA256SUMS.txt) (`1fdda14ca8e16e1838da0c981ecbad352c167d6b9fb1efb74985a558326aa005`)
+- **iOS (iPhone / iPad) uchun App Store’siz o‘rnatish:** Safari brauzerida `https://www.sihhat.uz` -> **Ulashish (Share)** -> **«Asosiy ekranga qo‘shish» (Add to Home Screen)** (PWA manifest va `appleWebApp` qo‘llab-quvvatlanadi).
 - **Avtomatik yangilanish xabarnomasi:** GitHub Releases'da yangi tag (`v<versiya>-b<build>`) e’lon qilinishi bilan backend (`AppVersionService`) mavjud foydalanuvchilarga `app.update` xabarnomasini yuboradi, mobil ilova esa fon (`NotificationSyncJobService`) va bosh ekran/profil (`AppUpdateService`) orqali eski versiya egalariga «Eng so‘nggi versiyani yuklab oling» tugmasi bilan xabar beradi.
 
 Oldingi **0.1.1 (build 2)** imzolangan demo:

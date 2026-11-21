@@ -6,6 +6,7 @@
     <application
         android:label="Sihhat.uz"
         android:allowBackup="false"
+        android:extractNativeLibs="true"
         android:usesCleartextTraffic="false"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">

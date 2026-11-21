@@ -86,7 +86,7 @@ model Sanatorium {
   pricingVersion Int @default(1)
   version Int @default(1)
   bankRevisionId String? @db.Uuid
-  paymentReady Boolean @default(false)
+  paymentReady Boolean @default(true)
   featuredOnHome Boolean @default(false)
   subscriptionRequired Boolean @default(false)
   createdAt DateTime @default(now())

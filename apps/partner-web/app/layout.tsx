@@ -4,6 +4,12 @@ export const metadata: Metadata = {
   title: "Sihhat.uz · Sanatoriya",
   description: "Sihhat.uz sanatoriya paneli",
   robots: { index: false, follow: false },
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "Sihhat.uz",
+  },
   icons: { icon: "/favicon.png", apple: "/apple-touch-icon.png" },
 };
 export default function Layout({ children }: { children: React.ReactNode }) {

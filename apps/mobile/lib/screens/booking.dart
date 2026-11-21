@@ -97,6 +97,69 @@ class _BookingComposerState extends State<BookingComposer> {
     accepted = false;
     error = null;
   });
+
+  String _normalizePhone(String raw) {
+    final cleaned = raw.trim().replaceAll(RegExp(r'[\s()-]'), '');
+    if (RegExp(r'^\d{9}$').hasMatch(cleaned)) return '+998$cleaned';
+    if (RegExp(r'^998\d{9}$').hasMatch(cleaned)) return '+$cleaned';
+    return cleaned;
+  }
+
+  Json _fallbackLocalQuote() {
+    final rates = rows(widget.sanatorium['rate_plans']);
+    final types = rows(widget.sanatorium['room_types']);
+    final nightsCount = dates.duration.inDays.clamp(1, 90);
+    var total = BigInt.zero;
+    final quoteItems = <Json>[];
+    final policies = <String, Json>{};
+    for (final item in items) {
+      final r = rates.firstWhere(
+        (r) => r['id'] == item['rate_id'],
+        orElse: () => rates.first,
+      );
+      final t = types.firstWhere(
+        (t) => t['id'] == r['roomTypeId'],
+        orElse: () => <String, dynamic>{'name': r['name'] ?? 'Xona'},
+      );
+      final base =
+          BigInt.tryParse((r['baseAmount'] ?? '0').toString()) ?? BigInt.zero;
+      final mode = r['mode']?.toString() ?? 'ROOM';
+      final adults = (item['adults'] as int?) ?? 1;
+      final perNight = mode == 'PERSON' ? base * BigInt.from(adults) : base;
+      final amount = perNight * BigInt.from(nightsCount);
+      total += amount;
+      quoteItems.add({
+        'room_type_id': r['roomTypeId'],
+        'rate_plan_id': r['id'],
+        'room_type_name': t['name'] ?? r['name'] ?? 'Xona',
+        'rate_name': r['name'] ?? 'Tarif',
+        'adults': adults,
+        'children_ages': List<int>.from(item['children'] as List? ?? const []),
+        'amount': amount.toString(),
+      });
+      final pol = r['policy'] is Map ? asJson(r['policy']) : null;
+      final polId = (pol?['id'] ?? r['policyId'] ?? 'default-policy')
+          .toString();
+      policies[polId] = {
+        'id': polId,
+        'name': pol?['name'] ?? '24 soat oldin bepul bekor qilish',
+        'kind': pol?['kind'] ?? 'FULL_BEFORE_CUTOFF',
+        'cutoff_hours': pol?['cutoffHours'] ?? pol?['cutoff_hours'] ?? 24,
+      };
+    }
+    return {
+      'id': 'quick-checkout-quote',
+      'is_quick_checkout': true,
+      'amount': total.toString(),
+      'data': {
+        'nights': nightsCount,
+        'items': quoteItems,
+        'policies': policies.values.toList(),
+        'total_amount': total.toString(),
+      },
+    };
+  }
+
   Future<void> calculate() async {
     if (busy) return;
     if (dates.duration.inDays < 1) {
@@ -113,14 +176,34 @@ class _BookingComposerState extends State<BookingComposer> {
     try {
       if (!await ensureLogin(context, widget.api)) return;
       if (!mounted) return;
-      final result = asJson(
-        await widget.api.send(
-          '/customer/quotes',
-          method: 'POST',
-          body: request(),
-        ),
-      );
-      if (mounted) setState(() => quote = result);
+      final p = await widget.api.cachedProfile();
+      if (p != null && mounted) {
+        if (name.text.trim().isEmpty &&
+            p['name'] != null &&
+            p['name'] != 'Mijoz') {
+          name.text = p['name'].toString();
+        }
+        if ((phone.text.trim().isEmpty || phone.text.trim() == '+998') &&
+            p['phone'] != null) {
+          phone.text = p['phone'].toString();
+        }
+      }
+      try {
+        final result = asJson(
+          await widget.api.send(
+            '/customer/quotes',
+            method: 'POST',
+            body: request(),
+          ),
+        );
+        if (mounted) setState(() => quote = result);
+      } on ApiException catch (e) {
+        if (e.code == 'ONLINE_BOOKING_UNAVAILABLE') {
+          if (mounted) setState(() => quote = _fallbackLocalQuote());
+        } else {
+          rethrow;
+        }
+      }
     } catch (e) {
       if (mounted) {
         setState(
@@ -136,43 +219,121 @@ class _BookingComposerState extends State<BookingComposer> {
     }
   }
 
+  Future<void> _holdViaQuickCheckout(String normalizedPhone) async {
+    final firstItem = items.first;
+    final quick = asJson(
+      await widget.api.send(
+        '/payments/quick-checkout',
+        method: 'POST',
+        body: {
+          'sanatorium_id': widget.sanatorium['id'],
+          'rate_plan_id': firstItem['rate_id'],
+          'guest_name': name.text.trim(),
+          'guest_phone': normalizedPhone,
+          'check_in': dateOnly(dates.start),
+          'check_out': dateOnly(dates.end),
+          'nights': dates.duration.inDays.clamp(1, 30),
+        },
+      ),
+    );
+    final bookingId = (quick['booking_id'] ?? quick['order_id']).toString();
+    final ref =
+        (quick['reference'] ??
+                'SH-${bookingId.substring(0, bookingId.length.clamp(0, 6)).toUpperCase()}')
+            .toString();
+    final checkoutInfo = <String, dynamic>{
+      'order_id': quick['order_id'],
+      'amount': (quick['amount'] ?? quote!['amount']).toString(),
+      'mode': 'tezcheck',
+      'checkout_url': quick['checkout_url'],
+    };
+    final localBooking = <String, dynamic>{
+      'id': bookingId,
+      'reference': ref,
+      'sanatoriumId': widget.sanatorium['id'],
+      'sanatorium_name': widget.sanatorium['name'],
+      'status': 'PAYMENT_PENDING',
+      'amount': (quick['amount'] ?? quote!['amount']).toString(),
+      'checkIn': dateOnly(dates.start),
+      'checkOut': dateOnly(dates.end),
+      'createdAt': DateTime.now().toUtc().toIso8601String(),
+      'guest': {'name': name.text.trim(), 'phone': normalizedPhone},
+      'items': rows(quote!['data']?['items']).map((i) {
+        return {
+          'adults': i['adults'] ?? 1,
+          'childrenAges': i['children_ages'] ?? const <int>[],
+          'amount': i['amount'] ?? (quick['amount'] ?? quote!['amount']),
+        };
+      }).toList(),
+    };
+    await BookingCache(widget.api).remember(localBooking);
+    await widget.api.pendingBooking(bookingId);
+    if (mounted) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (_) => BookingScreen(
+            widget.api,
+            bookingId,
+            initialCheckout: checkoutInfo,
+          ),
+        ),
+      );
+    }
+  }
+
   Future<void> hold() async {
     if (busy) return;
+    final normalizedPhone = _normalizePhone(phone.text);
     if (name.text.trim().length < 2 ||
-        !RegExp(r'^\+998\d{9}$').hasMatch(phone.text.trim())) {
+        !RegExp(r'^\+998\d{9}$').hasMatch(normalizedPhone)) {
       setState(
         () => error = 'Mehmon ismi va +998 bilan telefonni to‘liq kiriting.',
       );
       return;
     }
+    phone.text = normalizedPhone;
     setState(() {
       busy = true;
       error = null;
     });
     try {
-      final result = asJson(
-        await widget.api.send(
-          '/customer/bookings/hold',
-          method: 'POST',
-          body: {
-            'quote_id': quote!['id'],
-            'accepted_policy_versions': rows(quote!['data']['policies'])
-                .map((p) => p['id'])
-                .toList(),
-            'guest': {'name': name.text.trim(), 'phone': phone.text.trim()},
-          },
-        ),
-      );
-      await BookingCache(widget.api)
-          .remember({...result, 'sanatorium_name': widget.sanatorium['name']});
-      await widget.api.pendingBooking(result['id']);
-      if (mounted) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (_) => BookingScreen(widget.api, result['id']),
+      if (quote!['is_quick_checkout'] == true) {
+        await _holdViaQuickCheckout(normalizedPhone);
+        return;
+      }
+      try {
+        final result = asJson(
+          await widget.api.send(
+            '/customer/bookings/hold',
+            method: 'POST',
+            body: {
+              'quote_id': quote!['id'],
+              'accepted_policy_versions': rows(quote!['data']['policies'])
+                  .map((p) => p['id'])
+                  .toList(),
+              'guest': {'name': name.text.trim(), 'phone': normalizedPhone},
+            },
           ),
         );
+        await BookingCache(
+          widget.api,
+        ).remember({...result, 'sanatorium_name': widget.sanatorium['name']});
+        await widget.api.pendingBooking(result['id']);
+        if (mounted) {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (_) => BookingScreen(widget.api, result['id']),
+            ),
+          );
+        }
+      } on ApiException catch (e) {
+        if (e.code == 'ONLINE_BOOKING_UNAVAILABLE') {
+          await _holdViaQuickCheckout(normalizedPhone);
+        } else {
+          rethrow;
+        }
       }
     } catch (e) {
       if (mounted) setState(() => error = e.toString());
@@ -828,7 +989,8 @@ class _BookingsScreenState extends State<BookingsScreen>
 class BookingScreen extends StatefulWidget {
   final Api api;
   final String id;
-  const BookingScreen(this.api, this.id, {super.key});
+  final Json? initialCheckout;
+  const BookingScreen(this.api, this.id, {this.initialCheckout, super.key});
   @override
   State<BookingScreen> createState() => _BookingScreenState();
 }
@@ -844,6 +1006,7 @@ class _BookingScreenState extends State<BookingScreen>
   @override
   void initState() {
     super.initState();
+    checkout = widget.initialCheckout;
     WidgetsBinding.instance.addObserver(this);
     initial();
     timer = Timer.periodic(const Duration(seconds: 1), (t) {
@@ -873,10 +1036,33 @@ class _BookingScreenState extends State<BookingScreen>
     if (state == AppLifecycleState.resumed) refresh();
   }
 
+  Future<void> _openCheckoutUrl(String? rawUrl) async {
+    if (rawUrl == null || rawUrl.isEmpty) return;
+    final url = Uri.tryParse(rawUrl);
+    if (url == null ||
+        url.scheme != 'https' ||
+        !await launchUrl(url, mode: LaunchMode.externalApplication)) {
+      throw const ApiException(
+        'CHECKOUT_OPEN_FAILED',
+        'To‘lov sahifasini ochib bo‘lmadi. Qayta urinib ko‘ring.',
+      );
+    }
+  }
+
   Future<void> initial() async {
     final saved = await BookingCache(widget.api).cached(widget.id);
     if (!mounted) return;
     if (saved != null) setState(() => booking = saved);
+    if (widget.initialCheckout != null &&
+        widget.initialCheckout!['checkout_url'] != null) {
+      try {
+        await _openCheckoutUrl(
+          widget.initialCheckout!['checkout_url']?.toString(),
+        );
+      } catch (e) {
+        if (mounted) setState(() => error = e.toString());
+      }
+    }
     await refresh();
     if (mounted &&
         booking != null &&
@@ -890,12 +1076,21 @@ class _BookingScreenState extends State<BookingScreen>
       refreshing ??= _refresh().whenComplete(() => refreshing = null);
   Future<void> _refresh() async {
     try {
-      if (checkout?['mode'] == 'tezcheck') {
-        await widget.api.send(
-          '/payments/${checkout!['order_id']}/refresh',
-          method: 'POST',
-          body: {},
-        );
+      if (checkout?['mode'] == 'tezcheck' && checkout?['order_id'] != null) {
+        try {
+          final statusRes = asJson(
+            await widget.api.send(
+              '/payments/${checkout!['order_id']}/refresh',
+              method: 'POST',
+              body: {},
+            ),
+          );
+          if (statusRes['status'] == 'SUCCEEDED' && booking != null) {
+            final updated = {...booking!, 'status': 'CONFIRMED'};
+            await BookingCache(widget.api).remember(updated);
+            if (mounted) setState(() => booking = updated);
+          }
+        } catch (_) {}
       }
       final r = await BookingCache(widget.api).refresh(widget.id);
       if (!['HOLD', 'PAYMENT_PENDING'].contains(r['status']) ||
@@ -917,10 +1112,21 @@ class _BookingScreenState extends State<BookingScreen>
           offline =
               e is ApiException &&
               ['NETWORK_ERROR', 'NETWORK_TIMEOUT'].contains(e.code);
-          if (e is ApiException && [401, 403, 404].contains(e.status)) {
+          if (e is ApiException && [401, 403].contains(e.status)) {
+            booking = null;
+          } else if (e is ApiException &&
+              e.status == 404 &&
+              widget.initialCheckout == null) {
             booking = null;
           }
-          error = offline && booking != null ? null : e.toString();
+          error =
+              (offline ||
+                      (e is ApiException &&
+                          e.status == 404 &&
+                          widget.initialCheckout != null)) &&
+                  booking != null
+              ? null
+              : e.toString();
         });
       }
     }
@@ -945,24 +1151,70 @@ class _BookingScreenState extends State<BookingScreen>
     setState(() => busy = true);
     try {
       await widget.api.pendingBooking(widget.id);
-      final r = asJson(
-        await widget.api.send(
-          '/customer/bookings/${widget.id}/checkout',
-          method: 'POST',
-          body: {},
-        ),
-      );
+      if (checkout != null &&
+          checkout!['mode'] != 'local' &&
+          checkout!['checkout_url'] != null &&
+          widget.initialCheckout != null) {
+        await _openCheckoutUrl(checkout!['checkout_url']?.toString());
+        return;
+      }
+      Json r;
+      try {
+        r = asJson(
+          await widget.api.send(
+            '/customer/bookings/${widget.id}/checkout',
+            method: 'POST',
+            body: {},
+          ),
+        );
+      } on ApiException catch (e) {
+        if ((e.code == 'MERCHANT_NOT_READY' ||
+                e.code == 'ONLINE_BOOKING_UNAVAILABLE') &&
+            booking != null) {
+          final checkInStr = booking!['checkIn'].toString().substring(0, 10);
+          final checkOutStr = booking!['checkOut'].toString().substring(0, 10);
+          final nightsCount = DateTime.parse(checkOutStr)
+              .difference(DateTime.parse(checkInStr))
+              .inDays
+              .clamp(1, 30);
+          final firstItem = rows(booking!['items']).isNotEmpty
+              ? rows(booking!['items']).first
+              : null;
+          final quick = asJson(
+            await widget.api.send(
+              '/payments/quick-checkout',
+              method: 'POST',
+              body: {
+                'sanatorium_id': booking!['sanatoriumId'],
+                if (firstItem?['ratePlanId'] != null)
+                  'rate_plan_id': firstItem!['ratePlanId'],
+                'guest_name':
+                    (booking!['guest']?['name'] ??
+                            booking!['guest']?['full_name'] ??
+                            'Mehmon')
+                        .toString(),
+                'guest_phone': (booking!['guest']?['phone'] ?? '+998901234567')
+                    .toString(),
+                'check_in': checkInStr,
+                'check_out': checkOutStr,
+                'nights': nightsCount,
+              },
+            ),
+          );
+          r = {
+            'order_id': quick['order_id'],
+            'amount': (quick['amount'] ?? booking!['amount']).toString(),
+            'mode': 'tezcheck',
+            'checkout_url': quick['checkout_url'],
+          };
+        } else {
+          rethrow;
+        }
+      }
       if (!mounted) return;
       setState(() => checkout = r);
       if (r['mode'] != 'local') {
-        final url = Uri.parse(r['checkout_url']);
-        if (url.scheme != 'https' ||
-            !await launchUrl(url, mode: LaunchMode.externalApplication)) {
-          throw const ApiException(
-            'CHECKOUT_OPEN_FAILED',
-            'To‘lov sahifasini ochib bo‘lmadi. Qayta urinib ko‘ring.',
-          );
-        }
+        await _openCheckoutUrl(r['checkout_url']?.toString());
       }
     } catch (e) {
       if (mounted) setState(() => error = e.toString());

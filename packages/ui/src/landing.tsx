@@ -487,6 +487,7 @@ export function LandingPage() {
   const [checkoutLoading, setCheckoutLoading] = useState(false);
   const [checkoutError, setCheckoutError] = useState("");
   const [checkoutSuccessUrl, setCheckoutSuccessUrl] = useState("");
+  const [checkoutReference, setCheckoutReference] = useState("");
 
   // AI Assistant chat state
   const [aiInputText, setAiInputText] = useState("");
@@ -760,6 +761,7 @@ export function LandingPage() {
     setActiveModal({ type: "checkout", item, ratePlan });
     setCheckoutError("");
     setCheckoutSuccessUrl("");
+    setCheckoutReference("");
     if (ratePlan) {
       setCheckoutSelectedRateId(ratePlan.id);
     } else if (item.rate_plans && item.rate_plans.length > 0) {
@@ -937,7 +939,28 @@ export function LandingPage() {
     setBookingLookupError("");
     setBookingLookupResult(null);
 
+    const cleanedPhone = query.replace(/[\s()-]/g, "");
     try {
+      try {
+        const savedRaw = localStorage.getItem("sihhat-web-bookings");
+        const savedList = savedRaw ? JSON.parse(savedRaw) : [];
+        if (Array.isArray(savedList)) {
+          const localMatch = savedList.find(
+            (b: any) =>
+              b?.reference?.toLowerCase() === query.toLowerCase() ||
+              b?.booking_id?.toLowerCase() === query.toLowerCase() ||
+              (cleanedPhone.length >= 7 &&
+                String(b?.guest?.phone || "").includes(cleanedPhone)),
+          );
+          if (localMatch) {
+            setBookingLookupResult(localMatch);
+            return;
+          }
+        }
+      } catch {
+        // Ignore storage read issues
+      }
+
       const res = await fetch(`/api/customer/bookings`);
       if (res.ok) {
         const data = await res.json();
@@ -945,7 +968,7 @@ export function LandingPage() {
         const found = items.find(
           (b: any) =>
             b.reference?.toLowerCase() === query.toLowerCase() ||
-            b.guest?.phone?.includes(query.replace(/[\s()-]/g, "")),
+            b.guest?.phone?.includes(cleanedPhone),
         );
         if (found) {
           setBookingLookupResult(found);
@@ -960,8 +983,8 @@ export function LandingPage() {
           sanatorium_name: "Zomin Sog'lomlik Maskani",
           status: "PAYMENT_PENDING",
           amount: 500000,
-          checkIn: "2026-11-05",
-          checkOut: "2026-11-06",
+          checkIn: "2026-11-25",
+          checkOut: "2026-11-26",
           guest: { full_name: "Mehmon", phone: query },
         });
       } else {
@@ -1963,7 +1986,7 @@ export function LandingPage() {
                 style={{ marginBottom: "1rem" }}
               >
                 <Smartphone size={14} />
-                <span>Sihhat.uz Rasmiy Android Ilovasi · v0.2.5</span>
+                <span>Sihhat.uz Rasmiy Mobil Ilovasi · v0.2.7 (Android & iOS)</span>
               </div>
 
               <h2
@@ -2028,6 +2051,19 @@ export function LandingPage() {
                   <Download size={18} />
                   <span>Android APK yuklab olish</span>
                 </a>
+
+                <button
+                  type="button"
+                  onClick={() => setActiveModal("download")}
+                  className="l-btn-ghost"
+                  style={{
+                    color: "#eefaf6",
+                    borderColor: "rgba(143, 245, 220, 0.35)",
+                  }}
+                >
+                  <Smartphone size={16} />
+                  <span>iOS (iPhone) uchun o‘rnatish</span>
+                </button>
 
                 <a
                   href={APK_RELEASE_URL}
@@ -2727,8 +2763,20 @@ export function LandingPage() {
                       <Check size={34} />
                     </div>
                     <h4 style={{ fontSize: "1.2rem", margin: "0 0 0.5rem" }}>
-                      TezCheck sahifasi ochildi!
+                      Bron yaratildi! To‘lovga o‘ting
                     </h4>
+                    {checkoutReference && (
+                      <p
+                        style={{
+                          margin: "0 0 0.65rem",
+                          fontSize: "0.95rem",
+                          color: "var(--l-neon)",
+                          fontWeight: 800,
+                        }}
+                      >
+                        Bron kodi: {checkoutReference}
+                      </p>
+                    )}
                     <p
                       style={{
                         color: "var(--l-muted)",
@@ -2746,7 +2794,7 @@ export function LandingPage() {
                       className="l-btn-neon"
                       style={{ padding: "0.8rem 1.6rem" }}
                     >
-                      <span>To‘lov sahifasiga qaytadan o‘tish</span>
+                      <span>TezCheck to‘lov sahifasini ochish</span>
                       <ExternalLink size={18} />
                     </a>
                   </div>
@@ -2757,6 +2805,23 @@ export function LandingPage() {
                       setCheckoutError("");
                       setCheckoutLoading(true);
                       try {
+                        let cleanedPhone = checkoutGuestPhone
+                          .trim()
+                          .replace(/[\s()-]/g, "");
+                        if (/^\d{9}$/.test(cleanedPhone)) {
+                          cleanedPhone = `+998${cleanedPhone}`;
+                        } else if (/^998\d{9}$/.test(cleanedPhone)) {
+                          cleanedPhone = `+${cleanedPhone}`;
+                        }
+                        if (
+                          checkoutGuestName.trim().length < 2 ||
+                          !/^\+998\d{9}$/.test(cleanedPhone)
+                        ) {
+                          throw new Error(
+                            "Ism-familiya va +998 bilan 9 xonali telefon raqamni to‘g‘ri kiriting",
+                          );
+                        }
+                        const nightsNum = Math.max(1, Number(checkoutNights) || 1);
                         const res = await fetch("/api/payments/quick-checkout", {
                           method: "POST",
                           headers: { "Content-Type": "application/json" },
@@ -2764,11 +2829,9 @@ export function LandingPage() {
                             sanatorium_id: activeModal.item.id,
                             rate_plan_id: checkoutSelectedRateId || undefined,
                             guest_name: checkoutGuestName.trim(),
-                            guest_phone: checkoutGuestPhone
-                              .trim()
-                              .replace(/[\s()-]/g, ""),
+                            guest_phone: cleanedPhone,
                             check_in: checkoutCheckIn,
-                            nights: Number(checkoutNights) || 1,
+                            nights: nightsNum,
                           }),
                         });
                         const json = await res.json();
@@ -2778,7 +2841,45 @@ export function LandingPage() {
                               "To'lov hisobini yaratishda xatolik yuz berdi",
                           );
                         }
+                        const refCode =
+                          json.reference || json.booking_id || "SH-BRON";
+                        setCheckoutReference(refCode);
                         setCheckoutSuccessUrl(json.checkout_url);
+                        try {
+                          const checkOutDate = new Date(
+                            new Date(checkoutCheckIn).getTime() +
+                              nightsNum * 86400000,
+                          )
+                            .toISOString()
+                            .slice(0, 10);
+                          const savedRaw =
+                            localStorage.getItem("sihhat-web-bookings");
+                          const prev = savedRaw ? JSON.parse(savedRaw) : [];
+                          const nextEntry = {
+                            reference: refCode,
+                            booking_id: json.booking_id,
+                            order_id: json.order_id,
+                            sanatorium_name: activeModal.item.name,
+                            status: "PAYMENT_PENDING",
+                            amount: Number(json.amount) || 500000,
+                            checkIn: checkoutCheckIn,
+                            checkOut: checkOutDate,
+                            checkout_url: json.checkout_url,
+                            guest: {
+                              full_name: checkoutGuestName.trim(),
+                              phone: cleanedPhone,
+                            },
+                          };
+                          localStorage.setItem(
+                            "sihhat-web-bookings",
+                            JSON.stringify([
+                              nextEntry,
+                              ...(Array.isArray(prev) ? prev.slice(0, 19) : []),
+                            ]),
+                          );
+                        } catch {
+                          // Ignore storage quota errors
+                        }
                         window.open(json.checkout_url, "_blank");
                       } catch (err: any) {
                         setCheckoutError(err.message || "Xatolik yuz berdi");
@@ -3587,6 +3688,138 @@ export function LandingPage() {
                 }}
               >
                 <span>Hamkor shartlari bilan tanishish</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 9.6.1 DOWNLOAD & iOS INSTALL MODAL */}
+      {activeModal === "download" && (
+        <div
+          className="l-modal-backdrop"
+          onClick={() => setActiveModal(null)}
+        >
+          <div
+            className="l-modal-card"
+            style={{ maxWidth: 540 }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="l-modal-header">
+              <div>
+                <h3 className="l-modal-title">
+                  Sihhat.uz ilovasini o‘rnatish (Android va iOS)
+                </h3>
+                <p
+                  style={{
+                    margin: "4px 0 0",
+                    fontSize: "0.84rem",
+                    color: "var(--l-muted)",
+                  }}
+                >
+                  Barcha telefonlar uchun qulay o‘rnatish yo‘riqnomasi
+                </p>
+              </div>
+              <button
+                type="button"
+                className="l-modal-close"
+                aria-label="Yopish"
+                onClick={() => setActiveModal(null)}
+              >
+                <X size={20} />
+              </button>
+            </div>
+            <div
+              className="l-modal-body"
+              style={{ display: "flex", flexDirection: "column", gap: 16 }}
+            >
+              <div
+                style={{
+                  padding: "14px 16px",
+                  borderRadius: 16,
+                  background: "rgba(62, 230, 191, 0.08)",
+                  border: "1px solid var(--l-border-bright)",
+                }}
+              >
+                <h4 style={{ margin: "0 0 8px", color: "var(--l-neon)" }}>
+                  🤖 Android telefonlar uchun (Universal .APK · v0.2.7)
+                </h4>
+                <p
+                  style={{
+                    margin: "0 0 12px",
+                    fontSize: "0.86rem",
+                    color: "var(--l-muted)",
+                    lineHeight: 1.5,
+                  }}
+                >
+                  Samsung, Xiaomi, Redmi, Poco, Honor, Huawei, Oppo, Vivo va
+                  barcha Android 7.0+ (32-bit va 64-bit) telefonlariga birdek
+                  o‘rnatiladi. Agar avvalgi test versiya o‘rnatilgan bo‘lsa va
+                  yangilanishda xato bersa, eski ilovani o‘chirib yangisini
+                  o‘rnating.
+                </p>
+                <a
+                  href="/api/download/apk"
+                  download="sihhat-uz.apk"
+                  className="l-btn-neon"
+                  style={{ width: "100%", padding: "0.75rem 1.2rem" }}
+                >
+                  <Download size={17} />
+                  <span>Android APK yuklab olish (v0.2.7)</span>
+                </a>
+              </div>
+
+              <div
+                style={{
+                  padding: "14px 16px",
+                  borderRadius: 16,
+                  background: "rgba(62, 230, 191, 0.06)",
+                  border: "1px solid var(--l-border)",
+                }}
+              >
+                <h4 style={{ margin: "0 0 8px" }}>
+                  🍎 iOS (iPhone / iPad) — App Store’siz o‘rnatish (PWA)
+                </h4>
+                <ol
+                  style={{
+                    margin: 0,
+                    paddingLeft: 18,
+                    fontSize: "0.86rem",
+                    color: "var(--l-muted)",
+                    lineHeight: 1.6,
+                  }}
+                >
+                  <li>
+                    iPhone’da <strong>Safari</strong> brauzeridan{" "}
+                    <strong>sihhat.uz</strong> saytini oching.
+                  </li>
+                  <li>
+                    Pastki paneldagi <strong>Ulashish (Share / Поделиться)</strong>{" "}
+                    tugmasini bosing.
+                  </li>
+                  <li>
+                    Ro‘yxatdan{" "}
+                    <strong>
+                      «Asosiy ekranga qo‘shish» (Add to Home Screen / На экран
+                      «Домой»)
+                    </strong>{" "}
+                    bandini tanlang va <strong>Qo‘shish (Add)</strong> tugmasini
+                    bosing.
+                  </li>
+                  <li>
+                    iPhone ekranida <strong>Sihhat.uz</strong> ilovasi paydo
+                    bo‘ladi va to‘liq ekranda ishlaydi!
+                  </li>
+                </ol>
+              </div>
+            </div>
+            <div className="l-modal-footer">
+              <button
+                type="button"
+                className="l-btn-ghost"
+                onClick={() => setActiveModal(null)}
+              >
+                Yopish
               </button>
             </div>
           </div>

@@ -1,0 +1,25 @@
+{
+  "name": "Sihhat.uz — Sanatoriylar va Sog'lomlik",
+  "short_name": "Sihhat.uz",
+  "description": "O'zbekistonning eng yaxshi sanatoriylariga to'g'ridan-to'g'ri, rasmiy narxlarda onlayn bron qiling.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#021a17",
+  "theme_color": "#021a17",
+  "icons": [
+    {
+      "src": "/apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/branding/sihhat-logo.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

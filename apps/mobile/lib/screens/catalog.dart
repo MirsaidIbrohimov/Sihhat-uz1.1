@@ -490,7 +490,9 @@ class SanatoriumScreen extends StatelessWidget {
                     .toList(),
             rates = rows(s['rate_plans']);
         final available =
-            rates.isNotEmpty && s['online_booking_available'] != false;
+            rates.isNotEmpty &&
+            s['status'] != 'PAUSED' &&
+            s['status'] != 'ARCHIVED';
         final sorted = [...rates]
           ..sort(
             (a, b) =>
@@ -732,9 +734,7 @@ class _TariffScreenState extends State<TariffScreen> {
     bottom: ConceptScope(
       child: ConceptDock(
         label: 'Tanlash',
-        onPressed:
-            selected == null ||
-                widget.sanatorium['online_booking_available'] == false
+        onPressed: selected == null
             ? null
             : () => Navigator.push(
                 context,

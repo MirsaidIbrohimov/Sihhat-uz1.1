@@ -49,8 +49,17 @@ function failure(message: string, status: number, code?: string) {
   return NextResponse.json({ success: false, message, ...(code ? { code } : {}) }, { status });
 }
 
+function normalizeUzbekPhone(raw: unknown): string {
+  const cleaned = String(raw || "")
+    .trim()
+    .replace(/[\s()-]/g, "");
+  if (/^\d{9}$/.test(cleaned)) return `+998${cleaned}`;
+  if (/^998\d{9}$/.test(cleaned)) return `+${cleaned}`;
+  return cleaned;
+}
+
 // Preferred path: the API creates a real booking, a Tezcheck bill and confirms it via webhook/polling.
-async function viaBackend(body: unknown) {
+async function viaBackend(body: Record<string, unknown>, authHeader?: string | null) {
   const base =
     process.env.SIHHAT_API_URL ||
     (process.env.VERCEL || process.env.RENDER
@@ -58,15 +67,24 @@ async function viaBackend(body: unknown) {
       : "");
   if (!base) return null;
   try {
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+      Accept: "application/json",
+    };
+    if (authHeader) headers.Authorization = authHeader;
     const response = await fetch(`${base.replace(/\/$/, "")}/payments/quick-checkout`, {
       method: "POST",
-      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      headers,
       body: JSON.stringify(body),
       signal: AbortSignal.timeout(20000),
     });
     const json = await response.json().catch(() => null);
     if (response.ok && json && isTezcheckPayUrl(json.checkout_url)) return NextResponse.json(json);
-    // Catalog mismatch (e.g. demo sanatorium ids) falls back to the direct bill below.
+    // Catalog mismatch or transient backend error falls back to the direct bill below if configured.
+    const { apiKey, deskCode } = getTezCheckConfig();
+    if (apiKey && deskCode && [400, 404, 409, 500, 502, 503].includes(response.status)) {
+      return null;
+    }
     if (response.status === 400 || response.status === 404) return null;
     const error = json?.error ?? json;
     return failure(error?.message || "To'lov hisobini yaratib bo'lmadi", response.status || 502, error?.code);
@@ -82,8 +100,11 @@ export async function POST(req: Request) {
   } catch {
     return failure("So'rov noto'g'ri", 400);
   }
+  if (body && typeof body === "object" && body.guest_phone) {
+    body = { ...body, guest_phone: normalizeUzbekPhone(body.guest_phone) };
+  }
 
-  const backend = await viaBackend(body);
+  const backend = await viaBackend(body, req.headers.get("authorization"));
   if (backend) return backend;
 
   const guestName = (body.guest_name || "Mehmon").toString().trim().slice(0, 60);
