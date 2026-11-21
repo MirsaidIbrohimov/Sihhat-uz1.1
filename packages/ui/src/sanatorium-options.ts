@@ -27,6 +27,14 @@ export const sanatoriumAmenities = [
   "Xonada dush",
 ];
 export const sanatoriumServices = [
+  "Yurak va qon bosimi (Kardiologiya)",
+  "Bo‘g‘im, bel va umurtqa (Tayanch-harakat)",
+  "Asab va uyqusizlik (Nevrologiya)",
+  "Nafas yo‘llari va allergiya (Pulmonologiya)",
+  "Oshqozon, jigar va ichak (Gastroenterologiya)",
+  "Buyrak va siydik yo‘llari (Urologiya)",
+  "Qandli diabet va moddalar almashinuvi",
+  "Ayollar va bolalar salomatligi",
   "Shifokor konsultatsiyasi",
   "Massaj",
   "Suv osti massaji",

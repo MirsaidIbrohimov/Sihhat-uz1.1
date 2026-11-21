@@ -183,6 +183,76 @@ const AI_QUICK_CHIPS = [
   { label: "🌬️ Nafas yo'llari", query: "nafas" },
 ];
 
+const HEALTH_PROFILES = [
+  {
+    id: "Barchasi",
+    label: "✨ Barcha yo‘nalishlar",
+    keywords: [],
+  },
+  {
+    id: "nafas",
+    label: "🫁 Nafas yo‘llari va allergiya",
+    keywords: ["nafas", "bronx", "astma", "o'pka", "o‘pka", "allerg", "tuz", "ingalyats", "zomin", "tog'", "tog‘"],
+  },
+  {
+    id: "tayanch",
+    label: "🦴 Bo‘g‘im, bel va umurtqa",
+    keywords: ["bo'g'im", "bo‘g‘im", "bel", "umurtqa", "tayanch", "harakat", "massaj", "balchiq", "loy", "fizio"],
+  },
+  {
+    id: "yurak",
+    label: "❤️ Yurak va qon bosimi",
+    keywords: ["yurak", "qon", "kardio", "ekg", "bosim", "tomir"],
+  },
+  {
+    id: "asab",
+    label: "🧠 Asab va uyqusizlik",
+    keywords: ["asab", "nevro", "stress", "uyqu", "tinch", "dam", "basseyn", "vanna"],
+  },
+  {
+    id: "oshqozon",
+    label: "🍎 Oshqozon, jigar va ichak",
+    keywords: ["oshqozon", "jigar", "ichak", "gastro", "parhez", "mineral", "o't", "o‘t"],
+  },
+  {
+    id: "buyrak",
+    label: "💧 Buyrak va urologiya",
+    keywords: ["buyrak", "urolog", "ginekolog", "siydik", "mineral", "vanna"],
+  },
+];
+
+function detectHealthBadges(item: SanatoriumCardData): string[] {
+  const haystack = [
+    item.name,
+    item.region,
+    item.description,
+    item.directions,
+    ...(item.services || []),
+    ...(item.amenities || []),
+  ]
+    .join(" ")
+    .toLowerCase();
+  const badges: string[] = [];
+  for (const prof of HEALTH_PROFILES) {
+    if (prof.id === "Barchasi") continue;
+    if (prof.keywords.some((kw) => haystack.includes(kw))) {
+      badges.push(prof.label);
+    }
+  }
+  return badges.length > 0
+    ? badges.slice(0, 3)
+    : ["✨ Umumiy sog‘lomlashtirish", "🩺 Shifokor nazorati"];
+}
+
+const DEFAULT_DAILY_SCHEDULE = [
+  { time: "08:00 – 09:00", title: "Nonushta va shifobaxsh mineral suv ichish" },
+  { time: "09:00 – 12:30", title: "Shifokor ko‘rigi va ertalabki muolajalar (vanna, massaj, fizioterapiya)" },
+  { time: "13:00 – 14:00", title: "Tushlik (3 mahal parhez va milliy taomlar)" },
+  { time: "14:00 – 16:00", title: "Tinch dam olish va toza havoda sayr" },
+  { time: "16:00 – 18:00", title: "Kechki muolajalar, tuz xonasi va fitobar (giyohli choy)" },
+  { time: "18:30 – 19:30", title: "Kechki ovqat va madaniy hordiq" },
+];
+
 const APK_RELEASE_URL =
   "https://github.com/MirsaidIbrohimov/Sihhat-uz1.1/releases/latest";
 
@@ -452,9 +522,33 @@ export function LandingPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("Barchasi");
   const [selectedRegion, setSelectedRegion] = useState("Barchasi");
+  const [selectedHealthProfile, setSelectedHealthProfile] = useState("Barchasi");
   const [onlyFavorites, setOnlyFavorites] = useState(false);
   const [favorites, setFavorites] = useState<Set<string>>(() => new Set());
   const [navDropdownOpen, setNavDropdownOpen] = useState(false);
+
+  // Waitlist / Callback request state
+  const [waitlistOpen, setWaitlistOpen] = useState(false);
+  const [waitlistName, setWaitlistName] = useState("");
+  const [waitlistPhone, setWaitlistPhone] = useState("+998");
+  const [waitlistDate, setWaitlistDate] = useState(() => {
+    const d = new Date(Date.now() + 3 * 86400000);
+    return d.toISOString().slice(0, 10);
+  });
+  const [waitlistPlacement, setWaitlistPlacement] = useState("WHOLE_ROOM");
+  const [waitlistSent, setWaitlistSent] = useState(false);
+
+  // Personal daily procedure notes in "Bronlarim"
+  const [personalNotes, setPersonalNotes] = useState<string[]>(() => {
+    if (typeof window === "undefined") return [];
+    try {
+      const raw = localStorage.getItem("sihhat-personal-procedure-notes");
+      return raw ? JSON.parse(raw) : [];
+    } catch {
+      return [];
+    }
+  });
+  const [newNoteText, setNewNoteText] = useState("");
 
   // Modals state
   const [activeModal, setActiveModal] = useState<
@@ -478,6 +572,12 @@ export function LandingPage() {
   // TezCheck Checkout state
   const [checkoutGuestName, setCheckoutGuestName] = useState("");
   const [checkoutGuestPhone, setCheckoutGuestPhone] = useState("+998");
+  const [checkoutPlacementMode, setCheckoutPlacementMode] = useState<
+    "WHOLE_ROOM" | "BED_MALE" | "BED_FEMALE"
+  >("WHOLE_ROOM");
+  const [checkoutPackageType, setCheckoutPackageType] = useState<
+    "FULL_TREATMENT" | "RELAX_ONLY"
+  >("FULL_TREATMENT");
   const [checkoutCheckIn, setCheckoutCheckIn] = useState(() => {
     const d = new Date(Date.now() + 86400000);
     return d.toISOString().slice(0, 10);
@@ -841,13 +941,31 @@ export function LandingPage() {
         selectedRegion === "Barchasi" ||
         item.region.toLowerCase().includes(selectedRegion.toLowerCase());
 
-      return matchQuery && matchCategory && matchRegion;
+      const activeProfile = HEALTH_PROFILES.find(
+        (p) => p.id === selectedHealthProfile,
+      );
+      const itemHaystack = [
+        item.name,
+        item.region,
+        item.description,
+        item.directions,
+        ...(item.services || []),
+      ]
+        .join(" ")
+        .toLowerCase();
+      const matchHealthProfile =
+        !activeProfile ||
+        activeProfile.id === "Barchasi" ||
+        activeProfile.keywords.some((kw) => itemHaystack.includes(kw));
+
+      return matchQuery && matchCategory && matchRegion && matchHealthProfile;
     });
   }, [
     sanatoriums,
     searchQuery,
     selectedCategory,
     selectedRegion,
+    selectedHealthProfile,
     onlyFavorites,
     favorites,
   ]);
@@ -1692,6 +1810,40 @@ export function LandingPage() {
             </div>
           </div>
 
+          {/* Quick Health Profile ("Qaysi dardga davo?") Filter Bar */}
+          <div
+            style={{
+              marginBottom: "0.75rem",
+              padding: "0.75rem 1rem",
+              borderRadius: 18,
+              background: "var(--l-surface)",
+              border: "1px solid var(--l-border)",
+            }}
+          >
+            <div
+              style={{
+                fontSize: "0.82rem",
+                fontWeight: 700,
+                color: "var(--l-neon)",
+                marginBottom: "0.5rem",
+              }}
+            >
+              🩺 Qaysi dardga davo izlayapsiz? (Yo‘nalishni tanlang):
+            </div>
+            <div className="l-filter-pills" style={{ flexWrap: "wrap" }}>
+              {HEALTH_PROFILES.map((prof) => (
+                <button
+                  key={prof.id}
+                  type="button"
+                  className={`l-filter-pill ${selectedHealthProfile === prof.id ? "active" : ""}`}
+                  onClick={() => setSelectedHealthProfile(prof.id)}
+                >
+                  {prof.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
           {/* Region + Favorites Filter Pills */}
           <div className="l-filter-bar">
             <div className="l-filter-pills">
@@ -1718,12 +1870,15 @@ export function LandingPage() {
               </button>
             </div>
 
-            {(selectedCategory !== "Barchasi" || searchQuery) && (
+            {(selectedCategory !== "Barchasi" ||
+              selectedHealthProfile !== "Barchasi" ||
+              searchQuery) && (
               <button
                 type="button"
                 className="l-filter-pill"
                 onClick={() => {
                   setSelectedCategory("Barchasi");
+                  setSelectedHealthProfile("Barchasi");
                   setSearchQuery("");
                   setSelectedRegion("Barchasi");
                   setOnlyFavorites(false);
@@ -1839,16 +1994,24 @@ export function LandingPage() {
                       </div>
 
                       <div className="l-card-tags">
-                        {item.services.slice(0, 2).map((srv, i) => (
-                          <span key={i} className="l-amenity-tag">
-                            {srv}
-                          </span>
-                        ))}
-                        {item.amenities.slice(0, 1).map((am, i) => (
-                          <span key={`am-${i}`} className="l-amenity-tag">
-                            {am}
-                          </span>
-                        ))}
+                        {detectHealthBadges(item)
+                          .slice(0, 2)
+                          .map((badge, i) => (
+                            <span
+                              key={`hb-${i}`}
+                              className="l-amenity-tag"
+                              style={{
+                                borderColor: "rgba(62, 230, 191, 0.35)",
+                                color: "var(--l-neon)",
+                                fontWeight: 700,
+                              }}
+                            >
+                              {badge}
+                            </span>
+                          ))}
+                        <span className="l-amenity-tag">
+                          🏠 Xona yoki 1 joy
+                        </span>
                       </div>
 
                       <div className="l-card-footer">
@@ -2509,8 +2672,30 @@ export function LandingPage() {
                 </p>
 
                 <h4 style={{ margin: "1rem 0 6px", fontSize: "1.02rem" }}>
-                  Davolash yo‘nalishlari
+                  Qaysi dardlarga davo? (Davolash yo‘nalishlari)
                 </h4>
+                <div
+                  style={{
+                    display: "flex",
+                    flexWrap: "wrap",
+                    gap: 8,
+                    marginBottom: 8,
+                  }}
+                >
+                  {detectHealthBadges(activeModal.item).map((badge, i) => (
+                    <span
+                      key={i}
+                      className="l-amenity-tag"
+                      style={{
+                        borderColor: "rgba(62, 230, 191, 0.45)",
+                        color: "var(--l-neon)",
+                        fontWeight: 700,
+                      }}
+                    >
+                      {badge}
+                    </span>
+                  ))}
+                </div>
                 <p
                   style={{
                     color: "var(--l-muted)",
@@ -2520,6 +2705,44 @@ export function LandingPage() {
                 >
                   {activeModal.item.directions}
                 </p>
+
+                {/* Simple Package Inclusions Box ("Narx ichiga nima kiradi?") */}
+                <div
+                  style={{
+                    marginTop: "1rem",
+                    padding: "14px 16px",
+                    borderRadius: 16,
+                    background: "rgba(62, 230, 191, 0.07)",
+                    border: "1px solid var(--l-border)",
+                  }}
+                >
+                  <strong
+                    style={{
+                      display: "block",
+                      fontSize: "0.95rem",
+                      color: "var(--l-neon)",
+                      marginBottom: 8,
+                    }}
+                  >
+                    📋 Yo‘llanma (Путёвка) narxi ichiga nimalar kiradi?
+                  </strong>
+                  <div
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+                      gap: "6px 14px",
+                      fontSize: "0.85rem",
+                    }}
+                  >
+                    <div>✅ Yotoqxona (butun xona yoki 1 kishilik joy)</div>
+                    <div>✅ {activeModal.item.meals || "3 mahal parhez ovqat"}</div>
+                    <div>✅ Shifokor ko‘rigi va davolash rejasi</div>
+                    <div>
+                      ✅ Kunlik muolajalar (
+                      {activeModal.item.services.slice(0, 3).join(", ")})
+                    </div>
+                  </div>
+                </div>
 
                 {/* Live Rate Plans with Shimmer while fetching */}
                 <div style={{ marginTop: "1.25rem" }}>
@@ -2685,6 +2908,134 @@ export function LandingPage() {
                     </a>
                   </div>
                 )}
+
+                {/* Waitlist / Callback Request ("Bo'sh joy chiqsa xabar berish") */}
+                <div
+                  style={{
+                    marginTop: "1.25rem",
+                    padding: "14px 16px",
+                    borderRadius: 16,
+                    background: "rgba(255, 255, 255, 0.03)",
+                    border: "1px dashed var(--l-border-bright)",
+                  }}
+                >
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      flexWrap: "wrap",
+                      gap: 10,
+                    }}
+                  >
+                    <div>
+                      <strong style={{ fontSize: "0.92rem", display: "block" }}>
+                        🔔 Siz xohlagan sanada bo‘sh joy yo‘qmi yoki maslahat kerakmi?
+                      </strong>
+                      <span style={{ fontSize: "0.8rem", color: "var(--l-muted)" }}>
+                        So‘rov qoldiring — joy bo‘shashi bilan resepshn sizga qo‘ng‘iroq qiladi.
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      className="l-filter-pill"
+                      onClick={() => {
+                        setWaitlistSent(false);
+                        setWaitlistOpen((v) => !v);
+                      }}
+                    >
+                      {waitlistOpen ? "Yopish" : "Bo‘sh joy chiqsa xabar berish"}
+                    </button>
+                  </div>
+
+                  {waitlistOpen && (
+                    <div style={{ marginTop: 12 }}>
+                      {waitlistSent ? (
+                        <div
+                          style={{
+                            padding: "10px 12px",
+                            borderRadius: 12,
+                            background: "rgba(62, 230, 191, 0.15)",
+                            color: "var(--l-neon)",
+                            fontSize: "0.86rem",
+                            fontWeight: 700,
+                          }}
+                        >
+                          ✅ So‘rovingiz kutish ro‘yxatiga qo‘shildi! Bo‘sh joy chiqishi bilan resepshn siz bilan bog‘lanadi.
+                        </div>
+                      ) : (
+                        <div
+                          style={{
+                            display: "grid",
+                            gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))",
+                            gap: 8,
+                            alignItems: "end",
+                          }}
+                        >
+                          <input
+                            type="text"
+                            className="l-input"
+                            placeholder="Ismingiz"
+                            value={waitlistName}
+                            onChange={(e) => setWaitlistName(e.target.value)}
+                          />
+                          <input
+                            type="tel"
+                            className="l-input"
+                            placeholder="+998901234567"
+                            value={waitlistPhone}
+                            onChange={(e) => setWaitlistPhone(e.target.value)}
+                          />
+                          <input
+                            type="date"
+                            className="l-input"
+                            value={waitlistDate}
+                            onChange={(e) => setWaitlistDate(e.target.value)}
+                          />
+                          <select
+                            className="l-input"
+                            value={waitlistPlacement}
+                            onChange={(e) => setWaitlistPlacement(e.target.value)}
+                          >
+                            <option value="WHOLE_ROOM">🏠 Butun xona kerak</option>
+                            <option value="BED_MALE">👨 1 joy (Erkaklar xonasi)</option>
+                            <option value="BED_FEMALE">👩 1 joy (Ayollar xonasi)</option>
+                          </select>
+                          <button
+                            type="button"
+                            className="l-btn-neon"
+                            style={{ padding: "10px 14px" }}
+                            onClick={() => {
+                              if (waitlistName.trim().length < 2 || waitlistPhone.trim().length < 9) return;
+                              try {
+                                const raw = localStorage.getItem("sihhat-crm-leads");
+                                const prev = raw ? JSON.parse(raw) : [];
+                                const lead = {
+                                  id: `lead-${Date.now()}`,
+                                  sanatorium_id: activeModal.item.id,
+                                  sanatorium_name: activeModal.item.name,
+                                  name: waitlistName.trim(),
+                                  phone: waitlistPhone.trim(),
+                                  desired_date: waitlistDate,
+                                  placement: waitlistPlacement,
+                                  status: "WAITLIST",
+                                  created_at: new Date().toISOString(),
+                                };
+                                localStorage.setItem(
+                                  "sihhat-crm-leads",
+                                  JSON.stringify([lead, ...(Array.isArray(prev) ? prev : [])]),
+                                );
+                              } catch {}
+                              setWaitlistSent(true);
+                            }}
+                          >
+                            So‘rov qoldirish
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
 
               <div className="l-modal-footer">
@@ -2865,6 +3216,8 @@ export function LandingPage() {
                             checkIn: checkoutCheckIn,
                             checkOut: checkOutDate,
                             checkout_url: json.checkout_url,
+                            placement_mode: checkoutPlacementMode,
+                            package_type: checkoutPackageType,
                             guest: {
                               full_name: checkoutGuestName.trim(),
                               phone: cleanedPhone,
@@ -2929,6 +3282,137 @@ export function LandingPage() {
                           </option>
                         )}
                       </select>
+                    </div>
+
+                    {/* Joylashish turi: Butun xona vs 1 kishilik joy (Sherikli / Koyka-o'rin) */}
+                    <div>
+                      <label
+                        style={{
+                          display: "block",
+                          fontSize: "0.84rem",
+                          fontWeight: 700,
+                          marginBottom: 6,
+                        }}
+                      >
+                        Joylashish turi (qanday borasiz?)
+                      </label>
+                      <div
+                        style={{
+                          display: "grid",
+                          gridTemplateColumns: "repeat(auto-fit, minmax(145px, 1fr))",
+                          gap: 8,
+                        }}
+                      >
+                        {[
+                          {
+                            id: "WHOLE_ROOM" as const,
+                            title: "🏠 Butun xona",
+                            sub: "Oila yoki yakka o‘zingiz",
+                          },
+                          {
+                            id: "BED_MALE" as const,
+                            title: "👨 1 kishilik joy",
+                            sub: "Erkaklar xonasidan 1 o‘rin",
+                          },
+                          {
+                            id: "BED_FEMALE" as const,
+                            title: "👩 1 kishilik joy",
+                            sub: "Ayollar xonasidan 1 o‘rin",
+                          },
+                        ].map((opt) => {
+                          const active = checkoutPlacementMode === opt.id;
+                          return (
+                            <button
+                              key={opt.id}
+                              type="button"
+                              onClick={() => setCheckoutPlacementMode(opt.id)}
+                              style={{
+                                textAlign: "left",
+                                padding: "10px 12px",
+                                borderRadius: 12,
+                                cursor: "pointer",
+                                background: active
+                                  ? "rgba(62, 230, 191, 0.16)"
+                                  : "rgba(255, 255, 255, 0.03)",
+                                border: active
+                                  ? "1.5px solid var(--l-neon)"
+                                  : "1px solid var(--l-border)",
+                                color: "var(--l-ink)",
+                              }}
+                            >
+                              <strong
+                                style={{
+                                  display: "block",
+                                  fontSize: "0.84rem",
+                                  color: active ? "var(--l-neon)" : "var(--l-ink)",
+                                }}
+                              >
+                                {opt.title}
+                              </strong>
+                              <span
+                                style={{
+                                  fontSize: "0.74rem",
+                                  color: "var(--l-muted)",
+                                }}
+                              >
+                                {opt.sub}
+                              </span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* Yo'llanma paketi: Davolanish bilan vs Faqat dam olish */}
+                    <div>
+                      <label
+                        style={{
+                          display: "block",
+                          fontSize: "0.84rem",
+                          fontWeight: 700,
+                          marginBottom: 6,
+                        }}
+                      >
+                        Yo‘llanma dasturi
+                      </label>
+                      <div className="l-form-grid-2">
+                        {[
+                          {
+                            id: "FULL_TREATMENT" as const,
+                            label: "🩺 To‘liq davolanish + 3 mahal ovqat",
+                          },
+                          {
+                            id: "RELAX_ONLY" as const,
+                            label: "🌲 Faqat dam olish va ovqat (muolajasiz)",
+                          },
+                        ].map((pkg) => {
+                          const active = checkoutPackageType === pkg.id;
+                          return (
+                            <button
+                              key={pkg.id}
+                              type="button"
+                              onClick={() => setCheckoutPackageType(pkg.id)}
+                              style={{
+                                padding: "9px 12px",
+                                borderRadius: 12,
+                                cursor: "pointer",
+                                fontSize: "0.82rem",
+                                fontWeight: 700,
+                                textAlign: "left",
+                                background: active
+                                  ? "rgba(62, 230, 191, 0.16)"
+                                  : "rgba(255, 255, 255, 0.03)",
+                                border: active
+                                  ? "1.5px solid var(--l-neon)"
+                                  : "1px solid var(--l-border)",
+                                color: active ? "var(--l-neon)" : "var(--l-ink)",
+                              }}
+                            >
+                              {pkg.label}
+                            </button>
+                          );
+                        })}
+                      </div>
                     </div>
 
                     <div className="l-form-grid-2">
@@ -3511,6 +3995,22 @@ export function LandingPage() {
                       color: "var(--l-muted)",
                     }}
                   >
+                    Joylashish:{" "}
+                    <strong>
+                      {bookingLookupResult.placement_mode === "BED_MALE"
+                        ? "👨 1 kishilik joy (Erkaklar xonasidan 1 o‘rin)"
+                        : bookingLookupResult.placement_mode === "BED_FEMALE"
+                          ? "👩 1 kishilik joy (Ayollar xonasidan 1 o‘rin)"
+                          : "🏠 Butun xona"}
+                    </strong>
+                  </p>
+                  <p
+                    style={{
+                      margin: "4px 0",
+                      fontSize: "0.85rem",
+                      color: "var(--l-muted)",
+                    }}
+                  >
                     Summa:{" "}
                     <strong>
                       {(Number(bookingLookupResult.amount) / 100).toLocaleString(
@@ -3519,6 +4019,119 @@ export function LandingPage() {
                       so‘m
                     </strong>
                   </p>
+
+                  {/* Elektron sanatoriya kundaligi (Kunlik tartib va shaxsiy muolaja eslatmalari) */}
+                  <div
+                    style={{
+                      marginTop: 14,
+                      paddingTop: 12,
+                      borderTop: "1px solid var(--l-border)",
+                    }}
+                  >
+                    <strong
+                      style={{
+                        display: "block",
+                        fontSize: "0.88rem",
+                        color: "var(--l-neon)",
+                        marginBottom: 8,
+                      }}
+                    >
+                      📋 Sanatoriyadagi kunlik tartib va muolaja kundaligi
+                    </strong>
+                    <div
+                      style={{
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: 5,
+                        fontSize: "0.8rem",
+                        marginBottom: 10,
+                      }}
+                    >
+                      {DEFAULT_DAILY_SCHEDULE.map((row, idx) => (
+                        <div
+                          key={idx}
+                          style={{
+                            display: "flex",
+                            gap: 8,
+                            padding: "5px 8px",
+                            borderRadius: 8,
+                            background: "rgba(255,255,255,0.03)",
+                          }}
+                        >
+                          <strong style={{ color: "var(--l-neon)", flexShrink: 0 }}>
+                            {row.time}
+                          </strong>
+                          <span>{row.title}</span>
+                        </div>
+                      ))}
+                      {personalNotes.map((note, idx) => (
+                        <div
+                          key={`pn-${idx}`}
+                          style={{
+                            display: "flex",
+                            justifyContent: "space-between",
+                            alignItems: "center",
+                            gap: 8,
+                            padding: "5px 8px",
+                            borderRadius: 8,
+                            background: "rgba(62, 230, 191, 0.14)",
+                          }}
+                        >
+                          <span>🩺 {note}</span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const next = personalNotes.filter((_, i) => i !== idx);
+                              setPersonalNotes(next);
+                              try {
+                                localStorage.setItem(
+                                  "sihhat-personal-procedure-notes",
+                                  JSON.stringify(next),
+                                );
+                              } catch {}
+                            }}
+                            style={{
+                              background: "none",
+                              border: "none",
+                              color: "#fca5a5",
+                              cursor: "pointer",
+                              fontSize: "0.75rem",
+                            }}
+                          >
+                            O‘chirish
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                    <div style={{ display: "flex", gap: 6 }}>
+                      <input
+                        type="text"
+                        className="l-input"
+                        style={{ padding: "7px 10px", fontSize: "0.8rem" }}
+                        placeholder="Shaxsiy muolaja vaqtini yozing (masalan: 10:30 Massaj 12-xona)"
+                        value={newNoteText}
+                        onChange={(e) => setNewNoteText(e.target.value)}
+                      />
+                      <button
+                        type="button"
+                        className="l-filter-pill"
+                        onClick={() => {
+                          if (!newNoteText.trim()) return;
+                          const next = [...personalNotes, newNoteText.trim()];
+                          setPersonalNotes(next);
+                          setNewNoteText("");
+                          try {
+                            localStorage.setItem(
+                              "sihhat-personal-procedure-notes",
+                              JSON.stringify(next),
+                            );
+                          } catch {}
+                        }}
+                      >
+                        + Qo‘shish
+                      </button>
+                    </div>
+                  </div>
 
                   {bookingLookupResult.status === "PAYMENT_PENDING" && (
                     <button

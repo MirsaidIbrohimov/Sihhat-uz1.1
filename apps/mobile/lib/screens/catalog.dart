@@ -389,6 +389,35 @@ class _CatalogScreenState extends State<CatalogScreen> {
                       ],
                     ),
                   ),
+                  const SizedBox(height: 8),
+                  SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      children: [
+                        for (final p in const [
+                          ('', '✨ Barcha yo‘nalishlar'),
+                          ('nafas', '🫁 Nafas yo‘llari'),
+                          ('bo\'g\'im', '🦴 Bo‘g‘im va bel'),
+                          ('yurak', '❤️ Yurak va qon'),
+                          ('asab', '🧠 Asab va uyqu'),
+                          ('oshqozon', '🍎 Oshqozon va jigar'),
+                        ])
+                          Padding(
+                            padding: const EdgeInsets.only(right: 8),
+                            child: ActionChip(
+                              label: Text(p.$2),
+                              onPressed: () {
+                                search.text = p.$1;
+                                setState(() {
+                                  page = 1;
+                                });
+                                reload();
+                              },
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
                   const SizedBox(height: 14),
                   if (!catalog.loaded ||
                       !catalog.hasSnapshot && catalog.error == null)
@@ -616,15 +645,40 @@ class SanatoriumScreen extends StatelessWidget {
                       title: 'Ovqatlanish',
                       text: s['meals'].toString(),
                     ),
+                  const ConceptInfo(
+                    icon: 'shield-check',
+                    title: 'Yo‘llanma narxi ichiga nimalar kiradi?',
+                    text: '✅ Yotoqxona (butun xona yoki 1 kishilik joy)\n✅ 3 mahal issiq parhez ovqatlanish\n✅ Shifokor ko‘rigi va tashxis\n✅ Kunlik shifobaxsh muolajalar',
+                  ),
                   ConceptCard(
                     padding: EdgeInsets.zero,
-                    child: ConceptMenuRow(
-                      'file-text',
-                      'Kelish uchun ma’lumotlar',
-                      onTap: () => Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (_) => ConditionsScreen(s)),
-                      ),
+                    child: Column(
+                      children: [
+                        ConceptMenuRow(
+                          'file-text',
+                          'Kelish uchun ma’lumotlar',
+                          onTap: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => ConditionsScreen(s),
+                            ),
+                          ),
+                        ),
+                        const Divider(height: 1),
+                        ConceptMenuRow(
+                          'bell',
+                          'Bo‘sh joy chiqsa xabar berish (So‘rov qoldirish)',
+                          onTap: () {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text(
+                                  'So‘rovingiz qabul qilindi! Bo‘sh joy chiqishi bilan xabar beramiz.',
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      ],
                     ),
                   ),
                   if (s['map_url'] != null ||

@@ -45,6 +45,7 @@ export function Inventory() {
     action = useAction(),
     [tab, setTab] = useState("calendar"),
     [start, setStart] = useState(localDate()),
+    [selectedCell, setSelectedCell] = useState<Row | null>(null),
     remote = useRemote(
       activeTenant ? `/partner/sanatoriums/${activeTenant}/inventory` : null,
       ctx.epoch,
@@ -305,7 +306,7 @@ export function Inventory() {
       </PageHeading>
       <div className="tabs">
         {[
-          ["calendar", "Bandlik kalendari"],
+          ["calendar", "Bandlik kalendari (Shaxmatka)"],
           ["types", "Xona turlari"],
           ["rooms", "Xonalar"],
           ["rates", "Tariflar"],
@@ -404,31 +405,37 @@ export function Inventory() {
                       })}
                     </div>
                     {rooms.map((r: Row) => {
-                      const roomTypeName = types.find(
+                      const roomTypeObj = types.find(
                         (t: Row) => t.id === r.roomTypeId,
-                      )?.name;
+                      );
+                      const roomTypeName = roomTypeObj?.name;
+                      const maxGuests = roomTypeObj?.maxGuests ?? 2;
                       return (
                         <div className="calendar-row" key={r.id}>
                           <div
                             className="calendar-cell header room-header"
-                            title={roomTypeName ? `${r.code} — ${roomTypeName}` : r.code}
+                            title={
+                              roomTypeName
+                                ? `${r.code} — ${roomTypeName} (${maxGuests} o‘rinli)`
+                                : r.code
+                            }
                           >
                             <span>{r.code}</span>
-                            {roomTypeName && (
-                              <span
-                                style={{
-                                  fontSize: "10px",
-                                  color: "var(--muted)",
-                                  fontWeight: 400,
-                                  overflow: "hidden",
-                                  textOverflow: "ellipsis",
-                                  whiteSpace: "nowrap",
-                                  maxWidth: "80px",
-                                }}
-                              >
-                                {roomTypeName}
-                              </span>
-                            )}
+                            <span
+                              style={{
+                                fontSize: "10px",
+                                color: "var(--muted)",
+                                fontWeight: 400,
+                                overflow: "hidden",
+                                textOverflow: "ellipsis",
+                                whiteSpace: "nowrap",
+                                maxWidth: "85px",
+                              }}
+                            >
+                              {roomTypeName
+                                ? `${roomTypeName} (${maxGuests} joy)`
+                                : `${maxGuests} o‘rinli`}
+                            </span>
                           </div>
                           {Array.from({ length: 14 }, (_, n) => {
                             const curDay = day(n);
@@ -478,13 +485,24 @@ export function Inventory() {
                                 ? `Band · ${r.code}-xona${a.bookingReference ? " · #" + a.bookingReference : ""}${a.guestName ? " · " + a.guestName : ""}`
                                 : isPending
                                   ? `To‘lov kutilmoqda · ${r.code}-xona${a.bookingReference ? " · #" + a.bookingReference : ""}`
-                                  : `Bo‘sh · ${r.code}-xona (${curDay})`;
+                                  : `Bo‘sh · ${r.code}-xona (${curDay}) — bosib amal tanlang`;
 
                             return (
                               <div
                                 key={n}
                                 className={`calendar-cell ${state !== "empty" ? state : ""}`}
                                 title={tooltip}
+                                style={{ cursor: "pointer" }}
+                                onClick={() =>
+                                  setSelectedCell({
+                                    room: r,
+                                    roomTypeName,
+                                    maxGuests,
+                                    day: curDay,
+                                    state,
+                                    allocation: a ?? null,
+                                  })
+                                }
                               >
                                 <span className={`calendar-pill ${state}`}>
                                   {symbol}
@@ -496,6 +514,80 @@ export function Inventory() {
                       );
                     })}
                   </div>
+                  {selectedCell && (
+                    <div
+                      className="card-body"
+                      style={{
+                        marginTop: 12,
+                        padding: "12px 16px",
+                        borderRadius: 14,
+                        background: "var(--soft)",
+                        border: "1px solid var(--line)",
+                        display: "flex",
+                        flexWrap: "wrap",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        gap: 12,
+                      }}
+                    >
+                      <div>
+                        <strong>
+                          {selectedCell.room.code}-xona ({selectedCell.roomTypeName || "Standart"} · {selectedCell.maxGuests} o‘rinli) — {date(selectedCell.day)}
+                        </strong>
+                        <p className="muted" style={{ margin: "4px 0 0", fontSize: "13px" }}>
+                          {selectedCell.state === "booked"
+                            ? `Band qilingan${selectedCell.allocation?.bookingReference ? " · Bron #" + selectedCell.allocation.bookingReference : ""}${selectedCell.allocation?.guestName ? " · Mehmon: " + selectedCell.allocation.guestName : ""}`
+                            : selectedCell.state === "held"
+                              ? `To‘lov kutilmoqda${selectedCell.allocation?.bookingReference ? " · Bron #" + selectedCell.allocation.bookingReference : ""}`
+                              : selectedCell.state === "maintenance"
+                                ? `Ta’mirga yopilgan: ${selectedCell.allocation?.reason || "Profilaktika"}`
+                                : "Ushbu sanada xona va koyka-o‘rinlar bo‘sh."}
+                        </p>
+                      </div>
+                      <div className="toolbar" style={{ margin: 0 }}>
+                        {selectedCell.allocation?.bookingId && (
+                          <button
+                            type="button"
+                            className="button primary"
+                            onClick={() =>
+                              ctx.go("bookings", {
+                                booking: selectedCell.allocation.bookingId,
+                              })
+                            }
+                          >
+                            Bronni ochish
+                          </button>
+                        )}
+                        {selectedCell.state === "empty" &&
+                          ctx.allowed("bookings.create_manual") && (
+                            <button
+                              type="button"
+                              className="button primary"
+                              onClick={() => ctx.go("bookings")}
+                            >
+                              Qo‘lda bron qilish
+                            </button>
+                          )}
+                        {selectedCell.state === "empty" &&
+                          ctx.allowed("inventory.manage") && (
+                            <button
+                              type="button"
+                              className="button secondary"
+                              onClick={() => create("blocks")}
+                            >
+                              Ta’mirga yopish
+                            </button>
+                          )}
+                        <button
+                          type="button"
+                          className="button secondary"
+                          onClick={() => setSelectedCell(null)}
+                        >
+                          Yopish
+                        </button>
+                      </div>
+                    </div>
+                  )}
                   <div
                     className="card-body"
                     style={{
@@ -777,9 +869,73 @@ export function Bookings() {
   const ctx = usePortal(),
     activeTenant = ctx.tenant || ctx.tenants[0]?.id || "",
     action = useAction(),
+    [viewTab, setViewTab] = useState<"bookings" | "crm" | "corporate">("bookings"),
     [search, setSearch] = useState(""),
     [q, setQ] = useState(""),
     [selected, setSelected] = useState<string | null>(null),
+    [guestPassportMap, setGuestPassportMap] = useState<Record<string, { passport: string; pinfl: string; placement: string; voucherOrg: string }>>(() => {
+      if (typeof window === "undefined") return {};
+      try {
+        const raw = localStorage.getItem("sihhat-guest-emehmon");
+        return raw ? JSON.parse(raw) : {};
+      } catch {
+        return {};
+      }
+    }),
+    [crmLeads, setCrmLeads] = useState<Row[]>(() => {
+      if (typeof window === "undefined") return [];
+      try {
+        const raw = localStorage.getItem("sihhat-crm-leads");
+        const parsed = raw ? JSON.parse(raw) : [];
+        return Array.isArray(parsed) && parsed.length > 0
+          ? parsed
+          : [
+              {
+                id: "lead-sample-1",
+                name: "Rustam Karimov",
+                phone: "+998901234567",
+                desired_date: localDate(4),
+                placement: "BED_MALE",
+                status: "WAITLIST",
+                note: "1 kishilik joy (Erkaklar xonasidan 1 o‘rin) so‘radi, joy bo‘shasa qo‘ng‘iroq qilish kerak",
+              },
+              {
+                id: "lead-sample-2",
+                name: "Dilnoza Rahimova",
+                phone: "+998935554433",
+                desired_date: localDate(10),
+                placement: "WHOLE_ROOM",
+                status: "REPEAT_6M",
+                note: "6 oy oldin dam olgan doimiy mijoz — qayta taklif yuborish",
+              },
+            ];
+      } catch {
+        return [];
+      }
+    }),
+    [corporateQuotas, setCorporateQuotas] = useState<Row[]>(() => {
+      if (typeof window === "undefined") return [];
+      try {
+        const raw = localStorage.getItem("sihhat-corporate-quotas");
+        const parsed = raw ? JSON.parse(raw) : [];
+        return Array.isArray(parsed) && parsed.length > 0
+          ? parsed
+          : [
+              {
+                id: "corp-sample-1",
+                org_name: "O‘zbekiston Kasaba uyushmalari federatsiyasi",
+                kind: "PROFSOYUZ",
+                rooms_count: 5,
+                used_count: 2,
+                period: `${localDate(0)} — ${localDate(30)}`,
+                contact_phone: "+998712560000",
+                contract_no: "SH-2026/08",
+              },
+            ];
+      } catch {
+        return [];
+      }
+    }),
     inventory = useRemote(
       activeTenant ? `/partner/sanatoriums/${activeTenant}/inventory` : null,
       ctx.epoch,
@@ -788,6 +944,95 @@ export function Bookings() {
       selected ? `/partner/bookings/${selected}` : null,
       ctx.epoch,
     );
+
+  const saveLeads = (next: Row[]) => {
+    setCrmLeads(next);
+    try {
+      localStorage.setItem("sihhat-crm-leads", JSON.stringify(next));
+    } catch {}
+  };
+  const saveQuotas = (next: Row[]) => {
+    setCorporateQuotas(next);
+    try {
+      localStorage.setItem("sihhat-corporate-quotas", JSON.stringify(next));
+    } catch {}
+  };
+  const savePassportMeta = (
+    bookingId: string,
+    meta: { passport: string; pinfl: string; placement: string; voucherOrg: string },
+  ) => {
+    const next = { ...guestPassportMap, [bookingId]: meta };
+    setGuestPassportMap(next);
+    try {
+      localStorage.setItem("sihhat-guest-emehmon", JSON.stringify(next));
+    } catch {}
+  };
+
+  function printEmehmonSheet(booking: Row) {
+    if (typeof window === "undefined") return;
+    const meta = guestPassportMap[booking.id] ?? {
+      passport: "",
+      pinfl: "",
+      placement: "WHOLE_ROOM",
+      voucherOrg: "Shaxsiy bron",
+    };
+    const sanatoriumTitle =
+      ctx.tenants.find((s) => s.id === booking.sanatoriumId)?.name ??
+      booking.sanatorium_name ??
+      "Sihhat.uz Sanatoriyasi";
+    const roomCodes = (booking.items ?? [])
+      .map(
+        (it: Row) =>
+          data?.rooms?.find((x: Row) => x.id === it.roomId)?.code ?? "—",
+      )
+      .join(", ");
+    const placementLabel =
+      meta.placement === "BED_MALE"
+        ? "1 kishilik joy (Erkaklar xonasidan 1 o‘rin)"
+        : meta.placement === "BED_FEMALE"
+          ? "1 kishilik joy (Ayollar xonasidan 1 o‘rin)"
+          : "Butun xona";
+    const win = window.open("", "_blank", "width=780,height=860");
+    if (!win) return;
+    win.document.write(`<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Mehmon anketasi (E-mehmon) — ${booking.reference}</title>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 32px; color: #111; line-height: 1.5; }
+    h1 { font-size: 20px; margin: 0 0 4px; }
+    .sub { color: #555; font-size: 13px; margin-bottom: 20px; }
+    table { width: 100%; border-collapse: collapse; margin-bottom: 24px; }
+    th, td { border: 1px solid #ccc; padding: 10px 12px; text-align: left; font-size: 14px; }
+    th { background: #f4f7f6; width: 36%; }
+    .signs { display: flex; justify-content: space-between; margin-top: 40px; font-size: 14px; }
+  </style>
+</head>
+<body>
+  <h1>${sanatoriumTitle} — MEHMONNI RO‘YXATGA OLISH ANKETASI (E-MEHMON)</h1>
+  <div class="sub">Bron raqami: <strong>${booking.reference}</strong> · Chop etilgan sana: ${new Date().toLocaleDateString("ru-RU")}</div>
+  <table>
+    <tr><th>Mehmon F.I.Sh.</th><td><strong>${booking.guest?.name ?? "—"}</strong></td></tr>
+    <tr><th>Telefon raqami</th><td>${booking.guest?.phone ?? "—"}</td></tr>
+    <tr><th>Pasport / ID-karta seriya va raqami</th><td>${meta.passport || "_______________________"}</td></tr>
+    <tr><th>JShShIR (PINFL) / Tug‘ilgan sana</th><td>${meta.pinfl || "_______________________"}</td></tr>
+    <tr><th>Joylashish turi</th><td>${placementLabel}</td></tr>
+    <tr><th>Ajratilgan xona raqami</th><td><strong>${roomCodes || "—"}</strong></td></tr>
+    <tr><th>Kelish va ketish sanalari</th><td>${date(booking.checkIn)} — ${date(booking.checkOut)}</td></tr>
+    <tr><th>Yo‘llanma manbasi / Tashkilot</th><td>${meta.voucherOrg || label[booking.source] || booking.source}</td></tr>
+    <tr><th>To‘lov summasi</th><td><strong>${formatMoney(booking.amount)}</strong></td></tr>
+  </table>
+  <p style="font-size:13px;color:#444;">Sanatoriya ichki tartib-qoidalari, yong‘in xavfsizligi va davolanish rejimi bilan tanishdim.</p>
+  <div class="signs">
+    <div>Mehmon imzosi: ______________________</div>
+    <div>Resepshn xodimi: ______________________</div>
+  </div>
+  <script>window.onload = () => { window.print(); };</script>
+</body>
+</html>`);
+    win.document.close();
+  }
   const b = detail.data,
     data = inventory.data;
   const activeRates = (data?.rates ?? []).filter((r: Row) => r.active);
@@ -863,6 +1108,29 @@ export function Bookings() {
                 value,
                 label: label[value],
               })),
+            },
+            {
+              key: "placement_mode",
+              label: "Joylashish turi (Xona yoki Koyka-o‘rin)",
+              type: "select",
+              value: "WHOLE_ROOM",
+              required: true,
+              options: [
+                { value: "WHOLE_ROOM", label: "🏠 Butun xona (oila yoki yakka)" },
+                { value: "BED_MALE", label: "👨 1 kishilik joy (Erkaklar xonasidan 1 o‘rin)" },
+                { value: "BED_FEMALE", label: "👩 1 kishilik joy (Ayollar xonasidan 1 o‘rin)" },
+              ],
+            },
+            {
+              key: "voucher_org",
+              label: "Yo‘llanma turi (Oddiy / Kasaba uyushmasi / Korxona)",
+              value: "Shaxsiy yo‘llanma",
+              hint: "Masalan: Shaxsiy yo‘llanma, Kasaba uyushmasi (Profsoyuz) yoki korxona nomi",
+            },
+            {
+              key: "passport_no",
+              label: "Pasport / ID-karta seriyasi (ixtiyoriy, E-mehmon uchun)",
+              hint: "Masalan: AD 1234567",
             },
             ...Array.from({ length: count }, (_, n): Field[] => [
               {
@@ -1004,6 +1272,70 @@ export function Bookings() {
             <>
               <div className="toolbar" style={{ marginBottom: 20 }}>
                 <Badge value={b.status} />
+                <button
+                  type="button"
+                  className="button secondary"
+                  onClick={() => printEmehmonSheet(b)}
+                >
+                  🖨️ Mehmon anketasi (E-mehmon chop etish)
+                </button>
+                <button
+                  type="button"
+                  className="button secondary"
+                  onClick={() => {
+                    const current = guestPassportMap[b.id] ?? {
+                      passport: "",
+                      pinfl: "",
+                      placement: "WHOLE_ROOM",
+                      voucherOrg: "Shaxsiy yo‘llanma",
+                    };
+                    ctx.form({
+                      title: "Pasport, koyka-o‘rin va E-mehmon ma’lumotlari",
+                      description:
+                        "Mehmon kelganda pasport/ID seriyasi, JShShIR hamda joylashish turini saqlab qo‘yishingiz mumkin.",
+                      fields: [
+                        {
+                          key: "passport",
+                          label: "Pasport / ID-karta seriya va raqami",
+                          value: current.passport,
+                          hint: "Masalan: AD 1234567",
+                        },
+                        {
+                          key: "pinfl",
+                          label: "JShShIR (PINFL) yoki tug‘ilgan sana",
+                          value: current.pinfl,
+                          hint: "14 xonali JShShIR yoki kun.oy.yil",
+                        },
+                        {
+                          key: "placement",
+                          label: "Joylashish turi",
+                          type: "select",
+                          value: current.placement,
+                          options: [
+                            { value: "WHOLE_ROOM", label: "🏠 Butun xona" },
+                            { value: "BED_MALE", label: "👨 1 kishilik joy (Erkaklar xonasi)" },
+                            { value: "BED_FEMALE", label: "👩 1 kishilik joy (Ayollar xonasi)" },
+                          ],
+                        },
+                        {
+                          key: "voucherOrg",
+                          label: "Yo‘llanma manbasi / Kasaba uyushmasi / Tashkilot",
+                          value: current.voucherOrg,
+                        },
+                      ],
+                      submit: async (vals) => {
+                        savePassportMeta(b.id, {
+                          passport: String(vals.passport || ""),
+                          pinfl: String(vals.pinfl || ""),
+                          placement: String(vals.placement || "WHOLE_ROOM"),
+                          voucherOrg: String(vals.voucherOrg || "Shaxsiy yo‘llanma"),
+                        });
+                      },
+                    });
+                  }}
+                >
+                  🪪 Pasport / Koyka-o‘rin kiritish
+                </button>
                 {b.status === "CONFIRMED" &&
                   ctx.allowed("bookings.check_in") && (
                     <button
@@ -1102,6 +1434,31 @@ export function Bookings() {
                     </dd>
                     <dt>Manba</dt>
                     <dd>{label[b.source]}</dd>
+                    <dt>Joylashish turi</dt>
+                    <dd>
+                      {guestPassportMap[b.id]?.placement === "BED_MALE"
+                        ? "👨 1 kishilik joy (Erkaklar xonasidan 1 o‘rin)"
+                        : guestPassportMap[b.id]?.placement === "BED_FEMALE"
+                          ? "👩 1 kishilik joy (Ayollar xonasidan 1 o‘rin)"
+                          : "🏠 Butun xona"}
+                    </dd>
+                    {guestPassportMap[b.id]?.passport && (
+                      <>
+                        <dt>Pasport / E-mehmon</dt>
+                        <dd>
+                          {guestPassportMap[b.id].passport}
+                          {guestPassportMap[b.id].pinfl
+                            ? ` · JShShIR: ${guestPassportMap[b.id].pinfl}`
+                            : ""}
+                        </dd>
+                      </>
+                    )}
+                    {guestPassportMap[b.id]?.voucherOrg && (
+                      <>
+                        <dt>Yo‘llanma turi</dt>
+                        <dd>{guestPassportMap[b.id].voucherOrg}</dd>
+                      </>
+                    )}
                   </dl>
                   <dl>
                     <dt>Jami narx</dt>
@@ -1231,10 +1588,11 @@ export function Bookings() {
   return (
     <>
       <PageHeading
-        title="Bronlar"
-        subtitle="Ilova, telefon va joyida yaratilgan bronlar umumiy inventarda yuritiladi."
+        title="Bronlar va Mijozlar CRM"
+        subtitle="Onlayn bronlar, koyka-o‘rinlar, kutish ro‘yxati hamda kasaba uyushmalari yo‘llanmalari bitta oynada."
       >
-        {ctx.allowed("bookings.create_manual") &&
+        {viewTab === "bookings" &&
+          ctx.allowed("bookings.create_manual") &&
           ctx.allowed("bookings.guarantee") && (
             <AddButton
               onClick={manual}
@@ -1245,7 +1603,346 @@ export function Bookings() {
               Qo‘lda bron
             </AddButton>
           )}
+        {viewTab === "crm" && (
+          <AddButton
+            onClick={() =>
+              ctx.form({
+                title: "Yangi mijoz so‘rovi / Kutish ro‘yxatiga qo‘shish",
+                description:
+                  "Telefon qilib bo‘sh joy so‘ragan yoki kutish ro‘yxatiga yozilgan mijozni kiriting.",
+                fields: [
+                  { key: "name", label: "Mijoz ism-familiyasi", required: true },
+                  {
+                    key: "phone",
+                    label: "Telefon raqami",
+                    required: true,
+                    value: "+998",
+                  },
+                  {
+                    key: "desired_date",
+                    label: "Kelmoqchi bo‘lgan sana",
+                    type: "date",
+                    value: localDate(3),
+                    required: true,
+                  },
+                  {
+                    key: "placement",
+                    label: "Qanday joy kerak?",
+                    type: "select",
+                    value: "WHOLE_ROOM",
+                    options: [
+                      { value: "WHOLE_ROOM", label: "🏠 Butun xona" },
+                      { value: "BED_MALE", label: "👨 1 kishilik joy (Erkaklar xonasi)" },
+                      { value: "BED_FEMALE", label: "👩 1 kishilik joy (Ayollar xonasi)" },
+                    ],
+                  },
+                  {
+                    key: "status",
+                    label: "So‘rov turi",
+                    type: "select",
+                    value: "WAITLIST",
+                    options: [
+                      { value: "WAITLIST", label: "🔔 Kutish ro‘yxati (Joy bo‘shasa xabar berish)" },
+                      { value: "LEAD", label: "📞 Telefon so‘rovi (O‘ylab ko‘radi)" },
+                      { value: "REPEAT_6M", label: "🔄 Doimiy mijoz (6+ oydan keyin qayta taklif)" },
+                    ],
+                  },
+                  {
+                    key: "note",
+                    label: "Izoh (qaysi dard bo‘yicha yoki qo‘shimcha istak)",
+                    type: "textarea",
+                  },
+                ],
+                submit: async (v) => {
+                  saveLeads([
+                    {
+                      id: `lead-${Date.now()}`,
+                      name: v.name,
+                      phone: v.phone,
+                      desired_date: v.desired_date,
+                      placement: v.placement,
+                      status: v.status,
+                      note: v.note,
+                    },
+                    ...crmLeads,
+                  ]);
+                },
+              })
+            }
+          >
+            So‘rov qo‘shish
+          </AddButton>
+        )}
+        {viewTab === "corporate" && (
+          <AddButton
+            onClick={() =>
+              ctx.form({
+                title: "Korxona / Kasaba uyushmasi (Profsoyuz) kvotasi qo‘shish",
+                description:
+                  "Tashkilotlar, kasaba uyushmalari yoki turagentliklar uchun ajratilgan yo‘llanma o‘rinlarini kiriting.",
+                fields: [
+                  {
+                    key: "org_name",
+                    label: "Tashkilot yoki Kasaba uyushmasi nomi",
+                    required: true,
+                    hint: "Masalan: Navoiy KMK Kasaba uyushmasi yoki Turagentlik nomi",
+                  },
+                  {
+                    key: "kind",
+                    label: "Hamkor turi",
+                    type: "select",
+                    value: "PROFSOYUZ",
+                    options: [
+                      { value: "PROFSOYUZ", label: "🏛 Kasaba uyushmasi (Profsoyuz)" },
+                      { value: "CORPORATE", label: "🏢 Korxona / Tashkilot (Shartnoma)" },
+                      { value: "AGENCY", label: "✈️ Turagentlik / Turoperator" },
+                    ],
+                  },
+                  {
+                    key: "rooms_count",
+                    label: "Ajratilgan xona / yo‘llanma soni",
+                    type: "number",
+                    value: 5,
+                    min: 1,
+                    max: 200,
+                    required: true,
+                  },
+                  {
+                    key: "period",
+                    label: "Amal qilish davri",
+                    value: `${localDate(0)} — ${localDate(30)}`,
+                    required: true,
+                  },
+                  {
+                    key: "contact_phone",
+                    label: "Mas’ul xodim telefoni",
+                    value: "+998",
+                    required: true,
+                  },
+                  {
+                    key: "contract_no",
+                    label: "Shartnoma raqami",
+                    value: "SH-2026/",
+                  },
+                ],
+                submit: async (v) => {
+                  saveQuotas([
+                    {
+                      id: `corp-${Date.now()}`,
+                      org_name: v.org_name,
+                      kind: v.kind,
+                      rooms_count: Number(v.rooms_count) || 1,
+                      used_count: 0,
+                      period: v.period,
+                      contact_phone: v.contact_phone,
+                      contract_no: v.contract_no,
+                    },
+                    ...corporateQuotas,
+                  ]);
+                },
+              })
+            }
+          >
+            Kvota qo‘shish
+          </AddButton>
+        )}
       </PageHeading>
+      <div className="tabs" style={{ marginBottom: 16 }}>
+        {[
+          ["bookings", "📋 Barcha bronlar"],
+          ["crm", `📞 Mijoz so‘rovlari va Kutish ro‘yxati (${crmLeads.length})`],
+          ["corporate", `🏢 Korxona va Kasaba uyushmalari (${corporateQuotas.length})`],
+        ].map(([key, title]) => (
+          <button
+            key={key}
+            type="button"
+            className={`tab ${viewTab === key ? "active" : ""}`}
+            onClick={() => setViewTab(key as any)}
+          >
+            {title}
+          </button>
+        ))}
+      </div>
+      {viewTab === "crm" ? (
+        <Card
+          title="Mijoz so‘rovlari, Kutish ro‘yxati va Qayta taklif (CRM)"
+        >
+          <p className="card-description">
+            Joy bo‘shashini kutayotganlar, telefon orqali narx so‘raganlar hamda 6+ oy oldin dam olib ketgan doimiy mijozlar ro‘yxati.
+          </p>
+          <Table
+            rows={crmLeads}
+            columns={[
+              {
+                label: "Mijoz",
+                render: (r) => (
+                  <>
+                    <strong>{r.name}</strong>
+                    <span className="subcell">
+                      <a
+                        href={`tel:${r.phone}`}
+                        style={{ color: "#25e2a2", textDecoration: "none", fontWeight: 600 }}
+                      >
+                        {r.phone}
+                      </a>
+                    </span>
+                  </>
+                ),
+              },
+              {
+                label: "Kelish sanasi",
+                render: (r) => date(r.desired_date),
+              },
+              {
+                label: "Joylashish turi",
+                render: (r) =>
+                  r.placement === "BED_MALE"
+                    ? "👨 1 joy (Erkaklar xonasi)"
+                    : r.placement === "BED_FEMALE"
+                      ? "👩 1 joy (Ayollar xonasi)"
+                      : "🏠 Butun xona",
+              },
+              {
+                label: "Holati",
+                render: (r) => (
+                  <span
+                    className={`badge ${
+                      r.status === "BOOKED"
+                        ? "green"
+                        : r.status === "WAITLIST"
+                          ? "amber"
+                          : "gray"
+                    }`}
+                  >
+                    {r.status === "WAITLIST"
+                      ? "🔔 Kutish ro‘yxatida"
+                      : r.status === "REPEAT_6M"
+                        ? "🔄 Qayta chaqirish (6+ oy)"
+                        : r.status === "BOOKED"
+                          ? "✅ Bron qilindi"
+                          : "📞 Telefon so‘rovi"}
+                  </span>
+                ),
+              },
+              {
+                label: "Izoh",
+                render: (r) => r.note || "—",
+              },
+            ]}
+            actions={(r) => (
+              <>
+                {r.status !== "BOOKED" && (
+                  <Act
+                    onClick={() => {
+                      saveLeads(
+                        crmLeads.map((item) =>
+                          item.id === r.id ? { ...item, status: "BOOKED" } : item,
+                        ),
+                      );
+                      ctx.notice(`${r.name} so‘rovi «Bron qilindi» deb belgilandi.`);
+                    }}
+                  >
+                    Bron qilindi
+                  </Act>
+                )}
+                <Act
+                  danger
+                  onClick={() =>
+                    saveLeads(crmLeads.filter((item) => item.id !== r.id))
+                  }
+                >
+                  O‘chirish
+                </Act>
+              </>
+            )}
+          />
+        </Card>
+      ) : viewTab === "corporate" ? (
+        <Card title="Korxonalar, Kasaba uyushmalari (Profsoyuz) va Turagentlar kvotasi">
+          <p className="card-description">
+            Shartnoma asosida korxona va kasaba uyushmalariga ajratilgan yo‘llanmalar va xonalar hisobi.
+          </p>
+          <Table
+            rows={corporateQuotas}
+            columns={[
+              {
+                label: "Tashkilot / Kasaba uyushmasi",
+                render: (r) => (
+                  <>
+                    <strong>{r.org_name}</strong>
+                    <span className="subcell">
+                      Shartnoma: {r.contract_no || "—"}
+                    </span>
+                  </>
+                ),
+              },
+              {
+                label: "Turi",
+                render: (r) =>
+                  r.kind === "PROFSOYUZ"
+                    ? "🏛 Kasaba uyushmasi"
+                    : r.kind === "AGENCY"
+                      ? "✈️ Turagentlik"
+                      : "🏢 Korxona",
+              },
+              {
+                label: "Ajratilgan / Band",
+                render: (r) => (
+                  <strong>
+                    {r.used_count ?? 0} / {r.rooms_count} ta yo‘llanma
+                  </strong>
+                ),
+              },
+              { label: "Davr", key: "period" },
+              {
+                label: "Aloqa",
+                render: (r) => (
+                  <a
+                    href={`tel:${r.contact_phone}`}
+                    style={{ color: "#25e2a2", textDecoration: "none", fontWeight: 600 }}
+                  >
+                    {r.contact_phone}
+                  </a>
+                ),
+              },
+            ]}
+            actions={(r) => (
+              <>
+                <Act
+                  onClick={() =>
+                    saveQuotas(
+                      corporateQuotas.map((item) =>
+                        item.id === r.id
+                          ? {
+                              ...item,
+                              used_count: Math.min(
+                                item.rooms_count,
+                                (item.used_count ?? 0) + 1,
+                              ),
+                            }
+                          : item,
+                      ),
+                    )
+                  }
+                >
+                  +1 Yo‘llanma keldi
+                </Act>
+                <Act
+                  danger
+                  onClick={() =>
+                    saveQuotas(
+                      corporateQuotas.filter((item) => item.id !== r.id),
+                    )
+                  }
+                >
+                  O‘chirish
+                </Act>
+              </>
+            )}
+          />
+        </Card>
+      ) : (
+        <>
       {ctx.allowed("bookings.create_manual") &&
         (inventory.error ? (
           <ErrorBox message={inventory.error} retry={inventory.reload} />
@@ -1331,6 +2028,8 @@ export function Bookings() {
         ]}
         actions={(r) => <Act onClick={() => setSelected(r.id)}>Ochish</Act>}
       />
+        </>
+      )}
     </>
   );
 }

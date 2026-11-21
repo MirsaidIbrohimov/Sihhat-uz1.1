@@ -2,6 +2,29 @@
 
 Yangilangan: 2026-11-21. Asos: ISHLAB_CHIQISH_REJASI.md va SIHHAT_UZ_ARXITEKTURA.md.
 
+## 2026-11-21 SNG va xalqaro sanatoriya bron & CRM tajribasi asosida yangi qulay funksiyalar (1.1–1.5, 2.1, 2.4–2.6)
+
+Foydalanuvchi tanloviga ko‘ra (`1.6`, `2.2`, `2.3` kiritilmadi) qolgan **9 ta funksiya** B2C sayt, Mobil ilova hamda Hamkorlar / Superadmin CRM panellariga oddiy va tushunarli tilda joriy qilindi:
+
+- **1.1. Kasallik turlari («Qaysi dardga davo?») va davolash yo‘nalishlari filtri**:
+  - [`packages/ui/src/sanatorium-options.ts`](../packages/ui/src/sanatorium-options.ts), [`packages/ui/src/landing.tsx`](../packages/ui/src/landing.tsx) va [`apps/mobile/lib/screens/catalog.dart`](../apps/mobile/lib/screens/catalog.dart): 1 tugmada bosiladigan davolash yo‘nalishlari (`✨ Barcha yo‘nalishlar`, `🫁 Nafas yo‘llari`, `🦴 Bo‘g‘im, bel va umurtqa`, `❤️ Yurak va qon bosimi`, `🧠 Asab va uyqusizlik`, `🍎 Oshqozon, jigar va ichak`, `💧 Buyrak va urologiya`) filtri hamda har bir sanatoriya kartasida mos yo‘nalish nishonlari (`detectHealthBadges`) qo‘shildi.
+- **1.2. «Butun xona» yoki «1 kishilik joy (Sherikli / Koyka-o‘rin)» bron qilish rejimi**:
+  - [`packages/ui/src/landing.tsx`](../packages/ui/src/landing.tsx), [`packages/ui/src/operations.tsx`](../packages/ui/src/operations.tsx) va [`apps/mobile/lib/screens/booking.dart`](../apps/mobile/lib/screens/booking.dart): mijoz yoki resepsion bron qilayotganda **Joylashish turi**ni tanlay oladi: `🏠 Butun xona (oila yoki o‘zingiz uchun)`, `👨 1 kishilik joy — Erkaklar xonasidan 1 o‘rin (sherikli)`, `👩 1 kishilik joy — Ayollar xonasidan 1 o‘rin (sherikli)`.
+- **1.3. Yo‘llanma (Путёвка) narxi ichiga nimalar kirishi va dastur tanlovi**:
+  - [`packages/ui/src/landing.tsx`](../packages/ui/src/landing.tsx) va [`apps/mobile/lib/screens/catalog.dart`](../apps/mobile/lib/screens/catalog.dart): sanatoriya tafsilotlarida **«📋 Yo‘llanma (Путёвка) narxi ichiga nimalar kiradi?»** (`✅ Yotoqxona`, `✅ 3 mahal issiq parhez ovqatlanish`, `✅ Shifokor ko‘rigi va tashxis`, `✅ Kunlik shifobaxsh muolajalar`) hamda bron oynasida **Yo‘llanma dasturi** (`🩺 To‘liq davolanish + 3 mahal ovqat` vs `🌲 Faqat dam olish va ovqat`) tanlovi qo‘shildi.
+- **1.4. Mijoz uchun «Sanatoriyadagi kunlik tartib va muolaja kundaligi»**:
+  - [`packages/ui/src/landing.tsx`](../packages/ui/src/landing.tsx) va [`apps/mobile/lib/screens/booking.dart`](../apps/mobile/lib/screens/booking.dart): «Bronlarim» oynasida va tasdiqlangan bron ekranida sanatoriyaning kunlik tartibi (`08:00 Nonushta`, `09:00–12:30 Ertalabki muolajalar`, `13:00 Tushlik`, `14:00–16:00 Tinch soat`, `16:00–18:00 Kechki muolajalar`, `18:30 Kechki ovqat`) hamda shifokor yozib bergan shaxsiy muolaja vaqtlarini saqlab qo‘yish kundaligi (`sihhat-personal-procedure-notes`) qo‘shildi.
+- **1.5. «Bo‘sh joy chiqsa xabar berish / So‘rov qoldirish» (Kutish ro‘yxati — Лист ожидания)**:
+  - [`packages/ui/src/landing.tsx`](../packages/ui/src/landing.tsx) va [`apps/mobile/lib/screens/catalog.dart`](../apps/mobile/lib/screens/catalog.dart): sanatoriya oynasida mijoz ism, telefon va kerakli oyni qoldirib, bo‘sh joy chiqishi bilan xabar olish so‘rovini yuboradi (`sihhat-crm-leads`).
+- **2.1. Interaktiv «Bandlik kalendari (Shaxmatka)»**:
+  - [`packages/ui/src/operations.tsx`](../packages/ui/src/operations.tsx): har bir xona qatorida sig‘im (`2 joy`) ko‘rsatiladi; katakcha ustiga bosilganda yuqorida tanlangan xona, sana, holat (`Bo‘sh`, `Band`, `Ta’mirda`) va mehmon ma’lumotlari bilan birga **«Bronni ochish»**, **«Qo‘lda bron qilish»** va **«Ta’mirga yopish»** tezkor amallari chiqadi.
+- **2.4. CRM: «Mijoz so‘rovlari, Kutish ro‘yxati va Qayta chaqirish (6+ oy)»**:
+  - [`packages/ui/src/operations.tsx`](../packages/ui/src/operations.tsx): «Bronlar va Mijozlar CRM» bo‘limida `📞 Mijoz so‘rovlari va Kutish ro‘yxati` tabi qo‘shildi — saytdan tushgan bo‘sh joy so‘rovlari, telefon orqali yozilgan mijozlar va 6 oydan oldin dam olib ketgan doimiy mijozlarni qayta taklif qilish ro‘yxati 1 tugmada boshqariladi.
+- **2.5. Korxona, Kasaba uyushmalari (Профсоюз) va Turagentlar kvotasi**:
+  - [`packages/ui/src/operations.tsx`](../packages/ui/src/operations.tsx): `🏢 Korxona va Kasaba uyushmalari` tabi hamda qo‘lda bron yaratishda **Yo‘llanma turi** (`👤 Shaxsiy (o‘zi to‘laydi)`, `🏛️ Kasaba uyushmasi (Профсоюз yo‘llanmasi)`, `🏢 Korxona / Tashkilot shartnomasi`) qo‘shildi.
+- **2.6. Pasport / ID-karta saqlash va 1 tugmada «🖨️ Mehmon anketasi (E-mehmon chop etish)»**:
+  - [`packages/ui/src/operations.tsx`](../packages/ui/src/operations.tsx): bron kartasida **«🖨️ Mehmon anketasi (E-mehmon chop etish)»** va **«🪪 Pasport / Koyka-o‘rin kiritish»** tugmalari qo‘shildi (`printEmehmonSheet` — chop etishga tayyor rasmiy anketa oynasi).
+
 ## 2026-11-21 6 xonali tasodifiy raqamli User ID (`publicId`), Superadmin «Jamoa va ruxsatlar» xodim hisobini tahrirlash va Emailni baza bilan tekshirish tuzatishi
 
 - **6 xonali tasodifiy unikal raqamli ID (`User.publicId`, masalan `#482915`)**:

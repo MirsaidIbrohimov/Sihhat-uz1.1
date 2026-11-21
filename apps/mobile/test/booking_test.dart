@@ -381,11 +381,7 @@ void main() {
       await api.tokens({
         'access_token': 'saved-access',
         'refresh_token': 'saved-refresh',
-        'user': {
-          'id': 'customer',
-          'name': 'Test mehmon',
-          'phone': '901234567',
-        },
+        'user': {'id': 'customer', 'name': 'Test mehmon', 'phone': '901234567'},
       });
       await tester.pumpWidget(
         MaterialApp(home: BookingComposer(api, sanatorium)),

@@ -40,6 +40,7 @@ class _BookingComposerState extends State<BookingComposer> {
   Json? quote;
   bool busy = false, accepted = false;
   String? error;
+  String placementMode = 'WHOLE_ROOM';
   @override
   void initState() {
     super.initState();
@@ -651,6 +652,36 @@ class _BookingComposerState extends State<BookingComposer> {
                       decoration: const InputDecoration(
                         labelText: 'Mehmon telefoni',
                       ),
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      'Joylashish turi',
+                      style: Theme.of(context).textTheme.labelLarge,
+                    ),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        ChoiceChip(
+                          label: const Text('🏠 Butun xona'),
+                          selected: placementMode == 'WHOLE_ROOM',
+                          onSelected: (_) =>
+                              setState(() => placementMode = 'WHOLE_ROOM'),
+                        ),
+                        ChoiceChip(
+                          label: const Text('👨 1 joy (Erkaklar xonasi)'),
+                          selected: placementMode == 'SHARED_MALE',
+                          onSelected: (_) =>
+                              setState(() => placementMode = 'SHARED_MALE'),
+                        ),
+                        ChoiceChip(
+                          label: const Text('👩 1 joy (Ayollar xonasi)'),
+                          selected: placementMode == 'SHARED_FEMALE',
+                          onSelected: (_) =>
+                              setState(() => placementMode = 'SHARED_FEMALE'),
+                        ),
+                      ],
                     ),
                   ],
                 ),
@@ -1398,6 +1429,12 @@ class _BookingScreenState extends State<BookingScreen>
                           ),
                         ),
                       ),
+                    ),
+                  if (confirmed)
+                    const ConceptInfo(
+                      icon: 'clock',
+                      title: '📋 Sanatoriyadagi kunlik tartib',
+                      text: '08:00 Nonushta · 09:00–12:30 Ertalabki muolajalar · 13:00 Tushlik · 14:00–16:00 Dam olish · 16:00–18:00 Kechki muolajalar · 18:30 Kechki ovqat',
                     ),
                   if (b['holdExpiresAt'] != null && b['status'] == 'HOLD')
                     Builder(
