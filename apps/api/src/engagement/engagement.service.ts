@@ -53,10 +53,22 @@ export class EngagementService implements OnModuleInit {
   }
   private async recipients(actor:Actor,ids:string[]){
     if(actor.kind==='CUSTOMER')fail('PERMISSION_DENIED','Ruxsat yo‘q',403);
+    if(actor.kind!=='SUPERADMIN'){
+      const tenants=tenantIds(actor,'messages.send')??[];
+      if(!tenants.length)fail('PERMISSION_DENIED','Xabar yuborish uchun ruxsat yo‘q',403);
+    }
     if(!ids.length) return [];
-    const users=await this.db.user.findMany({where:{id:{in:ids},status:'ACTIVE'},select:{id:true}});
-    if(actor.kind!=='SUPERADMIN'&&users.length!==new Set(ids).size)fail('RECIPIENT_INVALID','Qabul qiluvchini tekshiring',422);
-    if(actor.kind!=='SUPERADMIN'){const tenants=tenantIds(actor,'messages.send')??[];const members=await this.db.membership.findMany({where:{userId:{in:ids},sanatoriumId:{in:tenants},status:'ACTIVE'},select:{userId:true}});if(new Set(members.map(m=>m.userId)).size!==new Set(ids).size)fail('PERMISSION_DENIED','Boshqa sanatoriyaga yubora olmaysiz',403);}
+    const uniqueIds = [...new Set(ids)];
+    const users=await this.db.user.findMany({where:{id:{in:uniqueIds},status:'ACTIVE'},select:{id:true,kind:true}});
+    if(actor.kind!=='SUPERADMIN'&&users.length!==uniqueIds.length)fail('RECIPIENT_INVALID','Qabul qiluvchini tekshiring',422);
+    if(actor.kind!=='SUPERADMIN'){
+      const tenants=tenantIds(actor,'messages.send')??[];
+      const nonSuperadminIds=users.filter(u=>u.kind!=='SUPERADMIN').map(u=>u.id);
+      if(nonSuperadminIds.length){
+        const members=await this.db.membership.findMany({where:{userId:{in:nonSuperadminIds},sanatoriumId:{in:tenants},status:'ACTIVE'},select:{userId:true}});
+        if(new Set(members.map(m=>m.userId)).size!==new Set(nonSuperadminIds).size)fail('PERMISSION_DENIED','Boshqa sanatoriyaga yubora olmaysiz',403);
+      }
+    }
     return [...new Set(users.map(u=>u.id))];
   }
   async broadcast(actor:Actor,body:unknown){
@@ -64,6 +76,8 @@ export class EngagementService implements OnModuleInit {
     const i=parse(z.object({
       target:z.enum(['ALL','CUSTOMERS','PARTNERS']).optional(),
       sanatorium_ids:z.array(uuid).max(100).optional(),
+      roles:z.array(z.enum(['DIRECTOR','RECEPTION','ACCOUNTANT'])).max(10).optional(),
+      recipient_ids:z.array(uuid).max(50000).optional(),
       title:z.string().min(2).max(150),
       body:z.string().min(1).max(10000),
       kind:z.enum(['MESSAGE','WARNING']),
@@ -71,19 +85,44 @@ export class EngagementService implements OnModuleInit {
     }).strict(),body);
     const target = i.target ?? 'PARTNERS';
     const recipientSet = new Set<string>();
-    if (target === 'PARTNERS' || target === 'ALL') {
-      const members = await this.db.membership.findMany({
-        where: { status: 'ACTIVE', ...(i.sanatorium_ids?.length ? { sanatoriumId: { in: i.sanatorium_ids } } : {}) },
-        select: { userId: true },
-      });
-      for (const m of members) recipientSet.add(m.userId);
-    }
-    if (target === 'CUSTOMERS' || target === 'ALL') {
-      const customers = await this.db.user.findMany({
-        where: { kind: 'CUSTOMER', status: 'ACTIVE' },
+    if (i.recipient_ids && i.recipient_ids.length > 0) {
+      const explicitUsers = await this.db.user.findMany({
+        where: {
+          id: { in: [...new Set(i.recipient_ids)] },
+          status: 'ACTIVE',
+          ...(target === 'CUSTOMERS' ? { kind: 'CUSTOMER' } : target === 'PARTNERS' ? { kind: 'STAFF' } : {}),
+        },
         select: { id: true },
       });
-      for (const c of customers) recipientSet.add(c.id);
+      for (const u of explicitUsers) recipientSet.add(u.id);
+    } else {
+      if (target === 'PARTNERS' || target === 'ALL') {
+        const hasSanFilter = Boolean(i.sanatorium_ids?.length);
+        const hasRoleFilter = Boolean(i.roles?.length);
+        const members = await this.db.membership.findMany({
+          where: {
+            status: 'ACTIVE',
+            ...(hasSanFilter ? { sanatoriumId: { in: i.sanatorium_ids } } : {}),
+            ...(hasRoleFilter ? { role: { in: i.roles } } : {}),
+          },
+          select: { userId: true },
+        });
+        for (const m of members) recipientSet.add(m.userId);
+        if (!hasSanFilter && !hasRoleFilter && this.db.user?.findMany) {
+          const allActiveStaff = await this.db.user.findMany({
+            where: { kind: 'STAFF', status: 'ACTIVE' },
+            select: { id: true },
+          });
+          for (const s of allActiveStaff) recipientSet.add(s.id);
+        }
+      }
+      if (target === 'CUSTOMERS' || target === 'ALL') {
+        const customers = await this.db.user.findMany({
+          where: { kind: 'CUSTOMER', status: 'ACTIVE' },
+          select: { id: true },
+        });
+        for (const c of customers) recipientSet.add(c.id);
+      }
     }
     return this.send(actor,{
       title:i.title,
@@ -93,12 +132,52 @@ export class EngagementService implements OnModuleInit {
       recipient_ids:[...recipientSet]
     });
   }
-  async send(actor:Actor,body:unknown){const i=parse(z.object({title:z.string().min(2).max(150),body:z.string().min(1).max(10000),kind:z.enum(['MESSAGE','WARNING']).default('MESSAGE'),asset_ids:z.array(uuid).max(10).default([]),recipient_ids:z.array(uuid).max(50000)}).strict(),body);const ids=await this.recipients(actor,i.recipient_ids);
+  async send(actor:Actor,body:unknown){
+    if(actor.kind==='CUSTOMER')fail('PERMISSION_DENIED','Ruxsat yo‘q',403);
+    if(actor.kind!=='SUPERADMIN'&&!(tenantIds(actor,'messages.send')??[]).length){
+      fail('PERMISSION_DENIED','Xabar yuborish uchun ruxsat yo‘q',403);
+    }
+    const i=parse(z.object({
+      title:z.string().min(2).max(150),
+      body:z.string().min(1).max(10000),
+      kind:z.enum(['MESSAGE','WARNING']).default('MESSAGE'),
+      asset_ids:z.array(uuid).max(10).default([]),
+      recipient_ids:z.array(uuid).max(50000)
+    }).strict(),body);
+    const ids=await this.recipients(actor,i.recipient_ids);
     for(const id of i.asset_ids){const file=await this.db.mediaAsset.findUnique({where:{id}});if(!file)fail('NOT_FOUND','Fayl topilmadi',404);scope(actor,file.sanatoriumId,'sanatorium.profile.edit');}
-    return this.db.atomic(async tx=>{const m=await tx.message.create({data:{senderId:actor.id,title:i.title,body:i.body,kind:i.kind,assetIds:i.asset_ids}});await tx.messageRecipient.createMany({data:ids.map(userId=>({messageId:m.id,userId}))});await emit(tx,'message.created',{message_id:m.id,title:i.title,body:i.body,kind:i.kind,recipient_ids:ids});await audit(tx,actor.id,'message.sent',m.id,undefined,undefined,{recipient_count:ids.length});return m;});}
+    return this.db.atomic(async tx=>{
+      const m=await tx.message.create({data:{senderId:actor.id,title:i.title,body:i.body,kind:i.kind,assetIds:i.asset_ids}});
+      if(ids.length){
+        await tx.messageRecipient.createMany({data:ids.map(userId=>({messageId:m.id,userId}))});
+      }
+      const ev=await emit(tx,'message.created',{message_id:m.id,title:i.title,body:i.body,kind:i.kind,recipient_ids:ids});
+      if(ids.length&&ev?.id&&(tx as any).notificationDelivery?.createMany){
+        const now=new Date();
+        await (tx as any).notificationDelivery.createMany({
+          data:ids.map(userId=>({
+            eventId:ev.id,
+            userId,
+            channel:'IN_APP',
+            status:'SENT',
+            sentAt:now,
+            payload:{topic:'message.created',message_id:m.id,title:i.title,body:i.body,kind:i.kind,recipient_ids:ids},
+          })),
+          skipDuplicates:true,
+        });
+      }
+      await audit(tx,actor.id,'message.sent',m.id,undefined,undefined,{recipient_count:ids.length});
+      return m;
+    });
+  }
   async messages(actor:Actor,query:unknown){
     const i=parse(pageQuery.extend({ box: z.enum(['inbox', 'sent']).optional() }).strict(), query);
     const box = i.box ?? (actor.kind === 'SUPERADMIN' ? 'sent' : 'inbox');
+    const roleLabelMap: Record<string, string> = {
+      RECEPTION: 'Resepshn',
+      DIRECTOR: 'Direktor',
+      ACCOUNTANT: 'Hisobchi',
+    };
     if (box === 'sent') {
       const [messages, total] = await Promise.all([
         this.db.message.findMany({
@@ -113,16 +192,148 @@ export class EngagementService implements OnModuleInit {
       const receipts = msgIds.length > 0
         ? await this.db.messageRecipient.findMany({ where: { messageId: { in: msgIds } } })
         : [];
+      const recipientUserIds = [...new Set(receipts.map(r => r.userId))];
+      const [users, memberships, sanatoriums, recentDeliveries] = await Promise.all([
+        recipientUserIds.length && this.db.user?.findMany
+          ? this.db.user.findMany({
+              where: { id: { in: recipientUserIds } },
+              select: { id: true, publicId: true, name: true, kind: true, status: true, phone: true, email: true, login: true, avatarUrl: true },
+            })
+          : [],
+        recipientUserIds.length && this.db.membership?.findMany
+          ? this.db.membership.findMany({
+              where: { userId: { in: recipientUserIds }, status: 'ACTIVE' },
+              select: { userId: true, sanatoriumId: true, role: true },
+            })
+          : [],
+        this.db.sanatorium?.findMany
+          ? this.db.sanatorium.findMany({
+              select: { id: true, name: true },
+              take: 200,
+            })
+          : [],
+        recipientUserIds.length && msgIds.length && this.db.notificationDelivery?.findMany
+          ? this.db.notificationDelivery.findMany({
+              where: { userId: { in: recipientUserIds }, channel: { in: ['IN_APP', 'TELEGRAM'] } },
+              orderBy: { id: 'desc' },
+              take: 2000,
+            })
+          : [],
+      ]);
+      const userMap = new Map(users.map(u => [u.id, u]));
+      const sanMap = new Map(sanatoriums.map(s => [s.id, s.name]));
+      const memberMap = new Map<string, { sanatoriumId: string; role: string }>();
+      for (const mem of memberships) {
+        if (!memberMap.has(mem.userId)) memberMap.set(mem.userId, mem);
+      }
+      const msgIdSet = new Set(msgIds);
+      const deliveryMap = new Map<string, { inApp?: any; telegram?: any }>();
+      for (const d of recentDeliveries) {
+        const p = (d.payload ?? {}) as Record<string, any>;
+        const mid = typeof p.message_id === 'string' ? p.message_id : null;
+        if (!mid || !msgIdSet.has(mid)) continue;
+        const key = `${mid}:${d.userId}`;
+        const cur = deliveryMap.get(key) ?? {};
+        if (d.channel === 'IN_APP' && !cur.inApp) cur.inApp = d;
+        if (d.channel === 'TELEGRAM' && !cur.telegram) cur.telegram = d;
+        deliveryMap.set(key, cur);
+      }
+
       const data = messages.map(m => {
         const recs = receipts.filter(r => r.messageId === m.id);
+        let customerTotal = 0;
+        let customerDelivered = 0;
+        let customerRead = 0;
+        let partnerTotal = 0;
+        let partnerDelivered = 0;
+        let partnerTelegramSent = 0;
+        let partnerRead = 0;
+        let partnerAccepted = 0;
+        const sanBreakdown = new Map<string, { id: string; name: string; total: number; read: number; accepted: number }>();
+
+        const detailedRecipients = recs.map(r => {
+          const u = userMap.get(r.userId);
+          const mem = memberMap.get(r.userId);
+          const deliv = deliveryMap.get(`${m.id}:${r.userId}`);
+          const effectiveReadAt = r.readAt ?? deliv?.inApp?.readAt ?? null;
+          const isCustomer = u?.kind === 'CUSTOMER';
+          const inAppDelivered = Boolean(deliv?.inApp ? deliv.inApp.status === 'SENT' : true);
+          const tgStatus = deliv?.telegram?.status ?? null;
+          const sanId = mem?.sanatoriumId ?? null;
+          const sanName = sanId ? (sanMap.get(sanId) ?? 'Sanatoriya') : null;
+
+          if (isCustomer) {
+            customerTotal++;
+            if (inAppDelivered) customerDelivered++;
+            if (effectiveReadAt) customerRead++;
+          } else {
+            partnerTotal++;
+            if (inAppDelivered) partnerDelivered++;
+            if (tgStatus === 'SENT') partnerTelegramSent++;
+            if (effectiveReadAt) partnerRead++;
+            if (r.acceptedAt) partnerAccepted++;
+            if (sanId && sanName) {
+              const prev = sanBreakdown.get(sanId) ?? { id: sanId, name: sanName, total: 0, read: 0, accepted: 0 };
+              prev.total++;
+              if (effectiveReadAt) prev.read++;
+              if (r.acceptedAt) prev.accepted++;
+              sanBreakdown.set(sanId, prev);
+            }
+          }
+
+          return {
+            userId: r.userId,
+            publicId: u?.publicId ?? null,
+            name: u?.name || (isCustomer ? 'Mobil mijoz' : 'Hamkor xodim'),
+            kind: u?.kind || 'CUSTOMER',
+            phone: u?.phone ?? null,
+            email: u?.email ?? (u?.login?.includes('@') ? u.login : null),
+            login: u?.login ?? null,
+            avatarUrl: u?.avatarUrl ?? null,
+            sanatoriumId: sanId,
+            sanatoriumName: sanName,
+            role: mem?.role ?? null,
+            roleLabel: mem?.role ? (roleLabelMap[mem.role] ?? mem.role) : (u?.kind === 'SUPERADMIN' ? 'Superadmin' : 'Ilova mijozi'),
+            inAppStatus: deliv?.inApp?.status ?? 'SENT',
+            telegramStatus: tgStatus,
+            readAt: effectiveReadAt,
+            acceptedAt: r.acceptedAt ?? null,
+          };
+        });
+
+        const totalRead = customerRead + partnerRead;
+        const targetAudience =
+          customerTotal > 0 && partnerTotal > 0
+            ? 'ALL'
+            : customerTotal > 0
+              ? 'CUSTOMERS'
+              : partnerTotal > 0
+                ? 'PARTNERS'
+                : 'EMPTY';
+
         return {
           id: m.id,
           messageId: m.id,
           direction: 'sent',
           message: m,
+          targetAudience,
           recipientCount: recs.length,
-          readCount: recs.filter(r => r.readAt).length,
+          readCount: totalRead,
           acceptedCount: recs.filter(r => r.acceptedAt).length,
+          customerStats: {
+            total: customerTotal,
+            delivered: customerDelivered,
+            read: customerRead,
+          },
+          partnerStats: {
+            total: partnerTotal,
+            delivered: partnerDelivered,
+            telegramSent: partnerTelegramSent,
+            read: partnerRead,
+            accepted: partnerAccepted,
+            sanatoriums: [...sanBreakdown.values()],
+          },
+          recipients: detailedRecipients,
           readAt: null as Date | null,
           acceptedAt: null as Date | null,
           createdAt: m.createdAt,
@@ -130,11 +341,230 @@ export class EngagementService implements OnModuleInit {
       });
       return paged(data, total, i.page, i.limit);
     }
-    const receipts=await this.db.messageRecipient.findMany({where:{userId:actor.id},skip:(i.page-1)*i.limit,take:i.limit,orderBy:{id:'desc'}});
-    const messages=await this.db.message.findMany({where:{id:{in:receipts.map(r=>r.messageId)}}});
-    return paged(receipts.map(r=>({...r,direction:'inbox',message:messages.find(m=>m.id===r.messageId)})),await this.db.messageRecipient.count({where:{userId:actor.id}}),i.page,i.limit);
+    const [receipts, total] = await Promise.all([
+      this.db.messageRecipient.findMany({where:{userId:actor.id},skip:(i.page-1)*i.limit,take:i.limit,orderBy:{id:'desc'}}),
+      this.db.messageRecipient.count({where:{userId:actor.id}}),
+    ]);
+    const messages=receipts.length
+      ? await this.db.message.findMany({where:{id:{in:receipts.map(r=>r.messageId)}}})
+      : [];
+    const senderIds=[...new Set(messages.map(m=>m.senderId))];
+    const [senders, senderMemberships, sanatoriums] = await Promise.all([
+      senderIds.length && this.db.user?.findMany
+        ? this.db.user.findMany({
+            where: { id: { in: senderIds } },
+            select: { id: true, publicId: true, name: true, kind: true, avatarUrl: true },
+          })
+        : [],
+      senderIds.length && this.db.membership?.findMany
+        ? this.db.membership.findMany({
+            where: { userId: { in: senderIds }, status: 'ACTIVE' },
+            select: { userId: true, sanatoriumId: true, role: true },
+          })
+        : [],
+      this.db.sanatorium?.findMany
+        ? this.db.sanatorium.findMany({ select: { id: true, name: true }, take: 200 })
+        : [],
+    ]);
+    const senderMap = new Map(senders.map(s => [s.id, s]));
+    const sanMap = new Map(sanatoriums.map(s => [s.id, s.name]));
+    const senderMemMap = new Map(senderMemberships.map(m => [m.userId, m]));
+
+    return paged(
+      receipts.map(r => {
+        const m = messages.find(msg => msg.id === r.messageId);
+        const s = m ? senderMap.get(m.senderId) : undefined;
+        const sm = m ? senderMemMap.get(m.senderId) : undefined;
+        return {
+          ...r,
+          direction: 'inbox',
+          message: m,
+          createdAt: m?.createdAt ?? null,
+          sender: s
+            ? {
+                id: s.id,
+                publicId: s.publicId ?? null,
+                name: s.kind === 'SUPERADMIN' ? 'Sihhat.uz Platforma Ma’muriyati' : s.name,
+                rawName: s.name,
+                kind: s.kind,
+                avatarUrl: s.avatarUrl ?? null,
+                roleLabel: s.kind === 'SUPERADMIN' ? 'Superadmin' : (sm?.role ? (roleLabelMap[sm.role] ?? sm.role) : 'Xodim'),
+                sanatoriumName: sm?.sanatoriumId ? (sanMap.get(sm.sanatoriumId) ?? null) : null,
+              }
+            : null,
+        };
+      }),
+      total,
+      i.page,
+      i.limit,
+    );
   }
-  async receipt(actor:Actor,id:string,body:unknown){parse(uuid,id);const i=parse(z.object({accepted:z.boolean().default(false)}).strict(),body);const r=await this.db.messageRecipient.findUnique({where:{messageId_userId:{messageId:id,userId:actor.id}}});if(!r)fail('NOT_FOUND','Xabar topilmadi',404);return this.db.messageRecipient.update({where:{id:r.id},data:{readAt:r.readAt??new Date(),acceptedAt:i.accepted?(r.acceptedAt??new Date()):r.acceptedAt}});}
+  async receipt(actor:Actor,id:string,body:unknown){
+    parse(uuid,id);
+    const i=parse(z.object({accepted:z.boolean().default(false)}).strict(),body);
+    const r=await this.db.messageRecipient.findUnique({where:{messageId_userId:{messageId:id,userId:actor.id}}});
+    if(!r)fail('NOT_FOUND','Xabar topilmadi',404);
+    const now=new Date();
+    const updated=await this.db.messageRecipient.update({
+      where:{id:r.id},
+      data:{readAt:r.readAt??now,acceptedAt:i.accepted?(r.acceptedAt??now):r.acceptedAt}
+    });
+    if(this.db.notificationDelivery?.findMany){
+      const unreadNotifs=await this.db.notificationDelivery.findMany({
+        where:{userId:actor.id,channel:'IN_APP',readAt:null},
+        take:100,
+      });
+      const matchIds=unreadNotifs
+        .filter(n=>((n.payload??{}) as Record<string,any>).message_id===id)
+        .map(n=>n.id);
+      if(matchIds.length){
+        await this.db.notificationDelivery.updateMany({
+          where:{id:{in:matchIds}},
+          data:{readAt:now},
+        });
+      }
+    }
+    return updated;
+  }
+  async verifyDelivery(actor:Actor,id:string){
+    parse(uuid,id);
+    const m=await this.db.message.findUnique({where:{id}});
+    if(!m)fail('NOT_FOUND','Xabar topilmadi',404);
+    if(actor.kind!=='SUPERADMIN'&&m.senderId!==actor.id)fail('PERMISSION_DENIED','Ruxsat yo‘q',403);
+    const receipts=await this.db.messageRecipient.findMany({where:{messageId:id}});
+    const userIds=[...new Set(receipts.map(r=>r.userId))];
+    const users=userIds.length
+      ? await this.db.user.findMany({where:{id:{in:userIds}},select:{id:true,kind:true,status:true}})
+      : [];
+    const userMap=new Map(users.map(u=>[u.id,u]));
+
+    let event = this.db.outboxEvent?.findFirst
+      ? await this.db.outboxEvent.findFirst({
+          where: { topic: 'message.created' },
+          orderBy: { createdAt: 'desc' },
+        })
+      : null;
+    if (event && ((event.payload ?? {}) as Record<string, any>).message_id !== id) {
+      const recentEvents = await this.db.outboxEvent.findMany({
+        where: { topic: 'message.created' },
+        orderBy: { createdAt: 'desc' },
+        take: 100,
+      });
+      event = recentEvents.find(e => ((e.payload ?? {}) as Record<string, any>).message_id === id) ?? null;
+    }
+    if (!event && this.db.outboxEvent?.create) {
+      event = await this.db.outboxEvent.create({
+        data: {
+          topic: 'message.created',
+          payload: { message_id: m.id, title: m.title, body: m.body, kind: m.kind, recipient_ids: userIds },
+          processedAt: new Date(),
+        },
+      });
+    }
+
+    const existingDeliveries = userIds.length && this.db.notificationDelivery?.findMany
+      ? await this.db.notificationDelivery.findMany({
+          where: { userId: { in: userIds }, channel: { in: ['IN_APP', 'TELEGRAM'] } },
+          orderBy: { id: 'desc' },
+          take: 2000,
+        })
+      : [];
+    const inAppByUser = new Map<string, any>();
+    const tgByUser = new Map<string, any>();
+    for (const d of existingDeliveries) {
+      const p = (d.payload ?? {}) as Record<string, any>;
+      if (p.message_id !== id) continue;
+      if (d.channel === 'IN_APP' && !inAppByUser.has(d.userId)) inAppByUser.set(d.userId, d);
+      if (d.channel === 'TELEGRAM' && !tgByUser.has(d.userId)) tgByUser.set(d.userId, d);
+    }
+
+    let repairedDeliveries = 0;
+    let syncedReads = 0;
+    const now = new Date();
+    for (const r of receipts) {
+      const existingInApp = inAppByUser.get(r.userId);
+      if (!existingInApp && event?.id && this.db.notificationDelivery?.upsert) {
+        const created = await this.db.notificationDelivery.upsert({
+          where: { eventId_userId_channel: { eventId: event.id, userId: r.userId, channel: 'IN_APP' } },
+          create: {
+            eventId: event.id,
+            userId: r.userId,
+            channel: 'IN_APP',
+            status: 'SENT',
+            sentAt: now,
+            readAt: r.readAt ?? null,
+            payload: { topic: 'message.created', message_id: m.id, title: m.title, body: m.body, kind: m.kind, recipient_ids: userIds },
+          },
+          update: { status: 'SENT', sentAt: now },
+        });
+        inAppByUser.set(r.userId, created);
+        repairedDeliveries++;
+      } else if (existingInApp) {
+        if (existingInApp.readAt && !r.readAt) {
+          await this.db.messageRecipient.update({ where: { id: r.id }, data: { readAt: existingInApp.readAt } });
+          r.readAt = existingInApp.readAt;
+          syncedReads++;
+        } else if (r.readAt && !existingInApp.readAt) {
+          await this.db.notificationDelivery.update({ where: { id: existingInApp.id }, data: { readAt: r.readAt } });
+          existingInApp.readAt = r.readAt;
+          syncedReads++;
+        }
+      }
+    }
+
+    let customerTotal = 0, customerDelivered = 0, customerRead = 0;
+    let partnerTotal = 0, partnerDelivered = 0, partnerTelegram = 0, partnerRead = 0, partnerAccepted = 0;
+    for (const r of receipts) {
+      const u = userMap.get(r.userId);
+      const inApp = inAppByUser.get(r.userId);
+      const tg = tgByUser.get(r.userId);
+      const isRead = Boolean(r.readAt || inApp?.readAt);
+      if (u?.kind === 'CUSTOMER') {
+        customerTotal++;
+        if (inApp) customerDelivered++;
+        if (isRead) customerRead++;
+      } else {
+        partnerTotal++;
+        if (inApp) partnerDelivered++;
+        if (tg) partnerTelegram++;
+        if (isRead) partnerRead++;
+        if (r.acceptedAt) partnerAccepted++;
+      }
+    }
+
+    return {
+      verified: true,
+      messageId: m.id,
+      title: m.title,
+      totalRecipients: receipts.length,
+      repairedDeliveries,
+      syncedReads,
+      customers: {
+        total: customerTotal,
+        deliveredInApp: customerDelivered,
+        read: customerRead,
+      },
+      partners: {
+        total: partnerTotal,
+        deliveredInApp: partnerDelivered,
+        telegramQueued: partnerTelegram,
+        read: partnerRead,
+        accepted: partnerAccepted,
+      },
+    };
+  }
+  async deleteMessage(actor:Actor,id:string){
+    parse(uuid,id);
+    const m=await this.db.message.findUnique({where:{id}});
+    if(!m)fail('NOT_FOUND','Xabar topilmadi',404);
+    if(actor.kind!=='SUPERADMIN'&&m.senderId!==actor.id)fail('PERMISSION_DENIED','Faqat o‘zingiz yuborgan xabarni o‘chira olasiz',403);
+    return this.db.atomic(async tx=>{
+      await tx.messageRecipient.deleteMany({where:{messageId:id}});
+      await tx.message.delete({where:{id}});
+      await audit(tx,actor.id,'message.deleted',id,undefined,{title:m.title,kind:m.kind});
+      return {success:true,id};
+    });
+  }
   async task(actor:Actor,body:unknown,key?:string){
     const i=parse(z.object({sanatorium_id:uuid,assigned_to:uuid,title:z.string().min(2).max(150),body:z.string().min(1).max(5000),due_at:z.iso.datetime()}).strict(),body);scope(actor,i.sanatorium_id,'tasks.manage');
     const run=async(tx:Tx)=>{if(!await tx.membership.findFirst({where:{sanatoriumId:i.sanatorium_id,userId:i.assigned_to,status:'ACTIVE'}})||!await tx.user.findFirst({where:{id:i.assigned_to,status:'ACTIVE',kind:'STAFF'}}))fail('NOT_FOUND','Faol xodim topilmadi',404);const t=await tx.task.create({data:{sanatoriumId:i.sanatorium_id,assignedBy:actor.id,assignedTo:i.assigned_to,title:i.title,body:i.body,dueAt:new Date(i.due_at)}});await emit(tx,'task.assigned',{task_id:t.id,recipient_ids:[i.assigned_to]});await audit(tx,actor.id,'task.assigned',t.id,i.sanatorium_id);return t;};
@@ -199,7 +629,7 @@ export class EngagementService implements OnModuleInit {
     const staffUsers = staffUserIds.length && this.db.user?.findMany
       ? await this.db.user.findMany({
           where: { id: { in: staffUserIds }, status: 'ACTIVE', kind: 'STAFF' },
-          select: { id: true, name: true, phone: true, login: true, email: true, avatarUrl: true },
+          select: { id: true, publicId: true, name: true, phone: true, login: true, email: true, avatarUrl: true },
         })
       : [];
     const staffUserMap = new Map(staffUsers.map(u => [u.id, u]));
@@ -214,6 +644,7 @@ export class EngagementService implements OnModuleInit {
         if (!u || !sanMap.has(m.sanatoriumId)) return null;
         return {
           id: u.id,
+          publicId: u.publicId ?? null,
           name: u.name,
           phone: u.phone,
           login: u.login,
@@ -227,14 +658,19 @@ export class EngagementService implements OnModuleInit {
       })
       .filter(Boolean);
 
-    const customers = actor.kind === 'SUPERADMIN' && this.db.user?.findMany
-      ? await this.db.user.findMany({
-          where: { kind: 'CUSTOMER', status: 'ACTIVE' },
-          select: { id: true, name: true, phone: true, login: true, email: true, avatarUrl: true },
-          orderBy: { createdAt: 'desc' },
-          take: 200,
-        })
-      : [];
+    const [customers, totalCustomerCount] = await Promise.all([
+      actor.kind === 'SUPERADMIN' && this.db.user?.findMany
+        ? this.db.user.findMany({
+            where: { kind: 'CUSTOMER', status: 'ACTIVE' },
+            select: { id: true, publicId: true, name: true, phone: true, login: true, email: true, avatarUrl: true },
+            orderBy: { createdAt: 'desc' },
+            take: 300,
+          })
+        : [],
+      actor.kind === 'SUPERADMIN' && this.db.user?.count
+        ? this.db.user.count({ where: { kind: 'CUSTOMER', status: 'ACTIVE' } })
+        : 0,
+    ]);
 
     return {
       sanatoriums,
@@ -247,6 +683,11 @@ export class EngagementService implements OnModuleInit {
         roleLabel: 'Platforma Admin',
       })),
       customers,
+      counts: {
+        totalCustomers: totalCustomerCount || customers.length,
+        totalPartners: new Set(staff.map((s: any) => s.id)).size,
+        totalSanatoriums: sanatoriums.length,
+      },
     };
   }
   async ticket(actor:Actor,body:unknown,key?:string){
@@ -754,7 +1195,59 @@ export class EngagementService implements OnModuleInit {
     return {url:`data:${i.mime};base64,${i.base64}`};
   }
   async notifications(actor:Actor, appBuildHeader?: string){
-    const rawRows = await this.db.notificationDelivery.findMany({where:{userId:actor.id,channel:'IN_APP'},take:100,orderBy:{id:'desc'}});
+    const rawDeliveries = await this.db.notificationDelivery.findMany({where:{userId:actor.id,channel:'IN_APP'},take:100,orderBy:{id:'desc'}});
+    const existingMsgNotifMap = new Map<string, any>();
+    for (const d of rawDeliveries) {
+      const p = (d.payload ?? {}) as Record<string, any>;
+      if (typeof p.message_id === 'string' && !existingMsgNotifMap.has(p.message_id)) {
+        existingMsgNotifMap.set(p.message_id, d);
+      }
+    }
+    const rawRows: any[] = [...rawDeliveries];
+    if (this.db.messageRecipient?.findMany && this.db.message?.findMany) {
+      const msgReceipts = await this.db.messageRecipient.findMany({
+        where: { userId: actor.id },
+        take: 50,
+        orderBy: { id: 'desc' },
+      });
+      const missingMsgIds: string[] = [];
+      for (const mr of msgReceipts) {
+        const existing = existingMsgNotifMap.get(mr.messageId);
+        if (existing) {
+          if (!existing.readAt && mr.readAt) existing.readAt = mr.readAt;
+        } else {
+          missingMsgIds.push(mr.messageId);
+        }
+      }
+      if (missingMsgIds.length) {
+        const missingMsgs = await this.db.message.findMany({
+          where: { id: { in: missingMsgIds } },
+        });
+        const mMap = new Map(missingMsgs.map(m => [m.id, m]));
+        for (const mr of msgReceipts) {
+          if (existingMsgNotifMap.has(mr.messageId)) continue;
+          const m = mMap.get(mr.messageId);
+          if (!m) continue;
+          rawRows.push({
+            id: mr.id,
+            eventId: m.id,
+            userId: actor.id,
+            channel: 'IN_APP',
+            status: 'SENT',
+            readAt: mr.readAt ?? null,
+            sentAt: m.createdAt,
+            createdAt: m.createdAt,
+            payload: {
+              topic: 'message.created',
+              message_id: m.id,
+              title: m.title,
+              body: m.body,
+              kind: m.kind,
+            },
+          });
+        }
+      }
+    }
     const clientBuild = typeof appBuildHeader === 'string' && /^\d{1,9}$/.test(appBuildHeader.trim()) ? Number(appBuildHeader.trim()) : null;
     const rows = clientBuild && clientBuild > 0
       ? rawRows.filter(r => {
@@ -973,6 +1466,38 @@ export class EngagementService implements OnModuleInit {
       };
     });
   }
-  async notificationReadAll(actor:Actor){await this.db.notificationDelivery.updateMany({where:{userId:actor.id,channel:'IN_APP',readAt:null},data:{readAt:new Date()}});return {success:true};}
-  async notificationRead(actor:Actor,id:string){parse(uuid,id);const r=await this.db.notificationDelivery.updateMany({where:{id,userId:actor.id},data:{readAt:new Date()}});if(!r.count)fail('NOT_FOUND','Bildirishnoma topilmadi',404);return {success:true};}
+  async notificationReadAll(actor:Actor){
+    const now=new Date();
+    await this.db.notificationDelivery.updateMany({where:{userId:actor.id,channel:'IN_APP',readAt:null},data:{readAt:now}});
+    if(this.db.messageRecipient?.updateMany){
+      await this.db.messageRecipient.updateMany({where:{userId:actor.id,readAt:null},data:{readAt:now}});
+    }
+    return {success:true};
+  }
+  async notificationRead(actor:Actor,id:string){
+    parse(uuid,id);
+    const now=new Date();
+    const existing = this.db.notificationDelivery?.findFirst
+      ? await this.db.notificationDelivery.findFirst({where:{id,userId:actor.id}})
+      : null;
+    const r=await this.db.notificationDelivery.updateMany({where:{id,userId:actor.id},data:{readAt:now}});
+    if(r.count){
+      const msgId = ((existing?.payload ?? {}) as Record<string, any>).message_id;
+      if(typeof msgId === 'string' && this.db.messageRecipient?.updateMany){
+        await this.db.messageRecipient.updateMany({
+          where:{messageId:msgId,userId:actor.id,readAt:null},
+          data:{readAt:now},
+        });
+      }
+      return {success:true};
+    }
+    if(this.db.messageRecipient?.updateMany){
+      const mr=await this.db.messageRecipient.updateMany({
+        where:{OR:[{id,userId:actor.id},{messageId:id,userId:actor.id}]},
+        data:{readAt:now},
+      });
+      if(mr.count) return {success:true};
+    }
+    fail('NOT_FOUND','Bildirishnoma topilmadi',404);
+  }
 }

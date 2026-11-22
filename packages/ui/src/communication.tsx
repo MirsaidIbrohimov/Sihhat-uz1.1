@@ -55,6 +55,2278 @@ import {
   type Field,
   type Row,
 } from "./components";
+const ANNOUNCEMENT_TEMPLATES = [
+  {
+    id: "users-promo",
+    label: "📱 Users: Mavsumiy chegirma va yo‘llanmalar",
+    target: "CUSTOMERS" as const,
+    kind: "MESSAGE" as const,
+    title: "Sihhat.uz ilovasida yangi mavsumiy yo‘llanmalar va chegirmalar!",
+    body: "Hurmatli foydalanuvchi! O‘zbekistonning eng sara sanatoriyalariga onlayn bron qilish 0% komissiya bilan ochiq. Bo‘sh xonalar, davolash yo‘nalishlari va oilaviy yoki 1 kishilik joylarni ilova orqali tanlab band qilishingiz mumkin.",
+  },
+  {
+    id: "partners-update",
+    label: "🏥 Hamkorlar: Shaxmatka va tariflarni yangilash",
+    target: "PARTNERS" as const,
+    kind: "MESSAGE" as const,
+    title: "Bo‘sh xonalar (Shaxmatka) va mavsumiy tariflarni yangilash bo‘yicha",
+    body: "Hurmatli hamkor sanatoriya rahbariyati va resepshn xodimlari! Onlayn bronlar uzluksiz ishlashi uchun «Xonalar va tariflar» bo‘limidagi bandlik kalendari (Shaxmatka) hamda amaldagi narxlarni doimiy yangilab borishingizni so‘raymiz.",
+  },
+  {
+    id: "system-warning",
+    label: "⚠️ Muhim ogohlantirish: Tizim va xizmat intizomi",
+    target: "ALL" as const,
+    kind: "WARNING" as const,
+    title: "Muhim: Tasdiqlangan bronlar va mehmonlarni qabul qilish tartibi",
+    body: "Diqqat! Tasdiqlangan onlayn bronlar bo‘yicha mehmonlar kelganda QR-vaucher yoki bron raqami (#SH-...) orqali darhol joylashtirilishi (Check-in) va E-mehmon anketasi rasmiylashtirilishi shart.",
+  },
+  {
+    id: "all-release",
+    label: "🌐 Barchaga: Yangi imkoniyatlar ishga tushirildi",
+    target: "ALL" as const,
+    kind: "MESSAGE" as const,
+    title: "Sihhat.uz platformasida yangi qulay funksiyalar ishga tushirildi",
+    body: "Platformamizda davolash yo‘nalishlari bo‘yicha saralash, sherikli (koyka-o‘rin) yoki butun xona bron qilish, kunlik muolaja tartibi va tezkor jonli chat imkoniyatlari yangilandi.",
+  },
+];
+
+function formatPublicIdChip(publicId?: number | null, fallbackId?: string | null): string {
+  if (typeof publicId === "number" && publicId > 0) return `#${publicId}`;
+  if (fallbackId && fallbackId.length >= 6) return `#${fallbackId.slice(0, 6).toUpperCase()}`;
+  return "#------";
+}
+
+function AnnouncementsAndMessagesCenter({ embedded = false }: { embedded?: boolean }) {
+  const ctx = usePortal();
+  const canSend = ctx.admin || ctx.allowed("messages.send");
+  const [activeTab, setActiveTab] = useState<"sent" | "inbox">(
+    ctx.admin || canSend ? "sent" : "inbox",
+  );
+  const [searchQuery, setSearchQuery] = useState("");
+  const [audienceFilter, setAudienceFilter] = useState<"ALL_FILTER" | "ALL" | "CUSTOMERS" | "PARTNERS">("ALL_FILTER");
+  const [kindFilter, setKindFilter] = useState<"ALL_KIND" | "MESSAGE" | "WARNING">("ALL_KIND");
+
+  // Compose Modal state
+  const [composeOpen, setComposeOpen] = useState(false);
+  const [target, setTarget] = useState<"ALL" | "CUSTOMERS" | "PARTNERS">(
+    ctx.admin ? "ALL" : "PARTNERS",
+  );
+  const [customerMode, setCustomerMode] = useState<"ALL_CUSTOMERS" | "SELECTED_CUSTOMERS">("ALL_CUSTOMERS");
+  const [selectedCustomerIds, setSelectedCustomerIds] = useState<string[]>([]);
+  const [customerSearch, setCustomerSearch] = useState("");
+
+  const [partnerTargetMode, setPartnerTargetMode] = useState<"TEAM" | "SUPERADMIN">("TEAM");
+  const [selectedSanatoriumIds, setSelectedSanatoriumIds] = useState<string[]>([]);
+  const [selectedRoles, setSelectedRoles] = useState<string[]>([]);
+  const [selectedStaffIds, setSelectedStaffIds] = useState<string[]>([]);
+  const [staffSearch, setStaffSearch] = useState("");
+
+  const [msgKind, setMsgKind] = useState<"MESSAGE" | "WARNING">("MESSAGE");
+  const [msgTitle, setMsgTitle] = useState("");
+  const [msgBody, setMsgBody] = useState("");
+  const [composeBusy, setComposeBusy] = useState(false);
+  const [composeError, setComposeError] = useState("");
+
+  // Delivery Inspector & Verification state
+  const [inspectRow, setInspectRow] = useState<Row | null>(null);
+  const [inspectTab, setInspectTab] = useState<"ALL" | "CUSTOMERS" | "PARTNERS">("ALL");
+  const [inspectReadFilter, setInspectReadFilter] = useState<"ALL" | "READ" | "UNREAD">("ALL");
+  const [inspectSearch, setInspectSearch] = useState("");
+  const [verifyingId, setVerifyingId] = useState<string | null>(null);
+  const [verifyingAll, setVerifyingAll] = useState(false);
+  const [lastVerifySummary, setLastVerifySummary] = useState<string>("");
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [markingId, setMarkingId] = useState<string | null>(null);
+  const [markingAllInbox, setMarkingAllInbox] = useState(false);
+
+  const sentRemote = useRemote(
+    canSend ? "/messages?box=sent&limit=50" : null,
+    ctx.epoch,
+  );
+  const inboxRemote = useRemote("/messages?box=inbox&limit=50", ctx.epoch);
+  const audienceRemote = useRemote("/support/recipients", ctx.epoch);
+
+  const sentRows = list(sentRemote.data);
+  const inboxRows = list(inboxRemote.data);
+  const unreadInboxCount = inboxRows.filter((r) => !r.readAt).length;
+
+  const allCustomers: Row[] = audienceRemote.data?.customers ?? [];
+  const allStaff: Row[] = audienceRemote.data?.staff ?? [];
+  const allSanatoriums: Row[] = audienceRemote.data?.sanatoriums ?? ctx.tenants ?? [];
+  const allSuperadmins: Row[] = audienceRemote.data?.superadmins ?? [];
+
+  const ownSanatoriumStaff = allStaff.filter(
+    (s) => !ctx.tenant || s.sanatoriumId === ctx.tenant,
+  );
+
+  const totalCustomersCount =
+    audienceRemote.data?.counts?.totalCustomers ?? allCustomers.length;
+  const totalPartnersCount =
+    audienceRemote.data?.counts?.totalPartners ??
+    new Set(allStaff.map((s) => s.id)).size;
+  const totalSanatoriumsCount =
+    audienceRemote.data?.counts?.totalSanatoriums ?? allSanatoriums.length;
+
+  // Aggregate Delivery KPIs across sent messages
+  let aggCustomerTarget = 0;
+  let aggCustomerDelivered = 0;
+  let aggCustomerRead = 0;
+  let aggPartnerTarget = 0;
+  let aggPartnerDelivered = 0;
+  let aggPartnerRead = 0;
+  let aggPartnerAccepted = 0;
+  let aggWarnings = 0;
+
+  for (const r of sentRows) {
+    const m = r.message ?? r;
+    if (m?.kind === "WARNING") aggWarnings++;
+    const cs = r.customerStats;
+    const ps = r.partnerStats;
+    if (cs) {
+      aggCustomerTarget += Number(cs.total || 0);
+      aggCustomerDelivered += Number(cs.delivered || 0);
+      aggCustomerRead += Number(cs.read || 0);
+    }
+    if (ps) {
+      aggPartnerTarget += Number(ps.total || 0);
+      aggPartnerDelivered += Number(ps.delivered || 0);
+      aggPartnerRead += Number(ps.read || 0);
+      aggPartnerAccepted += Number(ps.accepted || 0);
+    }
+  }
+
+  // Keep inspectRow in sync when sentRemote reloads
+  useEffect(() => {
+    if (!inspectRow) return;
+    const updated = sentRows.find((r) => r.id === inspectRow.id);
+    if (updated) setInspectRow(updated);
+  }, [sentRemote.data]);
+
+  const openComposeModal = () => {
+    setTarget(ctx.admin ? "ALL" : "PARTNERS");
+    setCustomerMode("ALL_CUSTOMERS");
+    setSelectedCustomerIds([]);
+    setCustomerSearch("");
+    setPartnerTargetMode("TEAM");
+    setSelectedSanatoriumIds([]);
+    setSelectedRoles([]);
+    setSelectedStaffIds([]);
+    setStaffSearch("");
+    setMsgKind("MESSAGE");
+    setMsgTitle("");
+    setMsgBody("");
+    setComposeError("");
+    setComposeOpen(true);
+  };
+
+  const applyTemplate = (tpl: (typeof ANNOUNCEMENT_TEMPLATES)[number]) => {
+    if (ctx.admin) {
+      setTarget(tpl.target);
+    }
+    setMsgKind(tpl.kind);
+    setMsgTitle(tpl.title);
+    setMsgBody(tpl.body);
+    setComposeError("");
+  };
+
+  // Calculate live recipient estimate in Compose modal
+  const estimatedRecipients = (() => {
+    if (!ctx.admin) {
+      if (partnerTargetMode === "SUPERADMIN") {
+        return {
+          customers: 0,
+          partners: Math.max(1, allSuperadmins.length),
+          total: Math.max(1, allSuperadmins.length),
+          label: "Platforma Superadmini",
+        };
+      }
+      const staffPool = ownSanatoriumStaff.filter((s) => s.id !== ctx.actor.id);
+      const count = selectedStaffIds.length
+        ? selectedStaffIds.length
+        : staffPool.length;
+      return {
+        customers: 0,
+        partners: count,
+        total: count,
+        label: `${count} ta sanatoriya xodimi`,
+      };
+    }
+
+    let custCount = 0;
+    let partCount = 0;
+
+    if (target === "CUSTOMERS" || target === "ALL") {
+      custCount =
+        target === "CUSTOMERS" && customerMode === "SELECTED_CUSTOMERS"
+          ? selectedCustomerIds.length
+          : totalCustomersCount;
+    }
+
+    if (target === "PARTNERS" || target === "ALL") {
+      if (target === "PARTNERS" && selectedStaffIds.length > 0) {
+        partCount = selectedStaffIds.length;
+      } else {
+        const filteredStaff = allStaff.filter((s) => {
+          const sanOk =
+            !selectedSanatoriumIds.length ||
+            selectedSanatoriumIds.includes(s.sanatoriumId);
+          const roleOk =
+            !selectedRoles.length || selectedRoles.includes(s.role);
+          return sanOk && roleOk;
+        });
+        const uniqueStaffIds = new Set(filteredStaff.map((s) => s.id));
+        partCount =
+          !selectedSanatoriumIds.length && !selectedRoles.length
+            ? Math.max(uniqueStaffIds.size, totalPartnersCount)
+            : uniqueStaffIds.size;
+      }
+    }
+
+    return {
+      customers: custCount,
+      partners: partCount,
+      total: custCount + partCount,
+      label: `📱 ${custCount} ta foydalanuvchi + 🏥 ${partCount} ta hamkor`,
+    };
+  })();
+
+  const handleVerifySingle = async (messageId: string, silent = false) => {
+    if (!messageId || verifyingId) return null;
+    setVerifyingId(messageId);
+    try {
+      const res = await api<any>(`/messages/${messageId}/verify-delivery`, "POST", {});
+      const summary = `API tasdiqladi: Usersga ${res.customers?.deliveredInApp ?? 0}/${res.customers?.total ?? 0} ta (o‘qildi: ${res.customers?.read ?? 0}), Hamkorlarga ${res.partners?.deliveredInApp ?? 0}/${res.partners?.total ?? 0} ta (o‘qildi: ${res.partners?.read ?? 0}, tasdiqladi: ${res.partners?.accepted ?? 0})${res.repairedDeliveries ? ` · ${res.repairedDeliveries} ta yetkazilish tiklandi` : ""}`;
+      setLastVerifySummary(summary);
+      if (!silent) ctx.notice(summary);
+      sentRemote.reload();
+      inboxRemote.reload();
+      return res;
+    } catch (err: any) {
+      if (!silent) ctx.notice(err?.message || "Yetkazilishni tekshirishda xatolik");
+      return null;
+    } finally {
+      setVerifyingId(null);
+    }
+  };
+
+  const handleVerifyAll = async () => {
+    if (verifyingAll) return;
+    setVerifyingAll(true);
+    try {
+      let checked = 0;
+      let repaired = 0;
+      let custDeliv = 0;
+      let partDeliv = 0;
+      for (const row of sentRows.slice(0, 15)) {
+        const mid = row.messageId || row.id;
+        if (!mid) continue;
+        const res = await api<any>(`/messages/${mid}/verify-delivery`, "POST", {}).catch(() => null);
+        if (res) {
+          checked++;
+          repaired += Number(res.repairedDeliveries || 0);
+          custDeliv += Number(res.customers?.deliveredInApp || 0);
+          partDeliv += Number(res.partners?.deliveredInApp || 0);
+        }
+      }
+      sentRemote.reload();
+      inboxRemote.reload();
+      const msg = checked
+        ? `✅ ${checked} ta e’lon API orqali tekshirildi: Usersga ${custDeliv} ta, Hamkorlarga ${partDeliv} ta bildirishnoma yetkazilgan${repaired ? ` (${repaired} ta tiklandi)` : " (100% sinxron)"}.`
+        : "Tekshirish uchun yuborilgan e’lonlar topilmadi.";
+      setLastVerifySummary(msg);
+      ctx.notice(msg);
+    } finally {
+      setVerifyingAll(false);
+    }
+  };
+
+  const handleSubmitCompose = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (composeBusy) return;
+    const cleanTitle = msgTitle.trim();
+    const cleanBody = msgBody.trim();
+    if (cleanTitle.length < 2) {
+      setComposeError("Sarlavha kamida 2 ta belgidan iborat bo‘lishi kerak.");
+      return;
+    }
+    if (!cleanBody) {
+      setComposeError("E’lon yoki xabar matnini kiriting.");
+      return;
+    }
+
+    setComposeBusy(true);
+    setComposeError("");
+    try {
+      let created: any = null;
+      if (ctx.admin) {
+        if (target === "CUSTOMERS" && customerMode === "SELECTED_CUSTOMERS" && !selectedCustomerIds.length) {
+          setComposeError("Iltimos, kamida 1 ta foydalanuvchini belgilang yoki «Barcha faol foydalanuvchilarga» rejimini tanlang.");
+          setComposeBusy(false);
+          return;
+        }
+        const payload: Record<string, any> = {
+          target,
+          title: cleanTitle,
+          body: cleanBody,
+          kind: msgKind,
+        };
+        if (target === "CUSTOMERS" && customerMode === "SELECTED_CUSTOMERS") {
+          payload.recipient_ids = selectedCustomerIds;
+        } else if (target === "PARTNERS") {
+          if (selectedStaffIds.length > 0) {
+            payload.recipient_ids = selectedStaffIds;
+          } else {
+            if (selectedSanatoriumIds.length > 0) {
+              payload.sanatorium_ids = selectedSanatoriumIds;
+            }
+            if (selectedRoles.length > 0) {
+              payload.roles = selectedRoles;
+            }
+          }
+        } else if (target === "ALL") {
+          if (selectedSanatoriumIds.length > 0) {
+            payload.sanatorium_ids = selectedSanatoriumIds;
+          }
+          if (selectedRoles.length > 0) {
+            payload.roles = selectedRoles;
+          }
+        }
+        created = await api("/superadmin/announcements", "POST", payload);
+      } else {
+        let recipientIds: string[] = [];
+        if (partnerTargetMode === "SUPERADMIN") {
+          recipientIds = allSuperadmins.map((a) => a.id).filter(Boolean);
+        } else {
+          const pool = ownSanatoriumStaff
+            .filter((s) => s.id !== ctx.actor.id)
+            .map((s) => s.id);
+          recipientIds = selectedStaffIds.length
+            ? selectedStaffIds
+            : [...new Set(pool)];
+        }
+        if (!recipientIds.length) {
+          setComposeError("Qabul qiluvchi xodimlar topilmadi.");
+          setComposeBusy(false);
+          return;
+        }
+        created = await api("/messages", "POST", {
+          title: cleanTitle,
+          body: cleanBody,
+          kind: msgKind,
+          recipient_ids: [...new Set(recipientIds)],
+        });
+      }
+
+      setComposeOpen(false);
+      setActiveTab("sent");
+      if (created?.id) {
+        const verified = await handleVerifySingle(created.id, true);
+        if (verified) {
+          const summary = `✅ E’lon yuborildi! Usersga: ${verified.customers?.deliveredInApp ?? 0} ta, Hamkorlarga: ${verified.partners?.deliveredInApp ?? 0} ta yetkazildi.`;
+          setLastVerifySummary(summary);
+          ctx.notice(summary);
+        } else {
+          ctx.notice("E’lon muvaffaqiyatli yuborildi");
+        }
+      } else {
+        ctx.notice("E’lon muvaffaqiyatli yuborildi");
+      }
+      sentRemote.reload();
+      inboxRemote.reload();
+      ctx.refresh();
+    } catch (err: any) {
+      setComposeError(err?.message || "E’lon yuborishda xatolik yuz berdi.");
+    } finally {
+      setComposeBusy(false);
+    }
+  };
+
+  const handleDeleteMessage = async (row: Row) => {
+    const mid = row.messageId || row.id;
+    const title = row.message?.title ?? row.title ?? "E’lon";
+    if (!mid || deletingId) return;
+    if (!window.confirm(`«${title}» e’lonini o‘chirmoqchimisiz?`)) return;
+    setDeletingId(mid);
+    try {
+      await api(`/messages/${mid}`, "DELETE");
+      if (inspectRow && (inspectRow.id === mid || inspectRow.messageId === mid)) {
+        setInspectRow(null);
+      }
+      ctx.notice("E’lon o‘chirildi");
+      sentRemote.reload();
+      inboxRemote.reload();
+    } catch (err: any) {
+      ctx.notice(err?.message || "O‘chirishda xatolik");
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
+  const handleMarkInboxReceipt = async (row: Row, accepted: boolean) => {
+    const mid = row.messageId || row.message?.id || row.id;
+    if (!mid || markingId) return;
+    setMarkingId(mid);
+    try {
+      await api(`/messages/${mid}/receipt`, "POST", { accepted });
+      ctx.notice(
+        accepted
+          ? "E’lon qabul qilindi va tasdiqlandi"
+          : "E’lon o‘qilgan deb belgilandi",
+      );
+      inboxRemote.reload();
+      sentRemote.reload();
+      ctx.refresh();
+    } catch (err: any) {
+      ctx.notice(err?.message || "Holatni yangilashda xatolik");
+    } finally {
+      setMarkingId(null);
+    }
+  };
+
+  const handleMarkAllInboxRead = async () => {
+    if (markingAllInbox || !unreadInboxCount) return;
+    setMarkingAllInbox(true);
+    try {
+      await api("/notifications/read-all", "POST", {});
+      for (const r of inboxRows.filter((item) => !item.readAt)) {
+        const mid = r.messageId || r.message?.id;
+        if (mid) {
+          await api(`/messages/${mid}/receipt`, "POST", { accepted: false }).catch(() => {});
+        }
+      }
+      ctx.notice("Barcha kiruvchi e’lon va xabarlar o‘qilgan deb belgilandi");
+      inboxRemote.reload();
+      sentRemote.reload();
+      ctx.refresh();
+    } finally {
+      setMarkingAllInbox(false);
+    }
+  };
+
+  const filteredSentRows = sentRows.filter((r) => {
+    const m = r.message ?? r;
+    if (audienceFilter !== "ALL_FILTER" && r.targetAudience !== audienceFilter) {
+      return false;
+    }
+    if (kindFilter !== "ALL_KIND" && m?.kind !== kindFilter) {
+      return false;
+    }
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      const inTitle = (m?.title ?? "").toLowerCase().includes(q);
+      const inBody = (m?.body ?? "").toLowerCase().includes(q);
+      const inRecipients = Array.isArray(r.recipients)
+        ? r.recipients.some(
+            (rec: Row) =>
+              (rec.name ?? "").toLowerCase().includes(q) ||
+              (rec.phone ?? "").toLowerCase().includes(q) ||
+              (rec.sanatoriumName ?? "").toLowerCase().includes(q) ||
+              String(rec.publicId ?? "").includes(q),
+          )
+        : false;
+      return inTitle || inBody || inRecipients;
+    }
+    return true;
+  });
+
+  const filteredInboxRows = inboxRows.filter((r) => {
+    const m = r.message ?? r;
+    if (kindFilter !== "ALL_KIND" && m?.kind !== kindFilter) {
+      return false;
+    }
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      return (
+        (m?.title ?? "").toLowerCase().includes(q) ||
+        (m?.body ?? "").toLowerCase().includes(q) ||
+        (r.sender?.name ?? "").toLowerCase().includes(q) ||
+        (r.sender?.sanatoriumName ?? "").toLowerCase().includes(q)
+      );
+    }
+    return true;
+  });
+
+  const audienceBadge = (targetAud?: string) => {
+    if (targetAud === "ALL") {
+      return (
+        <span className="badge green" title="Ham Users (ilova mijozlari), ham Hamkorlarga yuborilgan">
+          🌐 Butun tizim (Users + Hamkorlar)
+        </span>
+      );
+    }
+    if (targetAud === "CUSTOMERS") {
+      return (
+        <span className="badge blue" title="Ilova foydalanuvchilariga (mijozlarga) yuborilgan">
+          📱 Foydalanuvchilarga (Users)
+        </span>
+      );
+    }
+    if (targetAud === "PARTNERS") {
+      return (
+        <span className="badge green" title="Sanatoriya rahbarlari va xodimlariga yuborilgan">
+          🏥 Hamkorlarga (Sanatoriyalar)
+        </span>
+      );
+    }
+    return <span className="badge gray">Qabul qiluvchisiz</span>;
+  };
+
+  return (
+    <>
+      {!embedded && (
+        <PageHeading
+          title="E’lonlar va xabarlar"
+          subtitle="Ilova foydalanuvchilari (Users) va hamkor sanatoriyalarga tezkor e’lon yuborish hamda API yetkazilish nazorati."
+        >
+          {canSend && (
+            <button
+              type="button"
+              className="button secondary"
+              disabled={verifyingAll || sentRows.length === 0}
+              onClick={handleVerifyAll}
+              title="Yuborilgan xabarlar Users va Hamkorlarga borganini API orqali tekshirish"
+            >
+              <CheckCheck size={16} />
+              {verifyingAll ? "Tekshirilmoqda..." : "API yetkazilishni tekshirish"}
+            </button>
+          )}
+          {canSend && (
+            <AddButton onClick={openComposeModal}>
+              {ctx.admin ? "Yangi e’lon berish" : "Xabar yuborish"}
+            </AddButton>
+          )}
+        </PageHeading>
+      )}
+
+      {/* 4 Live Control & Delivery KPI Cards */}
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit, minmax(230px, 1fr))",
+          gap: "12px",
+          marginBottom: "18px",
+        }}
+      >
+        <div
+          className="card"
+          style={{
+            padding: "14px 16px",
+            display: "flex",
+            flexDirection: "column",
+            gap: "6px",
+          }}
+        >
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <span style={{ fontSize: "12px", fontWeight: 700, color: "var(--muted)", textTransform: "uppercase" }}>
+              📢 E’lonlar va xabarlar
+            </span>
+            <Megaphone size={17} style={{ color: "var(--green)" }} />
+          </div>
+          <div style={{ fontSize: "22px", fontWeight: 800, color: "var(--ink)" }}>
+            {canSend ? `${sentRows.length} ta yuborilgan` : `${inboxRows.length} ta kiruvchi`}
+          </div>
+          <div style={{ fontSize: "12px", color: "var(--muted)", display: "flex", gap: "8px", flexWrap: "wrap" }}>
+            <span>📥 Kiruvchi: <strong>{inboxRows.length}</strong> ({unreadInboxCount} yangi)</span>
+            {canSend && <span>· ⚠️ Ogohlantirish: <strong>{aggWarnings}</strong></span>}
+          </div>
+        </div>
+
+        <div
+          className="card"
+          style={{
+            padding: "14px 16px",
+            display: "flex",
+            flexDirection: "column",
+            gap: "6px",
+          }}
+        >
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <span style={{ fontSize: "12px", fontWeight: 700, color: "var(--muted)", textTransform: "uppercase" }}>
+              📱 Users (Ilova mijozlari)
+            </span>
+            <Smartphone size={17} style={{ color: "var(--green)" }} />
+          </div>
+          <div style={{ display: "flex", alignItems: "baseline", gap: "8px" }}>
+            <span style={{ fontSize: "22px", fontWeight: 800, color: "var(--ink)" }}>
+              {aggCustomerDelivered} / {aggCustomerTarget}
+            </span>
+            <span className="badge green" style={{ fontSize: "11px" }}>
+              {aggCustomerTarget > 0
+                ? `${Math.round((aggCustomerDelivered / aggCustomerTarget) * 100)}% bordi`
+                : `${totalCustomersCount} faol user`}
+            </span>
+          </div>
+          <div style={{ fontSize: "12px", color: "var(--muted)" }}>
+            Faol users: <strong>{totalCustomersCount} ta</strong> · O‘qilgan: <strong>{aggCustomerRead} ta</strong>
+          </div>
+        </div>
+
+        <div
+          className="card"
+          style={{
+            padding: "14px 16px",
+            display: "flex",
+            flexDirection: "column",
+            gap: "6px",
+          }}
+        >
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <span style={{ fontSize: "12px", fontWeight: 700, color: "var(--muted)", textTransform: "uppercase" }}>
+              🏥 Hamkorlar (Sanatoriyalar)
+            </span>
+            <Building2 size={17} style={{ color: "var(--green)" }} />
+          </div>
+          <div style={{ display: "flex", alignItems: "baseline", gap: "8px" }}>
+            <span style={{ fontSize: "22px", fontWeight: 800, color: "var(--ink)" }}>
+              {aggPartnerDelivered} / {aggPartnerTarget}
+            </span>
+            <span className="badge green" style={{ fontSize: "11px" }}>
+              {aggPartnerTarget > 0
+                ? `${Math.round((aggPartnerDelivered / aggPartnerTarget) * 100)}% bordi`
+                : `${totalPartnersCount} faol xodim`}
+            </span>
+          </div>
+          <div style={{ fontSize: "12px", color: "var(--muted)" }}>
+            {totalSanatoriumsCount} sanatoriya ({totalPartnersCount} xodim) · O‘qildi: <strong>{aggPartnerRead}</strong> · Qabul: <strong>{aggPartnerAccepted}</strong>
+          </div>
+        </div>
+
+        <div
+          className="card"
+          style={{
+            padding: "14px 16px",
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "space-between",
+            gap: "6px",
+          }}
+        >
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <span style={{ fontSize: "12px", fontWeight: 700, color: "var(--muted)", textTransform: "uppercase" }}>
+              🛡️ API Yetkazish Nazorati
+            </span>
+            <span className="badge green" style={{ fontSize: "11px" }}>IN_APP · TG Sinxron</span>
+          </div>
+          <div style={{ fontSize: "12.5px", color: "var(--ink)", fontWeight: 600, lineHeight: 1.35 }}>
+            {lastVerifySummary || "Har bir e’lon 0 ms kechikish bilan Users (/notifications) va Hamkorlarga yetkaziladi."}
+          </div>
+          {canSend && (
+            <div style={{ display: "flex", gap: "8px", marginTop: "2px" }}>
+              <button
+                type="button"
+                className="button soft"
+                style={{ fontSize: "12px", padding: "4px 10px", minHeight: "28px" }}
+                disabled={verifyingAll || sentRows.length === 0}
+                onClick={handleVerifyAll}
+              >
+                {verifyingAll ? "Tekshirilmoqda..." : "🔄 API qayta tekshirish"}
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Tabs + Search + Filters + Action Buttons */}
+      <div
+        className="card"
+        style={{
+          padding: "14px 16px",
+          marginBottom: "16px",
+          display: "flex",
+          flexDirection: "column",
+          gap: "12px",
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            flexWrap: "wrap",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: "10px",
+          }}
+        >
+          <div className="tabs" style={{ marginBottom: 0 }}>
+            {canSend && (
+              <button
+                type="button"
+                className={`tab ${activeTab === "sent" ? "active" : ""}`}
+                onClick={() => setActiveTab("sent")}
+              >
+                📤 Yuborilgan e’lonlar ({sentRows.length})
+              </button>
+            )}
+            <button
+              type="button"
+              className={`tab ${activeTab === "inbox" ? "active" : ""}`}
+              onClick={() => setActiveTab("inbox")}
+            >
+              📥 Kiruvchi xabarlar ({inboxRows.length})
+              {unreadInboxCount > 0 && (
+                <span
+                  className="badge blue"
+                  style={{ marginLeft: "6px", padding: "1px 7px", fontSize: "11px" }}
+                >
+                  {unreadInboxCount} yangi
+                </span>
+              )}
+            </button>
+          </div>
+
+          <div style={{ display: "flex", flexWrap: "wrap", gap: "8px", alignItems: "center" }}>
+            {activeTab === "inbox" && unreadInboxCount > 0 && (
+              <button
+                type="button"
+                className="button secondary"
+                disabled={markingAllInbox}
+                onClick={handleMarkAllInboxRead}
+              >
+                <CheckCheck size={16} />
+                {markingAllInbox ? "Belgilanmoqda..." : "Barchasini o‘qilgan deb belgilash"}
+              </button>
+            )}
+            {embedded && canSend && (
+              <>
+                <button
+                  type="button"
+                  className="button secondary"
+                  disabled={verifyingAll || sentRows.length === 0}
+                  onClick={handleVerifyAll}
+                >
+                  <CheckCheck size={16} />
+                  {verifyingAll ? "Tekshirilmoqda..." : "API tekshirish"}
+                </button>
+                <AddButton onClick={openComposeModal}>
+                  {ctx.admin ? "Yangi e’lon berish" : "Xabar yuborish"}
+                </AddButton>
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* Search & Filter Controls */}
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
+            gap: "10px",
+          }}
+        >
+          <div style={{ position: "relative" }}>
+            <Search
+              size={15}
+              style={{
+                position: "absolute",
+                left: "11px",
+                top: "50%",
+                transform: "translateY(-50%)",
+                color: "var(--muted)",
+              }}
+            />
+            <input
+              type="search"
+              placeholder="Sarlavha, matn, mijoz yoki sanatoriya qidirish..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              style={{
+                width: "100%",
+                padding: "8px 12px 8px 34px",
+                borderRadius: "8px",
+                border: "1px solid var(--line)",
+                background: "var(--soft)",
+                color: "var(--ink)",
+                fontSize: "13px",
+                boxSizing: "border-box",
+              }}
+            />
+          </div>
+
+          {activeTab === "sent" && (
+            <select
+              aria-label="Auditoriya filtri"
+              value={audienceFilter}
+              onChange={(e) => setAudienceFilter(e.target.value as any)}
+              style={{
+                padding: "8px 12px",
+                borderRadius: "8px",
+                border: "1px solid var(--line)",
+                background: "var(--soft)",
+                color: "var(--ink)",
+                fontSize: "13px",
+              }}
+            >
+              <option value="ALL_FILTER">👥 Barcha auditoriyalar</option>
+              <option value="ALL">🌐 Butun tizim (Users + Hamkorlar)</option>
+              <option value="CUSTOMERS">📱 Faqat Users (Foydalanuvchilar)</option>
+              <option value="PARTNERS">🏥 Faqat Hamkorlar (Sanatoriyalar)</option>
+            </select>
+          )}
+
+          <select
+            aria-label="Xabar turi filtri"
+            value={kindFilter}
+            onChange={(e) => setKindFilter(e.target.value as any)}
+            style={{
+              padding: "8px 12px",
+              borderRadius: "8px",
+              border: "1px solid var(--line)",
+              background: "var(--soft)",
+              color: "var(--ink)",
+              fontSize: "13px",
+            }}
+          >
+            <option value="ALL_KIND">📋 Barcha turlar</option>
+            <option value="MESSAGE">📢 Axborot e’loni / Xabar</option>
+            <option value="WARNING">⚠️ Muhim ogohlantirish</option>
+          </select>
+        </div>
+      </div>
+
+      {/* Main Message List */}
+      {activeTab === "sent" && canSend ? (
+        sentRemote.loading ? (
+          <Loading />
+        ) : sentRemote.error ? (
+          <ErrorBox message={sentRemote.error} retry={sentRemote.reload} />
+        ) : filteredSentRows.length === 0 ? (
+          <Card title="Yuborilgan e’lonlar va xabarlar">
+            <Empty
+              text={
+                searchQuery || audienceFilter !== "ALL_FILTER" || kindFilter !== "ALL_KIND"
+                  ? "Filtr bo‘yicha e’lon topilmadi"
+                  : "Hozircha yuborilgan e’lonlar yo‘q"
+              }
+            />
+          </Card>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+            {filteredSentRows.map((r) => {
+              const m = r.message ?? r;
+              const cs = r.customerStats ?? { total: 0, delivered: 0, read: 0 };
+              const ps = r.partnerStats ?? {
+                total: 0,
+                delivered: 0,
+                telegramSent: 0,
+                read: 0,
+                accepted: 0,
+                sanatoriums: [],
+              };
+              const isVerifying = verifyingId === (r.messageId || r.id);
+              const isDeleting = deletingId === (r.messageId || r.id);
+
+              return (
+                <article
+                  key={r.id}
+                  className="card"
+                  style={{
+                    padding: "16px 18px",
+                    borderLeft:
+                      m?.kind === "WARNING"
+                        ? "4px solid #f59e0b"
+                        : "4px solid var(--green)",
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "12px",
+                  }}
+                >
+                  {/* Top Header */}
+                  <div
+                    style={{
+                      display: "flex",
+                      flexWrap: "wrap",
+                      alignItems: "flex-start",
+                      justifyContent: "space-between",
+                      gap: "10px",
+                    }}
+                  >
+                    <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+                        <span className={`badge ${m?.kind === "WARNING" ? "amber" : "green"}`}>
+                          {m?.kind === "WARNING" ? "⚠️ Muhim ogohlantirish" : "📢 E’lon / Xabar"}
+                        </span>
+                        {audienceBadge(r.targetAudience)}
+                        <span style={{ fontSize: "12px", color: "var(--muted)" }}>
+                          🕒 {dateTime(r.createdAt || m?.createdAt)}
+                        </span>
+                      </div>
+                      <h3 style={{ margin: 0, fontSize: "16px", fontWeight: 700, color: "var(--ink)" }}>
+                        {m?.title}
+                      </h3>
+                    </div>
+
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: "8px", alignItems: "center" }}>
+                      <button
+                        type="button"
+                        className="button soft"
+                        onClick={() => {
+                          setInspectRow(r);
+                          setInspectTab("ALL");
+                          setInspectReadFilter("ALL");
+                          setInspectSearch("");
+                        }}
+                      >
+                        <Users size={15} />
+                        <span>Kimga bordi ({r.recipientCount ?? 0})</span>
+                      </button>
+                      <button
+                        type="button"
+                        className="button secondary"
+                        disabled={isVerifying}
+                        onClick={() => handleVerifySingle(r.messageId || r.id)}
+                        title="Users va Hamkorlarga yetkazilganini API orqali tekshirish"
+                      >
+                        <CheckCircle2 size={15} />
+                        <span>{isVerifying ? "Tekshirilmoqda..." : "Tekshirish"}</span>
+                      </button>
+                      <button
+                        type="button"
+                        className="button secondary"
+                        disabled={isDeleting}
+                        onClick={() => handleDeleteMessage(r)}
+                        style={{ color: "#ef4444" }}
+                        title="E’lonni o‘chirish"
+                      >
+                        <Trash2 size={15} />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Message Body */}
+                  <div
+                    style={{
+                      padding: "12px 14px",
+                      borderRadius: "10px",
+                      background: "var(--soft)",
+                      border: "1px solid var(--line)",
+                      fontSize: "13.5px",
+                      lineHeight: 1.55,
+                      color: "var(--ink)",
+                      whiteSpace: "pre-wrap",
+                    }}
+                  >
+                    {m?.body}
+                  </div>
+
+                  {/* Delivery Breakdown Boxes: Users vs Partners */}
+                  <div
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
+                      gap: "10px",
+                    }}
+                  >
+                    {/* Users (Customers) Delivery Status Box */}
+                    <div
+                      style={{
+                        padding: "10px 14px",
+                        borderRadius: "10px",
+                        border: "1px solid var(--line)",
+                        background: cs.total > 0 ? "rgba(16, 185, 129, 0.06)" : "var(--soft)",
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: "6px",
+                      }}
+                    >
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                        <strong style={{ fontSize: "12.5px", color: "var(--ink)", display: "flex", alignItems: "center", gap: "6px" }}>
+                          <Smartphone size={15} style={{ color: "var(--green)" }} />
+                          📱 Users (Ilova foydalanuvchilari)
+                        </strong>
+                        {cs.total > 0 ? (
+                          <span className="badge green" style={{ fontSize: "11px" }}>
+                            ✅ {cs.delivered}/{cs.total} ta yetkazildi
+                          </span>
+                        ) : (
+                          <span className="badge gray" style={{ fontSize: "11px" }}>
+                            Tanlanmagan
+                          </span>
+                        )}
+                      </div>
+                      {cs.total > 0 ? (
+                        <div style={{ fontSize: "12px", color: "var(--muted)", display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: "6px" }}>
+                          <span>Ilovaga bordi (IN_APP): <strong>{cs.delivered} ta</strong></span>
+                          <span>👁️ O‘qidi: <strong>{cs.read} ta ({Math.round((cs.read / cs.total) * 100)}%)</strong></span>
+                        </div>
+                      ) : (
+                        <div style={{ fontSize: "12px", color: "var(--muted)" }}>
+                          Bu xabar faqat hamkor sanatoriyalarga yo‘naltirilgan.
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Partners (Sanatorium Staff) Delivery Status Box */}
+                    <div
+                      style={{
+                        padding: "10px 14px",
+                        borderRadius: "10px",
+                        border: "1px solid var(--line)",
+                        background: ps.total > 0 ? "rgba(16, 185, 129, 0.06)" : "var(--soft)",
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: "6px",
+                      }}
+                    >
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                        <strong style={{ fontSize: "12.5px", color: "var(--ink)", display: "flex", alignItems: "center", gap: "6px" }}>
+                          <Building2 size={15} style={{ color: "var(--green)" }} />
+                          🏥 Hamkorlar (Sanatoriya xodimlari)
+                        </strong>
+                        {ps.total > 0 ? (
+                          <span className="badge green" style={{ fontSize: "11px" }}>
+                            ✅ {ps.delivered}/{ps.total} ta yetkazildi
+                          </span>
+                        ) : (
+                          <span className="badge gray" style={{ fontSize: "11px" }}>
+                            Tanlanmagan
+                          </span>
+                        )}
+                      </div>
+                      {ps.total > 0 ? (
+                        <>
+                          <div style={{ fontSize: "12px", color: "var(--muted)", display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: "6px" }}>
+                            <span>Panelga bordi: <strong>{ps.delivered} ta</strong></span>
+                            <span>👁️ O‘qidi: <strong>{ps.read} ta</strong></span>
+                            <span>✅ Tasdiqladi: <strong>{ps.accepted} ta</strong></span>
+                            {ps.telegramSent > 0 && <span>🤖 Telegram: <strong>{ps.telegramSent} ta</strong></span>}
+                          </div>
+                          {Array.isArray(ps.sanatoriums) && ps.sanatoriums.length > 0 && (
+                            <div style={{ display: "flex", flexWrap: "wrap", gap: "4px", marginTop: "2px" }}>
+                              {ps.sanatoriums.map((san: Row) => (
+                                <span
+                                  key={san.id}
+                                  style={{
+                                    fontSize: "11px",
+                                    padding: "2px 8px",
+                                    borderRadius: "999px",
+                                    background: "var(--surface)",
+                                    border: "1px solid var(--line)",
+                                    color: "var(--ink)",
+                                  }}
+                                >
+                                  🏥 {san.name}: {san.read}/{san.total} o‘qildi
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                        </>
+                      ) : (
+                        <div style={{ fontSize: "12px", color: "var(--muted)" }}>
+                          Bu xabar faqat ilova foydalanuvchilariga yo‘naltirilgan.
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        )
+      ) : (
+        /* INBOX TAB */
+        inboxRemote.loading ? (
+          <Loading />
+        ) : inboxRemote.error ? (
+          <ErrorBox message={inboxRemote.error} retry={inboxRemote.reload} />
+        ) : filteredInboxRows.length === 0 ? (
+          <Card title="Sizga yuborilgan e’lonlar va xabarlar">
+            <Empty
+              text={
+                searchQuery || kindFilter !== "ALL_KIND"
+                  ? "Filtr bo‘yicha kiruvchi xabar topilmadi"
+                  : "Sizga yuborilgan e’lonlar hozircha yo‘q"
+              }
+            />
+          </Card>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+            {filteredInboxRows.map((r) => {
+              const m = r.message ?? r;
+              const mid = r.messageId || m?.id || r.id;
+              const isBusy = markingId === mid;
+              return (
+                <article
+                  key={r.id}
+                  className="card"
+                  style={{
+                    padding: "16px 18px",
+                    borderLeft:
+                      m?.kind === "WARNING"
+                        ? "4px solid #f59e0b"
+                        : !r.readAt
+                          ? "4px solid #0284c7"
+                          : "4px solid var(--green)",
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "10px",
+                  }}
+                >
+                  <div
+                    style={{
+                      display: "flex",
+                      flexWrap: "wrap",
+                      justifyContent: "space-between",
+                      alignItems: "flex-start",
+                      gap: "10px",
+                    }}
+                  >
+                    <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+                        <span
+                          className={`badge ${
+                            r.acceptedAt
+                              ? "green"
+                              : m?.kind === "WARNING"
+                                ? "amber"
+                                : r.readAt
+                                  ? "gray"
+                                  : "blue"
+                          }`}
+                        >
+                          {r.acceptedAt
+                            ? "✅ Tanishildi / Qabul qilindi"
+                            : m?.kind === "WARNING"
+                              ? "⚠️ Muhim ogohlantirish"
+                              : r.readAt
+                                ? "👁️ O‘qilgan"
+                                : "🆕 Yangi e’lon"}
+                        </span>
+                        <span style={{ fontSize: "12px", fontWeight: 600, color: "var(--ink)" }}>
+                          {r.sender?.kind === "SUPERADMIN"
+                            ? "🛡️ Sihhat.uz Platforma Ma’muriyati"
+                            : `🏥 ${r.sender?.name || "Ma’muriyat"}${r.sender?.sanatoriumName ? ` (${r.sender.sanatoriumName})` : ""}`}
+                        </span>
+                        <span style={{ fontSize: "12px", color: "var(--muted)" }}>
+                          · 🕒 {dateTime(r.createdAt || m?.createdAt)}
+                        </span>
+                      </div>
+                      <h3 style={{ margin: 0, fontSize: "16px", fontWeight: 700, color: "var(--ink)" }}>
+                        {m?.title}
+                      </h3>
+                    </div>
+
+                    <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+                      {!r.readAt && (
+                        <button
+                          type="button"
+                          className="button secondary"
+                          disabled={isBusy}
+                          onClick={() => handleMarkInboxReceipt(r, false)}
+                        >
+                          <Check size={15} />
+                          <span>O‘qilgan deb belgilash</span>
+                        </button>
+                      )}
+                      {!r.acceptedAt && (
+                        <button
+                          type="button"
+                          className="button primary"
+                          disabled={isBusy}
+                          onClick={() => handleMarkInboxReceipt(r, true)}
+                        >
+                          <CheckCheck size={15} />
+                          <span>{isBusy ? "Saqlanmoqda..." : "Tanishdim / Qabul qildim"}</span>
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  <div
+                    style={{
+                      padding: "12px 14px",
+                      borderRadius: "10px",
+                      background: "var(--soft)",
+                      border: "1px solid var(--line)",
+                      fontSize: "13.5px",
+                      lineHeight: 1.55,
+                      color: "var(--ink)",
+                      whiteSpace: "pre-wrap",
+                    }}
+                  >
+                    {m?.body}
+                  </div>
+
+                  <div style={{ fontSize: "12px", color: "var(--muted)", display: "flex", gap: "12px", flexWrap: "wrap" }}>
+                    <span>
+                      Holati: {r.readAt ? `Ko‘rilgan (${dateTime(r.readAt)})` : "Hali o‘qilmagan"}
+                    </span>
+                    <span>·</span>
+                    <span>
+                      Tasdiq: {r.acceptedAt ? `Qabul qilingan (${dateTime(r.acceptedAt)})` : "Tasdiqlanmagan"}
+                    </span>
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        )
+      )}
+
+      {/* DELIVERY INSPECTOR MODAL ("Kimga bordi va kim o'qidi") */}
+      {inspectRow && (
+        <div
+          className="modal-backdrop"
+          style={{ zIndex: 1100 }}
+          onClick={() => setInspectRow(null)}
+        >
+          <section
+            className="modal"
+            role="dialog"
+            aria-modal="true"
+            style={{
+              maxWidth: "820px",
+              width: "96%",
+              maxHeight: "90vh",
+              display: "flex",
+              flexDirection: "column",
+              overflow: "hidden",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div
+              className="modal-heading"
+              style={{
+                padding: "16px 20px",
+                borderBottom: "1px solid var(--line)",
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "flex-start",
+                gap: "12px",
+              }}
+            >
+              <div>
+                <h2 style={{ margin: 0, fontSize: "17px", fontWeight: 700, color: "var(--ink)" }}>
+                  📊 Yetkazilish va o‘qilish nazorati: «{inspectRow.message?.title ?? inspectRow.title}»
+                </h2>
+                <p className="muted" style={{ margin: "4px 0 0", fontSize: "12.5px" }}>
+                  Har bir User (ilova mijozi) va Hamkor (sanatoriya xodimi) bo‘yicha API yetkazilish holati
+                </p>
+              </div>
+              <button
+                type="button"
+                className="icon-button"
+                aria-label="Yopish"
+                onClick={() => setInspectRow(null)}
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <div style={{ padding: "16px 20px", overflowY: "auto", display: "flex", flexDirection: "column", gap: "14px" }}>
+              {/* Summary Bar */}
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: "10px" }}>
+                <div style={{ padding: "10px 12px", borderRadius: "8px", background: "var(--soft)", border: "1px solid var(--line)" }}>
+                  <div style={{ fontSize: "11px", color: "var(--muted)", fontWeight: 600 }}>JAMI QABUL QILUVCHILAR</div>
+                  <div style={{ fontSize: "18px", fontWeight: 800, color: "var(--ink)" }}>
+                    {inspectRow.recipientCount ?? 0} ta
+                  </div>
+                  <div style={{ fontSize: "11.5px", color: "var(--muted)" }}>
+                    O‘qildi: {inspectRow.readCount ?? 0} · Tasdiqladi: {inspectRow.acceptedCount ?? 0}
+                  </div>
+                </div>
+                <div style={{ padding: "10px 12px", borderRadius: "8px", background: "var(--soft)", border: "1px solid var(--line)" }}>
+                  <div style={{ fontSize: "11px", color: "var(--muted)", fontWeight: 600 }}>📱 USERS (MIJOZLAR)</div>
+                  <div style={{ fontSize: "18px", fontWeight: 800, color: "var(--ink)" }}>
+                    {inspectRow.customerStats?.delivered ?? 0} / {inspectRow.customerStats?.total ?? 0} ta
+                  </div>
+                  <div style={{ fontSize: "11.5px", color: "var(--green)", fontWeight: 600 }}>
+                    O‘qigan mijozlar: {inspectRow.customerStats?.read ?? 0} ta
+                  </div>
+                </div>
+                <div style={{ padding: "10px 12px", borderRadius: "8px", background: "var(--soft)", border: "1px solid var(--line)" }}>
+                  <div style={{ fontSize: "11px", color: "var(--muted)", fontWeight: 600 }}>🏥 HAMKORLAR (XODIMLAR)</div>
+                  <div style={{ fontSize: "18px", fontWeight: 800, color: "var(--ink)" }}>
+                    {inspectRow.partnerStats?.delivered ?? 0} / {inspectRow.partnerStats?.total ?? 0} ta
+                  </div>
+                  <div style={{ fontSize: "11.5px", color: "var(--green)", fontWeight: 600 }}>
+                    O‘qidi: {inspectRow.partnerStats?.read ?? 0} · Qabul: {inspectRow.partnerStats?.accepted ?? 0}
+                  </div>
+                </div>
+              </div>
+
+              {/* Filter Tabs & Search inside Inspector */}
+              <div style={{ display: "flex", flexWrap: "wrap", gap: "8px", justifyContent: "space-between", alignItems: "center" }}>
+                <div className="tabs" style={{ marginBottom: 0 }}>
+                  <button
+                    type="button"
+                    className={`tab ${inspectTab === "ALL" ? "active" : ""}`}
+                    onClick={() => setInspectTab("ALL")}
+                  >
+                    Barchasi ({inspectRow.recipients?.length ?? 0})
+                  </button>
+                  <button
+                    type="button"
+                    className={`tab ${inspectTab === "CUSTOMERS" ? "active" : ""}`}
+                    onClick={() => setInspectTab("CUSTOMERS")}
+                  >
+                    📱 Users ({inspectRow.customerStats?.total ?? 0})
+                  </button>
+                  <button
+                    type="button"
+                    className={`tab ${inspectTab === "PARTNERS" ? "active" : ""}`}
+                    onClick={() => setInspectTab("PARTNERS")}
+                  >
+                    🏥 Hamkorlar ({inspectRow.partnerStats?.total ?? 0})
+                  </button>
+                </div>
+
+                <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+                  <select
+                    value={inspectReadFilter}
+                    onChange={(e) => setInspectReadFilter(e.target.value as any)}
+                    style={{
+                      padding: "6px 10px",
+                      borderRadius: "8px",
+                      border: "1px solid var(--line)",
+                      background: "var(--soft)",
+                      color: "var(--ink)",
+                      fontSize: "12.5px",
+                    }}
+                  >
+                    <option value="ALL">Barcha holatlar</option>
+                    <option value="READ">✅ O‘qiganlar</option>
+                    <option value="UNREAD">⏳ Hali o‘qimaganlar</option>
+                  </select>
+                  <input
+                    type="search"
+                    placeholder="Ism, #ID, telefon yoki sanatoriya..."
+                    value={inspectSearch}
+                    onChange={(e) => setInspectSearch(e.target.value)}
+                    style={{
+                      padding: "6px 10px",
+                      borderRadius: "8px",
+                      border: "1px solid var(--line)",
+                      background: "var(--soft)",
+                      color: "var(--ink)",
+                      fontSize: "12.5px",
+                      minWidth: "200px",
+                    }}
+                  />
+                </div>
+              </div>
+
+              {/* Recipients Table */}
+              {(() => {
+                const rawList: Row[] = Array.isArray(inspectRow.recipients)
+                  ? inspectRow.recipients
+                  : [];
+                const filtered = rawList.filter((rec) => {
+                  if (inspectTab === "CUSTOMERS" && rec.kind !== "CUSTOMER") return false;
+                  if (inspectTab === "PARTNERS" && rec.kind === "CUSTOMER") return false;
+                  if (inspectReadFilter === "READ" && !rec.readAt) return false;
+                  if (inspectReadFilter === "UNREAD" && rec.readAt) return false;
+                  if (inspectSearch.trim()) {
+                    const q = inspectSearch.toLowerCase();
+                    return (
+                      (rec.name ?? "").toLowerCase().includes(q) ||
+                      (rec.phone ?? "").toLowerCase().includes(q) ||
+                      (rec.email ?? "").toLowerCase().includes(q) ||
+                      (rec.sanatoriumName ?? "").toLowerCase().includes(q) ||
+                      String(rec.publicId ?? "").includes(q)
+                    );
+                  }
+                  return true;
+                });
+
+                if (!filtered.length) {
+                  return <Empty text="Tanlangan filtr bo‘yicha qabul qiluvchilar topilmadi" />;
+                }
+
+                return (
+                  <Table
+                    rows={filtered}
+                    columns={[
+                      {
+                        label: "Qabul qiluvchi",
+                        render: (rec) => (
+                          <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                              <strong>{rec.name}</strong>
+                              <span className="id-chip">{formatPublicIdChip(rec.publicId, rec.userId)}</span>
+                            </div>
+                            <span style={{ fontSize: "11.5px", color: "var(--muted)" }}>
+                              {[rec.phone, rec.email].filter(Boolean).join(" · ") || rec.login || "—"}
+                            </span>
+                          </div>
+                        ),
+                      },
+                      {
+                        label: "Auditoriya / Sanatoriya",
+                        render: (rec) =>
+                          rec.kind === "CUSTOMER" ? (
+                            <span className="badge blue">📱 Ilova mijozi (User)</span>
+                          ) : (
+                            <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+                              <span className="badge green">
+                                🏥 {rec.sanatoriumName || "Hamkor"}
+                              </span>
+                              <span style={{ fontSize: "11px", color: "var(--muted)" }}>
+                                Lavozim: {rec.roleLabel || rec.role || "Xodim"}
+                              </span>
+                            </div>
+                          ),
+                      },
+                      {
+                        label: "API Yetkazilish",
+                        render: (rec) => (
+                          <div style={{ display: "flex", flexDirection: "column", gap: "3px" }}>
+                            <span className="badge green" style={{ fontSize: "11px" }}>
+                              ✅ Ilova/Veb: {rec.inAppStatus === "SENT" ? "Yetkazildi" : rec.inAppStatus}
+                            </span>
+                            {rec.telegramStatus && (
+                              <span className="badge blue" style={{ fontSize: "11px" }}>
+                                🤖 Telegram: {rec.telegramStatus}
+                              </span>
+                            )}
+                          </div>
+                        ),
+                      },
+                      {
+                        label: "O‘qilgan / Qabul vaqti",
+                        render: (rec) =>
+                          rec.acceptedAt ? (
+                            <span className="badge green">
+                              ✅ Tasdiqlandi: {dateTime(rec.acceptedAt)}
+                            </span>
+                          ) : rec.readAt ? (
+                            <span className="badge blue">
+                              👁️ O‘qildi: {dateTime(rec.readAt)}
+                            </span>
+                          ) : (
+                            <span className="badge gray">
+                              ⏳ Yetkazilgan (hali ochilmagan)
+                            </span>
+                          ),
+                      },
+                    ]}
+                  />
+                );
+              })()}
+            </div>
+
+            <div
+              style={{
+                padding: "12px 20px",
+                borderTop: "1px solid var(--line)",
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                gap: "10px",
+              }}
+            >
+              <button
+                type="button"
+                className="button secondary"
+                disabled={verifyingId === (inspectRow.messageId || inspectRow.id)}
+                onClick={() => handleVerifySingle(inspectRow.messageId || inspectRow.id)}
+              >
+                <CheckCircle2 size={16} />
+                {verifyingId === (inspectRow.messageId || inspectRow.id)
+                  ? "API tekshirilmoqda..."
+                  : "🔄 API orqali qayta tekshirish va sinxronlash"}
+              </button>
+              <button
+                type="button"
+                className="button primary"
+                onClick={() => setInspectRow(null)}
+              >
+                Yopish
+              </button>
+            </div>
+          </section>
+        </div>
+      )}
+
+      {/* COMPOSE ANNOUNCEMENT / MESSAGE MODAL */}
+      {composeOpen && (
+        <div
+          className="modal-backdrop"
+          style={{ zIndex: 1100 }}
+          onClick={() => !composeBusy && setComposeOpen(false)}
+        >
+          <section
+            className="modal"
+            role="dialog"
+            aria-modal="true"
+            style={{
+              maxWidth: "700px",
+              width: "96%",
+              maxHeight: "92vh",
+              display: "flex",
+              flexDirection: "column",
+              overflow: "hidden",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div
+              className="modal-heading"
+              style={{
+                padding: "16px 20px",
+                borderBottom: "1px solid var(--line)",
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "flex-start",
+              }}
+            >
+              <div>
+                <h2 style={{ fontSize: "18px", fontWeight: 700, margin: 0, color: "var(--ink)" }}>
+                  {ctx.admin ? "📢 Yangi e’lon va xabar yuborish" : "📨 Yangi xabar yuborish"}
+                </h2>
+                <p className="muted" style={{ fontSize: "13px", margin: "4px 0 0" }}>
+                  Auditoriyani tanlang, tayyor shablondan foydalaning yoki matn kiriting
+                </p>
+              </div>
+              <button
+                className="icon-button"
+                type="button"
+                aria-label="Yopish"
+                disabled={composeBusy}
+                onClick={() => setComposeOpen(false)}
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <form
+              onSubmit={handleSubmitCompose}
+              style={{
+                padding: "18px 20px",
+                overflowY: "auto",
+                display: "flex",
+                flexDirection: "column",
+                gap: "16px",
+              }}
+            >
+              {/* STEP 1: Audience Selection */}
+              {ctx.admin ? (
+                <div>
+                  <label
+                    style={{
+                      fontSize: "12px",
+                      fontWeight: 700,
+                      color: "var(--muted)",
+                      textTransform: "uppercase",
+                      letterSpacing: "0.5px",
+                      display: "block",
+                      marginBottom: "8px",
+                    }}
+                  >
+                    1. Kimga yuborilsin? (Auditoriya tanlash) *
+                  </label>
+                  <div
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))",
+                      gap: "10px",
+                    }}
+                  >
+                    {[
+                      {
+                        id: "ALL" as const,
+                        title: "🌐 Butun tizimga",
+                        desc: `Users (${totalCustomersCount}) + Hamkorlar (${totalPartnersCount})`,
+                      },
+                      {
+                        id: "CUSTOMERS" as const,
+                        title: "📱 Foydalanuvchilarga",
+                        desc: `Ilova mijozlariga (${totalCustomersCount} ta user)`,
+                      },
+                      {
+                        id: "PARTNERS" as const,
+                        title: "🏥 Hamkorlarga",
+                        desc: `${totalSanatoriumsCount} sanatoriya (${totalPartnersCount} xodim)`,
+                      },
+                    ].map((opt) => {
+                      const active = target === opt.id;
+                      return (
+                        <button
+                          key={opt.id}
+                          type="button"
+                          onClick={() => {
+                            setTarget(opt.id);
+                            setComposeError("");
+                          }}
+                          style={{
+                            textAlign: "left",
+                            padding: "12px 14px",
+                            borderRadius: "10px",
+                            border: active ? "2px solid var(--green)" : "1px solid var(--line)",
+                            background: active ? "var(--green-light)" : "var(--soft)",
+                            color: "var(--ink)",
+                            cursor: "pointer",
+                            display: "flex",
+                            flexDirection: "column",
+                            gap: "4px",
+                          }}
+                        >
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontWeight: 700, fontSize: "14px" }}>
+                            <span>{opt.title}</span>
+                            {active && <Check size={16} style={{ color: "var(--green)" }} />}
+                          </div>
+                          <span style={{ fontSize: "12px", color: "var(--muted)" }}>{opt.desc}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              ) : (
+                <div>
+                  <label
+                    style={{
+                      fontSize: "12px",
+                      fontWeight: 700,
+                      color: "var(--muted)",
+                      textTransform: "uppercase",
+                      display: "block",
+                      marginBottom: "8px",
+                    }}
+                  >
+                    1. Kimga yuborilsin? *
+                  </label>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
+                    {[
+                      {
+                        id: "TEAM" as const,
+                        title: "👥 Sanatoriyam jamoasiga",
+                        desc: "O‘z sanatoriyangiz xodimlariga",
+                      },
+                      {
+                        id: "SUPERADMIN" as const,
+                        title: "🛡️ Platforma ma’muriyatiga",
+                        desc: "Sihhat.uz Superadminiga",
+                      },
+                    ].map((opt) => {
+                      const active = partnerTargetMode === opt.id;
+                      return (
+                        <button
+                          key={opt.id}
+                          type="button"
+                          onClick={() => {
+                            setPartnerTargetMode(opt.id);
+                            setComposeError("");
+                          }}
+                          style={{
+                            textAlign: "left",
+                            padding: "12px 14px",
+                            borderRadius: "10px",
+                            border: active ? "2px solid var(--green)" : "1px solid var(--line)",
+                            background: active ? "var(--green-light)" : "var(--soft)",
+                            color: "var(--ink)",
+                            cursor: "pointer",
+                          }}
+                        >
+                          <div style={{ fontWeight: 700, fontSize: "13.5px" }}>{opt.title}</div>
+                          <div style={{ fontSize: "12px", color: "var(--muted)", marginTop: "2px" }}>
+                            {opt.desc}
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Sub-options for CUSTOMERS */}
+              {ctx.admin && target === "CUSTOMERS" && (
+                <div
+                  style={{
+                    padding: "12px 14px",
+                    borderRadius: "10px",
+                    border: "1px solid var(--line)",
+                    background: "var(--soft)",
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "10px",
+                  }}
+                >
+                  <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+                    <button
+                      type="button"
+                      className={`button ${customerMode === "ALL_CUSTOMERS" ? "primary" : "secondary"}`}
+                      style={{ fontSize: "12.5px", padding: "6px 12px", minHeight: "32px" }}
+                      onClick={() => setCustomerMode("ALL_CUSTOMERS")}
+                    >
+                      ✅ Barcha faol foydalanuvchilarga ({totalCustomersCount} ta)
+                    </button>
+                    <button
+                      type="button"
+                      className={`button ${customerMode === "SELECTED_CUSTOMERS" ? "primary" : "secondary"}`}
+                      style={{ fontSize: "12.5px", padding: "6px 12px", minHeight: "32px" }}
+                      onClick={() => setCustomerMode("SELECTED_CUSTOMERS")}
+                    >
+                      🎯 Ro‘yxatdan tanlash ({selectedCustomerIds.length} ta tanlandi)
+                    </button>
+                  </div>
+
+                  {customerMode === "SELECTED_CUSTOMERS" && (
+                    <>
+                      <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+                        <input
+                          type="search"
+                          placeholder="Mijoz ismi, #ID, telefon yoki emaili bo‘yicha qidirish..."
+                          value={customerSearch}
+                          onChange={(e) => setCustomerSearch(e.target.value)}
+                          style={{
+                            flex: 1,
+                            padding: "7px 10px",
+                            borderRadius: "8px",
+                            border: "1px solid var(--line)",
+                            background: "var(--surface)",
+                            color: "var(--ink)",
+                            fontSize: "12.5px",
+                          }}
+                        />
+                        <button
+                          type="button"
+                          className="button secondary"
+                          style={{ fontSize: "11.5px", padding: "5px 9px", minHeight: "30px" }}
+                          onClick={() => setSelectedCustomerIds(allCustomers.map((c) => c.id))}
+                        >
+                          Barchasi
+                        </button>
+                        <button
+                          type="button"
+                          className="button secondary"
+                          style={{ fontSize: "11.5px", padding: "5px 9px", minHeight: "30px" }}
+                          onClick={() => setSelectedCustomerIds([])}
+                        >
+                          Tozalash
+                        </button>
+                      </div>
+                      <div
+                        style={{
+                          maxHeight: "145px",
+                          overflowY: "auto",
+                          display: "grid",
+                          gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))",
+                          gap: "6px",
+                        }}
+                      >
+                        {allCustomers
+                          .filter((c) => {
+                            if (!customerSearch.trim()) return true;
+                            const q = customerSearch.toLowerCase();
+                            return (
+                              (c.name ?? "").toLowerCase().includes(q) ||
+                              (c.phone ?? "").toLowerCase().includes(q) ||
+                              (c.email ?? "").toLowerCase().includes(q) ||
+                              String(c.publicId ?? "").includes(q)
+                            );
+                          })
+                          .map((c) => {
+                            const checked = selectedCustomerIds.includes(c.id);
+                            return (
+                              <label
+                                key={c.id}
+                                style={{
+                                  display: "flex",
+                                  alignItems: "center",
+                                  gap: "8px",
+                                  padding: "6px 8px",
+                                  borderRadius: "6px",
+                                  border: checked ? "1px solid var(--green)" : "1px solid var(--line)",
+                                  background: checked ? "var(--green-light)" : "var(--surface)",
+                                  fontSize: "12px",
+                                  cursor: "pointer",
+                                }}
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={checked}
+                                  onChange={(e) => {
+                                    if (e.target.checked) {
+                                      setSelectedCustomerIds((prev) => [...prev, c.id]);
+                                    } else {
+                                      setSelectedCustomerIds((prev) => prev.filter((id) => id !== c.id));
+                                    }
+                                  }}
+                                />
+                                <div style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                                  <strong>{c.name || "Mijoz"}</strong>{" "}
+                                  <span style={{ color: "var(--muted)" }}>
+                                    {formatPublicIdChip(c.publicId, c.id)} · {c.phone || c.email || ""}
+                                  </span>
+                                </div>
+                              </label>
+                            );
+                          })}
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
+
+              {/* Sub-options for PARTNERS (Superadmin or Partner Team) */}
+              {((ctx.admin && (target === "PARTNERS" || target === "ALL")) ||
+                (!ctx.admin && partnerTargetMode === "TEAM")) && (
+                <div
+                  style={{
+                    padding: "12px 14px",
+                    borderRadius: "10px",
+                    border: "1px solid var(--line)",
+                    background: "var(--soft)",
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "10px",
+                  }}
+                >
+                  {ctx.admin && allSanatoriums.length > 0 && (
+                    <div>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
+                        <span style={{ fontSize: "12px", fontWeight: 600, color: "var(--muted)" }}>
+                          🏥 Sanatoriyalar (bo‘sh qoldirilsa barcha {allSanatoriums.length} ta sanatoriyaga boradi)
+                        </span>
+                        {selectedSanatoriumIds.length > 0 && (
+                          <button
+                            type="button"
+                            className="text-button"
+                            style={{ fontSize: "11.5px" }}
+                            onClick={() => setSelectedSanatoriumIds([])}
+                          >
+                            Barchasini tanlash ({allSanatoriums.length})
+                          </button>
+                        )}
+                      </div>
+                      <div
+                        style={{
+                          maxHeight: "110px",
+                          overflowY: "auto",
+                          display: "grid",
+                          gridTemplateColumns: "repeat(auto-fill, minmax(195px, 1fr))",
+                          gap: "6px",
+                        }}
+                      >
+                        {allSanatoriums.map((s: Row) => {
+                          const checked = selectedSanatoriumIds.includes(s.id);
+                          const staffCount = allStaff.filter((st) => st.sanatoriumId === s.id).length;
+                          return (
+                            <label
+                              key={s.id}
+                              style={{
+                                display: "flex",
+                                alignItems: "center",
+                                gap: "8px",
+                                fontSize: "12.5px",
+                                cursor: "pointer",
+                                padding: "5px 8px",
+                                borderRadius: "6px",
+                                border: checked ? "1px solid var(--green)" : "1px solid var(--line)",
+                                background: checked ? "var(--green-light)" : "var(--surface)",
+                              }}
+                            >
+                              <input
+                                type="checkbox"
+                                checked={checked}
+                                onChange={(e) => {
+                                  if (e.target.checked) {
+                                    setSelectedSanatoriumIds((prev) => [...prev, s.id]);
+                                  } else {
+                                    setSelectedSanatoriumIds((prev) => prev.filter((id) => id !== s.id));
+                                  }
+                                }}
+                              />
+                              <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                                {s.name}
+                              </span>
+                              <small style={{ color: "var(--muted)" }}>{staffCount} xodim</small>
+                            </label>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {ctx.admin && (
+                    <div>
+                      <span style={{ fontSize: "12px", fontWeight: 600, color: "var(--muted)", display: "block", marginBottom: "6px" }}>
+                        👔 Lavozim bo‘yicha filtrlash (bo‘sh qoldirilsa barcha lavozimlarga boradi)
+                      </span>
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
+                        {[
+                          { role: "DIRECTOR", label: "👔 Direktorlar" },
+                          { role: "RECEPTION", label: "🛎 Resepshn" },
+                          { role: "ACCOUNTANT", label: "📊 Hisobchilar" },
+                        ].map((item) => {
+                          const active = selectedRoles.includes(item.role);
+                          return (
+                            <button
+                              key={item.role}
+                              type="button"
+                              onClick={() =>
+                                setSelectedRoles((prev) =>
+                                  active
+                                    ? prev.filter((r) => r !== item.role)
+                                    : [...prev, item.role],
+                                )
+                              }
+                              style={{
+                                padding: "5px 11px",
+                                borderRadius: "999px",
+                                border: active ? "1px solid var(--green)" : "1px solid var(--line)",
+                                background: active ? "var(--green-light)" : "var(--surface)",
+                                color: "var(--ink)",
+                                fontSize: "12px",
+                                fontWeight: 600,
+                                cursor: "pointer",
+                              }}
+                            >
+                              {active ? "✓ " : ""}
+                              {item.label}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {ctx.admin && target === "PARTNERS" && allStaff.length > 0 && (
+                    <div>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
+                        <span style={{ fontSize: "12px", fontWeight: 600, color: "var(--muted)" }}>
+                          🎯 Aniq hamkor xodimlarini tanlash (ixtiyoriy — bo‘sh qoldirilsa yuqoridagi sanatoriya/lavozim bo‘yicha boradi)
+                        </span>
+                        {selectedStaffIds.length > 0 && (
+                          <button
+                            type="button"
+                            className="text-button"
+                            style={{ fontSize: "11.5px" }}
+                            onClick={() => setSelectedStaffIds([])}
+                          >
+                            Tozalash ({selectedStaffIds.length})
+                          </button>
+                        )}
+                      </div>
+                      <input
+                        type="search"
+                        placeholder="Hamkor xodim ismi, #ID, telefon yoki sanatoriya nomi..."
+                        value={staffSearch}
+                        onChange={(e) => setStaffSearch(e.target.value)}
+                        style={{
+                          width: "100%",
+                          padding: "7px 10px",
+                          borderRadius: "8px",
+                          border: "1px solid var(--line)",
+                          background: "var(--surface)",
+                          color: "var(--ink)",
+                          fontSize: "12.5px",
+                          marginBottom: "6px",
+                          boxSizing: "border-box",
+                        }}
+                      />
+                      <div
+                        style={{
+                          maxHeight: "115px",
+                          overflowY: "auto",
+                          display: "grid",
+                          gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))",
+                          gap: "6px",
+                        }}
+                      >
+                        {allStaff
+                          .filter((st) => {
+                            if (selectedSanatoriumIds.length && !selectedSanatoriumIds.includes(st.sanatoriumId)) return false;
+                            if (selectedRoles.length && !selectedRoles.includes(st.role)) return false;
+                            if (!staffSearch.trim()) return true;
+                            const q = staffSearch.toLowerCase();
+                            return (
+                              (st.name ?? "").toLowerCase().includes(q) ||
+                              (st.phone ?? "").toLowerCase().includes(q) ||
+                              (st.sanatoriumName ?? "").toLowerCase().includes(q) ||
+                              String(st.publicId ?? "").includes(q)
+                            );
+                          })
+                          .map((st) => {
+                            const checked = selectedStaffIds.includes(st.id);
+                            return (
+                              <label
+                                key={`${st.sanatoriumId}:${st.id}`}
+                                style={{
+                                  display: "flex",
+                                  alignItems: "center",
+                                  gap: "6px",
+                                  padding: "5px 8px",
+                                  borderRadius: "6px",
+                                  border: checked ? "1px solid var(--green)" : "1px solid var(--line)",
+                                  background: checked ? "var(--green-light)" : "var(--surface)",
+                                  fontSize: "12px",
+                                  cursor: "pointer",
+                                }}
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={checked}
+                                  onChange={(e) => {
+                                    if (e.target.checked) {
+                                      setSelectedStaffIds((prev) => [...prev, st.id]);
+                                    } else {
+                                      setSelectedStaffIds((prev) => prev.filter((id) => id !== st.id));
+                                    }
+                                  }}
+                                />
+                                <div style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                                  <strong>{st.name}</strong>{" "}
+                                  <small style={{ color: "var(--muted)" }}>
+                                    {st.roleLabel} · {st.sanatoriumName}
+                                  </small>
+                                </div>
+                              </label>
+                            );
+                          })}
+                      </div>
+                    </div>
+                  )}
+
+                  {!ctx.admin && ownSanatoriumStaff.length > 0 && (
+                    <div>
+                      <span style={{ fontSize: "12px", fontWeight: 600, color: "var(--muted)", display: "block", marginBottom: "6px" }}>
+                        Qabul qiluvchi xodimlar (bo‘sh qoldirilsa barcha hamkasblarga boradi):
+                      </span>
+                      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: "6px" }}>
+                        {ownSanatoriumStaff
+                          .filter((s) => s.id !== ctx.actor.id)
+                          .map((st) => {
+                            const checked = selectedStaffIds.includes(st.id);
+                            return (
+                              <label
+                                key={st.id}
+                                style={{
+                                  display: "flex",
+                                  alignItems: "center",
+                                  gap: "6px",
+                                  padding: "5px 8px",
+                                  borderRadius: "6px",
+                                  border: checked ? "1px solid var(--green)" : "1px solid var(--line)",
+                                  background: checked ? "var(--green-light)" : "var(--surface)",
+                                  fontSize: "12px",
+                                  cursor: "pointer",
+                                }}
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={checked}
+                                  onChange={(e) => {
+                                    if (e.target.checked) {
+                                      setSelectedStaffIds((prev) => [...prev, st.id]);
+                                    } else {
+                                      setSelectedStaffIds((prev) => prev.filter((id) => id !== st.id));
+                                    }
+                                  }}
+                                />
+                                <span>
+                                  {st.name} <small style={{ color: "var(--muted)" }}>({st.roleLabel})</small>
+                                </span>
+                              </label>
+                            );
+                          })}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* STEP 2: Quick Templates */}
+              <div>
+                <span
+                  style={{
+                    fontSize: "11.5px",
+                    fontWeight: 700,
+                    color: "var(--muted)",
+                    textTransform: "uppercase",
+                    display: "block",
+                    marginBottom: "6px",
+                  }}
+                >
+                  ⚡ Tezkor tayyor shablonlar (1-klikda to‘ldirish):
+                </span>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
+                  {ANNOUNCEMENT_TEMPLATES.map((tpl) => (
+                    <button
+                      key={tpl.id}
+                      type="button"
+                      onClick={() => applyTemplate(tpl)}
+                      style={{
+                        padding: "5px 10px",
+                        borderRadius: "8px",
+                        border: "1px solid var(--line)",
+                        background: "var(--soft)",
+                        color: "var(--ink)",
+                        fontSize: "12px",
+                        cursor: "pointer",
+                      }}
+                    >
+                      {tpl.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* STEP 3: Kind, Title, Body */}
+              <div style={{ display: "grid", gridTemplateColumns: "180px 1fr", gap: "10px" }}>
+                <div>
+                  <label style={{ fontSize: "12px", fontWeight: 600, color: "var(--muted)", display: "block", marginBottom: "6px" }}>
+                    E’lon turi *
+                  </label>
+                  <select
+                    value={msgKind}
+                    onChange={(e) => setMsgKind(e.target.value as "MESSAGE" | "WARNING")}
+                    style={{
+                      width: "100%",
+                      padding: "9px 10px",
+                      background: "var(--soft)",
+                      border: "1px solid var(--line)",
+                      borderRadius: "8px",
+                      color: "var(--ink)",
+                      fontSize: "13px",
+                    }}
+                  >
+                    <option value="MESSAGE">📢 E’lon / Xabar</option>
+                    <option value="WARNING">⚠️ Ogohlantirish</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label style={{ fontSize: "12px", fontWeight: 600, color: "var(--muted)", display: "block", marginBottom: "6px" }}>
+                    E’lon sarlavhasi *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    minLength={2}
+                    maxLength={150}
+                    placeholder="Masalan: Yangi mavsumiy tariflar va onlayn bron yangilanishi..."
+                    value={msgTitle}
+                    onChange={(e) => setMsgTitle(e.target.value)}
+                    style={{
+                      width: "100%",
+                      padding: "9px 12px",
+                      background: "var(--soft)",
+                      border: "1px solid var(--line)",
+                      borderRadius: "8px",
+                      color: "var(--ink)",
+                      fontSize: "13px",
+                      boxSizing: "border-box",
+                    }}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label style={{ fontSize: "12px", fontWeight: 600, color: "var(--muted)", display: "block", marginBottom: "6px" }}>
+                  E’lon batafsil matni *
+                </label>
+                <textarea
+                  required
+                  rows={5}
+                  maxLength={10000}
+                  placeholder="E’lon yoki xabarning to‘liq matnini kiriting..."
+                  value={msgBody}
+                  onChange={(e) => setMsgBody(e.target.value)}
+                  style={{
+                    width: "100%",
+                    padding: "10px 12px",
+                    background: "var(--soft)",
+                    border: "1px solid var(--line)",
+                    borderRadius: "8px",
+                    color: "var(--ink)",
+                    fontSize: "13px",
+                    boxSizing: "border-box",
+                    resize: "vertical",
+                    fontFamily: "inherit",
+                  }}
+                />
+              </div>
+
+              {/* Live Mobile & Partner Preview */}
+              {(msgTitle.trim() || msgBody.trim()) && (
+                <div
+                  style={{
+                    padding: "12px 14px",
+                    borderRadius: "10px",
+                    border: "1px dashed var(--line)",
+                    background: "var(--surface)",
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "4px",
+                  }}
+                >
+                  <span style={{ fontSize: "11px", fontWeight: 700, color: "var(--muted)", textTransform: "uppercase" }}>
+                    👁️ Ilova va Hamkor panelidagi jonli ko‘rinish (Preview)
+                  </span>
+                  <div style={{ fontSize: "14px", fontWeight: 700, color: "var(--ink)" }}>
+                    {msgKind === "WARNING" ? "⚠️ Muhim e’lon: " : "📢 E’lon: "}
+                    {msgTitle.trim() || "Sarlavha"}
+                  </div>
+                  <div style={{ fontSize: "12.5px", color: "var(--muted)", whiteSpace: "pre-wrap", lineHeight: 1.45 }}>
+                    {msgBody.trim() || "E’lon matni shu yerda ko‘rinadi..."}
+                  </div>
+                </div>
+              )}
+
+              {/* Live Audience Summary Box */}
+              <div
+                style={{
+                  padding: "10px 14px",
+                  borderRadius: "10px",
+                  background: "var(--green-light)",
+                  border: "1px solid var(--green)",
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  flexWrap: "wrap",
+                  gap: "8px",
+                  fontSize: "12.5px",
+                }}
+              >
+                <div>
+                  <strong>📤 Yuborish nazorati:</strong> {estimatedRecipients.label}
+                </div>
+                <span className="badge green">
+                  Jami: {estimatedRecipients.total} ta qabul qiluvchi
+                </span>
+              </div>
+
+              {composeError && (
+                <div
+                  role="alert"
+                  style={{
+                    padding: "10px 12px",
+                    borderRadius: "8px",
+                    background: "rgba(239,68,68,0.14)",
+                    border: "1px solid rgba(239,68,68,0.45)",
+                    color: "#ef4444",
+                    fontSize: "13px",
+                    fontWeight: 600,
+                  }}
+                >
+                  {composeError}
+                </div>
+              )}
+
+              <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px" }}>
+                <button
+                  type="button"
+                  className="button secondary"
+                  disabled={composeBusy}
+                  onClick={() => setComposeOpen(false)}
+                >
+                  Bekor qilish
+                </button>
+                <button
+                  type="submit"
+                  className="button primary"
+                  disabled={composeBusy || !msgTitle.trim() || !msgBody.trim()}
+                >
+                  <Send size={15} />
+                  <span>{composeBusy ? "Yuborilmoqda va tekshirilmoqda..." : "E’lonni yuborish"}</span>
+                </button>
+              </div>
+            </form>
+          </section>
+        </div>
+      )}
+    </>
+  );
+}
+
 export function Communications({
   kind,
   embedded = false,
@@ -62,20 +2334,12 @@ export function Communications({
   kind: "messages" | "tasks" | "surveys";
   embedded?: boolean;
 }) {
+  if (kind === "messages") {
+    return <AnnouncementsAndMessagesCenter embedded={embedded} />;
+  }
   const ctx = usePortal(),
     action = useAction(),
-    [messageTab, setMessageTab] = useState<"sent" | "inbox">(
-      ctx.admin ? "sent" : "inbox",
-    ),
     [selectedSurvey, setSelectedSurvey] = useState<Row | null>(null),
-    [announceModalOpen, setAnnounceModalOpen] = useState(false),
-    [announceTarget, setAnnounceTarget] = useState<"ALL" | "CUSTOMERS" | "PARTNERS" | null>(null),
-    [announceTitle, setAnnounceTitle] = useState(""),
-    [announceBody, setAnnounceBody] = useState(""),
-    [announceKind, setAnnounceKind] = useState<"MESSAGE" | "WARNING">("MESSAGE"),
-    [announceSanatoriumIds, setAnnounceSanatoriumIds] = useState<string[]>([]),
-    [announceBusy, setAnnounceBusy] = useState(false),
-    [announceError, setAnnounceError] = useState(""),
     staff = useRemote(
       ctx.tenant && (ctx.admin || ctx.allowed("staff.invite"))
         ? `/partner/staff?limit=100&sanatorium_id=${ctx.tenant}`
@@ -91,91 +2355,7 @@ export function Communications({
     }));
   useEffect(() => setSelectedSurvey(null), [kind, ctx.tenant, ctx.epoch]);
 
-  const openAnnounceModal = () => {
-    setAnnounceTarget(null);
-    setAnnounceTitle("");
-    setAnnounceBody("");
-    setAnnounceKind("MESSAGE");
-    setAnnounceSanatoriumIds([]);
-    setAnnounceError("");
-    setAnnounceModalOpen(true);
-  };
-
-  const submitAnnouncement = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (announceBusy || !announceTarget) return;
-    const cleanTitle = announceTitle.trim();
-    const cleanBody = announceBody.trim();
-    if (cleanTitle.length < 2) {
-      setAnnounceError("E’lon sarlavhasi kamida 2 ta belgidan iborat bo‘lishi kerak.");
-      return;
-    }
-    if (!cleanBody) {
-      setAnnounceError("E’lon matnini kiriting.");
-      return;
-    }
-    setAnnounceBusy(true);
-    setAnnounceError("");
-    try {
-      await api("/superadmin/announcements", "POST", {
-        target: announceTarget,
-        title: cleanTitle,
-        body: cleanBody,
-        kind: announceKind,
-        ...(announceTarget === "PARTNERS" && announceSanatoriumIds.length
-          ? { sanatorium_ids: announceSanatoriumIds }
-          : {}),
-      });
-      setAnnounceModalOpen(false);
-      setMessageTab("sent");
-      ctx.notice("E’lon muvaffaqiyatli yuborildi");
-      ctx.refresh();
-    } catch (err: any) {
-      setAnnounceError(err?.message || "E’lon yuborishda xatolik yuz berdi.");
-    } finally {
-      setAnnounceBusy(false);
-    }
-  };
-
   function create() {
-    if (kind === "messages") {
-      if (ctx.admin) {
-        openAnnounceModal();
-        return;
-      }
-      action(
-        "Xabar yuborish",
-        "/messages",
-        {},
-        [
-          { key: "title", label: "Sarlavha", required: true },
-          { key: "body", label: "Xabar", type: "textarea", required: true },
-          {
-            key: "kind",
-            label: "Turi",
-            type: "select",
-            required: true,
-            value: "MESSAGE",
-            options: [
-              { value: "MESSAGE", label: "Xabar" },
-              { value: "WARNING", label: "Ogohlantirish" },
-            ],
-          },
-          {
-            key: "recipient_ids",
-            label: "Qabul qiluvchilar",
-            type: "checks",
-            required: true,
-            options: recipients,
-          },
-        ],
-        "POST",
-        () => {
-          setMessageTab("sent");
-          ctx.refresh();
-        },
-      );
-    }
     if (kind === "tasks")
       action("Vazifa berish", "/tasks", { sanatorium_id: ctx.tenant }, [
         { key: "title", label: "Vazifa nomi", required: true },
@@ -301,415 +2481,28 @@ export function Communications({
       done: ctx.refresh,
     });
   }
-  const canSendAnnouncement =
-    ctx.admin ||
-    (kind === "messages"
-      ? ctx.allowed("messages.send")
-      : kind === "tasks"
-        ? ctx.allowed("tasks.manage")
-        : false);
+  const canCreateTaskOrSurvey =
+    ctx.admin || (kind === "tasks" ? ctx.allowed("tasks.manage") : false);
 
   return (
     <>
       {!embedded && (
         <PageHeading
-          title={
-            kind === "messages"
-              ? "Xabarlar"
-              : kind === "tasks"
-                ? "Jamoa vazifalari"
-                : "Anketalar"
-          }
+          title={kind === "tasks" ? "Jamoa vazifalari" : "Anketalar"}
           subtitle={
-            kind === "messages"
-              ? "Xabarlar faqat tegishli qabul qiluvchilarga ko‘rinadi."
-              : kind === "tasks"
-                ? "Vazifani qabul qilish va bajarish holati tarixda qayd etiladi."
-                : "Har bir anketa versiyasiga alohida javob saqlanadi."
+            kind === "tasks"
+              ? "Vazifani qabul qilish va bajarish holati tarixda qayd etiladi."
+              : "Har bir anketa versiyasiga alohida javob saqlanadi."
           }
         >
-          {canSendAnnouncement && (
+          {canCreateTaskOrSurvey && (
             <AddButton onClick={create}>
-              {kind === "messages"
-                ? (ctx.admin ? "E’lon berish" : "Xabar yuborish")
-                : kind === "tasks"
-                  ? "Vazifa berish"
-                  : "Anketa yaratish"}
+              {kind === "tasks" ? "Vazifa berish" : "Anketa yaratish"}
             </AddButton>
           )}
         </PageHeading>
       )}
-      {announceModalOpen && (
-        <div
-          className="modal-backdrop"
-          style={{ zIndex: 1000 }}
-          onClick={() => !announceBusy && setAnnounceModalOpen(false)}
-        >
-          <section
-            className="modal"
-            role="dialog"
-            aria-modal="true"
-            style={{ maxWidth: "600px", width: "95%", maxHeight: "90vh", display: "flex", flexDirection: "column", overflow: "hidden" }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="modal-heading" style={{ padding: "16px 20px", borderBottom: "1px solid var(--line)" }}>
-              <div>
-                <h2 style={{ fontSize: "18px", fontWeight: 700, margin: 0, color: "var(--ink)" }}>
-                  Yangi e’lon berish
-                </h2>
-                <p className="muted" style={{ fontSize: "13px", margin: "4px 0 0" }}>
-                  {!announceTarget
-                    ? "1-qadam: E’lon kimlarga yuborilishini tanlang"
-                    : "2-qadam: E’lon ma’lumotlarini kiriting va yuboring"}
-                </p>
-              </div>
-              <button
-                className="icon-button"
-                type="button"
-                aria-label="Yopish"
-                disabled={announceBusy}
-                onClick={() => setAnnounceModalOpen(false)}
-              >
-                <X size={20} />
-              </button>
-            </div>
-            <form onSubmit={submitAnnouncement} style={{ padding: "20px", overflowY: "auto", display: "flex", flexDirection: "column", gap: "16px" }}>
-              <div>
-                <label style={{ fontSize: "12px", fontWeight: 600, color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.5px", display: "block", marginBottom: "8px" }}>
-                  E’lon kimga yuborilsin? *
-                </label>
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: "10px" }}>
-                  {[
-                    {
-                      id: "ALL" as const,
-                      title: "🌐 Butun tizimga",
-                      desc: "Barcha foydalanuvchilar va hamkorlarga",
-                    },
-                    {
-                      id: "CUSTOMERS" as const,
-                      title: "📱 Foydalanuvchilarga",
-                      desc: "Ilova foydalanuvchilariga (mijozlarga)",
-                    },
-                    {
-                      id: "PARTNERS" as const,
-                      title: "🏥 Hamkorlarga",
-                      desc: "Sanatoriya rahbarlari va xodimlariga",
-                    },
-                  ].map((opt) => {
-                    const active = announceTarget === opt.id;
-                    return (
-                      <button
-                        key={opt.id}
-                        type="button"
-                        onClick={() => {
-                          setAnnounceTarget(opt.id);
-                          setAnnounceError("");
-                        }}
-                        style={{
-                          textAlign: "left",
-                          padding: "12px 14px",
-                          borderRadius: "10px",
-                          border: active ? "2px solid var(--green)" : "1px solid var(--line)",
-                          background: active ? "var(--green-light)" : "var(--soft)",
-                          color: "var(--ink)",
-                          cursor: "pointer",
-                          display: "flex",
-                          flexDirection: "column",
-                          gap: "4px",
-                          transition: "all 0.15s ease",
-                        }}
-                      >
-                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontWeight: 700, fontSize: "14px" }}>
-                          <span>{opt.title}</span>
-                          {active && <Check size={16} style={{ color: "var(--green)" }} />}
-                        </div>
-                        <span style={{ fontSize: "12px", color: "var(--muted)" }}>{opt.desc}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {announceTarget && (
-                <>
-                  {announceTarget === "PARTNERS" && ctx.tenants.length > 0 && (
-                    <div>
-                      <label style={{ fontSize: "12px", fontWeight: 600, color: "var(--muted)", display: "block", marginBottom: "6px" }}>
-                        Sanatoriyalar (bo‘sh qoldirilsa barcha faol hamkorlarga yuboriladi)
-                      </label>
-                      <div style={{ maxHeight: "140px", overflowY: "auto", border: "1px solid var(--line)", borderRadius: "8px", padding: "8px", background: "var(--soft)", display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: "6px" }}>
-                        {ctx.tenants.map((s: Row) => {
-                          const checked = announceSanatoriumIds.includes(s.id);
-                          return (
-                            <label key={s.id} style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "13px", cursor: "pointer", padding: "4px 6px", borderRadius: "6px" }}>
-                              <input
-                                type="checkbox"
-                                checked={checked}
-                                onChange={(e) => {
-                                  if (e.target.checked) {
-                                    setAnnounceSanatoriumIds((prev) => [...prev, s.id]);
-                                  } else {
-                                    setAnnounceSanatoriumIds((prev) => prev.filter((id) => id !== s.id));
-                                  }
-                                }}
-                              />
-                              <span>{s.name}</span>
-                            </label>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  )}
-
-                  <div>
-                    <label style={{ fontSize: "12px", fontWeight: 600, color: "var(--muted)", display: "block", marginBottom: "6px" }}>
-                      E’lon turi *
-                    </label>
-                    <select
-                      value={announceKind}
-                      onChange={(e) => setAnnounceKind(e.target.value as "MESSAGE" | "WARNING")}
-                      style={{
-                        width: "100%",
-                        padding: "9px 12px",
-                        background: "var(--soft)",
-                        border: "1px solid var(--line)",
-                        borderRadius: "8px",
-                        color: "var(--ink)",
-                        fontSize: "13px",
-                      }}
-                    >
-                      <option value="MESSAGE">📢 Axborot e’loni / Xabar</option>
-                      <option value="WARNING">⚠️ Muhim ogohlantirish</option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label style={{ fontSize: "12px", fontWeight: 600, color: "var(--muted)", display: "block", marginBottom: "6px" }}>
-                      E’lon sarlavhasi *
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      minLength={2}
-                      maxLength={150}
-                      placeholder="E’lon sarlavhasini kiriting..."
-                      value={announceTitle}
-                      onChange={(e) => setAnnounceTitle(e.target.value)}
-                      style={{
-                        width: "100%",
-                        padding: "9px 12px",
-                        background: "var(--soft)",
-                        border: "1px solid var(--line)",
-                        borderRadius: "8px",
-                        color: "var(--ink)",
-                        fontSize: "13px",
-                        boxSizing: "border-box",
-                      }}
-                    />
-                  </div>
-
-                  <div>
-                    <label style={{ fontSize: "12px", fontWeight: 600, color: "var(--muted)", display: "block", marginBottom: "6px" }}>
-                      E’lon batafsil matni *
-                    </label>
-                    <textarea
-                      required
-                      rows={5}
-                      maxLength={10000}
-                      placeholder="E’lonning to‘liq matnini shu yerga kiriting..."
-                      value={announceBody}
-                      onChange={(e) => setAnnounceBody(e.target.value)}
-                      style={{
-                        width: "100%",
-                        padding: "10px 12px",
-                        background: "var(--soft)",
-                        border: "1px solid var(--line)",
-                        borderRadius: "8px",
-                        color: "var(--ink)",
-                        fontSize: "13px",
-                        boxSizing: "border-box",
-                        resize: "vertical",
-                        fontFamily: "inherit",
-                      }}
-                    />
-                  </div>
-                </>
-              )}
-
-              {announceError && (
-                <div role="alert" style={{ padding: "10px 12px", borderRadius: "8px", background: "rgba(239,68,68,0.14)", border: "1px solid rgba(239,68,68,0.45)", color: "#fca5a5", fontSize: "13px", fontWeight: 600 }}>
-                  {announceError}
-                </div>
-              )}
-
-              <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px", marginTop: "4px" }}>
-                <button
-                  type="button"
-                  className="button secondary"
-                  disabled={announceBusy}
-                  onClick={() => setAnnounceModalOpen(false)}
-                >
-                  Bekor qilish
-                </button>
-                {announceTarget && (
-                  <button
-                    type="submit"
-                    className="button primary"
-                    disabled={announceBusy || !announceTitle.trim() || !announceBody.trim()}
-                  >
-                    {announceBusy ? "Yuborilmoqda..." : "E’lonni yuborish"}
-                  </button>
-                )}
-              </div>
-            </form>
-          </section>
-        </div>
-      )}
-      {kind === "messages" && (
-        <div
-          style={{
-            display: "flex",
-            flexWrap: "wrap",
-            alignItems: "center",
-            justifyContent: "space-between",
-            gap: "12px",
-            marginBottom: "16px",
-          }}
-        >
-          <div className="tabs" style={{ marginBottom: 0 }}>
-            <button
-              type="button"
-              className={`tab ${messageTab === "sent" ? "active" : ""}`}
-              onClick={() => setMessageTab("sent")}
-            >
-              Yuborilgan e’lonlar va xabarlar
-            </button>
-            <button
-              type="button"
-              className={`tab ${messageTab === "inbox" ? "active" : ""}`}
-              onClick={() => setMessageTab("inbox")}
-            >
-              Kiruvchi xabarlar
-            </button>
-          </div>
-          {embedded && canSendAnnouncement && (
-            <AddButton onClick={create}>{ctx.admin ? "E’lon berish" : "Xabar yuborish"}</AddButton>
-          )}
-        </div>
-      )}
-      {kind === "messages" ? (
-        <DataPanel
-          key={messageTab}
-          path="/messages"
-          params={{ box: messageTab }}
-          title={
-            messageTab === "sent"
-              ? "Yuborilgan e’lonlar va xabarlar"
-              : "Sizga yuborilgan xabarlar"
-          }
-          renderRow={(r) => {
-            const isSent = messageTab === "sent" || r.direction === "sent";
-            const m = r.message ?? r;
-            return (
-              <FeedItem
-                icon={<Mail size={21} />}
-                title={m?.title}
-                status={
-                  isSent ? (
-                    <span
-                      className={`badge ${m?.kind === "WARNING" ? "amber" : "green"}`}
-                    >
-                      {m?.kind === "WARNING" ? "Ogohlantirish" : "Yuborilgan"}
-                    </span>
-                  ) : (
-                    <span
-                      className={`badge ${r.acceptedAt ? "green" : m?.kind === "WARNING" ? "amber" : "blue"}`}
-                    >
-                      {r.acceptedAt
-                        ? "Qabul qilingan"
-                        : m?.kind === "WARNING"
-                          ? "Ogohlantirish"
-                          : r.readAt
-                            ? "O‘qilgan"
-                            : "Yangi"}
-                    </span>
-                  )
-                }
-                meta={
-                  isSent ? (
-                    <>
-                      <span>{date(r.createdAt || m?.createdAt)}</span>
-                      <span> · </span>
-                      <span>
-                        {r.recipientCount != null
-                          ? `${r.recipientCount} ta qabul qiluvchi`
-                          : "Barcha xodimlar"}
-                      </span>
-                      {r.readCount != null && (
-                        <>
-                          <span> · </span>
-                          <span>{r.readCount} ta o‘qildi</span>
-                        </>
-                      )}
-                      {r.acceptedCount != null && r.acceptedCount > 0 && (
-                        <>
-                          <span> · </span>
-                          <span>{r.acceptedCount} ta qabul qildi</span>
-                        </>
-                      )}
-                    </>
-                  ) : (
-                    <>
-                      {r.readAt
-                        ? `Ko‘rilgan: ${date(r.readAt)}`
-                        : "Hali o‘qilmagan"}{" "}
-                      ·{" "}
-                      {r.acceptedAt
-                        ? `Qabul qilingan: ${date(r.acceptedAt)}`
-                        : "Qabul qilinmagan"}
-                    </>
-                  )
-                }
-                actions={
-                  !isSent &&
-                  !r.acceptedAt && (
-                    <button
-                      className="button soft"
-                      onClick={() =>
-                        action(
-                          "Xabarni qabul qilish",
-                          `/messages/${r.messageId}/receipt`,
-                          { accepted: true },
-                        )
-                      }
-                    >
-                      <Check size={17} />
-                      Qabul qildim
-                    </button>
-                  )
-                }
-              >
-                <p>{m?.body}</p>
-                {!!m?.assetIds?.length && (
-                  <div className="feed-attachments">
-                    {m.assetIds.map((id: string, n: number) => (
-                      <a
-                        key={id}
-                        href={`/api/media/${id}`}
-                        target="_blank"
-                        rel="noreferrer"
-                      >
-                        <FileText size={15} />
-                        Fayl {n + 1}
-                      </a>
-                    ))}
-                  </div>
-                )}
-              </FeedItem>
-            );
-          }}
-        />
-      ) : kind === "tasks" ? (
+      {kind === "tasks" ? (
         <DataPanel
           path="/tasks"
           title="Jamoa vazifalari"

@@ -97,7 +97,7 @@ export function enrichOpenApi(document:OpenAPIObject){
     '/partner/ad-campaigns/{id}/archive':obj({version:integer},[]),
     '/superadmin/ad-campaigns/{id}/approve':obj({reason:str,version:integer},[]),'/superadmin/ad-campaigns/{id}/reject':obj({reason,version:integer},['reason']),
     '/messages':obj({title:str,body:str,kind:{type:'string',enum:['MESSAGE','WARNING']},asset_ids:array(id),recipient_ids:array(id)},['title','body','recipient_ids']),
-    '/messages/{id}/receipt':obj({accepted:boolean},[]),'/superadmin/announcements':obj({target:{type:'string',enum:['ALL','CUSTOMERS','PARTNERS']},sanatorium_ids:array(id),title:str,body:str,kind:{type:'string',enum:['MESSAGE','WARNING']},asset_ids:array(id)},['title','body','kind']),
+    '/messages/{id}/receipt':obj({accepted:boolean},[]),'/messages/{id}/verify-delivery':obj({},[]),'/superadmin/announcements':obj({target:{type:'string',enum:['ALL','CUSTOMERS','PARTNERS']},sanatorium_ids:array(id),roles:array({type:'string',enum:['DIRECTOR','RECEPTION','ACCOUNTANT']}),recipient_ids:array(id),title:str,body:str,kind:{type:'string',enum:['MESSAGE','WARNING']},asset_ids:array(id)},['title','body','kind']),
     '/reviews':obj({booking_id:id,rating:{type:'integer',minimum:1,maximum:5},text:str}),'/partner/reviews/{id}/reply':obj({reply:str}),'/superadmin/reviews/{id}/moderate':obj({status:{type:'string',enum:['PUBLISHED','HIDDEN']},reason:str}),
     '/support/tickets':obj({title:str,text:str,booking_id:id,sanatorium_id:id,target_user_id:id,target_role:{type:'string',enum:['RECEPTION','DIRECTOR','ACCOUNTANT']},imageUrl:str},['title']),'/support/tickets/{id}/messages':obj({text:str,close:boolean,imageUrl:str},[]),
     '/customer/favorites/{id}':obj({saved:boolean}),'/catalog/ads/{id}/events':obj({kind:{type:'string',enum:['IMPRESSION','CLICK']}}),
@@ -120,7 +120,7 @@ export function enrichOpenApi(document:OpenAPIObject){
   for(const[path,item]of Object.entries(document.paths))for(const method of ['get','post','patch','put','delete'] as const){const operation=(item as any)[method];if(!operation)continue;
     const isPublic=path.startsWith('/health/')||path.startsWith('/catalog/')||['/mobile/app-version','/auth/staff/login','/auth/partner-forgot-password','/auth/customer/otp/request','/auth/customer/otp/verify','/telegram/webhook','/payments/tezcheck'].includes(path);
     const customerOnly=path.startsWith('/customer/')||path.startsWith('/auth/customer/phone')||['/ai/messages','/reviews'].includes(path);
-    const staffOnly=path.startsWith('/partner/')||path.startsWith('/superadmin/')||(path.startsWith('/telegram/')&&path!=='/telegram/webhook')||(method==='post'&&['/messages'].includes(path));
+    const staffOnly=path.startsWith('/partner/')||path.startsWith('/superadmin/')||(path.startsWith('/telegram/')&&path!=='/telegram/webhook')||(method==='post'&&['/messages','/messages/{id}/verify-delivery'].includes(path))||(method==='delete'&&path==='/messages/{id}');
     const webSecurity={cookie:[],...(method==='get'?{}:{CSRF:[]})};
     operation.security=path==='/payments/tezcheck'?[{TezcheckWebhook:[]}]:path==='/telegram/webhook'?[{TelegramWebhook:[]}]:path==='/payments/payme'?[{PaymeAuth:[]}]:isPublic?[]:customerOnly?[{bearer:[]}]:staffOnly?[webSecurity]:[webSecurity,{bearer:[]}];
     operation['x-roles']=isPublic||path==='/payments/payme'?[]:path.startsWith('/superadmin/')?['SUPERADMIN']:customerOnly?['CUSTOMER']:staffOnly?['STAFF','SUPERADMIN']:['SUPERADMIN','STAFF','CUSTOMER'];

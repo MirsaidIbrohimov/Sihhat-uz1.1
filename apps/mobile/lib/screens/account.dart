@@ -453,6 +453,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         'booking.checked_out': 'Yashash yakunlandi',
         'refund.succeeded': 'Qaytarish tasdiqlandi',
         'support.replied': 'Yordam xizmatidan javob',
+        'message.created': 'Yangi e’lon va xabar',
         'ad.requested': 'Yangi reklama arizasi',
         'ad.moderated': 'Reklama moderatsiyasi',
         'app.update': 'Ilovaning yangi versiyasi chiqdi',

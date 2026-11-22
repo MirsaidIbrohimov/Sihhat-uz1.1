@@ -2,6 +2,27 @@
 
 Yangilangan: 2026-11-22. Asos: ISHLAB_CHIQISH_REJASI.md va SIHHAT_UZ_ARXITEKTURA.md.
 
+## 2026-11-22 «E’lonlar va xabarlar» bo‘limining to‘liq qayta yozilishi va API yetkazilish nazorati (`apps/api`, `packages/ui`, `apps/mobile`)
+
+- **Backend API va 0 ms yetkazilish kafolati (`apps/api/src/engagement`, `apps/api/src/common/openapi.ts`, `docs/openapi.json`)**:
+  - `EngagementService.send()` va `POST /superadmin/announcements` (`broadcast`): xabar yaratilgan tranzaksiyaning o‘zida `Message`, `MessageRecipient`, `OutboxEvent` (`message.created`) bilan birga barcha qabul qiluvchilar (`CUSTOMER` ilova foydalanuvchilari va `STAFF` hamkor xodimlari) uchun `NotificationDelivery` (`channel: 'IN_APP'`, `status: 'SENT'`) darhol yaratiladi (`skipDuplicates: true`, `OutboxService.process()` bilan to‘liq idempotent). `broadcast()` endi `roles` (`DIRECTOR`, `RECEPTION`, `ACCOUNTANT`) va aniq `recipient_ids` tanlovlarini ham qo‘llaydi; `send()` da hamkorlar o‘z sanatoriyasi xodimlari bilan birga platforma `SUPERADMIN`iga ham xabar yubora oladi (begona sanatoriya izolyatsiyasi va `ACCOUNTANT` 403 cheklovi saqlangan).
+  - **2-tomonlama o‘qilganlik sinxronizatsiyasi**: mobil ilova yoki veb foydalanuvchisi `POST /notifications/:id/read` yoki `POST /notifications/read-all` chaqirganda mos `MessageRecipient.readAt` ham avtomatik yangilanadi; aksincha `POST /messages/:id/receipt` bosilganda mos `IN_APP` bildirishnoma ham o‘qilgan deb belgilanadi. `GET /notifications` esa `MessageRecipient` zaxira tekshiruvi bilan birorta ham e’lon tushib qolmasligini kafolatlaydi.
+  - **Yetkazilishni nazorat qilish va boshqarish endpointlari**:
+    - `GET /messages?box=sent`: har bir yuborilgan e’lon uchun `targetAudience` (`ALL` / `CUSTOMERS` / `PARTNERS`), `customerStats` (`total`, `delivered`, `read`), `partnerStats` (`total`, `delivered`, `telegramSent`, `read`, `accepted`, `sanatoriums` kesimi) hamda har bir qabul qiluvchi bo‘yicha batafsil `recipients` ro‘yxati (`#publicId`, telefon/email, sanatoriya, lavozim, `inAppStatus`, `telegramStatus`, `readAt`, `acceptedAt`) qaytariladi; `box=inbox` da esa yuboruvchi (`sender`) tafsilotlari qo‘shildi.
+    - `POST /messages/:id/verify-delivery`: yuborilgan e’lon Usersga va Hamkorlarga yetib borganini API orqali tekshiradi, yetishmayotgan `IN_APP` yozuvlarini tiklaydi (`repairedDeliveries`) va o‘qilganlik holatlarini sinxronlaydi (`syncedReads`).
+    - `DELETE /messages/:id`: yuborilgan e’lonni o‘chirish (audit bilan).
+    - `GET /support/recipients`: `publicId` va `counts` (`totalCustomers`, `totalPartners`, `totalSanatoriums`) qo‘shildi.
+- **Yangi «E’lonlar va xabarlar» markazi (`packages/ui/src/communication.tsx`, `packages/ui/src/portal.tsx`, `apps/mobile/lib/screens/account.dart`)**:
+  - Eski xabarlar bo‘limi o‘chirilib, noldan `AnnouncementsAndMessagesCenter` sifatida qayta yozildi va yon menyuning **Aloqa** guruhiga to‘g‘ridan-to‘g‘ri **«E’lonlar va xabarlar»** (`/messages`) bandi qo‘shildi (hamda **Yordam va xabarlar** ichidagi tab bilan bog‘landi).
+  - 4 ta jonli KPI va API yetkazilish nazorati kartasi (Jami e’lonlar, Users yetkazilishi/o‘qilishi, Hamkorlar yetkazilishi/o‘qilishi/tasdig‘i, API nazorati + **«API yetkazilishni tekshirish»** tugmasi).
+  - Qulay e’lon konstruktori: auditoriya tanlovi (Butun tizim / Users: barchasi yoki ro‘yxatdan tanlanganlar / Hamkorlar: sanatoriya, lavozim yoki aniq xodimlar), 4 ta tezkor tayyor shablon, jonli **Preview** oynasi va jonli qabul qiluvchilar hisoblagichi.
+  - Har bir yuborilgan e’londa **Users** va **Hamkorlar** uchun alohida yetkazilish bloki, qidiruv/filtrlar, **«Kimga bordi»** batafsil jadval modali, 1-klikda **«Tekshirish»** va **«O‘chirish»** amallari; kiruvchi xabarlarda esa **«O‘qilgan deb belgilash»**, **«Tanishdim / Qabul qildim»** va **«Barchasini o‘qilgan deb belgilash»** imkoniyatlari.
+  - Mobil ilova ([`apps/mobile/lib/screens/account.dart`](../apps/mobile/lib/screens/account.dart)): `message.created` sarlavhasi qo‘shildi.
+- **Tekshirilgan natijalar (`2026-11-22`)**:
+  - `apps/api/test/announcements-delivery.test.ts` (real `sihhat_test` PostgreSQL bazasida): **3/3 pass** (`CUSTOMERS`, `PARTNERS` + sanatoriya/lavozim filtri, `ALL` + `verify-delivery` tiklash + `DELETE` + hamkor izolyatsiyasi).
+  - `B10: OpenAPI` (`test/domain.test.ts`) va `B8/B9: recipient boundaries` — **pass**.
+  - `npm run check` (`5/5` workspace typecheck), `npm run openapi`, `npm run build:api`, `npm run build:web` (`superadmin-web` va `partner-web`), UI unit testlari (`6/6 pass`) va `npm run check:secrets` (`451` fayl, `24` maxfiy qiymat, `matches: []`) — xatosiz yakunlandi.
+
 ## 2026-11-22 Superadmin va Hamkorlar web panellari uchun «Aurora Emerald Command V3» dizayni (`UI/web_panellar` va `packages/ui`)
 
 - **16 ta yuqori aniqlikdagi PNG dizayn maketi va interaktiv studiya ([`UI/web_panellar/`](../UI/web_panellar/README.md))**:

@@ -9,6 +9,8 @@ export class EngagementController{
   @Get('messages') messages(@CurrentActor() a:Actor,@Query() q:unknown){return this.s.messages(a,q);}
   @Post('messages') @Roles('STAFF','SUPERADMIN') send(@CurrentActor() a:Actor,@Body() b:unknown){return this.s.send(a,b);}
   @Post('messages/:id/receipt') receipt(@CurrentActor() a:Actor,@Param('id') id:string,@Body() b:unknown){return this.s.receipt(a,id,b);}
+  @Post('messages/:id/verify-delivery') @Roles('STAFF','SUPERADMIN') verifyDelivery(@CurrentActor() a:Actor,@Param('id') id:string){return this.s.verifyDelivery(a,id);}
+  @Delete('messages/:id') @Roles('STAFF','SUPERADMIN') deleteMessage(@CurrentActor() a:Actor,@Param('id') id:string){return this.s.deleteMessage(a,id);}
   @Post('superadmin/announcements') @Roles('SUPERADMIN') broadcast(@CurrentActor() a:Actor,@Body() b:unknown){return this.s.broadcast(a,b);}
   @Post('reviews') @Roles('CUSTOMER') review(@CurrentActor() a:Actor,@Body() b:unknown){return this.s.review(a,b);}
   @Get('partner/reviews') @Roles('STAFF','SUPERADMIN') reviews(@CurrentActor() a:Actor,@Query() q:unknown){return this.s.reviewList(a,q);}

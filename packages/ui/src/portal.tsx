@@ -68,6 +68,7 @@ import {
   Payments,
   Finance,
   Billing,
+  Communications,
   Reviews,
   Support,
   Audit,
@@ -143,6 +144,7 @@ const links = [
     admin: true,
   },
   { id: "support", label: "Yordam va xabarlar", icon: MessageSquare, group: "Aloqa" },
+  { id: "messages", label: "E’lonlar va xabarlar", icon: Megaphone, group: "Aloqa" },
   {
     id: "reviews",
     label: "Sharhlar",
@@ -194,6 +196,7 @@ const navigationGroups = [
     label: "Aloqa",
     ids: [
       "support",
+      "messages",
       "reviews",
       "notifications",
     ],
@@ -851,7 +854,7 @@ export function Portal({
       case "ads":
         return <Billing kind={section} />;
       case "messages":
-        return <Support initialTab="announcements" />;
+        return <Communications kind="messages" />;
       case "reviews":
         return <Reviews />;
       case "support":
