@@ -1,6 +1,16 @@
 # Sihhat uz — amalga oshirish holati
 
-Yangilangan: 2026-11-21. Asos: ISHLAB_CHIQISH_REJASI.md va SIHHAT_UZ_ARXITEKTURA.md.
+Yangilangan: 2026-11-22. Asos: ISHLAB_CHIQISH_REJASI.md va SIHHAT_UZ_ARXITEKTURA.md.
+
+## 2026-11-22 Superadmin va Hamkorlar web panellari uchun «Aurora Emerald Command V3» dizayni (`UI/web_panellar` va `packages/ui`)
+
+- **16 ta yuqori aniqlikdagi PNG dizayn maketi va interaktiv studiya ([`UI/web_panellar/`](../UI/web_panellar/README.md))**:
+  - `00-umumiy-dizayn-konsepsiyasi.png` dan `15-hamkorlar-hisobchi-va-mobil-tungi.png` gacha (1600×1040, 1.5x Retina DPI) barcha ekranlar headless Chromium orqali generatsiya qilindi va `[FIT OK]` gorizontal sig‘im tekshiruvidan o‘tdi.
+  - [`UI/web_panellar/index.html`](../UI/web_panellar/index.html) oflayn galereyasi (Superadmin / Hamkorlar / Tungi rejim filtrlari, qidiruv va 1:1 lightbox) hamda [`UI/web_panellar/studio.html`](../UI/web_panellar/studio.html) interaktiv ko‘rish sahifasi yaratildi.
+- **Amaldagi React panellariga joriy etilgan V3 komponentlar (`packages/ui/src`)**:
+  - [`packages/ui/src/portal.tsx`](../packages/ui/src/portal.tsx) va [`packages/ui/src/portal-enhancements.css`](../packages/ui/src/portal-enhancements.css): Topbarda `Ctrl + K` **Tezkor bo‘limga o‘tish (Command Palette)** oynasi, jonli tizim salomatligi kapsulasi (`API · Tezcheck · Telegram · v0.2.8` / `Onlayn bron · Shaxmatka · E-mehmon`), foydalanuvchi blokida 6-xonali `#ID` chipi (`.id-chip`) va onlayn yashil nuqta (`.avatar-online-dot`), Split Login V3 illyustratsiya himoya kartasi (`.login-art-frame` + `.login-art-overlay`) hamda breadcrumb qatorida vaqt/komissiya ma’lumoti qo‘shildi.
+  - [`packages/ui/src/governance.tsx`](../packages/ui/src/governance.tsx): Dashboarddagi 4 ta Bento KPI kartasiga SVG sparkline trend grafiklari va status chiplari (`.stat-sparkline`, `.stat-trend-pill`), «Ilova foydalanuvchilari» hamda «Jamoa va ruxsatlar» jadvallarida 6-xonali `.id-chip` nishonlari qo‘shildi.
+  - [`packages/ui/src/operations.tsx`](../packages/ui/src/operations.tsx): «Bronlar va Mijozlar CRM» bo‘limida 4 kartali CRM voronkasi (`.crm-funnel-grid`), «Korxona va Kasaba uyushmalari» tabida yo‘llanma kvotasi progress-bari (`.quota-progress-track`), bron tafsiloti sahifasida esa «Bron ma’lumotlari» yonida jonli **«🖨️ MEHMONNI RO‘YXATGA OLISH ANKETASI (E-MEHMON)»** preview kartasi (`.emehmon-preview-card`) joriy qilindi.
 
 ## 2026-11-21 SNG va xalqaro sanatoriya bron & CRM tajribasi asosida yangi qulay funksiyalar (1.1–1.5, 2.1, 2.4–2.6)
 

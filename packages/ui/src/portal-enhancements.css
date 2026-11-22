@@ -1139,3 +1139,347 @@
   border-color: var(--border-bright, var(--green));
   color: var(--ink);
 }
+
+/* ============================================================================
+   AURORA EMERALD COMMAND V3 — WEB PANELS ENHANCEMENTS (2026-11-22)
+   ============================================================================ */
+.command-search-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 14px;
+  min-width: 280px;
+  max-width: 370px;
+  border-radius: var(--radius-pill, 9999px);
+  background: var(--glass, var(--surface));
+  border: 1px solid var(--glass-border, var(--line));
+  color: var(--muted);
+  font-size: 12.5px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: border-color 0.18s ease, box-shadow 0.18s ease, color 0.18s ease;
+}
+.command-search-trigger:hover {
+  border-color: var(--border-bright, var(--green));
+  color: var(--ink);
+  box-shadow: var(--glow-sm);
+}
+.command-search-trigger kbd {
+  margin-left: auto;
+  padding: 2px 7px;
+  border-radius: 6px;
+  background: var(--soft);
+  border: 1px solid var(--glass-border, var(--line));
+  font-size: 10.5px;
+  font-weight: 700;
+  font-family: "Manrope", system-ui, sans-serif;
+  color: var(--ink);
+}
+
+.system-health-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 13px;
+  border-radius: var(--radius-pill, 9999px);
+  background: var(--success-bg);
+  color: var(--success-ink);
+  border: 1px solid rgba(16, 185, 129, 0.28);
+  font-size: 11.5px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.system-health-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #10b981;
+  box-shadow: 0 0 8px #10b981;
+  flex-shrink: 0;
+}
+
+.id-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 7px;
+  border-radius: 6px;
+  background: var(--soft);
+  border: 1px solid var(--glass-border, var(--line));
+  font-family: "Manrope", monospace;
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--green);
+  line-height: 1.3;
+}
+
+.avatar-wrap-v3 {
+  position: relative;
+  flex-shrink: 0;
+}
+.avatar-online-dot {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #22c55e;
+  border: 2px solid var(--surface);
+}
+
+.breadcrumb-bar-v3 {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 18px;
+}
+.breadcrumb-bar-v3 .breadcrumb {
+  margin-bottom: 0;
+}
+.breadcrumb-meta-v3 {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+/* Bento KPI Sparklines & Trend Pills */
+.stat-mid-row {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 4px;
+}
+.stat-sparkline {
+  width: 82px;
+  height: 30px;
+  flex-shrink: 0;
+}
+.stat-foot-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 10px;
+}
+.stat-foot-row .stat-detail {
+  margin-top: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.stat-trend-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 10.5px;
+  font-weight: 800;
+  background: var(--success-bg);
+  color: var(--success-ink);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.stat-card.featured-stat .stat-trend-pill {
+  background: rgba(62, 230, 191, 0.22);
+  color: #8ff5dc;
+}
+
+/* Split Login V3 Frame Overlay */
+.login-art-frame {
+  position: relative;
+  border-radius: 22px;
+  overflow: hidden;
+  border: 1px solid rgba(143, 245, 220, 0.32);
+  box-shadow: 0 22px 52px rgba(0, 0, 0, 0.44);
+  margin-top: 14px;
+}
+.login-art-frame .login-illustration {
+  width: 100%;
+  display: block;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  object-fit: cover;
+}
+.login-art-overlay {
+  position: absolute;
+  inset: auto 12px 12px 12px;
+  padding: 10px 14px;
+  border-radius: 15px;
+  background: rgba(3, 30, 25, 0.84);
+  backdrop-filter: blur(14px);
+  border: 1px solid rgba(62, 230, 191, 0.32);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 11.5px;
+  color: #eefaf6;
+}
+.login-art-overlay strong {
+  display: block;
+  font-size: 12.5px;
+  color: #ffffff;
+}
+.login-art-overlay span {
+  color: #9fd4c5;
+  font-size: 11px;
+}
+
+/* CRM Funnel Strip, Quota Progress & E-Mehmon Live Sheet */
+.crm-funnel-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+  margin-bottom: 18px;
+}
+.quota-progress-track {
+  height: 7px;
+  border-radius: 999px;
+  background: var(--soft);
+  overflow: hidden;
+  margin-top: 6px;
+  min-width: 120px;
+}
+.quota-progress-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--green), var(--neon-bright, #3ee6bf));
+}
+
+.booking-detail-split {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
+  gap: 18px;
+  align-items: start;
+  margin-bottom: 20px;
+}
+.booking-detail-split > .card {
+  margin-bottom: 0;
+}
+.emehmon-preview-card {
+  background: #ffffff;
+  color: #0b2922;
+  border: 2px solid #00866c;
+  border-radius: 20px;
+  padding: 20px 22px;
+  box-shadow: var(--glow-md);
+}
+:root[data-theme="dark"] .emehmon-preview-card {
+  background: #07231e;
+  color: #eefaf6;
+  border-color: #3ee6bf;
+}
+.emehmon-preview-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 12px;
+  border-bottom: 2px solid var(--green);
+}
+.emehmon-preview-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 12px;
+}
+.emehmon-preview-table th,
+.emehmon-preview-table td {
+  border: 1px solid var(--line);
+  padding: 8px 11px;
+  font-size: 12.5px;
+  text-align: left;
+}
+.emehmon-preview-table th {
+  background: var(--soft);
+  color: var(--muted);
+  width: 38%;
+  font-weight: 700;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+/* Command Palette Modal (Ctrl + K) */
+.command-palette {
+  width: 560px;
+  max-width: 95vw;
+  background: var(--glass-strong, var(--surface));
+  border: 1px solid var(--border-bright, var(--line));
+  border-radius: 22px;
+  box-shadow: var(--glow-lg);
+  overflow: hidden;
+  backdrop-filter: blur(22px);
+}
+.command-palette-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--line);
+}
+.command-palette-head input {
+  flex: 1;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  font-size: 14.5px;
+  outline: none;
+}
+.command-palette-list {
+  max-height: 360px;
+  overflow-y: auto;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.command-palette-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 10px 14px;
+  border-radius: 13px;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  text-align: left;
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.command-palette-item:hover,
+.command-palette-item.active {
+  background: var(--green-light);
+  color: var(--green);
+}
+.command-palette-item small {
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+@media (max-width: 1100px) {
+  .command-search-trigger,
+  .system-health-pill {
+    display: none;
+  }
+  .crm-funnel-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .booking-detail-split {
+    grid-template-columns: 1fr;
+  }
+}
+@media (max-width: 640px) {
+  .crm-funnel-grid {
+    grid-template-columns: 1fr;
+  }
+}

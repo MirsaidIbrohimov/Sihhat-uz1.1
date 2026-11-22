@@ -6,13 +6,15 @@
 
 Sanatoriyalar uchun bron platformasi: NestJS/PostgreSQL backend, superadmin sayti, direktor/resepsion/hisobchi sayti, xodimlar Telegram boti va Flutter Android ilovasi.
 
-Kanonik repozitoriya: [MirsaidIbrohimov/Sihhat-uz1.1](https://github.com/MirsaidIbrohimov/Sihhat-uz1.1). Yangilangan: **2026-11-21**. O‘zgarishlar lokal saqlanadi; GitHubga foydalanuvchining aniq topshirig‘i bilan yuklanadi.
+Kanonik repozitoriya: [MirsaidIbrohimov/Sihhat-uz1.1](https://github.com/MirsaidIbrohimov/Sihhat-uz1.1). Yangilangan: **2026-11-22**. O‘zgarishlar lokal saqlanadi; GitHubga foydalanuvchining aniq topshirig‘i bilan yuklanadi.
 
 [Kerakli dasturlar va kutubxonalar](#kerakli-dasturlar-va-kutubxonalar),
 [ishga tushirish tartibi](#lokal-ishga-tushirish) va [tayyor APK](#tayyor-apk)
 quyida berilgan.
 
 ## Web panellar yangi UI
+
+2026-11-22: Superadmin (`apps/superadmin-web`, `/superadmin`) va Hamkorlar (`apps/partner-web`, `/hamkorlar`) saytlari uchun **[UI/web_panellar](UI/web_panellar/index.html)** galereyasida **16 ta yangi «Aurora Emerald Command V3»** dizayn maketi ([interaktiv studiya](UI/web_panellar/studio.html), [tavsif](UI/web_panellar/README.md)) tayyorlandi va amaldagi React panellariga joriy etildi: Topbardagi `Ctrl + K` tezkor bo‘limga o‘tish va qidiruv oynasi (Command Palette), tizim salomatligi indikatori, xodim/admin profilida 6-xonali `#ID` chipi va onlayn yashil nuqta, Bento KPI kartalarida SVG sparkline trend grafiklari, 3-tabli Bronlar va Mijozlar CRM voronkasi, Kasaba uyushmalari (Profsoyuz) kvotasi progress-bari, bron tafsilotida jonli **«🖨️ E-mehmon anketasi»** preview kartasi hamda Split Login V3 himoya qatlami.
 
 2026-11-14: Superadmin (`apps/superadmin-web`, `/superadmin`) va Hamkorlar (`apps/partner-web`, `/hamkorlar`) boshqaruv panellari `sihhat.uz` bosh sahifasidagi **Neon Emerald Glass** uslubiga moslashtirildi: kunduzgi (`#f6faf9` / `#00866c`) va tungi (`#03201c` / `#3ee6bf`) mavzu o‘zgaruvchilari, shisha kartalar, 9999px pill tugmalar/tablar, neon-gradient faol menyu bandi, sticky topbar, puls holat belgili split kirish sahifasi hamda «Mening hisobim» / «Foydalanish yo‘riqnomasi» sahifalarining kunduzgi-tungi mosligi joriy etildi (`packages/ui/src/styles.css`, `packages/ui/src/portal.tsx`, `packages/ui/src/portal-enhancements.css`).
 

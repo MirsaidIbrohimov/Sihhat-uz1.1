@@ -23,6 +23,7 @@ import {
   Menu,
   Megaphone,
   MessageSquare,
+  Search,
   Settings,
   ShieldCheck,
   Smartphone,
@@ -43,7 +44,7 @@ import { ThemeToggle } from "./appearance";
 import { PartnerTerms, PartnerTermsDialog } from "./partner-terms";
 import { TelegramSettings } from "./telegram";
 import { AccountantReports } from "./accounting";
-import { getAvatarFallback, MyAccount, RoleGuide } from "./account";
+import { formatUserPublicId, getAvatarFallback, MyAccount, RoleGuide } from "./account";
 import { TodayWork } from "./today";
 import { newPasswordFields } from "./password-fields";
 import "./portal-enhancements.css";
@@ -344,21 +345,38 @@ function Login({
           </p>
           <div className="login-highlights">
             {(mode === "admin"
-              ? ["Barcha sanatoriylar", "Hamkor nazorati", "Telegram & AI"]
-              : ["Real-vaqt bronlar", "Xonalar & narxlar", "Moliya hisoboti"]
+              ? ["🛡️ Barcha sanatoriyalar", "💳 0% bron komissiyasi", "🤖 Telegram & AI"]
+              : ["📅 Shaxmatka & Koyka CRM", "🏛 Kasaba uyushmalari", "🖨️ 1-klikda E-mehmon"]
             ).map((item) => (
               <span className="login-highlight-chip" key={item}>
                 {item}
               </span>
             ))}
           </div>
-          <img
-            className="login-illustration"
-            src="/branding/welcome-retreat.png"
-            alt=""
-            width={560}
-            height={360}
-          />
+          <div className="login-art-frame">
+            <img
+              className="login-illustration"
+              src="/branding/welcome-retreat.png"
+              alt=""
+              width={560}
+              height={360}
+            />
+            <div className="login-art-overlay">
+              <div>
+                <strong>
+                  {mode === "admin"
+                    ? "Hostra & Render HTTPS Himoyalangan Seans"
+                    : "0% Bron Komissiyasi · Shaffof Hamkorlik"}
+                </strong>
+                <span>
+                  {mode === "admin"
+                    ? "HttpOnly Cookie · CSRF · 5+ xato urinishda Email + Bot trevoga"
+                    : "Butun xona, koyka-o‘rin, kutish ro‘yxati va E-mehmon anketasi"}
+                </span>
+              </div>
+              <span className="badge green">Faol</span>
+            </div>
+          </div>
         </div>
         <div className="login-foot">
           © {new Date().getFullYear()} Sihhat.uz · Sanatoriyalar platformasi
@@ -552,8 +570,23 @@ export function Portal({
     [toast, setToast] = useState(""),
     [epoch, setEpoch] = useState(0),
     [idleNotice, setIdleNotice] = useState(""),
-    [tenantError, setTenantError] = useState("");
+    [tenantError, setTenantError] = useState(""),
+    [cmdOpen, setCmdOpen] = useState(false),
+    [cmdQuery, setCmdQuery] = useState("");
   const sessionGeneration = useRef(0);
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") {
+        event.preventDefault();
+        setCmdOpen((open) => !open);
+        setCmdQuery("");
+      } else if (event.key === "Escape" && cmdOpen) {
+        setCmdOpen(false);
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [cmdOpen]);
   useEffect(() => {
     const media = window.matchMedia("(max-width: 760px)");
     const sync = () => {
@@ -946,7 +979,7 @@ export function Portal({
               >
                 <Menu size={18} />
               </button>
-              {admin && ["bookings", "inventory", "staff", "today", "payments"].includes(section) && (
+              {admin && ["bookings", "inventory", "staff", "today", "payments"].includes(section) ? (
                 <div className="tenant-context">
                   <Building2 size={19} />
                   <div>
@@ -971,9 +1004,44 @@ export function Portal({
                     </select>
                   </div>
                 </div>
+              ) : (
+                !admin &&
+                tenants.length > 0 && (
+                  <div className="tenant-context">
+                    <Building2 size={19} />
+                    <div>
+                      <span className="context-label">Faol sanatoriya</span>
+                      <strong style={{ fontSize: 13 }}>
+                        {tenants.find((s) => s.id === effectiveTenant)?.name ??
+                          tenants[0]?.name}
+                      </strong>
+                    </div>
+                  </div>
+                )
               )}
+              <button
+                type="button"
+                className="command-search-trigger"
+                aria-label="Tezkor bo‘limga o‘tish (Ctrl+K)"
+                onClick={() => {
+                  setCmdQuery("");
+                  setCmdOpen(true);
+                }}
+              >
+                <Search size={15} aria-hidden="true" />
+                <span>Bo‘lim, bron yoki mijoz #ID...</span>
+                <kbd>Ctrl + K</kbd>
+              </button>
             </div>
             <div className="topbar-right">
+              <div className="system-health-pill" aria-hidden="true">
+                <span className="system-health-dot" />
+                <span>
+                  {admin
+                    ? "API · Tezcheck · Telegram · v0.2.8"
+                    : "Onlayn bron · Shaxmatka · E-mehmon"}
+                </span>
+              </div>
               <ThemeToggle />
               {!accountant && (
                 <button
@@ -991,18 +1059,30 @@ export function Portal({
                 onClick={() => go("account")}
                 title="Mening hisobim va profil rasmi"
               >
-                <div className="avatar">
-                  {actor.avatarUrl ?? getAvatarFallback(actor.id) ? (
-                    <img
-                      src={actor.avatarUrl ?? getAvatarFallback(actor.id) ?? ""}
-                      alt={actor.name}
-                    />
-                  ) : (
-                    actor.name.slice(0, 1).toUpperCase()
-                  )}
+                <div className="avatar-wrap-v3">
+                  <div className="avatar">
+                    {actor.avatarUrl ?? getAvatarFallback(actor.id) ? (
+                      <img
+                        src={actor.avatarUrl ?? getAvatarFallback(actor.id) ?? ""}
+                        alt={actor.name}
+                      />
+                    ) : (
+                      actor.name.slice(0, 1).toUpperCase()
+                    )}
+                  </div>
+                  <span className="avatar-online-dot" aria-hidden="true" />
                 </div>
                 <div>
-                  <span className="user-name">{actor.name}</span>
+                  <span className="user-name">
+                    {actor.name}{" "}
+                    <span
+                      className="id-chip"
+                      aria-hidden="true"
+                      style={{ marginLeft: 4 }}
+                    >
+                      #{formatUserPublicId(actor)}
+                    </span>
+                  </span>
                   <span className="user-role">
                     {admin
                       ? "SUPERADMIN"
@@ -1051,18 +1131,23 @@ export function Portal({
             data-section={section}
             inert={smallScreen && menu}
           >
-            <div className="breadcrumb">
-              {admin
-                ? "Superadmin"
-                : accountant
-                  ? "Hisobchi"
-                  : "Sanatoriya paneli"}
-              <span>/</span>
-              {accountant && section === "dashboard"
-                ? "Hisobotlar"
-                : section === "messages"
-                  ? "E’lonlar va xabarlar"
-                  : menuLinks.find((item) => item.id === section)?.label}
+            <div className="breadcrumb-bar-v3">
+              <div className="breadcrumb">
+                {admin
+                  ? "Superadmin"
+                  : accountant
+                    ? "Hisobchi"
+                    : "Sanatoriya paneli"}
+                <span>/</span>
+                {accountant && section === "dashboard"
+                  ? "Hisobotlar"
+                  : section === "messages"
+                    ? "E’lonlar va xabarlar"
+                    : menuLinks.find((item) => item.id === section)?.label}
+              </div>
+              <div className="breadcrumb-meta-v3" aria-hidden="true">
+                <span>Asia/Tashkent · 0% komissiya · Jonli sinxronizatsiya</span>
+              </div>
             </div>
             {tenantError && <ErrorBox message={tenantError} retry={refresh} />}{" "}
             {!admin && !tenant ? (
@@ -1073,6 +1158,70 @@ export function Portal({
           </main>
         </div>
       </div>
+      {cmdOpen && (
+        <div
+          className="modal-backdrop"
+          onClick={() => setCmdOpen(false)}
+        >
+          <section
+            className="command-palette"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Tezkor bo‘limga o‘tish"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="command-palette-head">
+              <Search size={18} aria-hidden="true" />
+              <input
+                type="search"
+                placeholder="Bo‘lim nomini yozing (masalan: Shaxmatka, Bronlar, Moliya)..."
+                value={cmdQuery}
+                onChange={(e) => setCmdQuery(e.target.value)}
+                autoFocus
+              />
+              <button
+                type="button"
+                className="icon-button"
+                aria-label="Yopish"
+                onClick={() => setCmdOpen(false)}
+              >
+                <X size={17} />
+              </button>
+            </div>
+            <div className="command-palette-list">
+              {menuLinks
+                .filter((item) => {
+                  const q = cmdQuery.trim().toLowerCase();
+                  if (!q) return true;
+                  const lbl =
+                    accountant && item.id === "dashboard"
+                      ? "hisobotlar"
+                      : item.label.toLowerCase();
+                  return lbl.includes(q) || item.id.toLowerCase().includes(q);
+                })
+                .map((item) => (
+                  <button
+                    type="button"
+                    key={item.id}
+                    className={`command-palette-item ${section === item.id ? "active" : ""}`}
+                    onClick={() => {
+                      setCmdOpen(false);
+                      go(item.id);
+                    }}
+                  >
+                    <item.icon size={18} />
+                    <span>
+                      {accountant && item.id === "dashboard"
+                        ? "Hisobotlar"
+                        : item.label}
+                    </span>
+                    <small>{portalUrl(item.id, basePath)}</small>
+                  </button>
+                ))}
+            </div>
+          </section>
+        </div>
+      )}
       {form && (
         <FormDialog spec={form} onClose={() => setForm(null)} notice={notice} />
       )}{" "}

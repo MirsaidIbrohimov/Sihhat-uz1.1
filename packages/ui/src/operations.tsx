@@ -371,6 +371,7 @@ export function Inventory() {
                       </span>
                       <input
                         type="date"
+                        aria-label="Kalendar boshi"
                         value={start}
                         onChange={(e) => setStart(e.target.value || localDate())}
                         style={{ padding: "6px 10px", fontSize: "13px" }}
@@ -1423,65 +1424,122 @@ export function Bookings() {
                     </Act>
                   )}
               </div>
-              <Card title="Bron ma’lumotlari">
-                <div className="card-body detail-grid">
-                  <dl>
-                    <dt>Mehmon</dt>
-                    <dd>
-                      {b.guest.name}
-                      <br />
-                      {b.guest.phone}
-                    </dd>
-                    <dt>Manba</dt>
-                    <dd>{label[b.source]}</dd>
-                    <dt>Joylashish turi</dt>
-                    <dd>
-                      {guestPassportMap[b.id]?.placement === "BED_MALE"
-                        ? "👨 1 kishilik joy (Erkaklar xonasidan 1 o‘rin)"
-                        : guestPassportMap[b.id]?.placement === "BED_FEMALE"
-                          ? "👩 1 kishilik joy (Ayollar xonasidan 1 o‘rin)"
-                          : "🏠 Butun xona"}
-                    </dd>
-                    {guestPassportMap[b.id]?.passport && (
-                      <>
-                        <dt>Pasport / E-mehmon</dt>
-                        <dd>
-                          {guestPassportMap[b.id].passport}
-                          {guestPassportMap[b.id].pinfl
-                            ? ` · JShShIR: ${guestPassportMap[b.id].pinfl}`
-                            : ""}
-                        </dd>
-                      </>
-                    )}
-                    {guestPassportMap[b.id]?.voucherOrg && (
-                      <>
-                        <dt>Yo‘llanma turi</dt>
-                        <dd>{guestPassportMap[b.id].voucherOrg}</dd>
-                      </>
-                    )}
-                  </dl>
-                  <dl>
-                    <dt>Jami narx</dt>
-                    <dd>{formatMoney(b.amount)}</dd>
-                    <dt>Onlayn to‘lov</dt>
-                    <dd>
-                      {b.payment ? (
-                        <Badge value={b.payment.status} />
-                      ) : (
-                        "Onlayn to‘lov yo‘q"
+              <div className="booking-detail-split">
+                <Card title="Bron ma’lumotlari">
+                  <div className="card-body detail-grid">
+                    <dl>
+                      <dt>Mehmon</dt>
+                      <dd>
+                        {b.guest.name}
+                        <br />
+                        {b.guest.phone}
+                      </dd>
+                      <dt>Manba</dt>
+                      <dd>{label[b.source]}</dd>
+                      <dt>Joylashish turi</dt>
+                      <dd>
+                        {guestPassportMap[b.id]?.placement === "BED_MALE"
+                          ? "👨 1 kishilik joy (Erkaklar xonasidan 1 o‘rin)"
+                          : guestPassportMap[b.id]?.placement === "BED_FEMALE"
+                            ? "👩 1 kishilik joy (Ayollar xonasidan 1 o‘rin)"
+                            : "🏠 Butun xona"}
+                      </dd>
+                      {guestPassportMap[b.id]?.passport && (
+                        <>
+                          <dt>Pasport / E-mehmon</dt>
+                          <dd>
+                            {guestPassportMap[b.id].passport}
+                            {guestPassportMap[b.id].pinfl
+                              ? ` · JShShIR: ${guestPassportMap[b.id].pinfl}`
+                              : ""}
+                          </dd>
+                        </>
                       )}
-                    </dd>
-                    <dt>Qaytarish</dt>
-                    <dd>
-                      {b.refund ? (
-                        <Badge value={b.refund.status} />
-                      ) : (
-                        "So‘ralmagan"
+                      {guestPassportMap[b.id]?.voucherOrg && (
+                        <>
+                          <dt>Yo‘llanma turi</dt>
+                          <dd>{guestPassportMap[b.id].voucherOrg}</dd>
+                        </>
                       )}
-                    </dd>
-                  </dl>
-                </div>
-              </Card>
+                    </dl>
+                    <dl>
+                      <dt>Jami narx</dt>
+                      <dd>{formatMoney(b.amount)}</dd>
+                      <dt>Onlayn to‘lov</dt>
+                      <dd>
+                        {b.payment ? (
+                          <Badge value={b.payment.status} />
+                        ) : (
+                          "Onlayn to‘lov yo‘q"
+                        )}
+                      </dd>
+                      <dt>Qaytarish</dt>
+                      <dd>
+                        {b.refund ? (
+                          <Badge value={b.refund.status} />
+                        ) : (
+                          "So‘ralmagan"
+                        )}
+                      </dd>
+                    </dl>
+                  </div>
+                </Card>
+
+                <section className="emehmon-preview-card" aria-label="E-mehmon anketasi namunasi">
+                  <div className="emehmon-preview-head">
+                    <div>
+                      <strong style={{ fontSize: 14, display: "block" }}>
+                        MEHMONNI RO‘YXATGA OLISH ANKETASI (E-MEHMON)
+                      </strong>
+                      <span className="muted" style={{ fontSize: 11.5 }}>
+                        Bron: {b.reference} · {date(b.checkIn)} — {date(b.checkOut)}
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      className="button primary"
+                      style={{ padding: "7px 13px", fontSize: 12 }}
+                      onClick={() => printEmehmonSheet(b)}
+                    >
+                      🖨️ Chop etish
+                    </button>
+                  </div>
+                  <table className="emehmon-preview-table">
+                    <tbody>
+                      <tr>
+                        <th>Mehmon F.I.Sh.</th>
+                        <td><strong>{b.guest?.name ?? "—"}</strong></td>
+                      </tr>
+                      <tr>
+                        <th>Telefon raqami</th>
+                        <td>{b.guest?.phone ?? "—"}</td>
+                      </tr>
+                      <tr>
+                        <th>Pasport / ID-karta</th>
+                        <td>{guestPassportMap[b.id]?.passport || "Kiritilmagan"}</td>
+                      </tr>
+                      <tr>
+                        <th>JShShIR (PINFL)</th>
+                        <td>{guestPassportMap[b.id]?.pinfl || "Kiritilmagan"}</td>
+                      </tr>
+                      <tr>
+                        <th>Joylashish turi</th>
+                        <td>
+                          {guestPassportMap[b.id]?.placement === "BED_MALE"
+                            ? "👨 1 joy (Erkaklar xonasi)"
+                            : guestPassportMap[b.id]?.placement === "BED_FEMALE"
+                              ? "👩 1 joy (Ayollar xonasi)"
+                              : "🏠 Butun xona"}
+                        </td>
+                      </tr>
+                      <tr>
+                        <th>Yo‘llanma manbasi</th>
+                        <td>{guestPassportMap[b.id]?.voucherOrg || label[b.source] || b.source}</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </section>
+              </div>
               <Card title="Ajratilgan xonalar">
                 <Table
                   rows={b.items}
@@ -1747,6 +1805,35 @@ export function Bookings() {
           </AddButton>
         )}
       </PageHeading>
+      <div className="crm-funnel-grid" aria-hidden="true">
+        <div className="stat-card">
+          <div className="stat-label">KUTISH RO‘YXATIDA (WAITLIST)</div>
+          <div className="stat-number">
+            {crmLeads.filter((l) => l.status === "WAITLIST").length} nafar
+          </div>
+          <div className="stat-detail">Joy bo‘shasa xabar beriladigan mijozlar</div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-label">DOIMIY MIJOZLAR (6+ OY QAYTA TAKLIF)</div>
+          <div className="stat-number">
+            {crmLeads.filter((l) => l.status === "REPEAT_6M").length} nafar
+          </div>
+          <div className="stat-detail">Qayta sog‘lomlashtirishga chaqirish</div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-label">KASABA UYUSHMALARI KVOTASI</div>
+          <div className="stat-number">
+            {corporateQuotas.reduce((acc, q) => acc + (Number(q.used_count) || 0), 0)} /{" "}
+            {corporateQuotas.reduce((acc, q) => acc + (Number(q.rooms_count) || 0), 0)} ta
+          </div>
+          <div className="stat-detail">Shartnoma bo‘yicha ajratilgan yo‘llanmalar</div>
+        </div>
+        <div className="stat-card featured-stat">
+          <div className="stat-label">JOYLASHISH VA KOYKA-O‘RIN CRM</div>
+          <div className="stat-number">Butun xona & Koyka</div>
+          <div className="stat-detail">🏠 Oilaviy · 👨 Erkaklar · 👩 Ayollar xonasi</div>
+        </div>
+      </div>
       <div className="tabs" style={{ marginBottom: 16 }}>
         {[
           ["bookings", "📋 Barcha bronlar"],
@@ -1887,11 +1974,24 @@ export function Bookings() {
               },
               {
                 label: "Ajratilgan / Band",
-                render: (r) => (
-                  <strong>
-                    {r.used_count ?? 0} / {r.rooms_count} ta yo‘llanma
-                  </strong>
-                ),
+                render: (r) => {
+                  const used = Number(r.used_count) || 0;
+                  const total = Math.max(1, Number(r.rooms_count) || 1);
+                  const pct = Math.min(100, Math.round((used / total) * 100));
+                  return (
+                    <div>
+                      <strong>
+                        {used} / {total} ta yo‘llanma
+                      </strong>
+                      <div className="quota-progress-track" aria-hidden="true">
+                        <div
+                          className="quota-progress-fill"
+                          style={{ width: `${pct}%` }}
+                        />
+                      </div>
+                    </div>
+                  );
+                },
               },
               { label: "Davr", key: "period" },
               {

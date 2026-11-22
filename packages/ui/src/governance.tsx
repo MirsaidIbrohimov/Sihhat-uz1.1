@@ -199,12 +199,16 @@ export function Dashboard() {
                         ? "To‘lov sanasi bo‘yicha"
                         : "Yaratilgan sana bo‘yicha"),
                   icon: BookOpen,
+                  trend: "Faol oqim",
+                  spark: "2,25 16,21 30,23 44,15 58,17 70,9 80,5",
                 },
                 {
                   title: "Xonalar bandligi",
                   value: `${(r.occupancy * 100).toFixed(1)}%`,
                   detail: `${r.room_nights} / ${r.sellable_room_nights} xona-tun`,
                   icon: BedDouble,
+                  trend: `${r.guest_nights ?? 0} mehmon-tun`,
+                  spark: "2,24 18,20 32,16 48,18 62,11 74,8 80,6",
                 },
                 {
                   title: financial ? "Bron aylanmasi (GMV)" : "Mehmon-tunlar",
@@ -213,6 +217,8 @@ export function Dashboard() {
                     ? "Tasdiqlangan onlayn to‘lovlar"
                     : "Davrga to‘g‘ri kelgan yashash",
                   icon: financial ? CreditCard : Users,
+                  trend: "0% komissiya",
+                  spark: "2,26 16,22 30,19 46,20 60,13 72,9 80,4",
                 },
                 {
                   title: ctx.admin
@@ -231,6 +237,8 @@ export function Dashboard() {
                       ? "Hisobot oxirigacha qoldiq"
                       : "Davr ichidagi sotilgan tunlar",
                   icon: Coins,
+                  trend: ctx.admin ? "Sof tushum" : "Balans",
+                  spark: "2,25 18,21 34,17 50,14 66,10 80,3",
                 },
               ].map((s, index) => (
                 <div
@@ -241,8 +249,38 @@ export function Dashboard() {
                     <s.icon size={17} />
                   </div>
                   <div className="stat-label">{s.title}</div>
-                  <StatValue value={s.value} />
-                  <div className="stat-detail">{s.detail}</div>
+                  <div className="stat-mid-row">
+                    <StatValue value={s.value} />
+                    <svg
+                      className="stat-sparkline"
+                      viewBox="0 0 82 30"
+                      fill="none"
+                      aria-hidden="true"
+                    >
+                      <path
+                        d={`M${s.spark} L80,28 L2,28 Z`}
+                        fill={
+                          index === 3
+                            ? "rgba(143, 245, 220, 0.24)"
+                            : "rgba(16, 185, 129, 0.16)"
+                        }
+                      />
+                      <polyline
+                        points={s.spark}
+                        fill="none"
+                        stroke={index === 3 ? "#8ff5dc" : "#10b981"}
+                        strokeWidth="2.1"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
+                  </div>
+                  <div className="stat-foot-row">
+                    <span className="stat-trend-pill" aria-hidden="true">
+                      {s.trend}
+                    </span>
+                    <div className="stat-detail">{s.detail}</div>
+                  </div>
                 </div>
               ))}
             </div>
@@ -1604,7 +1642,10 @@ export function Staff() {
                     )}
                   </div>
                   <div>
-                    <strong style={{ color: "var(--ink)" }}>{u.name ?? "Xodim"}</strong>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                      <strong style={{ color: "var(--ink)" }}>{u.name ?? "Xodim"}</strong>
+                      <span className="id-chip">#{formatUserPublicId(u)}</span>
+                    </div>
                     <span className="subcell">
                       ID: #{formatUserPublicId(u)}
                       {u.login ? ` · @${u.login}` : ""}
@@ -2730,7 +2771,10 @@ export function AppUsers() {
                     )}
                   </div>
                   <div>
-                    <strong style={{ color: "var(--ink)" }}>{r.name}</strong>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                      <strong style={{ color: "var(--ink)" }}>{r.name}</strong>
+                      <span className="id-chip">#{formatUserPublicId(r)}</span>
+                    </div>
                     <span className="subcell">
                       ID: #{formatUserPublicId(r)} {r.login ? `· @${r.login}` : ""}
                       {r.email && r.email !== r.login ? ` · ${r.email}` : ""}

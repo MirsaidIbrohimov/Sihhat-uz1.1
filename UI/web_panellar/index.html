@@ -1,0 +1,484 @@
+<!doctype html>
+<html lang="uz">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Sihhat.uz — Superadmin va Hamkorlar Web Panellari Yangi Dizayn Galereyasi (V3)</title>
+    <style>
+      @font-face {
+        font-family: "DM Sans";
+        src: url("../web/assets/DMSans.ttf") format("truetype");
+        font-weight: 100 900;
+      }
+      @font-face {
+        font-family: "Manrope";
+        src: url("../web/assets/Manrope.ttf") format("truetype");
+        font-weight: 100 900;
+      }
+      :root {
+        --bg: #021714;
+        --card: rgba(10, 46, 40, 0.82);
+        --line: rgba(62, 230, 191, 0.24);
+        --line-bright: rgba(143, 245, 220, 0.5);
+        --ink: #eefaf6;
+        --muted: #98c5b8;
+        --neon: #3ee6bf;
+        --mint: #8ff5dc;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        font-family: "DM Sans", system-ui, sans-serif;
+        color: var(--ink);
+        background:
+          radial-gradient(1000px 560px at 10% -6%, rgba(62, 230, 191, 0.22), transparent 62%),
+          radial-gradient(900px 500px at 94% 6%, rgba(16, 185, 129, 0.16), transparent 60%),
+          linear-gradient(180deg, #03211c 0%, #021613 60%, #01100d 100%);
+        background-attachment: fixed;
+      }
+      .hero {
+        max-width: 1480px;
+        margin: 0 auto;
+        padding: 36px 28px 24px;
+      }
+      .hero-top {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        flex-wrap: wrap;
+      }
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        text-decoration: none;
+        color: #fff;
+      }
+      .brand img {
+        width: 54px;
+        height: 54px;
+        border-radius: 16px;
+        border: 1px solid var(--line-bright);
+        box-shadow: 0 0 24px rgba(62, 230, 191, 0.28);
+      }
+      .brand strong {
+        font-family: "Manrope", sans-serif;
+        font-size: 24px;
+        font-weight: 800;
+      }
+      .brand strong span {
+        color: var(--neon);
+      }
+      .brand small {
+        display: block;
+        color: var(--muted);
+        font-size: 12px;
+      }
+      .hero-banner {
+        margin-top: 22px;
+        padding: 30px 34px;
+        border-radius: 28px;
+        background:
+          radial-gradient(540px 300px at 92% 10%, rgba(62, 230, 191, 0.24), transparent 68%),
+          rgba(7, 36, 31, 0.86);
+        border: 1px solid var(--line-bright);
+        box-shadow: 0 24px 64px rgba(0, 0, 0, 0.45);
+        display: grid;
+        grid-template-columns: 1.45fr 1fr;
+        gap: 28px;
+        align-items: center;
+      }
+      .pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 6px 14px;
+        border-radius: 999px;
+        background: rgba(62, 230, 191, 0.14);
+        border: 1px solid rgba(62, 230, 191, 0.36);
+        color: var(--mint);
+        font-size: 11.5px;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+      }
+      h1 {
+        font-family: "Manrope", sans-serif;
+        font-size: 36px;
+        line-height: 1.15;
+        margin: 12px 0;
+        letter-spacing: -0.03em;
+      }
+      h1 span {
+        color: var(--neon);
+      }
+      .hero-stats {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 12px;
+      }
+      .stat-box {
+        padding: 16px 18px;
+        border-radius: 20px;
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid var(--line);
+      }
+      .stat-box strong {
+        font-family: "Manrope", sans-serif;
+        font-size: 26px;
+        color: var(--neon);
+        display: block;
+      }
+      .stat-box span {
+        font-size: 12.5px;
+        color: var(--muted);
+      }
+      .toolbar {
+        max-width: 1480px;
+        margin: 0 auto;
+        padding: 8px 28px 20px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 14px;
+        flex-wrap: wrap;
+      }
+      .tabs {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+      .tab-btn {
+        padding: 10px 18px;
+        border-radius: 999px;
+        border: 1px solid var(--line);
+        background: rgba(255, 255, 255, 0.05);
+        color: var(--ink);
+        font-weight: 700;
+        font-size: 13px;
+        cursor: pointer;
+      }
+      .tab-btn.active {
+        background: linear-gradient(135deg, #8ff5dc, #3ee6bf);
+        color: #03241e;
+        border-color: transparent;
+        box-shadow: 0 8px 24px rgba(62, 230, 191, 0.3);
+      }
+      .search-box {
+        padding: 10px 16px;
+        border-radius: 999px;
+        border: 1px solid var(--line);
+        background: rgba(255, 255, 255, 0.06);
+        color: #fff;
+        min-width: 280px;
+        font-size: 13px;
+      }
+      .gallery-grid {
+        max-width: 1480px;
+        margin: 0 auto;
+        padding: 0 28px 60px;
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(430px, 1fr));
+        gap: 22px;
+      }
+      .board-card {
+        border-radius: 22px;
+        background: var(--card);
+        border: 1px solid var(--line);
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+      }
+      .board-card:hover {
+        transform: translateY(-4px);
+        border-color: var(--line-bright);
+        box-shadow: 0 20px 48px rgba(0, 0, 0, 0.45), 0 0 28px rgba(62, 230, 191, 0.16);
+      }
+      .board-thumb {
+        position: relative;
+        aspect-ratio: 1600 / 1040;
+        background: #021411;
+        cursor: zoom-in;
+        overflow: hidden;
+        border-bottom: 1px solid var(--line);
+      }
+      .board-thumb img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: block;
+      }
+      .board-badges {
+        position: absolute;
+        top: 12px;
+        left: 12px;
+        right: 12px;
+        display: flex;
+        justify-content: space-between;
+        pointer-events: none;
+      }
+      .tag {
+        padding: 4px 11px;
+        border-radius: 999px;
+        font-size: 11px;
+        font-weight: 800;
+        background: rgba(2, 22, 18, 0.86);
+        border: 1px solid var(--line-bright);
+        color: var(--mint);
+        backdrop-filter: blur(8px);
+      }
+      .board-info {
+        padding: 16px 20px 18px;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+      .board-info h2 {
+        font-family: "Manrope", sans-serif;
+        font-size: 16.5px;
+        margin: 0;
+      }
+      .board-info p {
+        margin: 0;
+        font-size: 12.5px;
+        color: var(--muted);
+        line-height: 1.5;
+      }
+      .board-actions {
+        display: flex;
+        gap: 8px;
+        margin-top: 6px;
+      }
+      .btn-link {
+        padding: 7px 14px;
+        border-radius: 999px;
+        font-size: 12px;
+        font-weight: 700;
+        text-decoration: none;
+        border: 1px solid var(--line);
+        color: var(--ink);
+        background: rgba(255, 255, 255, 0.06);
+        cursor: pointer;
+      }
+      .btn-link.primary {
+        background: rgba(62, 230, 191, 0.18);
+        border-color: var(--line-bright);
+        color: var(--mint);
+      }
+      .lightbox {
+        position: fixed;
+        inset: 0;
+        z-index: 500;
+        background: rgba(1, 12, 10, 0.94);
+        backdrop-filter: blur(14px);
+        display: flex;
+        flex-direction: column;
+        padding: 18px 24px;
+      }
+      .lightbox[hidden] {
+        display: none;
+      }
+      .lightbox-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 14px;
+        padding-bottom: 12px;
+      }
+      .lightbox-body {
+        flex: 1;
+        overflow: auto;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .lightbox-body img {
+        max-width: 100%;
+        max-height: calc(100vh - 96px);
+        border-radius: 16px;
+        border: 1px solid var(--line-bright);
+        box-shadow: 0 24px 80px rgba(0, 0, 0, 0.7);
+      }
+    </style>
+  </head>
+  <body>
+    <header class="hero">
+      <div class="hero-top">
+        <a class="brand" href="index.html">
+          <img src="../web/assets/sihhat-logo.jpg" alt="Sihhat.uz" />
+          <div>
+            <strong>sihhat<span>.uz</span> · Web Panellar V3</strong>
+            <small>Superadmin (/superadmin) va Hamkorlar (/hamkorlar) yangi dizayn taklifi</small>
+          </div>
+        </a>
+        <div style="display:flex;gap:10px">
+          <a class="btn-link primary" href="studio.html?board=02-superadmin-bosh-sahifa-kunduzgi">✨ Interaktiv Studiyani ochish</a>
+          <a class="btn-link" href="../web/index.html">Oldingi UI galereyasi</a>
+        </div>
+      </div>
+
+      <div class="hero-banner">
+        <div>
+          <span class="pill">● AURORA EMERALD COMMAND V3 · TASDIQLASH UCHUN MAKETLAR</span>
+          <h1>Superadmin va Hamkorlar saytlari uchun <span>yangi avlod dizayni</span></h1>
+          <p style="color:var(--muted);font-size:14px;line-height:1.6;margin:0">
+            Hozirgi web panellarning barcha amaldagi funksiyalaridan (6-xonali foydalanuvchi IDlari <code>#482915</code>, jonli login/email tekshiruvi, Shaxmatka, Koyka-o‘rin CRM, Kasaba uyushmalari kvotasi, E-mehmon chop etish, Telegram yordam chati va Hisobchi paneli) ilhomlangan holda yaratilgan 16 ta yuqori aniqlikdagi dizayn.
+          </p>
+        </div>
+        <div class="hero-stats">
+          <div class="stat-box">
+            <strong>8 ta ekran</strong>
+            <span>Superadmin sayti (/superadmin)</span>
+          </div>
+          <div class="stat-box">
+            <strong>7 ta ekran</strong>
+            <span>Hamkorlar (Direktor, Resepshn, Hisobchi)</span>
+          </div>
+          <div class="stat-box">
+            <strong>Kun & Tun</strong>
+            <span>Crystal Light + Neon Aurora Dark</span>
+          </div>
+          <div class="stat-box">
+            <strong>100% Mos</strong>
+            <span>Mavjud backend API va RBAC rollariga</span>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <div class="toolbar">
+      <div class="tabs" id="filter-tabs">
+        <button class="tab-btn active" data-filter="all">Barchasi (16)</button>
+        <button class="tab-btn" data-filter="superadmin">🛡️ Superadmin sayti (8)</button>
+        <button class="tab-btn" data-filter="partner">🏥 Hamkorlar sayti (7)</button>
+        <button class="tab-btn" data-filter="dark">🌙 Tungi Neon Aurora (4)</button>
+      </div>
+      <input
+        type="search"
+        id="search-input"
+        class="search-box"
+        placeholder="Ekran nomi yoki raqamini qidiring (masalan: Shaxmatka, CRM, 05)..."
+      />
+    </div>
+
+    <main class="gallery-grid" id="gallery"></main>
+
+    <div class="lightbox" id="lightbox" hidden>
+      <div class="lightbox-head">
+        <strong id="lb-title" style="font-family:Manrope;font-size:17px"></strong>
+        <div style="display:flex;gap:8px">
+          <button class="btn-link" id="lb-prev">← Oldingi</button>
+          <button class="btn-link" id="lb-next">Keyingi →</button>
+          <a class="btn-link primary" id="lb-studio" href="#">Interaktiv ko‘rish ↗</a>
+          <button class="btn-link" id="lb-close">✕ Yopish (Esc)</button>
+        </div>
+      </div>
+      <div class="lightbox-body">
+        <img id="lb-img" src="" alt="" />
+      </div>
+    </div>
+
+    <script src="studio.js"></script>
+    <script>
+      (() => {
+        const boards = window.WEB_PANELLAR_BOARDS || [];
+        const gallery = document.getElementById("gallery");
+        const searchInput = document.getElementById("search-input");
+        const lightbox = document.getElementById("lightbox");
+        const lbImg = document.getElementById("lb-img");
+        const lbTitle = document.getElementById("lb-title");
+        const lbStudio = document.getElementById("lb-studio");
+        let activeFilter = "all";
+        let currentList = boards;
+        let currentIndex = 0;
+
+        function renderGallery() {
+          const q = searchInput.value.trim().toLowerCase();
+          currentList = boards.filter((b) => {
+            const matchFilter =
+              activeFilter === "all" ||
+              (activeFilter === "dark" ? b.theme === "dark" : b.portal === activeFilter);
+            const matchQuery =
+              !q ||
+              b.title.toLowerCase().includes(q) ||
+              b.subtitle.toLowerCase().includes(q) ||
+              b.id.toLowerCase().includes(q);
+            return matchFilter && matchQuery;
+          });
+
+          gallery.innerHTML = currentList
+            .map(
+              (b, idx) => `
+            <article class="board-card">
+              <div class="board-thumb" data-idx="${idx}">
+                <img src="${b.id}.png" alt="${b.title}" loading="lazy" />
+                <div class="board-badges">
+                  <span class="tag">${b.portal === "superadmin" ? "🛡️ Superadmin" : b.portal === "partner" ? "🏥 Hamkorlar" : "✨ Konsepsiya"}</span>
+                  <span class="tag">${b.theme === "dark" ? "🌙 Tungi Aurora" : "☀️ Kunduzgi Crystal"}</span>
+                </div>
+              </div>
+              <div class="board-info">
+                <h2>${b.title}</h2>
+                <p>${b.subtitle}</p>
+                <div class="board-actions">
+                  <button type="button" class="btn-link primary" data-idx="${idx}">🔍 Rasmni kattalashtirish</button>
+                  <a class="btn-link" href="studio.html?board=${b.id}">⚡ Interaktiv maket</a>
+                  <a class="btn-link" href="${b.id}.png" download>⬇ PNG</a>
+                </div>
+              </div>
+            </article>
+          `
+            )
+            .join("");
+        }
+
+        function openLightbox(idx) {
+          currentIndex = idx;
+          const b = currentList[currentIndex];
+          if (!b) return;
+          lbImg.src = `${b.id}.png`;
+          lbImg.alt = b.title;
+          lbTitle.textContent = `${b.title} — ${b.subtitle}`;
+          lbStudio.href = `studio.html?board=${b.id}`;
+          lightbox.hidden = false;
+        }
+
+        gallery.addEventListener("click", (e) => {
+          const trigger = e.target.closest("[data-idx]");
+          if (trigger) openLightbox(Number(trigger.dataset.idx));
+        });
+
+        document.getElementById("filter-tabs").addEventListener("click", (e) => {
+          const btn = e.target.closest("[data-filter]");
+          if (!btn) return;
+          document.querySelectorAll(".tab-btn").forEach((el) => el.classList.remove("active"));
+          btn.classList.add("active");
+          activeFilter = btn.dataset.filter;
+          renderGallery();
+        });
+
+        searchInput.addEventListener("input", renderGallery);
+        document.getElementById("lb-close").addEventListener("click", () => (lightbox.hidden = true));
+        document.getElementById("lb-prev").addEventListener("click", () =>
+          openLightbox((currentIndex - 1 + currentList.length) % currentList.length)
+        );
+        document.getElementById("lb-next").addEventListener("click", () =>
+          openLightbox((currentIndex + 1) % currentList.length)
+        );
+        window.addEventListener("keydown", (e) => {
+          if (lightbox.hidden) return;
+          if (e.key === "Escape") lightbox.hidden = true;
+          if (e.key === "ArrowLeft")
+            openLightbox((currentIndex - 1 + currentList.length) % currentList.length);
+          if (e.key === "ArrowRight")
+            openLightbox((currentIndex + 1) % currentList.length);
+        });
+
+        renderGallery();
+      })();
+    </script>
+  </body>
+</html>
