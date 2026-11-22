@@ -4043,10 +4043,17 @@ h3,
 
 /* Sidebar & brand identity */
 .sidebar {
+  top: 0;
+  left: 0;
   background: var(--sidebar-bg);
   border-right: 1px solid var(--sidebar-border);
   box-shadow: inset -1px 0 0 rgba(62, 230, 191, 0.08);
-  z-index: 30;
+  z-index: 50;
+}
+.sidebar .nav-list {
+  min-height: 0;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
 }
 .brand-logo-tile {
   display: inline-grid;
@@ -4512,7 +4519,33 @@ tbody tr:hover {
   }
 }
 @media (max-width: 760px) {
+  .mobile-scrim {
+    pointer-events: none;
+  }
+  .mobile-scrim.open {
+    z-index: 40;
+    pointer-events: auto;
+    backdrop-filter: blur(2px);
+  }
+  .sidebar {
+    top: 0;
+    left: 0;
+    bottom: 0;
+    height: 100dvh;
+    width: min(292px, calc(100vw - 44px));
+    z-index: 50;
+    pointer-events: none;
+    visibility: hidden;
+    transition: transform 0.22s ease, visibility 0.22s ease;
+  }
+  .sidebar.open {
+    transform: translateX(0);
+    pointer-events: auto;
+    visibility: visible;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.55);
+  }
   .sidebar-close {
+    z-index: 2;
     border-radius: var(--radius-pill);
     background: rgba(62, 230, 191, 0.14);
     border: 1px solid rgba(62, 230, 191, 0.32);

@@ -2977,14 +2977,9 @@ function formatMessageDateGroup(iso?: string | null): string {
   return date(iso);
 }
 
-export function Support({
-  initialTab = "chat",
-}: {
-  initialTab?: "chat" | "announcements";
-} = {}) {
+export function Support() {
   const ctx = usePortal(),
     action = useAction(),
-    [hubTab, setHubTab] = useState<"chat" | "announcements">(initialTab),
     [chatFolder, setChatFolder] = useState<"open" | "closed">("open"),
     [id, setId] = useState<string | null>(null),
     [searchQuery, setSearchQuery] = useState(""),
@@ -3031,10 +3026,6 @@ export function Support({
     tickets = useRemote("/support/tickets", ctx.epoch),
     detail = useRemote(id ? `/support/tickets/${id}` : null, ctx.epoch),
     [thread, setThread] = useState<Row | null>(null);
-
-  useEffect(() => {
-    setHubTab(initialTab);
-  }, [initialTab]);
 
   useEffect(() => {
     const all = list(tickets.data);
@@ -3378,7 +3369,6 @@ export function Support({
       setSelectedStaffId(null);
       setSelectedRole(null);
       setChatFolder("open");
-      setHubTab("chat");
       await tickets.reload();
       if (res?.id) {
         selectTicket(res.id);
@@ -3476,50 +3466,13 @@ export function Support({
   return (
     <>
       <PageHeading
-        title="Yordam va xabarlar"
-        subtitle={
-          hubTab === "chat"
-            ? "Telegram uslubidagi tezkor chat — yopilgan murojaatlar avtomatik Arxivga o‘tadi."
-            : "Rasmiy e’lonlar, ogohlantirishlar va xabarnomalar."
-        }
+        title="Yordam va jonli chat"
+        subtitle="Telegram uslubidagi tezkor jonli chat — yopilgan murojaatlar avtomatik Arxivga o‘tadi."
       >
-        {hubTab === "chat" && (
-          <AddButton onClick={() => setNewModalOpen(true)}>
-            Murojaat yaratish
-          </AddButton>
-        )}
+        <AddButton onClick={() => setNewModalOpen(true)}>
+          Murojaat yaratish
+        </AddButton>
       </PageHeading>
-
-      <div className="tg-hub-bar">
-        <div className="tg-hub-segments" role="tablist" aria-label="Aloqa bo‘limlari">
-          <button
-            type="button"
-            role="tab"
-            aria-selected={hubTab === "chat"}
-            className={`tg-hub-seg ${hubTab === "chat" ? "active" : ""}`}
-            onClick={() => setHubTab("chat")}
-          >
-            <MessageSquare size={15} />
-            <span>Jonli chat</span>
-            <span className="tg-seg-count">{openTickets.length}</span>
-          </button>
-          <button
-            type="button"
-            role="tab"
-            aria-selected={hubTab === "announcements"}
-            className={`tg-hub-seg ${hubTab === "announcements" ? "active" : ""}`}
-            onClick={() => setHubTab("announcements")}
-          >
-            <Megaphone size={15} />
-            <span>E’lonlar va xabarlar</span>
-          </button>
-        </div>
-      </div>
-
-      {hubTab === "announcements" ? (
-        <Communications kind="messages" embedded />
-      ) : (
-        <>
 
       {/* Recipient Selection Modal */}
       {newModalOpen && (
@@ -4687,8 +4640,6 @@ export function Support({
           )}
         </div>
       </div>
-        </>
-      )}
     </>
   );
 }

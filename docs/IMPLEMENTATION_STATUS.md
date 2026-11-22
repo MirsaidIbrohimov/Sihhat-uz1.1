@@ -2,6 +2,19 @@
 
 Yangilangan: 2026-11-22. Asos: ISHLAB_CHIQISH_REJASI.md va SIHHAT_UZ_ARXITEKTURA.md.
 
+## 2026-11-22 Jonli chat bo‘limidan «E’lonlar va xabarlar» tabini ajratish va mobil yon menyu (`<= 760px`) tuzatishi (`packages/ui`)
+
+- **Jonli chatdan «E’lonlar va xabarlar» ichki tabini olib tashlash**:
+  - [`packages/ui/src/communication.tsx`](../packages/ui/src/communication.tsx) (`Support`), [`packages/ui/src/portal.tsx`](../packages/ui/src/portal.tsx) va [`packages/ui/src/portal-enhancements.css`](../packages/ui/src/portal-enhancements.css): `Support` (Jonli chat, `/support`) sahifasidagi `.tg-hub-bar` tab-almashtirgichi (`Jonli chat` / `E’lonlar va xabarlar`) va ichki `<Communications kind="messages" embedded />` bloki olib tashlandi; sarlavha **«Yordam va jonli chat»** ga moslandi va mobil `.tg-messenger` balandligi bo‘shagan joy hisobiga kengaytirildi. **«E’lonlar va xabarlar»** (`/messages`) esa yon menyudagi **Aloqa** guruhida alohida mustaqil bo‘lim sifatida saqlanib qoldi.
+- **Mobil kenglikdagi veb-panel yon menyusi (`<= 760px`, `400x2678`) tuzatishi**:
+  - **Muammo**: [`packages/ui/src/styles.css`](../packages/ui/src/styles.css) oxiridagi Neon Emerald Glass bo‘limida `.sidebar` ga `z-index: 30` yozilib qolgani sababli `<= 760px` mobil ekranlarda `.mobile-scrim.open` (`z-index: 35`) ochiq yon panelning ustiga chiqib qolgan va barcha menyu tugmalaridagi bosishlarni to‘sib qo‘ygan.
+  - **Tuzatish**:
+    - [`packages/ui/src/styles.css`](../packages/ui/src/styles.css): `.sidebar` qatlamini `top: 0; left: 0; z-index: 50` (mobil rejimda `width: min(292px, calc(100vw - 44px))`, `.sidebar:not(.open)` da `pointer-events: none; visibility: hidden`, `.sidebar.open` da `pointer-events: auto; visibility: visible`, `.nav-list` da `min-height: 0; overscroll-behavior: contain`) va `.mobile-scrim.open` ni `z-index: 40` qilib tartibga solindi (`50 > 40 > topbar 25`, modal `80` ostida).
+    - [`packages/ui/src/portal.tsx`](../packages/ui/src/portal.tsx): `<aside>` va `<main>` uchun `inert` atributi qat’iy `true | undefined` ko‘rinishiga o‘tkazildi.
+- **Tekshirilgan natijalar (`2026-11-22`)**:
+  - `npm run check` (`5/5` workspace), UI/yo‘l unit testlari (`9/9 pass`), `npm run build:web` (`@sihhat/superadmin-web` va `@sihhat/partner-web`) va `npm run check:secrets` (`462` fayl, `matches: []`) — **0 xato**.
+  - Headless Chromium (`Playwright`) orqali **`400x2678`** va **`390x844`** ekranlarda yon panel ochilishi, `sidebarZ (50) > scrimZ (40)`, `elementFromPoint` tekshiruvi (`hitInsideSidebar: true`, `closeHitInsideSidebar: true`), «Aloqa» guruhini ochish, «E’lonlar va xabarlar» bo‘limiga o‘tish (`data-section="messages"`), `×` tugmasi va tashqi qoraytirgich (scrim) orqali yopish — **100% pass**.
+
 ## 2026-11-22 Android Push Notification va Firebase Cloud Messaging (FCM) tizimi (`apps/api`, `apps/mobile`)
 
 - **Aniqlangan asl sabablar (nima uchun ilova yopiq bo‘lganda bildirishnoma kelmagan)**:
@@ -39,7 +52,7 @@ Yangilangan: 2026-11-22. Asos: ISHLAB_CHIQISH_REJASI.md va SIHHAT_UZ_ARXITEKTURA
     - `DELETE /messages/:id`: yuborilgan e’lonni o‘chirish (audit bilan).
     - `GET /support/recipients`: `publicId` va `counts` (`totalCustomers`, `totalPartners`, `totalSanatoriums`) qo‘shildi.
 - **Yangi «E’lonlar va xabarlar» markazi (`packages/ui/src/communication.tsx`, `packages/ui/src/portal.tsx`, `apps/mobile/lib/screens/account.dart`)**:
-  - Eski xabarlar bo‘limi o‘chirilib, noldan `AnnouncementsAndMessagesCenter` sifatida qayta yozildi va yon menyuning **Aloqa** guruhiga to‘g‘ridan-to‘g‘ri **«E’lonlar va xabarlar»** (`/messages`) bandi qo‘shildi (hamda **Yordam va xabarlar** ichidagi tab bilan bog‘landi).
+  - Eski xabarlar bo‘limi o‘chirilib, noldan `AnnouncementsAndMessagesCenter` sifatida qayta yozildi va yon menyuning **Aloqa** guruhiga to‘g‘ridan-to‘g‘ri mustaqil **«E’lonlar va xabarlar»** (`/messages`) bandi qo‘shildi.
   - 4 ta jonli KPI va API yetkazilish nazorati kartasi (Jami e’lonlar, Users yetkazilishi/o‘qilishi, Hamkorlar yetkazilishi/o‘qilishi/tasdig‘i, API nazorati + **«API yetkazilishni tekshirish»** tugmasi).
   - Qulay e’lon konstruktori: auditoriya tanlovi (Butun tizim / Users: barchasi yoki ro‘yxatdan tanlanganlar / Hamkorlar: sanatoriya, lavozim yoki aniq xodimlar), 4 ta tezkor tayyor shablon, jonli **Preview** oynasi va jonli qabul qiluvchilar hisoblagichi.
   - Har bir yuborilgan e’londa **Users** va **Hamkorlar** uchun alohida yetkazilish bloki, qidiruv/filtrlar, **«Kimga bordi»** batafsil jadval modali, 1-klikda **«Tekshirish»** va **«O‘chirish»** amallari; kiruvchi xabarlarda esa **«O‘qilgan deb belgilash»**, **«Tanishdim / Qabul qildim»** va **«Barchasini o‘qilgan deb belgilash»** imkoniyatlari.

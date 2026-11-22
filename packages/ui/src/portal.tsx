@@ -858,7 +858,7 @@ export function Portal({
       case "reviews":
         return <Reviews />;
       case "support":
-        return <Support initialTab="chat" />;
+        return <Support />;
       case "audit":
         return <Audit />;
       case "reconciliation":
@@ -896,7 +896,7 @@ export function Portal({
           id="portal-sidebar"
           className={`sidebar ${menu ? "open" : ""}`}
           aria-label="Panel menyusi"
-          inert={smallScreen && !menu}
+          inert={smallScreen && !menu ? true : undefined}
           role={smallScreen && menu ? "dialog" : undefined}
           aria-modal={smallScreen && menu ? true : undefined}
         >
@@ -1132,7 +1132,7 @@ export function Portal({
           <main
             className="content"
             data-section={section}
-            inert={smallScreen && menu}
+            inert={smallScreen && menu ? true : undefined}
           >
             <div className="breadcrumb-bar-v3">
               <div className="breadcrumb">
