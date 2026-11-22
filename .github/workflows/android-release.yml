@@ -95,7 +95,7 @@ jobs:
         run: |
           flutter pub get
           flutter analyze --no-pub
-          flutter test --no-pub test/support_test.dart
+          flutter test --no-pub test/support_test.dart test/push_notifications_test.dart
 
       - name: Build and verify signed release APK
         run: |

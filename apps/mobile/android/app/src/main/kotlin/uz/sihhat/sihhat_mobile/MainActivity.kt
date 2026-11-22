@@ -59,6 +59,7 @@ class MainActivity : FlutterActivity() {
         super.onCreate(savedInstanceState)
         activeRef = WeakReference(this)
         NotificationHelper.ensureNotificationChannel(this)
+        FcmManager.fetchToken(this) {}
         captureNotificationIntent(intent, deliverImmediately = false)
     }
 

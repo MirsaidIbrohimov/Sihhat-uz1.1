@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "214319348585",
+    "project_id": "sihhat-uz-64966",
+    "storage_bucket": "sihhat-uz-64966.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:214319348585:android:5a6c941e04fe8065339bf8",
+        "android_client_info": {
+          "package_name": "uz.sihhat.sihhat_mobile"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB65DvuaqbEMi_1sGy2seprZci7P7_ZxzA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

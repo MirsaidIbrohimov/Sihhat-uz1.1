@@ -46,6 +46,8 @@ object FcmManager {
                 }
                 val token = task.result?.trim()
                 if (!token.isNullOrBlank()) {
+                    val hint = if (token.length > 14) "${token.take(8)}...${token.takeLast(6)}" else "***"
+                    Log.i(TAG, "FCM token muvaffaqiyatli olindi: $hint")
                     NotificationHelper.prefs(appContext).edit()
                         .putString(NotificationHelper.KEY_FCM_TOKEN, token)
                         .apply()
