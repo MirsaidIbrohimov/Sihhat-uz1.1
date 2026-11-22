@@ -59,8 +59,15 @@ const schema = z.object({
   AI_MAX_OUTPUT_TOKENS: z.coerce.number().int().min(128).max(2048).default(768),
   AI_INPUT_USD_PER_MILLION: z.string().regex(/^$|^\d{1,6}(\.\d{1,6})?$/).default(''),
   AI_OUTPUT_USD_PER_MILLION: z.string().regex(/^$|^\d{1,6}(\.\d{1,6})?$/).default(''),
-  PUSH_ADAPTER: z.enum(['local', 'http']).default('local'),
+  PUSH_ADAPTER: z.enum(['local', 'http', 'fcm']).default('local'),
   PUSH_HTTP_URL: z.string().default(''), PUSH_HTTP_TOKEN: z.string().default(''),
+  FIREBASE_PROJECT_ID: z.string().default(''),
+  FIREBASE_CLIENT_EMAIL: z.string().default(''),
+  FIREBASE_PRIVATE_KEY: z.string().default(''),
+  FIREBASE_SERVICE_ACCOUNT_JSON: z.string().default(''),
+  FIREBASE_SERVICE_ACCOUNT_FILE: z.string().default(''),
+  FCM_API_BASE_URL: z.string().url().default('https://fcm.googleapis.com'),
+  FCM_OAUTH_TOKEN_URL: z.string().url().default('https://oauth2.googleapis.com/token'),
   TELEGRAM_MODE: z.enum(['disabled', 'polling', 'webhook']).default('disabled'),
   TELEGRAM_BOT_TOKEN: z.string().default('').refine(v => !v || /^\d{5,20}:[A-Za-z0-9_-]{30,60}$/.test(v), 'Telegram token formati noto‘g‘ri'),
   TELEGRAM_BOT_USERNAME: z.string().regex(/^[A-Za-z0-9_]{5,32}$/).or(z.literal('')).default(''),
@@ -71,6 +78,46 @@ const schema = z.object({
 });
 
 export type Config = z.infer<typeof schema>;
+
+export interface FirebaseServiceAccount {
+  projectId: string;
+  clientEmail: string;
+  privateKey: string;
+}
+
+export function resolveFirebaseCredentials(c: Config): FirebaseServiceAccount | null {
+  let projectId = c.FIREBASE_PROJECT_ID.trim();
+  let clientEmail = c.FIREBASE_CLIENT_EMAIL.trim();
+  let privateKey = c.FIREBASE_PRIVATE_KEY.trim();
+
+  const tryParseJson = (raw: string) => {
+    try {
+      const parsed = JSON.parse(raw) as Record<string, unknown>;
+      if (!projectId && typeof parsed.project_id === 'string') projectId = parsed.project_id.trim();
+      if (!clientEmail && typeof parsed.client_email === 'string') clientEmail = parsed.client_email.trim();
+      if (!privateKey && typeof parsed.private_key === 'string') privateKey = parsed.private_key.trim();
+    } catch {
+      // Malformed JSON is handled by missing-field validation without leaking raw contents.
+    }
+  };
+
+  if ((!projectId || !clientEmail || !privateKey) && c.FIREBASE_SERVICE_ACCOUNT_JSON.trim()) {
+    tryParseJson(c.FIREBASE_SERVICE_ACCOUNT_JSON.trim());
+  }
+  if ((!projectId || !clientEmail || !privateKey) && c.FIREBASE_SERVICE_ACCOUNT_FILE.trim()) {
+    const filePath = resolve(c.FIREBASE_SERVICE_ACCOUNT_FILE.trim());
+    if (existsSync(filePath)) {
+      tryParseJson(readFileSync(filePath, 'utf8'));
+    }
+  }
+
+  privateKey = privateKey.replace(/\\n/g, '\n');
+  if (!projectId || !clientEmail || !privateKey || !privateKey.includes('BEGIN') || !privateKey.includes('PRIVATE KEY')) {
+    return null;
+  }
+  return { projectId, clientEmail, privateKey };
+}
+
 function remoteUrl(value: string, protocols: string[], originOnly = false) {
   try {
     const url = new URL(value);
@@ -124,8 +171,9 @@ export function productionIssues(c: Config): string[] {
   if (c.CORS_ORIGINS.split(',').some(origin => !remoteUrl(origin, ['https:'], true))) issues.push('Production: CORS_ORIGINS uchun to‘liq HTTPS originlar kerak');
   if (c.TELEGRAM_MODE !== 'disabled' && [c.TELEGRAM_ADMIN_URL, c.TELEGRAM_PARTNER_URL].some(url => !remoteUrl(url, ['https:']))) issues.push('Production: Telegram panel manzillari tashqi HTTPS bo‘lishi kerak');
   if (c.PUSH_ADAPTER === 'http' && (!c.PUSH_HTTP_URL || !c.PUSH_HTTP_TOKEN)) issues.push('Production: push HTTP adapteri uchun URL/token kerak');
+  if (c.PUSH_ADAPTER === 'fcm' && !resolveFirebaseCredentials(c)) issues.push('Production: FCM push uchun Firebase Service Account (FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, FIREBASE_PRIVATE_KEY yoki FIREBASE_SERVICE_ACCOUNT_JSON) kerak');
   if (c.AI_ADAPTER === 'http' && (!c.AI_HTTP_URL || !c.AI_HTTP_TOKEN)) issues.push('Production: AI HTTP adapteri uchun URL/token kerak');
-  for (const [name, url] of [['SMS_HTTP_URL', c.SMS_HTTP_URL], ['AI_HTTP_URL', c.AI_HTTP_URL], ['PUSH_HTTP_URL', c.PUSH_HTTP_URL]]) {
+  for (const [name, url] of [['SMS_HTTP_URL', c.SMS_HTTP_URL], ['AI_HTTP_URL', c.AI_HTTP_URL], ['PUSH_HTTP_URL', c.PUSH_HTTP_URL], ['FCM_API_BASE_URL', c.FCM_API_BASE_URL], ['FCM_OAUTH_TOKEN_URL', c.FCM_OAUTH_TOKEN_URL]]) {
     if (url && !remoteUrl(url, ['https:'])) issues.push(`Production: ${name} tashqi HTTPS manzil bo‘lishi kerak`);
   }
   return issues;
@@ -152,7 +200,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
   if (!c.TEZCHECK_API_KEY && c.TEZCHECK_API_TOKEN) c.TEZCHECK_API_KEY = c.TEZCHECK_API_TOKEN;
   if (c.PUBLIC_DEMO_ENABLED) {
     const isolated = (() => { try { return /\/[a-z0-9_]+_demo$/.test(new URL(c.DATABASE_URL).pathname); } catch { return false; } })();
-    const providerKeys = [c.SMS_HTTP_TOKEN, c.ESKIZ_TOKEN, c.ESKIZ_EMAIL, c.ESKIZ_PASSWORD, c.TEZCHECK_API_KEY, c.TEZCHECK_WEBHOOK_SECRET, c.PAYME_KEY, c.PAYME_MERCHANT_ID, c.GEMINI_API_KEY, c.AI_HTTP_TOKEN, c.PUSH_HTTP_TOKEN, c.TELEGRAM_BOT_TOKEN, c.S3_ACCESS_KEY, c.S3_SECRET_KEY];
+    const providerKeys = [c.SMS_HTTP_TOKEN, c.ESKIZ_TOKEN, c.ESKIZ_EMAIL, c.ESKIZ_PASSWORD, c.TEZCHECK_API_KEY, c.TEZCHECK_WEBHOOK_SECRET, c.PAYME_KEY, c.PAYME_MERCHANT_ID, c.GEMINI_API_KEY, c.AI_HTTP_TOKEN, c.PUSH_HTTP_TOKEN, c.FIREBASE_PRIVATE_KEY, c.FIREBASE_SERVICE_ACCOUNT_JSON, c.FIREBASE_SERVICE_ACCOUNT_FILE, c.FIREBASE_CLIENT_EMAIL, c.TELEGRAM_BOT_TOKEN, c.S3_ACCESS_KEY, c.S3_SECRET_KEY];
     if (c.NODE_ENV !== 'test' || !isolated || !c.DEMO_OTP_ENABLED || c.SMS_ADAPTER !== 'local'
       || c.PAYMENT_MODE !== 'local' || c.AI_ADAPTER !== 'catalog' || c.PUSH_ADAPTER !== 'local'
       || c.TELEGRAM_MODE !== 'disabled' || c.WORKER_MODE !== 'database' || c.STORAGE_ADAPTER !== 'local'

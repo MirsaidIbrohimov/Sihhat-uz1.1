@@ -4,6 +4,8 @@ import { Db,audit,emit,lock,bodyHash,type Tx } from '../common/db';
 import { parse,uuid,version,reason,fail,pageQuery,paged } from '../common/errors';
 import { Actor,scope,tenantIds,requirePlatform } from '../auth/permissions';
 import { EmailService } from '../auth/email';
+import { FcmService, maskPushToken } from '../outbox/fcm.service';
+import { ENSURE_DEVICE_PUSH_TOKEN_SQL } from '../outbox/outbox.service';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -12,6 +14,7 @@ export class EngagementService implements OnModuleInit {
   constructor(
     @Inject(Db) readonly db: Db,
     @Optional() @Inject(EmailService) private readonly email?: EmailService,
+    @Optional() @Inject(FcmService) private readonly fcm?: FcmService,
   ) {}
 
   private extractDeliverableEmail(value?: string | null): string | null {
@@ -43,10 +46,12 @@ export class EngagementService implements OnModuleInit {
     }
   }
   async onModuleInit(){
+    if (typeof (this.db as unknown as { $executeRawUnsafe?: unknown })?.$executeRawUnsafe !== 'function') return;
     for (const stmt of [
       'ALTER TABLE "SupportMessage" ADD COLUMN IF NOT EXISTS "imageUrl" TEXT',
       'ALTER TABLE "SupportMessage" ADD COLUMN IF NOT EXISTS "isEdited" BOOLEAN NOT NULL DEFAULT false',
       'ALTER TABLE "SupportMessage" ADD COLUMN IF NOT EXISTS "deletedForUser" BOOLEAN NOT NULL DEFAULT false',
+      ...ENSURE_DEVICE_PUSH_TOKEN_SQL,
     ]) {
       await this.db.$executeRawUnsafe(stmt).catch(()=>{});
     }
@@ -1499,5 +1504,123 @@ export class EngagementService implements OnModuleInit {
       if(mr.count) return {success:true};
     }
     fail('NOT_FOUND','Bildirishnoma topilmadi',404);
+  }
+  async registerDeviceToken(actor: Actor, body: unknown) {
+    const input = parse(
+      z.object({
+        token: z.string().trim().min(16).max(4096),
+        platform: z.enum(['ANDROID', 'IOS', 'WEB']).default('ANDROID'),
+        device_id: z.string().trim().min(1).max(128).optional(),
+        device_label: z.string().trim().min(1).max(120).optional(),
+        app_version: z.string().trim().min(1).max(40).optional(),
+      }).strict(),
+      body,
+    );
+    const now = new Date();
+    return this.db.atomic(async tx => {
+      await lock(tx, `push-token:${actor.id}`);
+      const saved = await tx.devicePushToken.upsert({
+        where: { token: input.token },
+        create: {
+          userId: actor.id,
+          token: input.token,
+          platform: input.platform,
+          deviceId: input.device_id ?? null,
+          deviceLabel: input.device_label ?? null,
+          appVersion: input.app_version ?? null,
+          active: true,
+          lastSeenAt: now,
+          invalidatedAt: null,
+          lastError: null,
+        },
+        update: {
+          userId: actor.id,
+          platform: input.platform,
+          ...(input.device_id !== undefined ? { deviceId: input.device_id } : {}),
+          ...(input.device_label !== undefined ? { deviceLabel: input.device_label } : {}),
+          ...(input.app_version !== undefined ? { appVersion: input.app_version } : {}),
+          active: true,
+          lastSeenAt: now,
+          invalidatedAt: null,
+          lastError: null,
+        },
+      });
+      if (input.device_id) {
+        await tx.devicePushToken.updateMany({
+          where: {
+            userId: actor.id,
+            deviceId: input.device_id,
+            token: { not: input.token },
+            active: true,
+          },
+          data: {
+            active: false,
+            invalidatedAt: now,
+            lastError: 'TOKEN_ROTATED',
+          },
+        });
+      }
+      const activeDevices = await tx.devicePushToken.count({
+        where: { userId: actor.id, active: true },
+      });
+      return {
+        id: saved.id,
+        registered: true,
+        platform: saved.platform,
+        active_devices: activeDevices,
+        fcm_configured: Boolean(this.fcm?.enabled),
+      };
+    });
+  }
+  async unregisterDeviceToken(actor: Actor, body: unknown) {
+    const raw = body && typeof body === 'object' ? body : {};
+    const input = parse(
+      z.object({
+        token: z.string().trim().min(16).max(4096).optional(),
+        device_id: z.string().trim().min(1).max(128).optional(),
+      }).strict().refine(v => Boolean(v.token || v.device_id), {
+        message: 'token yoki device_id kiritilishi shart',
+      }),
+      raw,
+    );
+    const now = new Date();
+    const conditions = [
+      ...(input.token ? [{ token: input.token }] : []),
+      ...(input.device_id ? [{ deviceId: input.device_id }] : []),
+    ];
+    const result = await this.db.devicePushToken.updateMany({
+      where: {
+        userId: actor.id,
+        active: true,
+        OR: conditions,
+      },
+      data: {
+        active: false,
+        invalidatedAt: now,
+        lastError: 'USER_LOGOUT',
+      },
+    });
+    return { success: true, detached: result.count };
+  }
+  async pushStatus(actor: Actor) {
+    const devices = await this.db.devicePushToken.findMany({
+      where: { userId: actor.id, active: true },
+      orderBy: { lastSeenAt: 'desc' },
+      take: 25,
+    });
+    return {
+      fcm_configured: Boolean(this.fcm?.enabled),
+      push_adapter: this.fcm?.adapterMode ?? 'local',
+      active_devices: devices.length,
+      devices: devices.map(d => ({
+        id: d.id,
+        platform: d.platform,
+        device_id: d.deviceId,
+        device_label: d.deviceLabel,
+        app_version: d.appVersion,
+        token_hint: maskPushToken(d.token),
+        last_seen_at: d.lastSeenAt,
+      })),
+    };
   }
 }

@@ -2,6 +2,33 @@
 
 Buyruqlar loyiha ildizidan bajariladi. Tekshiruvlarning haqiqiy natijasi [IMPLEMENTATION_STATUS.md](IMPLEMENTATION_STATUS.md)da, talablar [arxitektura](SIHHAT_UZ_ARXITEKTURA.md)da.
 
+## Firebase Cloud Messaging (FCM) Push Notification sozlamalari (Android + Backend)
+
+Ilova fonda, yopiq, ekran o‘chiq va telefon qayta yoqilgan holatlarda ham darhol (1–2 soniya ichida) haqiqiy remote Push Notification kelishi uchun Firebase loyihasidan 2 ta sozlama kerak:
+
+1. **Android ilovasi (`google-services.json`)**:
+   - Firebase Console (`console.firebase.google.com`) -> Loyiha tanlash/yaratish -> **Add app -> Android**.
+   - **Android package name**: `uz.sihhat.sihhat_mobile` (aniq mos bo‘lishi shart).
+   - Yuklab olingan `google-services.json` faylini `apps/mobile/android/app/google-services.json` manziliga joylashtiring.
+   - `apps/mobile/android/app/build.gradle.kts` ushbu faylni avtomatik aniqlab `com.google.gms.google-services` plaginini faollashtiradi. Shundan so‘ng APKni qayta yig‘ing:
+     ```powershell
+     npm run mobile:release -- https://sihhat-api.onrender.com
+     ```
+2. **Backend server (Render / Hostra / `.env`) — Firebase Service Account (FCM HTTP v1)**:
+   - Firebase Console -> **Project settings -> Service accounts -> Generate new private key** (JSON fayl yuklab olinadi; uni hech qachon Gitga qo‘shmang!).
+   - Render Dashboard (`sihhat-api` -> **Environment**) yoki server `.env` fayliga quyidagilarni kiriting:
+     - `PUSH_ADAPTER=fcm`
+     - **A-variant (alohida maydonlar — Render uchun eng qulay)**:
+       - `FIREBASE_PROJECT_ID=<project_id>`
+       - `FIREBASE_CLIENT_EMAIL=<client_email>`
+       - `FIREBASE_PRIVATE_KEY=<Service Account JSON faylidagi private_key qiymati (\n bilan bir qatorda)>`
+     - **B-variant (yagona JSON satr)**:
+       - `FIREBASE_SERVICE_ACCOUNT_JSON=<butun service account JSON bir qatorda>`
+     - **C-variant (Hostra/VPS uchun fayl yo‘li)**:
+       - `FIREBASE_SERVICE_ACCOUNT_FILE=/home/terminal/.sihhat/firebase-service-account.json`
+   - Server ishga tushganda `DevicePushToken` jadvali migratsiya (`202611220001_device_push_tokens`) yoki `onModuleInit` orqali avtomatik yaratiladi.
+   - Holatni tekshirish: ilovadan kirilgach `GET /notifications/push-status` endpointi `fcm_configured: true` va `active_devices >= 1` qaytarishi kerak.
+
 ## Tezcheck to'lov sozlamalari (Render va Vercel)
 
 Render backend yoki Vercel veb-saytida TezCheck to'lovlarini faollashtirish uchun:

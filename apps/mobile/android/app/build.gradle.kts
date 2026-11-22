@@ -8,6 +8,11 @@ plugins {
     id("dev.flutter.flutter-gradle-plugin")
 }
 
+// Apply Google Services automatically once google-services.json is placed in apps/mobile/android/app/.
+if (file("google-services.json").exists()) {
+    apply(plugin = "com.google.gms.google-services")
+}
+
 val releaseProperties = Properties()
 val releasePropertiesFile = rootProject.file("key.properties")
 if (releasePropertiesFile.exists()) {
@@ -100,6 +105,10 @@ kotlin {
     compilerOptions {
         jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17
     }
+}
+
+dependencies {
+    implementation("com.google.firebase:firebase-messaging:26.0.2")
 }
 
 flutter {

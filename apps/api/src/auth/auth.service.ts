@@ -370,7 +370,25 @@ export class AuthService implements OnModuleInit {
     }
     return { online: Date.now() - session.lastActivityAt.getTime() < 180_000, last_activity_at: session.lastActivityAt.toISOString() };
   }
-  async logout(actor: Actor) { await this.db.session.update({ where: { id: actor.sessionId }, data: { revokedAt: new Date() } }); return { success: true }; }
+  async logout(actor: Actor, body?: unknown) {
+    await this.db.session.update({ where: { id: actor.sessionId }, data: { revokedAt: new Date() } });
+    if (body && typeof body === 'object' && (this.db as any).devicePushToken?.updateMany) {
+      const raw = body as Record<string, unknown>;
+      const token = typeof raw.push_token === 'string' && raw.push_token.trim().length >= 16 ? raw.push_token.trim() : null;
+      const deviceId = typeof raw.device_id === 'string' && raw.device_id.trim().length >= 1 ? raw.device_id.trim() : null;
+      if (token || deviceId) {
+        const conditions = [
+          ...(token ? [{ token }] : []),
+          ...(deviceId ? [{ deviceId }] : []),
+        ];
+        await this.db.devicePushToken.updateMany({
+          where: { userId: actor.id, active: true, OR: conditions },
+          data: { active: false, invalidatedAt: new Date(), lastError: 'USER_LOGOUT' },
+        }).catch(() => undefined);
+      }
+    }
+    return { success: true };
+  }
   async sessions(actor: Actor) {
     const rows = await this.db.session.findMany({ where: { userId: actor.id, revokedAt: null, refreshExpiresAt: { gt: new Date() } }, select: { id: true, deviceLabel: true, channel: true, createdAt: true, lastActivityAt: true, expiresAt: true }, orderBy: { lastActivityAt: 'desc' }, take: 100 });
     return { data: rows.filter(s => !idleExpired(s, actor.kind)).map(s => ({ ...s, current: s.id === actor.sessionId })) };

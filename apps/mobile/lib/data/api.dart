@@ -49,8 +49,11 @@ class Api {
   final TokenStore store;
   final http.Client client;
   final ValueNotifier<bool> session = ValueNotifier(false);
+  final ValueNotifier<int> tokenRevision = ValueNotifier(0);
   final ValueNotifier<int> profileRevision = ValueNotifier(0);
   final ValueNotifier<int> privateRevision = ValueNotifier(0);
+  Future<Json?> Function()? beforeLogout;
+  Future<bool> Function()? syncNativeTokensBeforeRefresh;
   String? accessToken, refreshToken;
   Future<void>? _refreshing;
   Future<Json>? _profileRequest;
@@ -79,6 +82,18 @@ class Api {
     accessToken = access;
     refreshToken = refresh;
     session.value = signedIn;
+    tokenRevision.value++;
+  }
+
+  Future<void> adoptRotatedTokens(String access, String refresh) async {
+    if (access.isEmpty || refresh.isEmpty) return;
+    if (accessToken == access && refreshToken == refresh) return;
+    await store.write('access', access);
+    await store.write('refresh', refresh);
+    accessToken = access;
+    refreshToken = refresh;
+    session.value = signedIn;
+    tokenRevision.value++;
   }
 
   Future<void> tokens(Json result) async {
@@ -116,6 +131,7 @@ class Api {
       privateRevision.value++;
     }
     session.value = signedIn;
+    tokenRevision.value++;
   }
 
   Future<void> clear() async {
@@ -132,9 +148,16 @@ class Api {
     await store.write('ai_consent', null);
     profileRevision.value++;
     session.value = false;
+    tokenRevision.value++;
   }
 
   Future<void> _refresh() async {
+    if (syncNativeTokensBeforeRefresh != null) {
+      try {
+        final adopted = await syncNativeTokensBeforeRefresh!();
+        if (adopted) return;
+      } catch (_) {}
+    }
     if (refreshToken == null) {
       throw const ApiException('SESSION_EXPIRED', 'Qayta kiring.', status: 401);
     }
@@ -320,8 +343,15 @@ class Api {
   }
 
   Future<void> logout() async {
+    Json logoutBody = {};
+    if (beforeLogout != null) {
+      try {
+        final extra = await beforeLogout!();
+        if (extra != null) logoutBody = extra;
+      } catch (_) {}
+    }
     try {
-      await send('/auth/logout', method: 'POST', body: {});
+      await send('/auth/logout', method: 'POST', body: logoutBody);
     } finally {
       await clear();
     }

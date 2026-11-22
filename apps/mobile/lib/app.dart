@@ -10,6 +10,7 @@ import 'data/api.dart';
 import 'data/app_update.dart';
 import 'data/booking_cache.dart';
 import 'data/catalog_cache.dart';
+import 'data/push_notifications.dart';
 import 'appearance.dart';
 import 'design.dart';
 import 'concept_ui.dart';
@@ -32,35 +33,38 @@ class SihhatApp extends StatefulWidget {
 
 class _SihhatAppState extends State<SihhatApp> {
   late AppearanceController appearance;
+  late PushNotificationService pushNotifications;
   @override
   void initState() {
     super.initState();
     appearance = AppearanceController(widget.api.store)..load();
+    pushNotifications = PushNotificationService(widget.api);
+    _bindPushHooks(widget.api);
     _syncNativeNotifications();
-    widget.api.session.addListener(_syncNativeNotifications);
+    widget.api.tokenRevision.addListener(_syncNativeNotifications);
+  }
+
+  void _bindPushHooks(Api api) {
+    api.beforeLogout = pushNotifications.detachDeviceOnLogout;
+    api.syncNativeTokensBeforeRefresh =
+        pushNotifications.adoptNativeRotatedTokensIfAny;
   }
 
   void _syncNativeNotifications() {
-    AppUpdateService.syncNativeConfig(widget.api.baseUrl);
-    try {
-      if (widget.api.signedIn && widget.api.accessToken != null) {
-        const MethodChannel('uz.sihhat/notifications').invokeMethod(
-          'syncCredentials',
-          {'baseUrl': widget.api.baseUrl, 'token': widget.api.accessToken},
-        );
-      } else {
-        const MethodChannel('uz.sihhat/notifications')
-            .invokeMethod('clearCredentials');
-      }
-    } catch (_) {}
+    unawaited(pushNotifications.syncSessionCredentials());
   }
 
   @override
   void didUpdateWidget(covariant SihhatApp oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.api != widget.api) {
-      oldWidget.api.session.removeListener(_syncNativeNotifications);
-      widget.api.session.addListener(_syncNativeNotifications);
+      oldWidget.api.tokenRevision.removeListener(_syncNativeNotifications);
+      oldWidget.api.beforeLogout = null;
+      oldWidget.api.syncNativeTokensBeforeRefresh = null;
+      pushNotifications.dispose();
+      pushNotifications = PushNotificationService(widget.api);
+      _bindPushHooks(widget.api);
+      widget.api.tokenRevision.addListener(_syncNativeNotifications);
       _syncNativeNotifications();
       appearance.dispose();
       appearance = AppearanceController(widget.api.store)..load();
@@ -69,7 +73,10 @@ class _SihhatAppState extends State<SihhatApp> {
 
   @override
   void dispose() {
-    widget.api.session.removeListener(_syncNativeNotifications);
+    widget.api.tokenRevision.removeListener(_syncNativeNotifications);
+    widget.api.beforeLogout = null;
+    widget.api.syncNativeTokensBeforeRefresh = null;
+    pushNotifications.dispose();
     appearance.dispose();
     super.dispose();
   }
@@ -89,7 +96,11 @@ class _SihhatAppState extends State<SihhatApp> {
         darkTheme: sihhatTheme(brightness: Brightness.dark),
         themeMode: appearance.mode,
         onGenerateRoute: (_) => MaterialPageRoute(
-          builder: (_) => _Entry(widget.api, showDemoOtp: widget.showDemoOtp),
+          builder: (_) => _Entry(
+            widget.api,
+            showDemoOtp: widget.showDemoOtp,
+            pushNotifications: pushNotifications,
+          ),
         ),
       ),
     ),
@@ -99,7 +110,12 @@ class _SihhatAppState extends State<SihhatApp> {
 class _Entry extends StatefulWidget {
   final Api api;
   final bool showDemoOtp;
-  const _Entry(this.api, {required this.showDemoOtp});
+  final PushNotificationService pushNotifications;
+  const _Entry(
+    this.api, {
+    required this.showDemoOtp,
+    required this.pushNotifications,
+  });
   @override
   State<_Entry> createState() => _EntryState();
 }
@@ -140,6 +156,11 @@ class _EntryState extends State<_Entry> with WidgetsBindingObserver {
   void didChangeAppLifecycleState(AppLifecycleState state) {
     _appResumed = state == AppLifecycleState.resumed;
     if (_appResumed && widget.api.signedIn) {
+      unawaited(
+        widget.pushNotifications.adoptNativeRotatedTokensIfAny().then(
+          (_) => widget.pushNotifications.syncSessionCredentials(),
+        ),
+      );
       unawaited(_sendHeartbeat());
     }
   }
@@ -178,6 +199,7 @@ class _EntryState extends State<_Entry> with WidgetsBindingObserver {
     });
     try {
       await widget.api.restore();
+      await widget.pushNotifications.adoptNativeRotatedTokensIfAny();
       if (widget.api.signedIn) {
         if (await widget.api.cachedProfile() != null) {
           // Saved profiles/catalogue must open without waiting for a network.
@@ -257,7 +279,12 @@ class _EntryState extends State<_Entry> with WidgetsBindingObserver {
         },
       );
     }
-    return Home(widget.api, sessionError: error, retrySession: restore);
+    return Home(
+      widget.api,
+      sessionError: error,
+      retrySession: restore,
+      pushNotifications: widget.pushNotifications,
+    );
   }
 }
 
@@ -273,7 +300,14 @@ class Home extends StatefulWidget {
   final Api api;
   final String? sessionError;
   final VoidCallback? retrySession;
-  const Home(this.api, {this.sessionError, this.retrySession, super.key});
+  final PushNotificationService? pushNotifications;
+  const Home(
+    this.api, {
+    this.sessionError,
+    this.retrySession,
+    this.pushNotifications,
+    super.key,
+  });
   @override
   State<Home> createState() => _HomeState();
 }
@@ -286,6 +320,8 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
   String catalogQuery = '';
   Timer? catalogTimer;
   StreamSubscription<dynamic>? connection;
+  StreamSubscription<NotificationRouteTarget>? _pushTapSub;
+  StreamSubscription<Json>? _pushMessageSub;
   bool active = true, unread = false;
   AppUpdateInfo? availableUpdate;
   bool _checkingUpdate = false, _updateDialogShown = false;
@@ -310,16 +346,71 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
             },
           );
     }
+    final push = widget.pushNotifications;
+    if (push != null) {
+      _pushTapSub = push.onNotificationTap.listen((target) {
+        if (mounted) unawaited(_openNotificationTarget(target));
+      });
+      _pushMessageSub = push.onPushMessage.listen((_) {
+        if (mounted) unawaited(refreshUnread());
+      });
+    }
     error = widget.sessionError;
     restore().then((_) {
       if (!mounted || widget.sessionError != null) return;
       WidgetsBinding.instance.addPostFrameCallback((_) async {
+        if (!mounted) return;
+        final initialTarget = await widget.pushNotifications
+            ?.consumeInitialRoute();
+        if (mounted && initialTarget != null) {
+          await _openNotificationTarget(initialTarget);
+        }
+        if (mounted) {
+          await widget.pushNotifications?.requestPermissionIfNeeded();
+          unawaited(widget.pushNotifications?.registerDeviceToken());
+        }
         if (!mounted) return;
         await showEntranceAdvertisement(context, widget.api);
         if (mounted) await _checkAppUpdate();
       });
       WidgetsBinding.instance.ensureVisualUpdate();
     });
+  }
+
+  Future<void> _openNotificationTarget(NotificationRouteTarget target) async {
+    if (!mounted) return;
+    if (target.route == 'update' &&
+        target.downloadUrl != null &&
+        target.downloadUrl!.startsWith('https://')) {
+      await AppUpdateService.launchDownload(context, target.downloadUrl!);
+      return;
+    }
+    if (!await ensureLogin(context, widget.api) || !mounted) return;
+    if (target.route == 'booking' && target.bookingId != null) {
+      await Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => BookingScreen(widget.api, target.bookingId!),
+        ),
+      );
+      unawaited(refreshUnread());
+      return;
+    }
+    if (target.route == 'support' && target.ticketId != null) {
+      await Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => SupportThread(widget.api, target.ticketId!),
+        ),
+      );
+      unawaited(refreshUnread());
+      return;
+    }
+    await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => NotificationsScreen(widget.api)),
+    );
+    unawaited(refreshUnread());
   }
 
   Future<void> restore() async {
@@ -366,6 +457,8 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
   void dispose() {
     catalogTimer?.cancel();
     connection?.cancel();
+    _pushTapSub?.cancel();
+    _pushMessageSub?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     homeSearch.dispose();
     super.dispose();

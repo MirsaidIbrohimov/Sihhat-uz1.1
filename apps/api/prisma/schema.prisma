@@ -595,6 +595,24 @@ model NotificationDelivery {
   @@index([channel, status, availableAt])
 }
 
+model DevicePushToken {
+  id String @id @default(uuid()) @db.Uuid
+  userId String @db.Uuid
+  token String @unique
+  platform String @default("ANDROID")
+  deviceId String?
+  deviceLabel String?
+  appVersion String?
+  active Boolean @default(true)
+  lastSeenAt DateTime @default(now())
+  invalidatedAt DateTime?
+  lastError String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([userId, active])
+  @@index([userId, deviceId])
+}
+
 model TelegramAccount {
   id String @id @default(uuid()) @db.Uuid
   userId String @unique @db.Uuid

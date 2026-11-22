@@ -1,15 +1,11 @@
 package uz.sihhat.sihhat_mobile
 
+import android.Manifest
 import android.app.Activity
-import android.app.Notification
-import android.app.NotificationChannel
 import android.app.NotificationManager
-import android.app.PendingIntent
-import android.app.job.JobInfo
-import android.app.job.JobScheduler
-import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.net.ConnectivityManager
@@ -18,102 +14,250 @@ import android.net.NetworkCapabilities
 import android.net.NetworkRequest
 import android.net.Uri
 import android.os.Build
+import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.util.Base64
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.EventChannel
 import io.flutter.plugin.common.MethodChannel
 import java.io.ByteArrayOutputStream
+import java.lang.ref.WeakReference
 
 class MainActivity : FlutterActivity() {
     private var callback: ConnectivityManager.NetworkCallback? = null
     private var pendingImageResult: MethodChannel.Result? = null
+    private var pendingPermissionResult: MethodChannel.Result? = null
     private var pendingMaxDim: Int = 1280
     private var pendingMaxBytes: Long = DEFAULT_MAX_IMAGE_BYTES
+    private var notificationsChannel: MethodChannel? = null
+    private var initialNotificationRoute: Map<String, String>? = null
 
     companion object {
         private const val REQUEST_PICK_IMAGE = 1012
+        private const val REQUEST_POST_NOTIFICATIONS = 1013
         private const val DEFAULT_MAX_IMAGE_BYTES = 15L * 1024L * 1024L
-        private const val NOTIFICATION_JOB_ID = 2001
-        private const val CHANNEL_ID = NotificationSyncJobService.CHANNEL_ID
+        private val mainHandler = Handler(Looper.getMainLooper())
+        @Volatile
+        private var activeRef: WeakReference<MainActivity>? = null
+
+        fun notifyFcmTokenRefreshed(token: String) {
+            mainHandler.post {
+                activeRef?.get()?.notificationsChannel?.invokeMethod("onFcmTokenRefresh", token)
+            }
+        }
+
+        fun notifyPushMessageReceived(payload: Map<String, Any>) {
+            mainHandler.post {
+                activeRef?.get()?.notificationsChannel?.invokeMethod("onPushMessage", payload)
+            }
+        }
+    }
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        activeRef = WeakReference(this)
+        NotificationHelper.ensureNotificationChannel(this)
+        captureNotificationIntent(intent, deliverImmediately = false)
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        captureNotificationIntent(intent, deliverImmediately = true)
+    }
+
+    override fun onDestroy() {
+        if (activeRef?.get() === this) {
+            activeRef = null
+        }
+        pendingPermissionResult = null
+        super.onDestroy()
+    }
+
+    private fun captureNotificationIntent(intent: Intent?, deliverImmediately: Boolean) {
+        val route = NotificationHelper.extractNotificationRoute(intent) ?: return
+        NotificationHelper.clearNotificationExtras(intent)
+        if (deliverImmediately && notificationsChannel != null) {
+            mainHandler.post {
+                notificationsChannel?.invokeMethod("onNotificationTap", route)
+            }
+        } else {
+            initialNotificationRoute = route
+        }
     }
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
-        ensureNotificationChannel()
+        NotificationHelper.ensureNotificationChannel(this)
 
-        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "uz.sihhat/notifications")
-            .setMethodCallHandler { call, result ->
-                when (call.method) {
-                    "getAppVersion" -> {
-                        try {
-                            val info = packageManager.getPackageInfo(packageName, 0)
-                            val versionCode = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-                                info.longVersionCode
-                            } else {
-                                @Suppress("DEPRECATION")
-                                info.versionCode.toLong()
-                            }
-                            result.success(
-                                mapOf(
-                                    "versionName" to (info.versionName ?: ""),
-                                    "buildNumber" to versionCode
-                                )
-                            )
-                        } catch (_: Exception) {
-                            result.success(null)
-                        }
-                    }
-                    "syncConfig" -> {
-                        val baseUrl = call.argument<String>("baseUrl")
-                        if (!baseUrl.isNullOrBlank()) {
-                            val prefs = getSharedPreferences(NotificationSyncJobService.PREFS_NAME, Context.MODE_PRIVATE)
-                            prefs.edit()
-                                .putString(NotificationSyncJobService.KEY_BASE_URL, baseUrl)
-                                .apply()
-                            scheduleNotificationJob()
-                        }
-                        result.success(true)
-                    }
-                    "syncCredentials" -> {
-                        val baseUrl = call.argument<String>("baseUrl")
-                        val token = call.argument<String>("token")
-                        if (!baseUrl.isNullOrBlank() && !token.isNullOrBlank()) {
-                            val prefs = getSharedPreferences(NotificationSyncJobService.PREFS_NAME, Context.MODE_PRIVATE)
-                            prefs.edit()
-                                .putString(NotificationSyncJobService.KEY_BASE_URL, baseUrl)
-                                .putString(NotificationSyncJobService.KEY_AUTH_TOKEN, token)
-                                .apply()
-                            scheduleNotificationJob()
-                        }
-                        result.success(true)
-                    }
-                    "clearCredentials" -> {
-                        val prefs = getSharedPreferences(NotificationSyncJobService.PREFS_NAME, Context.MODE_PRIVATE)
-                        prefs.edit()
-                            .remove(NotificationSyncJobService.KEY_AUTH_TOKEN)
-                            .remove(NotificationSyncJobService.KEY_LAST_NOTIF_ID)
-                            .apply()
-                        val hasBaseUrl = !prefs.getString(NotificationSyncJobService.KEY_BASE_URL, null).isNullOrBlank()
-                        if (hasBaseUrl) {
-                            scheduleNotificationJob()
+        val channel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "uz.sihhat/notifications")
+        notificationsChannel = channel
+
+        channel.setMethodCallHandler { call, result ->
+            when (call.method) {
+                "getAppVersion" -> {
+                    try {
+                        val info = packageManager.getPackageInfo(packageName, 0)
+                        val versionCode = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                            info.longVersionCode
                         } else {
-                            try {
-                                val scheduler = getSystemService(Context.JOB_SCHEDULER_SERVICE) as JobScheduler
-                                scheduler.cancel(NOTIFICATION_JOB_ID)
-                            } catch (_: Exception) {}
+                            @Suppress("DEPRECATION")
+                            info.versionCode.toLong()
                         }
-                        result.success(true)
+                        result.success(
+                            mapOf(
+                                "versionName" to (info.versionName ?: ""),
+                                "buildNumber" to versionCode
+                            )
+                        )
+                    } catch (_: Exception) {
+                        result.success(null)
                     }
-                    "showNotification" -> {
-                        val title = call.argument<String>("title") ?: "Sihhat.uz"
-                        val body = call.argument<String>("body") ?: ""
-                        showSystemNotification(title, body)
-                        result.success(true)
-                    }
-                    else -> result.notImplemented()
                 }
+                "syncConfig" -> {
+                    val baseUrl = call.argument<String>("baseUrl")
+                    if (!baseUrl.isNullOrBlank()) {
+                        NotificationHelper.prefs(this).edit()
+                            .putString(NotificationHelper.KEY_BASE_URL, baseUrl)
+                            .apply()
+                        FcmManager.scheduleFallbackSyncJob(this)
+                    }
+                    result.success(true)
+                }
+                "syncCredentials" -> {
+                    val baseUrl = call.argument<String>("baseUrl")
+                    val token = call.argument<String>("token")
+                    val refreshToken = call.argument<String>("refreshToken")
+                    if (!baseUrl.isNullOrBlank() && !token.isNullOrBlank()) {
+                        val editor = NotificationHelper.prefs(this).edit()
+                            .putString(NotificationHelper.KEY_BASE_URL, baseUrl)
+                            .putString(NotificationHelper.KEY_AUTH_TOKEN, token)
+                            .putBoolean(NotificationHelper.KEY_NATIVE_TOKENS_UPDATED, false)
+                        if (!refreshToken.isNullOrBlank()) {
+                            editor.putString(NotificationHelper.KEY_REFRESH_TOKEN, refreshToken)
+                        }
+                        editor.apply()
+                        FcmManager.scheduleFallbackSyncJob(this)
+                    }
+                    result.success(true)
+                }
+                "getSyncedCredentials" -> {
+                    val prefs = NotificationHelper.prefs(this)
+                    val updated = prefs.getBoolean(NotificationHelper.KEY_NATIVE_TOKENS_UPDATED, false)
+                    val access = prefs.getString(NotificationHelper.KEY_AUTH_TOKEN, null)
+                    val refresh = prefs.getString(NotificationHelper.KEY_REFRESH_TOKEN, null)
+                    if (updated) {
+                        prefs.edit().putBoolean(NotificationHelper.KEY_NATIVE_TOKENS_UPDATED, false).apply()
+                    }
+                    result.success(
+                        mapOf(
+                            "updated" to updated,
+                            "accessToken" to access,
+                            "refreshToken" to refresh
+                        )
+                    )
+                }
+                "clearCredentials" -> {
+                    val prefs = NotificationHelper.prefs(this)
+                    prefs.edit()
+                        .remove(NotificationHelper.KEY_AUTH_TOKEN)
+                        .remove(NotificationHelper.KEY_REFRESH_TOKEN)
+                        .remove(NotificationHelper.KEY_NATIVE_TOKENS_UPDATED)
+                        .remove(NotificationHelper.KEY_LAST_NOTIF_ID)
+                        .remove(NotificationHelper.KEY_FCM_TOKEN_SYNCED)
+                        .apply()
+                    val hasBaseUrl = !prefs.getString(NotificationHelper.KEY_BASE_URL, null).isNullOrBlank()
+                    if (hasBaseUrl) {
+                        FcmManager.scheduleFallbackSyncJob(this)
+                    } else {
+                        FcmManager.cancelFallbackSyncJob(this)
+                    }
+                    result.success(true)
+                }
+                "getNotificationPermissionStatus" -> {
+                    val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+                    val systemEnabled = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                        manager.areNotificationsEnabled()
+                    } else {
+                        true
+                    }
+                    val runtimeGranted = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                        checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
+                    } else {
+                        true
+                    }
+                    result.success(
+                        mapOf(
+                            "granted" to (runtimeGranted && systemEnabled),
+                            "runtimeGranted" to runtimeGranted,
+                            "systemEnabled" to systemEnabled,
+                            "sdkInt" to Build.VERSION.SDK_INT
+                        )
+                    )
+                }
+                "requestNotificationPermission" -> {
+                    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
+                        result.success(NotificationHelper.hasNotificationPermission(this))
+                    } else if (checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED) {
+                        result.success(true)
+                    } else {
+                        pendingPermissionResult?.success(false)
+                        pendingPermissionResult = result
+                        requestPermissions(
+                            arrayOf(Manifest.permission.POST_NOTIFICATIONS),
+                            REQUEST_POST_NOTIFICATIONS
+                        )
+                    }
+                }
+                "getFcmToken" -> {
+                    FcmManager.fetchToken(this) { token ->
+                        mainHandler.post { result.success(token) }
+                    }
+                }
+                "getFcmStatus" -> {
+                    val firebaseConfigured = FcmManager.isFirebaseAvailable(this)
+                    val cachedToken = NotificationHelper.prefs(this)
+                        .getString(NotificationHelper.KEY_FCM_TOKEN, null)
+                    result.success(
+                        mapOf(
+                            "firebaseConfigured" to firebaseConfigured,
+                            "token" to cachedToken,
+                            "deviceId" to NotificationHelper.getOrCreateDeviceId(this),
+                            "deviceLabel" to NotificationHelper.getDeviceLabel(),
+                            "appVersion" to NotificationHelper.getAppVersionLabel(this)
+                        )
+                    )
+                }
+                "markFcmTokenSynced" -> {
+                    val synced = call.argument<String>("token")
+                    if (!synced.isNullOrBlank()) {
+                        NotificationHelper.prefs(this).edit()
+                            .putString(NotificationHelper.KEY_FCM_TOKEN_SYNCED, synced)
+                            .apply()
+                    }
+                    result.success(true)
+                }
+                "getInitialNotificationRoute" -> {
+                    val route = initialNotificationRoute
+                    initialNotificationRoute = null
+                    result.success(route)
+                }
+                "showNotification" -> {
+                    val title = call.argument<String>("title") ?: "Sihhat.uz"
+                    val body = call.argument<String>("body") ?: ""
+                    @Suppress("UNCHECKED_CAST")
+                    val rawData = call.argument<Map<String, Any?>>("data")
+                    val data = rawData?.mapNotNull { (k, v) ->
+                        v?.toString()?.let { k to it }
+                    }?.toMap() ?: emptyMap()
+                    NotificationHelper.showNotification(this, title, body, data)
+                    result.success(true)
+                }
+                else -> result.notImplemented()
             }
+        }
 
         val manager = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
         EventChannel(flutterEngine.dartExecutor.binaryMessenger, "uz.sihhat/connectivity")
@@ -166,6 +310,19 @@ class MainActivity : FlutterActivity() {
                     result.notImplemented()
                 }
             }
+    }
+
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode == REQUEST_POST_NOTIFICATIONS) {
+            val granted = grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED
+            pendingPermissionResult?.success(granted)
+            pendingPermissionResult = null
+        }
     }
 
     private fun readUriSize(uri: Uri): Long? {
@@ -240,66 +397,14 @@ class MainActivity : FlutterActivity() {
         }
     }
 
-    private fun ensureNotificationChannel() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-            val channel = NotificationChannel(
-                CHANNEL_ID,
-                "Sihhat.uz Bildirishnomalar",
-                NotificationManager.IMPORTANCE_HIGH
-            ).apply {
-                description = "Bronlar, to‘lovlar va tizim xabarlari"
-                enableVibration(true)
-            }
-            manager.createNotificationChannel(channel)
-        }
-    }
-
-    private fun scheduleNotificationJob() {
-        try {
-            val scheduler = getSystemService(Context.JOB_SCHEDULER_SERVICE) as JobScheduler
-            val component = ComponentName(this, NotificationSyncJobService::class.java)
-            val builder = JobInfo.Builder(NOTIFICATION_JOB_ID, component)
-                .setRequiredNetworkType(JobInfo.NETWORK_TYPE_ANY)
-                .setPeriodic(15 * 60 * 1000L)
-                .setPersisted(true)
-            scheduler.schedule(builder.build())
-        } catch (_: Exception) {}
-    }
-
-    private fun showSystemNotification(title: String, body: String) {
-        val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        ensureNotificationChannel()
-        val launchIntent = Intent(this, MainActivity::class.java).apply {
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-        }
-        val pendingIntent = PendingIntent.getActivity(
-            this,
-            System.currentTimeMillis().toInt(),
-            launchIntent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
-        val builder = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            Notification.Builder(this, CHANNEL_ID)
-        } else {
-            @Suppress("DEPRECATION")
-            Notification.Builder(this)
-        }
-        val notif = builder
-            .setSmallIcon(R.mipmap.ic_launcher)
-            .setContentTitle(title)
-            .setContentText(body)
-            .setAutoCancel(true)
-            .setContentIntent(pendingIntent)
-            .build()
-        manager.notify((System.currentTimeMillis() % 100000).toInt(), notif)
-    }
-
     override fun cleanUpFlutterEngine(flutterEngine: FlutterEngine) {
         val manager = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
         callback?.let { manager.unregisterNetworkCallback(it) }
         callback = null
         pendingImageResult = null
+        pendingPermissionResult = null
+        notificationsChannel?.setMethodCallHandler(null)
+        notificationsChannel = null
         super.cleanUpFlutterEngine(flutterEngine)
     }
 }

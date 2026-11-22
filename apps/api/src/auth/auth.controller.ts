@@ -37,9 +37,9 @@ export class AuthController {
   @Get('me') @AccountantAccess()
   me(@CurrentActor() actor: Actor, @Req() req: ApiRequest) { return { ...actor, csrf_token: req.cookies?.sihhat_csrf ?? null }; }
   @Post('logout') @AccountantAccess()
-  async logout(@CurrentActor() actor: Actor, @Res({ passthrough: true }) res: Response) {
+  async logout(@CurrentActor() actor: Actor, @Body() body: unknown, @Res({ passthrough: true }) res: Response) {
     if (!this.auth.config.PUBLIC_DEMO_ENABLED) for (const name of ['sihhat_access', 'sihhat_refresh', 'sihhat_csrf']) res.clearCookie(name, { path: '/' });
-    return this.auth.logout(actor);
+    return this.auth.logout(actor, body);
   }
   @Post('activity') @Roles('STAFF', 'SUPERADMIN') @AccountantAccess()
   activity(@CurrentActor() actor: Actor) { return this.auth.activity(actor); }

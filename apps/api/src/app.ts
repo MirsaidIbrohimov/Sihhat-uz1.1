@@ -48,6 +48,7 @@ import { ReportsController } from './reports/reports.controller';
 import { AiService } from './ai/ai.service';
 import { AiUsageService } from './ai/usage.service';
 import { OutboxService } from './outbox/outbox.service';
+import { FcmService } from './outbox/fcm.service';
 import { enrichOpenApi } from './common/openapi';
 import { TelegramClient } from './telegram/client';
 import { TelegramLinkService } from './telegram/link.service';
@@ -65,7 +66,7 @@ export class SanatoriumModule {}
 export class BookingModule {}
 @Global() @Module({providers:[PaymentService,FinanceService,TezcheckClient,TezcheckService,AiUsageService],controllers:[PaymentController,FinanceController],exports:[PaymentService,FinanceService,TezcheckService,AiUsageService]})
 export class FinanceModule {}
-@Global() @Module({providers:[BillingService,EngagementService,CatalogService,HomeService,AppVersionService,ReportsService,AiService,OutboxService,TelegramClient,TelegramLinkService,TelegramViews,TelegramService],controllers:[BillingController,EngagementController,CatalogController,HomeController,AppVersionController,ReportsController,TelegramController],exports:[BillingService,EngagementService,CatalogService,AppVersionService,ReportsService,AiService,OutboxService,TelegramClient,TelegramLinkService,TelegramService]})
+@Global() @Module({providers:[BillingService,EngagementService,CatalogService,HomeService,AppVersionService,ReportsService,AiService,FcmService,OutboxService,TelegramClient,TelegramLinkService,TelegramViews,TelegramService],controllers:[BillingController,EngagementController,CatalogController,HomeController,AppVersionController,ReportsController,TelegramController],exports:[BillingService,EngagementService,CatalogService,AppVersionService,ReportsService,AiService,FcmService,OutboxService,TelegramClient,TelegramLinkService,TelegramService]})
 export class OperationsModule {}
 @Controller('health') @Public()
 class HealthController {

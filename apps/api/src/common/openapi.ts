@@ -106,7 +106,9 @@ export function enrichOpenApi(document:OpenAPIObject){
     '/superadmin/catalog/entries':obj({kind:{type:'string',enum:['REGION','AMENITY','SERVICE']},name:str,code:str}),
     '/auth/customer/phone-change/request':obj({new_phone:str}),'/auth/customer/phone-change/confirm':obj({old_challenge_id:id,new_challenge_id:id,old_code:str,new_code:str}),
     '/auth/partner-forgot-password':obj({login:str,phone:str,note:str},['login']),
-    '/auth/profile':obj({name:str,phone:str,login:str,email:{...str,nullable:true},avatarUrl:{...str,nullable:true}},[]),'/auth/refresh':obj({refresh_token:str},[]),'/auth/heartbeat':obj({}),
+    '/auth/profile':obj({name:str,phone:str,login:str,email:{...str,nullable:true},avatarUrl:{...str,nullable:true}},[]),'/auth/refresh':obj({refresh_token:str},[]),'/auth/heartbeat':obj({}),'/auth/logout':obj({push_token:str,device_id:str},[]),
+    '/notifications/device-token':obj({token:str,platform:{type:'string',enum:['ANDROID','IOS','WEB']},device_id:str,device_label:str,app_version:str},['token']),
+    '/notifications/device-token/unregister':obj({token:str,device_id:str},[]),
     '/superadmin/customers/{id}':obj({name:str,phone:{...str,nullable:true},login:{...str,nullable:true},email:{...str,nullable:true},avatarUrl:{...str,nullable:true},remove_avatar:boolean},[]),
     '/superadmin/customers/{id}/revoke-sessions':obj({},[]),
     '/superadmin/staff/{id}':obj({name:str,phone:{...str,nullable:true},login:str,email:{...str,nullable:true},new_password:str,avatarUrl:{...str,nullable:true},remove_avatar:boolean,role:{type:'string',enum:['DIRECTOR','RECEPTION','ACCOUNTANT']},status:{type:'string',enum:['ACTIVE','BLOCKED','PENDING_APPROVAL']}},[]),
@@ -154,12 +156,12 @@ export function enrichOpenApi(document:OpenAPIObject){
       operation['x-roles']=[];
     }
     if(method!=='get'){
-      let schema=bodies[path];if(!schema&&(/staff-approvals|moderation|check-in|check-out|no-show/.test(path)))schema=versionReason;
+      let schema=method==='delete'&&path==='/notifications/device-token'?obj({token:str,device_id:str},[]):bodies[path];if(!schema&&(/staff-approvals|moderation|check-in|check-out|no-show/.test(path)))schema=versionReason;
       if(!schema&&(/refund-request/.test(path)))schema=obj({reason:str,force:boolean},['reason']);
       if(!schema&&(/\/cancel$|\/refunds\/.*\/(approve|reject)$|\/payouts\/.*\/fail$/.test(path)))schema=requiredReason;
       if(!schema&&(/\/sanatoriums\/.*\/(pause|archive|reopen)$|\/staff\/.*\/block$/.test(path)))schema=obj({version:{...integer,minimum:1},reason});
       if(/\/no-show$|\/moderation\/.*\/request-changes$|\/staff-approvals\/.*\/reject$/.test(path))schema=obj({version:{...integer,minimum:1},reason});
-      if(schema)operation.requestBody={required:path!=='/auth/refresh',content:{'application/json':{schema}}};
+      if(schema)operation.requestBody={required:!['/auth/refresh','/auth/logout'].includes(path),content:{'application/json':{schema}}};
       else if(!operation.requestBody)delete operation.requestBody;
       if(/\/hold$|\/checkout$|local-confirm|\/manual$|refund-request|\/payouts$|offline-payments$|\/subscriptions$|\/subscriptions\/.*\/invoice$|\/cancel$/.test(path))addParameters([{name:'Idempotency-Key',in:'header',required:true,schema:{type:'string',minLength:8,maxLength:128},description:'Opaque key; same actor + endpoint + body returns the saved result.'}]);
     }

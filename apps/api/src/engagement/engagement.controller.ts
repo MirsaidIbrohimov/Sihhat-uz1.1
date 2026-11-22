@@ -25,6 +25,10 @@ export class EngagementController{
   @Delete('support/tickets/:id/messages/:messageId') ticketMessageDelete(@CurrentActor() a:Actor,@Param('id') id:string,@Param('messageId') messageId:string){return this.s.ticketMessageDelete(a,id,messageId);}
   @Post('support/upload') ticketImageUpload(@CurrentActor() a:Actor,@Body() b:unknown){return this.s.ticketImageUpload(a,b);}
   @Get('notifications') notifications(@CurrentActor() a:Actor,@Headers('x-app-build') appBuild?:string){return this.s.notifications(a,appBuild);}
+  @Get('notifications/push-status') pushStatus(@CurrentActor() a:Actor){return this.s.pushStatus(a);}
+  @Post('notifications/device-token') registerDeviceToken(@CurrentActor() a:Actor,@Body() b:unknown){return this.s.registerDeviceToken(a,b);}
+  @Post('notifications/device-token/unregister') unregisterDeviceTokenPost(@CurrentActor() a:Actor,@Body() b:unknown){return this.s.unregisterDeviceToken(a,b);}
+  @Delete('notifications/device-token') unregisterDeviceToken(@CurrentActor() a:Actor,@Body() b:unknown){return this.s.unregisterDeviceToken(a,b);}
   @Post('notifications/read-all') notificationReadAll(@CurrentActor() a:Actor){return this.s.notificationReadAll(a);}
   @Post('notifications/:id/read') notificationRead(@CurrentActor() a:Actor,@Param('id') id:string){return this.s.notificationRead(a,id);}
 }
