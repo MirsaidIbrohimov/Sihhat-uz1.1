@@ -20,8 +20,8 @@ const ref=(name:string)=>({$ref:`#/components/schemas/${name}`});
 const page=(items:any)=>obj({data:array(items),total:integer,page:integer,limit:integer,pages:integer});
 const query=(name:string,schema:any,required=false)=>({name,in:'query',required,schema});
 const pagination=[query('page',{...integer,minimum:1,default:1}),query('limit',{...integer,minimum:1,maximum:100,default:20})];
-const pagedPaths=['/partner/sanatoriums','/superadmin/sanatoriums','/partner/staff','/superadmin/staff','/partner/bookings','/customer/bookings','/superadmin/bookings','/catalog/sanatoriums','/partner/payments','/superadmin/payments','/superadmin/audit','/superadmin/refunds','/partner/payouts','/superadmin/payouts','/partner/invoices','/superadmin/invoices','/partner/reviews','/messages'];
-const tenantFilteredPaths=['/partner/staff','/superadmin/staff','/partner/bookings','/customer/bookings','/superadmin/bookings','/partner/payments','/superadmin/payments','/partner/payouts','/superadmin/payouts','/partner/invoices','/superadmin/invoices','/partner/reviews'];
+const pagedPaths=['/partner/sanatoriums','/superadmin/sanatoriums','/partner/staff','/superadmin/staff','/partner/bookings','/customer/bookings','/superadmin/bookings','/catalog/sanatoriums','/partner/payments','/superadmin/payments','/superadmin/audit','/partner/audit','/auth/login-history','/superadmin/auth-events','/partner/auth-events','/superadmin/partner-registrations','/superadmin/refunds','/partner/payouts','/superadmin/payouts','/partner/invoices','/superadmin/invoices','/partner/reviews','/messages'];
+const tenantFilteredPaths=['/partner/staff','/superadmin/staff','/partner/bookings','/customer/bookings','/superadmin/bookings','/partner/payments','/superadmin/payments','/partner/payouts','/superadmin/payouts','/partner/invoices','/superadmin/invoices','/partner/reviews','/superadmin/auth-events','/partner/auth-events'];
 export function enrichOpenApi(document:OpenAPIObject){
   document.components??={};document.components.schemas??={};document.components.securitySchemes??={};
   document.components.securitySchemes.CSRF={type:'apiKey',in:'header',name:'X-CSRF-Token'};
@@ -99,7 +99,7 @@ export function enrichOpenApi(document:OpenAPIObject){
     '/messages':obj({title:str,body:str,kind:{type:'string',enum:['MESSAGE','WARNING']},asset_ids:array(id),recipient_ids:array(id)},['title','body','recipient_ids']),
     '/messages/{id}/receipt':obj({accepted:boolean},[]),'/messages/{id}/verify-delivery':obj({},[]),'/superadmin/announcements':obj({target:{type:'string',enum:['ALL','CUSTOMERS','PARTNERS']},sanatorium_ids:array(id),roles:array({type:'string',enum:['DIRECTOR','RECEPTION','ACCOUNTANT']}),recipient_ids:array(id),title:str,body:str,kind:{type:'string',enum:['MESSAGE','WARNING']},asset_ids:array(id)},['title','body','kind']),
     '/reviews':obj({booking_id:id,rating:{type:'integer',minimum:1,maximum:5},text:str}),'/partner/reviews/{id}/reply':obj({reply:str}),'/superadmin/reviews/{id}/moderate':obj({status:{type:'string',enum:['PUBLISHED','HIDDEN']},reason:str}),
-    '/support/tickets':obj({title:str,text:str,booking_id:id,sanatorium_id:id,target_user_id:id,target_role:{type:'string',enum:['RECEPTION','DIRECTOR','ACCOUNTANT']},imageUrl:str},['title']),'/support/tickets/{id}/messages':obj({text:str,close:boolean,imageUrl:str},[]),
+    '/support/tickets':obj({title:str,text:str,booking_id:id,sanatorium_id:id,target_user_id:id,target_role:{type:'string',enum:['RECEPTION','DIRECTOR','ACCOUNTANT']},imageUrl:str},['title']),'/support/tickets/{id}/assign':obj({assigned_to_user_id:{...id,nullable:true},sanatorium_id:{...id,nullable:true},note:str},[]),'/support/tickets/{id}/messages':obj({text:str,close:boolean,imageUrl:str},[]),
     '/customer/favorites/{id}':obj({saved:boolean}),'/catalog/ads/{id}/events':obj({kind:{type:'string',enum:['IMPRESSION','CLICK']}}),
     '/ai/messages':apiSchema(aiInput),
     '/superadmin/articles':apiSchema(articleInput),'/superadmin/articles/{id}':apiSchema(articleUpdate),
@@ -120,12 +120,12 @@ export function enrichOpenApi(document:OpenAPIObject){
     '/superadmin/app-version/announce':obj({},[]),
   };
   for(const[path,item]of Object.entries(document.paths))for(const method of ['get','post','patch','put','delete'] as const){const operation=(item as any)[method];if(!operation)continue;
-    const isPublic=path.startsWith('/health/')||path.startsWith('/catalog/')||['/mobile/app-version','/auth/staff/login','/auth/partner-forgot-password','/auth/customer/otp/request','/auth/customer/otp/verify','/telegram/webhook','/payments/tezcheck'].includes(path);
+    const isPublic=path.startsWith('/health/')||path.startsWith('/catalog/')||['/mobile/app-version','/auth/staff/login','/auth/partner-forgot-password','/auth/partner-register','/auth/partner-register/availability','/auth/customer/otp/request','/auth/customer/otp/verify','/telegram/webhook','/payments/tezcheck'].includes(path);
     const customerOnly=path.startsWith('/customer/')||path.startsWith('/auth/customer/phone')||['/ai/messages','/reviews'].includes(path);
-    const staffOnly=path.startsWith('/partner/')||path.startsWith('/superadmin/')||(path.startsWith('/telegram/')&&path!=='/telegram/webhook')||(method==='post'&&['/messages','/messages/{id}/verify-delivery'].includes(path))||(method==='delete'&&path==='/messages/{id}');
+    const staffOnly=path.startsWith('/partner/')||path.startsWith('/superadmin/')||(path==='/support/tickets/{id}/assign')||(path.startsWith('/telegram/')&&path!=='/telegram/webhook')||(method==='post'&&['/messages','/messages/{id}/verify-delivery'].includes(path))||(method==='delete'&&path==='/messages/{id}');
     const webSecurity={cookie:[],...(method==='get'?{}:{CSRF:[]})};
     operation.security=path==='/payments/tezcheck'?[{TezcheckWebhook:[]}]:path==='/telegram/webhook'?[{TelegramWebhook:[]}]:path==='/payments/payme'?[{PaymeAuth:[]}]:isPublic?[]:customerOnly?[{bearer:[]}]:staffOnly?[webSecurity]:[webSecurity,{bearer:[]}];
-    operation['x-roles']=isPublic||path==='/payments/payme'?[]:path.startsWith('/superadmin/')?['SUPERADMIN']:customerOnly?['CUSTOMER']:staffOnly?['STAFF','SUPERADMIN']:['SUPERADMIN','STAFF','CUSTOMER'];
+    operation['x-roles']=isPublic||path==='/payments/payme'?[]:(path.startsWith('/superadmin/')||path==='/support/tickets/{id}/assign')?['SUPERADMIN']:customerOnly?['CUSTOMER']:staffOnly?['STAFF','SUPERADMIN']:['SUPERADMIN','STAFF','CUSTOMER'];
     // tsx does not emit the same parameter reflection metadata as tsc.
     // Route templates and explicit contracts produce the same document in both.
     const parameterKey=(p:any)=>`${p.in}:${p.in==='header'?p.name.toLowerCase():p.name}`;
@@ -143,6 +143,10 @@ export function enrichOpenApi(document:OpenAPIObject){
       if(path==='/catalog/sanatoriums')addParameters([query('q',{...str,maxLength:100}),query('region',{...str,maxLength:80}),query('amenity',{...str,maxLength:80}),query('max_price',money),query('sort',{...str,enum:['NAME','PRICE'],default:'NAME'})]);
       if(path==='/catalog/compare')addParameters([query('ids',{...str,pattern:'^[0-9a-fA-F-]{36}(,[0-9a-fA-F-]{36}){0,2}$',description:'One to three comma-separated sanatorium UUIDs.'},true)]);
       if(path==='/partner/staff/login-availability')addParameters([query('login',{...str,maxLength:128}),query('email',{...str,maxLength:128}),query('exclude_user_id',id)]);
+      if(path==='/auth/partner-register/availability')addParameters([query('username',{...str,maxLength:128}),query('email',{...str,maxLength:128})]);
+      if(path==='/superadmin/partner-registrations')addParameters([query('status',{...str,enum:['PENDING','APPROVED','REJECTED']}),query('q',{...str,maxLength:120})]);
+      if(path==='/auth/login-history')addParameters([query('event_type',{...str,enum:['LOGIN','LOGOUT','SESSION_REVOKED','SESSION_EXPIRED']})]);
+      if(['/superadmin/auth-events','/partner/auth-events'].includes(path))addParameters([query('user_id',id),query('event_type',{...str,enum:['LOGIN','LOGOUT','SESSION_REVOKED','SESSION_EXPIRED']}),query('user_kind',{...str,enum:['SUPERADMIN','STAFF','CUSTOMER']}),query('q',{...str,maxLength:120}),query('from',date),query('to',date)]);
       if(['/partner/reports','/superadmin/reports','/partner/reports/export','/partner/reports/export.xlsx'].includes(path))addParameters([query('sanatorium_id',id),query('from',date,true),query('to',date,true),query('booking_basis',{...str,enum:['CREATED','PAYMENT','SERVICE'],default:'SERVICE'}),query('financial',{...str,enum:['true','false'],default:'false'})]);
     }
     if(path==='/auth/refresh'){

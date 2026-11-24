@@ -14,6 +14,7 @@ export const URGENT_PUSH_TOPICS = new Set<string>([
   'refund.succeeded',
   'support.replied',
   'support.opened',
+  'support.assigned',
   'auth.bruteforce_alert',
   'partner.password_reset_requested',
 ]);
@@ -28,7 +29,7 @@ export function resolveNotificationRoute(topic: string, payload: Record<string, 
   if (topic === 'app.update' && typeof payload.download_url === 'string' && payload.download_url.startsWith('https://')) {
     return 'update';
   }
-  if ((topic === 'support.replied' || topic === 'support.opened') && typeof payload.ticket_id === 'string' && payload.ticket_id) {
+  if ((topic === 'support.replied' || topic === 'support.opened' || topic === 'support.assigned') && typeof payload.ticket_id === 'string' && payload.ticket_id) {
     return 'support';
   }
   if (typeof payload.booking_id === 'string' && payload.booking_id) {

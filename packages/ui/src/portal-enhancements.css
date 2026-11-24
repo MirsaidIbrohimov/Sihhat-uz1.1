@@ -1430,3 +1430,235 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* ========================================================
+   PARTNER REGISTRATION & AUTH LOGIN/LOGOUT HISTORY
+   ======================================================== */
+.partner-register-cta {
+  width: 100%;
+  justify-content: center;
+  margin-top: 10px;
+  border-style: dashed;
+  border-color: var(--green);
+  color: var(--green);
+  font-weight: 700;
+}
+.partner-register-cta:hover {
+  background: var(--green-light);
+}
+
+.partner-reg-modal {
+  max-width: 780px;
+  width: 96%;
+  max-height: 92vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.partner-reg-body {
+  padding: 18px 22px 22px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.partner-reg-steps {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 22px;
+  border-bottom: 1px solid var(--line);
+  background: var(--soft);
+}
+
+.partner-reg-step {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 600;
+  padding: 4px 6px;
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+.partner-reg-step .step-num {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 800;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  color: var(--muted);
+}
+
+.partner-reg-step.active {
+  color: var(--ink);
+}
+.partner-reg-step.active .step-num {
+  background: var(--green);
+  border-color: var(--green);
+  color: #ffffff;
+}
+.partner-reg-step.done {
+  color: var(--green);
+}
+.partner-reg-step.done .step-num {
+  background: var(--green-light);
+  border-color: var(--green);
+  color: var(--green);
+}
+
+.partner-reg-step-line {
+  flex: 1;
+  height: 1px;
+  background: var(--line);
+}
+
+.partner-chip-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.partner-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--soft);
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.partner-chip:hover {
+  border-color: var(--green);
+}
+
+.partner-chip.active {
+  background: var(--green-light);
+  border-color: var(--green);
+  color: var(--green);
+}
+
+.partner-detail-box {
+  padding: 14px 16px;
+  border-radius: 12px;
+  background: var(--soft);
+  border: 1px solid var(--line);
+  font-size: 13.5px;
+  line-height: 1.55;
+}
+
+.partner-reg-success {
+  align-items: center;
+  text-align: center;
+  padding: 32px 24px 24px;
+}
+
+.partner-reg-success-icon {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  background: var(--green-light);
+  color: var(--green);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.partner-reg-success-list {
+  list-style: none;
+  padding: 0;
+  margin: 4px 0 12px;
+  text-align: left;
+  width: 100%;
+  max-width: 520px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.partner-reg-success-list li {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: var(--soft);
+  border: 1px solid var(--line);
+  font-size: 13.5px;
+}
+
+.partner-reg-success-list li svg {
+  color: var(--green);
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.nav-count-badge {
+  margin-left: auto;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: #f59e0b;
+  color: #111827;
+  font-size: 11px;
+  font-weight: 800;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.pending-reg-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 18px;
+  margin-bottom: 18px;
+  border-radius: 14px;
+  border: 1px solid rgba(245, 158, 11, 0.45);
+  background: rgba(245, 158, 11, 0.1);
+}
+
+.ip-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: var(--soft);
+  border: 1px solid var(--line);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink);
+  white-space: nowrap;
+}
+
+.auth-event-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.auth-event-badge::before {
+  display: none;
+}
+

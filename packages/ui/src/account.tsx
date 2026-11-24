@@ -10,6 +10,7 @@ import {
   CreditCard,
   Edit3,
   FileSpreadsheet,
+  Globe,
   KeyRound,
   Laptop,
   Mail,
@@ -26,6 +27,7 @@ import {
 } from "lucide-react";
 import { api } from "@sihhat/api-client";
 import { prepareAvatarDataUrl, validateAvatarFile } from "./avatar";
+import { AuthHistoryPanel } from "./auth-history";
 import {
   Act,
   Card,
@@ -477,6 +479,15 @@ export function MyAccount({ changePassword }: { changePassword: () => void }) {
                 },
               },
               {
+                label: "IP manzil",
+                render: (row) => (
+                  <span className="ip-chip">
+                    <Globe size={12} />
+                    {row.ipAddress || "—"}
+                  </span>
+                ),
+              },
+              {
                 label: "Kirish boshlangan",
                 render: (row) => dateTime(row.createdAt),
               },
@@ -495,6 +506,14 @@ export function MyAccount({ changePassword }: { changePassword: () => void }) {
           />
         )}
       </Card>
+
+      <div style={{ marginTop: 20 }}>
+        <AuthHistoryPanel
+          mode="self"
+          showUserColumn={false}
+          title="Kirish va chiqish tarixi (Qurilma va IP manzil)"
+        />
+      </div>
     </>
   );
 }

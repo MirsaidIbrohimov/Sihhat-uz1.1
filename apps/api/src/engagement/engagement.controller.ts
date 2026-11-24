@@ -20,6 +20,7 @@ export class EngagementController{
   @Get('support/tickets') tickets(@CurrentActor() a:Actor){return this.s.tickets(a);}
   @Post('support/tickets') ticket(@CurrentActor() a:Actor,@Body() b:unknown,@Headers('idempotency-key') key?:string){return this.s.ticket(a,b,key);}
   @Get('support/tickets/:id') ticketGet(@CurrentActor() a:Actor,@Param('id') id:string){return this.s.ticketGet(a,id);}
+  @Patch('support/tickets/:id/assign') @Roles('SUPERADMIN') ticketAssign(@CurrentActor() a:Actor,@Param('id') id:string,@Body() b:unknown){return this.s.ticketAssign(a,id,b);}
   @Post('support/tickets/:id/messages') ticketReply(@CurrentActor() a:Actor,@Param('id') id:string,@Body() b:unknown,@Headers('idempotency-key') key?:string){return this.s.ticketReply(a,id,b,key);}
   @Patch('support/tickets/:id/messages/:messageId') ticketMessageEdit(@CurrentActor() a:Actor,@Param('id') id:string,@Param('messageId') messageId:string,@Body() b:unknown){return this.s.ticketMessageEdit(a,id,messageId,b);}
   @Delete('support/tickets/:id/messages/:messageId') ticketMessageDelete(@CurrentActor() a:Actor,@Param('id') id:string,@Param('messageId') messageId:string){return this.s.ticketMessageDelete(a,id,messageId);}

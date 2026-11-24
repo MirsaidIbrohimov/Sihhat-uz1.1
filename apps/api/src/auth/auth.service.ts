@@ -3,11 +3,13 @@ import { z } from 'zod';
 import { createHmac, randomInt } from 'node:crypto';
 import { CONFIG, type Config } from '../common/config';
 import { Db, audit, hash, lock, emit, type Tx } from '../common/db';
-import { fail, parse, uuid } from '../common/errors';
+import { fail, parse, uuid, pageQuery, paged } from '../common/errors';
 import { decrypt, encrypt, matchTotp, opaque, passwordHash, passwordMatches } from '../common/crypto';
+import { detectDeviceLabel, ENSURE_AUTH_EVENTS_AND_PARTNER_REG_SQL, normalizeIp, sanitizeUserAgent } from '../common/request-meta';
+import { dateFilter } from '../bookings/search';
 import { Sms } from './sms';
 import { EmailService } from './email';
-import { Actor, effective } from './permissions';
+import { Actor, effective, requirePlatform, scope } from './permissions';
 import { normalizeAvatarInput } from './avatar.util';
 import { allocateUserPublicId, resolveUserPublicId } from './public-id.util';
 
@@ -34,11 +36,14 @@ const idleExpired = (session: { channel: string; lastActivityAt: Date }, kind: s
 };
 const idleFailure = () => fail('SESSION_IDLE_EXPIRED', 'Faolsizlik sababli hisobdan chiqdingiz. Qayta kiring.', 401);
 export function webDeviceLabel(userAgent = '') {
-  const ua = userAgent.slice(0, 512);
-  const browser = /Edg\//i.test(ua) ? 'Edge' : /Firefox\//i.test(ua) ? 'Firefox' : /Chrome\//i.test(ua) ? 'Chrome' : /Safari\//i.test(ua) ? 'Safari' : 'Brauzer';
-  const system = /Android/i.test(ua) ? 'Android' : /iPhone|iPad/i.test(ua) ? 'iOS' : /Windows/i.test(ua) ? 'Windows' : /Macintosh/i.test(ua) ? 'macOS' : /Linux/i.test(ua) ? 'Linux' : 'Noma’lum qurilma';
-  return `${browser} · ${system}`;
+  return detectDeviceLabel(userAgent, 'WEB');
 }
+export type AuthRequestMeta = {
+  rateLimitIp?: string;
+  ipAddress?: string;
+  userAgent?: string | null;
+  deviceLabel?: string | null;
+};
 
 @Injectable()
 export class AuthService implements OnModuleInit {
@@ -52,6 +57,9 @@ export class AuthService implements OnModuleInit {
     if (typeof (this.db as unknown as { $executeRawUnsafe?: unknown })?.$executeRawUnsafe !== 'function') return;
     try {
       await this.db.$executeRawUnsafe('ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "avatarUrl" TEXT, ADD COLUMN IF NOT EXISTS "email" TEXT, ADD COLUMN IF NOT EXISTS "publicId" INTEGER');
+      for (const stmt of ENSURE_AUTH_EVENTS_AND_PARTNER_REG_SQL) {
+        await this.db.$executeRawUnsafe(stmt).catch(() => undefined);
+      }
       if (typeof (this.db as unknown as { user?: { findMany?: unknown; update?: unknown } })?.user?.findMany === 'function') {
         await this.db.$executeRawUnsafe('CREATE UNIQUE INDEX IF NOT EXISTS "User_publicId_key" ON "User"("publicId")');
         const missing = await this.db.user.findMany({
@@ -66,6 +74,47 @@ export class AuthService implements OnModuleInit {
       }
     } catch {
       // Schema already migrated or test mock without DDL support
+    }
+  }
+  async recordAuthEvent(
+    target: Tx | Db,
+    params: {
+      userId: string;
+      sessionId?: string | null;
+      eventType: 'LOGIN' | 'LOGOUT' | 'SESSION_REVOKED' | 'SESSION_EXPIRED';
+      channel: string;
+      authMethod?: string | null;
+      ipAddress?: string | null;
+      deviceLabel?: string | null;
+      userAgent?: string | null;
+      userKind?: string | null;
+      userName?: string | null;
+      userLogin?: string | null;
+      userEmail?: string | null;
+      sanatoriumId?: string | null;
+    },
+  ) {
+    if (typeof (target as any)?.authEvent?.create !== 'function') return;
+    try {
+      await (target as any).authEvent.create({
+        data: {
+          userId: params.userId,
+          sessionId: params.sessionId ?? null,
+          eventType: params.eventType,
+          channel: params.channel,
+          authMethod: params.authMethod ?? null,
+          ipAddress: normalizeIp(params.ipAddress),
+          deviceLabel: (params.deviceLabel?.trim() || 'Noma’lum qurilma').slice(0, 140),
+          userAgent: sanitizeUserAgent(params.userAgent),
+          userKind: params.userKind ?? null,
+          userName: params.userName ?? null,
+          userLogin: params.userLogin ?? null,
+          userEmail: params.userEmail ?? null,
+          sanatoriumId: params.sanatoriumId ?? null,
+        },
+      });
+    } catch {
+      // Never break auth flow if AuthEvent DDL is absent in mocked tests
     }
   }
   async incrementCounter(key: string, seconds: number): Promise<number> {
@@ -121,9 +170,12 @@ export class AuthService implements OnModuleInit {
     }
   }
   private otpHash(id: string, code: string) { return createHmac('sha256', this.config.AUTH_SECRET).update(`${id}:${code}`).digest('hex'); }
-  async login(body: unknown, ip: string, userAgent = '') {
+  async login(body: unknown, ip: string, userAgent = '', meta?: AuthRequestMeta) {
     if (this.config.PUBLIC_DEMO_ENABLED) fail('DEMO_ACCESS_DENIED', 'Demo serverda xodim kirishi yopiq', 403);
     const input = parse(staffLoginInput, body);
+    const auditIp = normalizeIp(meta?.ipAddress ?? ip);
+    const cleanUa = sanitizeUserAgent(meta?.userAgent ?? userAgent);
+    const deviceLabel = meta?.deviceLabel || webDeviceLabel(cleanUa ?? '');
     await this.limit(`staff-login-ip:${ip}`, 30, 900);
     await this.limit(`staff-login:${input.login}`, 10, 900);
     const searchLogin = input.login.trim().toLowerCase();
@@ -131,26 +183,49 @@ export class AuthService implements OnModuleInit {
     const user = await this.db.user.findFirst({
       where: {
         OR: [
-          { login: searchLogin },
-          { login: usernamePart }
-        ]
-      }
+          { login: { equals: searchLogin, mode: 'insensitive' as const } },
+          { login: { equals: usernamePart, mode: 'insensitive' as const } },
+          ...(searchLogin.includes('@') ? [{ email: { equals: searchLogin, mode: 'insensitive' as const } }] : []),
+        ],
+      },
     });
     const valid = await passwordMatches(input.password, user?.passwordHash ?? null);
     if (!user || !valid || user.status !== 'ACTIVE' || user.kind === 'CUSTOMER') {
-      await this.recordFailedLoginAttempt(searchLogin, user ? { id: user.id, name: user.name, kind: user.kind } : null, ip, userAgent);
+      await this.recordFailedLoginAttempt(searchLogin, user ? { id: user.id, name: user.name, kind: user.kind } : null, auditIp, cleanUa ?? '');
       fail('LOGIN_FAILED', 'Login yoki parol noto‘g‘ri', 401);
     }
     return this.db.atomic(async tx => {
       await lock(tx, `user:${user.id}`);
       const current = await tx.user.findUniqueOrThrow({ where: { id: user.id } });
       if (current.status !== 'ACTIVE' || current.passwordHash !== user.passwordHash) fail('LOGIN_FAILED', 'Kirish rad etildi', 401);
+      let activeSanatoriumId: string | null = null;
       if (current.kind !== 'SUPERADMIN') {
-        const active = await tx.membership.count({ where: { userId: current.id, status: 'ACTIVE' } });
-        if (!active) fail('STAFF_NOT_APPROVED', 'Hisob hali tasdiqlanmagan yoki bloklangan', 403);
+        const activeMembership = await tx.membership.findFirst({ where: { userId: current.id, status: 'ACTIVE' }, select: { sanatoriumId: true } });
+        if (!activeMembership) fail('STAFF_NOT_APPROVED', 'Hisob hali tasdiqlanmagan yoki bloklangan', 403);
+        activeSanatoriumId = activeMembership.sanatoriumId;
       }
-      const session = await this.issue(tx, current.id, 'WEB', new Date(), webDeviceLabel(userAgent));
-      await audit(tx, current.id, 'auth.login', current.id);
+      const session = await this.issue(tx, current.id, 'WEB', new Date(), deviceLabel, auditIp, cleanUa);
+      await this.recordAuthEvent(tx, {
+        userId: current.id,
+        sessionId: session.session_id,
+        eventType: 'LOGIN',
+        channel: 'WEB',
+        authMethod: 'PASSWORD',
+        ipAddress: auditIp,
+        deviceLabel,
+        userAgent: cleanUa,
+        userKind: current.kind,
+        userName: current.name,
+        userLogin: current.login,
+        userEmail: current.email ?? (current.login?.includes('@') ? current.login : null),
+        sanatoriumId: activeSanatoriumId,
+      });
+      await audit(tx, current.id, 'auth.login', current.id, activeSanatoriumId ?? undefined, undefined, {
+        ip: auditIp,
+        device: deviceLabel,
+        channel: 'WEB',
+        session_id: session.session_id,
+      });
       return { ...session, user: this.publicUser(current) };
     });
   }
@@ -247,11 +322,14 @@ export class AuthService implements OnModuleInit {
       ...(this.config.DEMO_OTP_ENABLED && this.config.NODE_ENV !== 'production' && (isEmail || this.config.SMS_ADAPTER === 'local') ? { demo_code: code } : {}),
     };
   }
-  async verifyOtp(body: unknown, ip: string) {
+  async verifyOtp(body: unknown, ip: string, meta?: AuthRequestMeta) {
     const input = parse(otpVerifyInput, body);
     if (this.config.SMS_ADAPTER === 'disabled' && !this.config.SMTP_HOST && !this.config.RESEND_API_KEY && this.config.NODE_ENV === 'production' && !this.config.DEMO_OTP_ENABLED) {
       this.sms.assertReady();
     }
+    const auditIp = normalizeIp(meta?.ipAddress ?? ip);
+    const cleanUa = sanitizeUserAgent(meta?.userAgent);
+    const deviceLabel = meta?.deviceLabel || detectDeviceLabel(cleanUa, 'MOBILE');
     await this.limit(`verify-ip:${ip}`, 40, 900);
     const result = await this.db.atomic(async tx => {
       await lock(tx, `challenge:${input.challenge_id}`);
@@ -291,17 +369,61 @@ export class AuthService implements OnModuleInit {
           data: { userId: user.id },
         });
       }
-      await audit(tx, user.id, 'auth.otp_login', user.id);
-      return { ...await this.issue(tx, user.id, 'MOBILE'), user: this.publicUser(user) };
+      const session = await this.issue(tx, user.id, 'MOBILE', new Date(), deviceLabel, auditIp, cleanUa);
+      await this.recordAuthEvent(tx, {
+        userId: user.id,
+        sessionId: session.session_id,
+        eventType: 'LOGIN',
+        channel: 'MOBILE',
+        authMethod: isEmail ? 'EMAIL_OTP' : 'SMS_OTP',
+        ipAddress: auditIp,
+        deviceLabel,
+        userAgent: cleanUa,
+        userKind: user.kind,
+        userName: user.name,
+        userLogin: user.login,
+        userEmail: user.email ?? (isEmail ? identifier : null),
+      });
+      await audit(tx, user.id, 'auth.otp_login', user.id, undefined, undefined, {
+        ip: auditIp,
+        device: deviceLabel,
+        channel: 'MOBILE',
+        method: isEmail ? 'EMAIL_OTP' : 'SMS_OTP',
+      });
+      return { ...session, user: this.publicUser(user) };
     });
     if (!result) fail('OTP_INVALID', 'Kod xato, muddati tugagan yoki ishlatilgan', 401);
     return result;
   }
-  async issue(tx: Tx, userId: string, channel: string, lastActivityAt = new Date(), deviceLabel = channel === 'MOBILE' ? 'Android ilovasi' : 'Brauzer · Noma’lum qurilma') {
+  async issue(
+    tx: Tx,
+    userId: string,
+    channel: string,
+    lastActivityAt = new Date(),
+    deviceLabel = channel === 'MOBILE' ? 'Android ilovasi' : 'Brauzer · Noma’lum qurilma',
+    ipAddress?: string | null,
+    userAgent?: string | null,
+  ) {
     const token = opaque(), refresh = opaque(), csrf = opaque();
     const expiresAt = new Date(Date.now() + 30 * 60_000);
     const refreshExpiresAt = new Date(Date.now() + 30 * 86400_000);
-    const session = await tx.session.create({ data: { userId, channel, deviceLabel, tokenHash: hash(token), refreshHash: hash(refresh), csrfHash: hash(csrf), expiresAt, refreshExpiresAt, lastActivityAt } });
+    const cleanIp = ipAddress ? normalizeIp(ipAddress) : null;
+    const cleanUa = sanitizeUserAgent(userAgent);
+    const session = await tx.session.create({
+      data: {
+        userId,
+        channel,
+        deviceLabel,
+        ...(cleanIp && cleanIp !== 'unknown' ? { ipAddress: cleanIp } : {}),
+        ...(cleanUa ? { userAgent: cleanUa } : {}),
+        tokenHash: hash(token),
+        refreshHash: hash(refresh),
+        csrfHash: hash(csrf),
+        expiresAt,
+        refreshExpiresAt,
+        lastActivityAt,
+      },
+    });
     return { access_token: token, refresh_token: refresh, csrf_token: csrf, expires_at: expiresAt, refresh_expires_at: refreshExpiresAt, session_id: session.id };
   }
   async authenticate(token: string, channel: 'WEB' | 'MOBILE'): Promise<Actor> {
@@ -310,7 +432,23 @@ export class AuthService implements OnModuleInit {
     const user = await this.db.user.findUnique({ where: { id: session.userId } });
     if (!user || user.status !== 'ACTIVE') fail('UNAUTHENTICATED', 'Hisob bloklangan', 401);
     if (idleExpired(session, user.kind)) {
-      await this.db.session.updateMany({ where: { id: session.id, revokedAt: null }, data: { revokedAt: new Date() } });
+      const revoked = await this.db.session.updateMany({ where: { id: session.id, revokedAt: null }, data: { revokedAt: new Date() } });
+      if (revoked.count) {
+        await this.recordAuthEvent(this.db, {
+          userId: user.id,
+          sessionId: session.id,
+          eventType: 'SESSION_EXPIRED',
+          channel: session.channel,
+          authMethod: 'IDLE_EXPIRED',
+          ipAddress: session.ipAddress ?? 'unknown',
+          deviceLabel: session.deviceLabel,
+          userAgent: session.userAgent ?? null,
+          userKind: user.kind,
+          userName: user.name,
+          userLogin: user.login,
+          userEmail: user.email ?? (user.login?.includes('@') ? user.login : null),
+        });
+      }
       idleFailure();
     }
     const memberships = await this.db.membership.findMany({ where: { userId: user.id } });
@@ -328,7 +466,7 @@ export class AuthService implements OnModuleInit {
     const session = await this.db.session.findUnique({ where: { id: sessionId } });
     if (!session || session.csrfHash !== hash(token)) fail('CSRF_INVALID', 'Sessiya himoyasi xatosi', 403);
   }
-  async refresh(refreshToken: string, channel: 'WEB' | 'MOBILE', csrf?: string, origin?: string) {
+  async refresh(refreshToken: string, channel: 'WEB' | 'MOBILE', csrf?: string, origin?: string, meta?: AuthRequestMeta) {
     const result = await this.db.atomic(async tx => {
       await lock(tx, `refresh:${hash(refreshToken)}`);
       const session = await tx.session.findUnique({ where: { refreshHash: hash(refreshToken) } });
@@ -341,10 +479,26 @@ export class AuthService implements OnModuleInit {
       if (user.status !== 'ACTIVE' || (user.kind === 'STAFF' && !await tx.membership.count({ where: { userId: user.id, status: 'ACTIVE' } }))) fail('UNAUTHENTICATED', 'Hisob faol emas', 401);
       if (idleExpired(session, user.kind)) {
         await tx.session.update({ where: { id: session.id }, data: { revokedAt: new Date() } });
+        await this.recordAuthEvent(tx, {
+          userId: user.id,
+          sessionId: session.id,
+          eventType: 'SESSION_EXPIRED',
+          channel: session.channel,
+          authMethod: 'IDLE_EXPIRED',
+          ipAddress: session.ipAddress ?? meta?.ipAddress ?? 'unknown',
+          deviceLabel: session.deviceLabel,
+          userAgent: session.userAgent ?? meta?.userAgent ?? null,
+          userKind: user.kind,
+          userName: user.name,
+          userLogin: user.login,
+          userEmail: user.email ?? (user.login?.includes('@') ? user.login : null),
+        });
         return null;
       }
       await tx.session.update({ where: { id: session.id }, data: { revokedAt: new Date() } });
-      return { ...await this.issue(tx, user.id, channel, session.lastActivityAt, session.deviceLabel), user: this.publicUser(user) };
+      const nextIp = meta?.ipAddress && meta.ipAddress !== 'unknown' ? meta.ipAddress : session.ipAddress;
+      const nextUa = meta?.userAgent ?? session.userAgent;
+      return { ...await this.issue(tx, user.id, channel, session.lastActivityAt, session.deviceLabel, nextIp, nextUa), user: this.publicUser(user) };
     });
     if (!result) idleFailure();
     return result;
@@ -370,8 +524,45 @@ export class AuthService implements OnModuleInit {
     }
     return { online: Date.now() - session.lastActivityAt.getTime() < 180_000, last_activity_at: session.lastActivityAt.toISOString() };
   }
-  async logout(actor: Actor, body?: unknown) {
+  async logout(actor: Actor, body?: unknown, meta?: AuthRequestMeta) {
+    const existingSession = await this.db.session.findUnique({
+      where: { id: actor.sessionId },
+      select: { id: true, channel: true, deviceLabel: true, ipAddress: true, userAgent: true },
+    });
     await this.db.session.update({ where: { id: actor.sessionId }, data: { revokedAt: new Date() } });
+    const channel = existingSession?.channel ?? (actor.kind === 'CUSTOMER' ? 'MOBILE' : 'WEB');
+    const ipAddress = meta?.ipAddress && meta.ipAddress !== 'unknown'
+      ? normalizeIp(meta.ipAddress)
+      : normalizeIp(existingSession?.ipAddress ?? 'unknown');
+    const deviceLabel = meta?.deviceLabel || existingSession?.deviceLabel || (channel === 'MOBILE' ? 'Android ilovasi' : 'Brauzer · Noma’lum qurilma');
+    const userAgent = sanitizeUserAgent(meta?.userAgent ?? existingSession?.userAgent);
+    const activeSanatoriumId = actor.memberships?.find(m => m.status === 'ACTIVE')?.sanatoriumId ?? null;
+    await this.recordAuthEvent(this.db, {
+      userId: actor.id,
+      sessionId: actor.sessionId,
+      eventType: 'LOGOUT',
+      channel,
+      authMethod: 'LOGOUT',
+      ipAddress,
+      deviceLabel,
+      userAgent,
+      userKind: actor.kind,
+      userName: actor.name,
+      userLogin: actor.login ?? null,
+      userEmail: actor.email ?? null,
+      sanatoriumId: activeSanatoriumId,
+    });
+    if (typeof (this.db as any)?.auditLog?.create === 'function') {
+      await this.db.auditLog.create({
+        data: {
+          actorId: actor.id,
+          sanatoriumId: activeSanatoriumId ?? undefined,
+          action: 'auth.logout',
+          entityId: actor.id,
+          after: { ip: ipAddress, device: deviceLabel, channel, session_id: actor.sessionId },
+        },
+      }).catch(() => undefined);
+    }
     if (body && typeof body === 'object' && (this.db as any).devicePushToken?.updateMany) {
       const raw = body as Record<string, unknown>;
       const token = typeof raw.push_token === 'string' && raw.push_token.trim().length >= 16 ? raw.push_token.trim() : null;
@@ -390,24 +581,188 @@ export class AuthService implements OnModuleInit {
     return { success: true };
   }
   async sessions(actor: Actor) {
-    const rows = await this.db.session.findMany({ where: { userId: actor.id, revokedAt: null, refreshExpiresAt: { gt: new Date() } }, select: { id: true, deviceLabel: true, channel: true, createdAt: true, lastActivityAt: true, expiresAt: true }, orderBy: { lastActivityAt: 'desc' }, take: 100 });
-    return { data: rows.filter(s => !idleExpired(s, actor.kind)).map(s => ({ ...s, current: s.id === actor.sessionId })) };
+    const rows = await this.db.session.findMany({
+      where: { userId: actor.id, revokedAt: null, refreshExpiresAt: { gt: new Date() } },
+      select: { id: true, deviceLabel: true, ipAddress: true, channel: true, createdAt: true, lastActivityAt: true, expiresAt: true },
+      orderBy: { lastActivityAt: 'desc' },
+      take: 100,
+    });
+    return { data: rows.filter(s => !idleExpired(s, actor.kind)).map(s => ({ ...s, ipAddress: s.ipAddress ?? null, current: s.id === actor.sessionId })) };
   }
-  async revokeSession(actor: Actor, id: string) {
+  async loginHistory(actor: Actor, query: unknown) {
+    const i = parse(pageQuery.extend({ event_type: z.enum(['LOGIN', 'LOGOUT', 'SESSION_REVOKED', 'SESSION_EXPIRED']).optional() }).strict(), query);
+    if (typeof (this.db as any)?.authEvent?.findMany !== 'function') {
+      return paged([], 0, i.page, i.limit);
+    }
+    const where = {
+      userId: actor.id,
+      ...(i.event_type ? { eventType: i.event_type } : {}),
+    };
+    const [data, total] = await Promise.all([
+      this.db.authEvent.findMany({
+        where,
+        skip: (i.page - 1) * i.limit,
+        take: i.limit,
+        orderBy: { createdAt: 'desc' },
+      }),
+      this.db.authEvent.count({ where }),
+    ]);
+    return paged(data, total, i.page, i.limit);
+  }
+  async listAuthEvents(actor: Actor, query: unknown, partner = false) {
+    const i = parse(
+      pageQuery
+        .extend({
+          sanatorium_id: uuid.optional(),
+          user_id: uuid.optional(),
+          event_type: z.enum(['LOGIN', 'LOGOUT', 'SESSION_REVOKED', 'SESSION_EXPIRED']).optional(),
+          user_kind: z.enum(['SUPERADMIN', 'STAFF', 'CUSTOMER']).optional(),
+          q: z.string().trim().max(120).optional(),
+          from: z.iso.date().optional(),
+          to: z.iso.date().optional(),
+        })
+        .strict(),
+      query,
+    );
+    let tenant = i.sanatorium_id;
+    if (!partner) {
+      requirePlatform(actor, 'audit.read');
+    } else {
+      tenant ??= actor.memberships.find(m => m.status === 'ACTIVE' && m.role === 'DIRECTOR')?.sanatoriumId;
+      if (!tenant) fail('PERMISSION_DENIED', 'Bu sahifa uchun direktor vakolati kerak', 403);
+      scope(actor, tenant, 'audit.read');
+      if (actor.kind !== 'SUPERADMIN' && !actor.memberships.some(m => m.sanatoriumId === tenant && m.status === 'ACTIVE' && m.role === 'DIRECTOR')) {
+        fail('PERMISSION_DENIED', 'Bu sahifa uchun direktor vakolati kerak', 403);
+      }
+    }
+    if (typeof (this.db as any)?.authEvent?.findMany !== 'function') {
+      return paged([], 0, i.page, i.limit);
+    }
+    const where: Record<string, any> = {
+      ...(tenant ? { sanatoriumId: tenant } : {}),
+      ...(i.user_id ? { userId: i.user_id } : {}),
+      ...(i.event_type ? { eventType: i.event_type } : {}),
+      ...(i.user_kind ? { userKind: i.user_kind } : {}),
+      ...((i.from || i.to) ? { createdAt: dateFilter(i.from, i.to, true) } : {}),
+    };
+    if (partner && !where.userKind) {
+      where.userKind = 'STAFF';
+    }
+    if (i.q) {
+      const cleanIdDigits = i.q.replace(/^#/, '').trim();
+      const numericPublicId = /^\d{5,8}$/.test(cleanIdDigits) ? Number(cleanIdDigits) : null;
+      const matchedUsers = numericPublicId !== null
+        ? await this.db.user.findMany({ where: { publicId: numericPublicId }, select: { id: true } })
+        : [];
+      where.OR = [
+        { userName: { contains: i.q, mode: 'insensitive' } },
+        { userLogin: { contains: i.q, mode: 'insensitive' } },
+        { userEmail: { contains: i.q, mode: 'insensitive' } },
+        { ipAddress: { contains: i.q, mode: 'insensitive' } },
+        { deviceLabel: { contains: i.q, mode: 'insensitive' } },
+        ...(matchedUsers.length ? [{ userId: { in: matchedUsers.map(u => u.id) } }] : []),
+      ];
+    }
+    const [rows, total] = await Promise.all([
+      this.db.authEvent.findMany({
+        where,
+        skip: (i.page - 1) * i.limit,
+        take: i.limit,
+        orderBy: { createdAt: 'desc' },
+      }),
+      this.db.authEvent.count({ where }),
+    ]);
+    const userIds = [...new Set(rows.map(r => r.userId))];
+    const sanIds = [...new Set(rows.map(r => r.sanatoriumId).filter((v): v is string => Boolean(v)))];
+    const [users, sanatoriums] = await Promise.all([
+      userIds.length
+        ? this.db.user.findMany({
+            where: { id: { in: userIds } },
+            select: { id: true, publicId: true, name: true, login: true, email: true, kind: true },
+          })
+        : [],
+      sanIds.length
+        ? this.db.sanatorium.findMany({
+            where: { id: { in: sanIds } },
+            select: { id: true, name: true },
+          })
+        : [],
+    ]);
+    const userMap = new Map(users.map(u => [u.id, u]));
+    const sanMap = new Map(sanatoriums.map(s => [s.id, s.name]));
+    return paged(
+      rows.map(r => {
+        const u = userMap.get(r.userId);
+        return {
+          ...r,
+          publicId: u ? resolveUserPublicId(u) : null,
+          userName: r.userName ?? u?.name ?? null,
+          userLogin: r.userLogin ?? u?.login ?? null,
+          userEmail: r.userEmail ?? u?.email ?? null,
+          userKind: r.userKind ?? u?.kind ?? null,
+          sanatoriumName: r.sanatoriumId ? (sanMap.get(r.sanatoriumId) ?? null) : null,
+        };
+      }),
+      total,
+      i.page,
+      i.limit,
+    );
+  }
+  async revokeSession(actor: Actor, id: string, meta?: AuthRequestMeta) {
     parse(uuid, id);
     if (id === actor.sessionId) fail('CURRENT_SESSION', 'Joriy qurilmadan chiqish uchun Chiqish tugmasini bosing', 422);
     return this.db.atomic(async tx => {
       await lock(tx, `user:${actor.id}`);
-      const changed = await tx.session.updateMany({ where: { id, userId: actor.id, revokedAt: null }, data: { revokedAt: new Date() } });
-      if (!changed.count) fail('NOT_FOUND', 'Faol kirish topilmadi', 404);
+      const target = await tx.session.findFirst({
+        where: { id, userId: actor.id, revokedAt: null },
+        select: { id: true, channel: true, deviceLabel: true, ipAddress: true, userAgent: true },
+      });
+      if (!target) fail('NOT_FOUND', 'Faol kirish topilmadi', 404);
+      await tx.session.update({ where: { id }, data: { revokedAt: new Date() } });
+      await this.recordAuthEvent(tx, {
+        userId: actor.id,
+        sessionId: target.id,
+        eventType: 'SESSION_REVOKED',
+        channel: target.channel,
+        authMethod: 'REVOKE',
+        ipAddress: target.ipAddress ?? meta?.ipAddress ?? 'unknown',
+        deviceLabel: target.deviceLabel,
+        userAgent: target.userAgent ?? meta?.userAgent ?? null,
+        userKind: actor.kind,
+        userName: actor.name,
+        userLogin: actor.login ?? null,
+        userEmail: actor.email ?? null,
+        sanatoriumId: actor.memberships?.find(m => m.status === 'ACTIVE')?.sanatoriumId ?? null,
+      });
       await audit(tx, actor.id, 'auth.session_revoked', id);
       return { success: true };
     });
   }
-  async revokeOtherSessions(actor: Actor) {
+  async revokeOtherSessions(actor: Actor, meta?: AuthRequestMeta) {
     return this.db.atomic(async tx => {
       await lock(tx, `user:${actor.id}`);
+      const targets = await tx.session.findMany({
+        where: { userId: actor.id, id: { not: actor.sessionId }, revokedAt: null },
+        select: { id: true, channel: true, deviceLabel: true, ipAddress: true, userAgent: true },
+      });
       const changed = await tx.session.updateMany({ where: { userId: actor.id, id: { not: actor.sessionId }, revokedAt: null }, data: { revokedAt: new Date() } });
+      for (const target of targets) {
+        await this.recordAuthEvent(tx, {
+          userId: actor.id,
+          sessionId: target.id,
+          eventType: 'SESSION_REVOKED',
+          channel: target.channel,
+          authMethod: 'REVOKE_OTHERS',
+          ipAddress: target.ipAddress ?? meta?.ipAddress ?? 'unknown',
+          deviceLabel: target.deviceLabel,
+          userAgent: target.userAgent ?? meta?.userAgent ?? null,
+          userKind: actor.kind,
+          userName: actor.name,
+          userLogin: actor.login ?? null,
+          userEmail: actor.email ?? null,
+          sanatoriumId: actor.memberships?.find(m => m.status === 'ACTIVE')?.sanatoriumId ?? null,
+        });
+      }
       await audit(tx, actor.id, 'auth.other_sessions_revoked', actor.id, undefined, undefined, { count: changed.count });
       return { success: true, count: changed.count };
     });

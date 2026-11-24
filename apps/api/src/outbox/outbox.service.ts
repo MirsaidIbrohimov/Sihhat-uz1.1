@@ -19,6 +19,7 @@ const TOPIC_DEFAULT_TITLES: Record<string, string> = {
   'message.created': 'Yangi e’lon va xabar',
   'support.opened': 'Yangi murojaat ochildi',
   'support.replied': 'Yordam xizmatidan javob',
+  'support.assigned': 'Sizga yordam murojaati biriktirildi',
   'sanatorium.submitted': 'Sanatoriya anketasi yuborildi',
   'sanatorium.moderated': 'Sanatoriya anketasi ko‘rib chiqildi',
   'staff.invited': 'Yangi xodim taklifi',
@@ -29,6 +30,8 @@ const TOPIC_DEFAULT_TITLES: Record<string, string> = {
   'subscription.status_changed': 'Obuna holati o‘zgardi',
   'bank.change_requested': 'Bank rekvizitlari so‘rovi',
   'partner.password_reset_requested': 'Parolni tiklash so‘rovi',
+  'partner.registration_submitted': 'Yangi sanatoriya hamkor arizasi',
+  'partner.registration_approved': 'Hamkor hisobingiz tasdiqlandi',
   'auth.bruteforce_alert': 'Xavfsizlik ogohlantirishi',
   'telegram.linked': 'Telegram bot ulandi',
   'app.update': 'Ilovaning yangi versiyasi chiqdi',
@@ -109,9 +112,13 @@ export class OutboxService implements OnModuleInit {
       } else {
         title = TOPIC_DEFAULT_TITLES[topic];
       }
-    } else if (topic === 'support.replied' || topic === 'support.opened') {
+    } else if (topic === 'support.replied' || topic === 'support.opened' || topic === 'support.assigned') {
       const subject = title || 'Yordam xizmati';
-      title = topic === 'support.replied' ? `Yangi javob: ${subject}` : `Yangi murojaat: ${subject}`;
+      title = topic === 'support.replied'
+        ? `Yangi javob: ${subject}`
+        : topic === 'support.assigned'
+          ? `Sizga murojaat biriktirildi: ${subject}`
+          : `Yangi murojaat: ${subject}`;
     }
 
     if (!title) title = TOPIC_DEFAULT_TITLES[topic] || 'Sihhat.uz yangilanishi';

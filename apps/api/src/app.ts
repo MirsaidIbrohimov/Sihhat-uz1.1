@@ -15,6 +15,8 @@ import { AuthService } from './auth/auth.service';
 import { AuthController } from './auth/auth.controller';
 import { StaffController } from './auth/staff.controller';
 import { StaffService } from './auth/staff.service';
+import { PartnerRegistrationService } from './auth/partner-registration.service';
+import { PartnerRegistrationController } from './auth/partner-registration.controller';
 import { AuthGuard, Public } from './auth/guard';
 import { Sms } from './auth/sms';
 import { EmailService } from './auth/email';
@@ -58,7 +60,7 @@ import { TelegramController } from './telegram/telegram.controller';
 
 @Global() @Module({ providers: [{ provide: CONFIG, useFactory: () => loadConfig() }, Db], exports: [CONFIG, Db] })
 export class CoreModule {}
-@Global() @Module({ providers: [AuthService, StaffService, Sms, EmailService], controllers: [AuthController, StaffController], exports: [AuthService, StaffService, Sms, EmailService] })
+@Global() @Module({ providers: [AuthService, StaffService, PartnerRegistrationService, Sms, EmailService], controllers: [AuthController, StaffController, PartnerRegistrationController], exports: [AuthService, StaffService, PartnerRegistrationService, Sms, EmailService] })
 export class AuthModule {}
 @Module({ providers: [SanatoriumService,MerchantSetupService], controllers: [SanatoriumController], exports: [SanatoriumService] })
 export class SanatoriumModule {}
@@ -97,7 +99,7 @@ export async function createApp(options: { quiet?: boolean; swagger?: boolean } 
     if (!options.quiet) res.on('finish', () => console.log(JSON.stringify({ request_id: req.requestId, method: req.method, path: req.path, status: res.statusCode, elapsed_ms: Date.now()-started })));
     next();
   });
-  app.enableCors({ origin: config.CORS_ORIGINS.split(','), credentials: true, allowedHeaders: ['Content-Type','Authorization','X-CSRF-Token','Idempotency-Key'] });
+  app.enableCors({ origin: config.CORS_ORIGINS.split(','), credentials: true, allowedHeaders: ['Content-Type','Authorization','X-CSRF-Token','Idempotency-Key','X-App-Version','X-App-Build','X-Device-Label'] });
   app.useGlobalFilters(new ApiErrorFilter());
   app.enableShutdownHooks();
   const definition = new DocumentBuilder().setTitle('Sihhat uz API').setDescription('UZS summalari tiyin birligida string. Staff: HttpOnly cookie + X-CSRF-Token; Android: Bearer.').setVersion('1.0').addBearerAuth().addCookieAuth('sihhat_access').build();

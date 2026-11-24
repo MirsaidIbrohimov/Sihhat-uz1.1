@@ -2,6 +2,21 @@
 
 Buyruqlar loyiha ildizidan bajariladi. Tekshiruvlarning haqiqiy natijasi [IMPLEMENTATION_STATUS.md](IMPLEMENTATION_STATUS.md)da, talablar [arxitektura](SIHHAT_UZ_ARXITEKTURA.md)da.
 
+## Hamkor arizalari, kirish tarixi (IP/qurilma) va markazlashtirilgan Yordam (2026-11-24)
+
+1. **Ma’lumotlar bazasi migratsiyalari (jami 21 ta)**:
+   - `202611230001_partner_registration_and_auth_events`: `PartnerRegistration` va `AuthEvent` jadvallari hamda `Session.ipAddress` / `Session.userAgent` ustunlari.
+   - `202611240001_support_ticket_assignment`: `SupportTicket.assignedToUserId`, `assignedByUserId`, `assignedAt` ustunlari va indekslari.
+   - Server ishga tushganda `AuthService.onModuleInit` va `EngagementService.onModuleInit` idempotent DDL himoyasini ham ishga tushiradi, ammo production deployda odatdagidek `npm run db:migrate:deploy -w @sihhat/api` bajarilishi tavsiya etiladi.
+2. **Hamkor mustaqil ro‘yxatdan o‘tishi («Yangi hisob ochish»)**:
+   - Hamkorlar kirish sahifasidagi **«Yangi hisob ochish»** formasi `username` va `email`ni baza bilan jonli tekshiradi (`GET /auth/partner-register/availability`) va arizani `POST /auth/partner-register` orqali yuboradi.
+   - Superadmin panelida **Hamkor arizalari** (`/partner-registrations`) bo‘limidan tasdiqlanganda hamkor direktor hisobi ochiladi, sanatoriya `ACTIVE` holatda katalogga chiqadi va ariza emailiga xabar ketadi (SMTP/Resend sozlangan bo‘lishi kerak).
+3. **Kirish va chiqish tarixi (Qurilma va IP)**:
+   - Barcha hisoblarning (Superadmin, Hamkor, Mobil mijoz) kirish/chiqish/sessiya yopilish hodisalari `AuthEvent` jadvaliga yoziladi. Reverse proxy (Nginx / Render / Cloudflare) ortida real mijoz IP manzili to‘g‘ri ko‘rinishi uchun `X-Forwarded-For` / `X-Real-IP` uzatilishi kerak (`trust proxy` yoqilgan).
+4. **Markazlashtirilgan Yordam (Superadmin + xodimga biriktirish)**:
+   - Mobil ilovadan yuborilgan barcha mijoz murojaatlari bevosita Superadminga tushadi (admin/resepshn/direktor tanlovi yo‘q).
+   - Superadmin **Yordam va jonli chat** (`/support`) bo‘limida mijozga bevosita javob berishi yoki suhbat sarlavhasidagi **«Xodimga biriktirish»** tugmasi (`PATCH /support/tickets/:id/assign`) orqali aniq sanatoriya xodimiga biriktirishi (yoki o‘ziga qaytarib olishi) mumkin.
+
 ## Firebase Cloud Messaging (FCM) Push Notification sozlamalari (Android + Backend)
 
 Ilova fonda, yopiq, ekran o‘chiq va telefon qayta yoqilgan holatlarda ham darhol (1–2 soniya ichida) haqiqiy remote Push Notification kelishi uchun Firebase loyihasidan 2 ta sozlama kerak:

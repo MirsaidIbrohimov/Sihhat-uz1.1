@@ -27,6 +27,7 @@ import {
 import { api, formatMoney, query } from "@sihhat/api-client";
 import { prepareAvatarDataUrl, validateAvatarFile } from "./avatar";
 import { formatUserPublicId } from "./account";
+import { UserAuthHistoryModal } from "./auth-history";
 import { ProfileWizard } from "./wizard";
 import { ListFilters, useSavedFilters } from "./list-filters";
 import { newPasswordFields } from "./password-fields";
@@ -606,6 +607,11 @@ export function Sanatoriums() {
   const ctx = usePortal(),
     action = useAction(),
     [selected, setSelected] = useState<string | null>(null);
+  const pendingApps = useRemote(
+    ctx.admin ? "/superadmin/partner-registrations?status=PENDING&limit=1" : null,
+    ctx.epoch,
+  );
+  const pendingCount = Number(pendingApps.data?.pending_count ?? pendingApps.data?.total ?? 0);
   if (selected)
     return (
       <>
@@ -636,6 +642,23 @@ export function Sanatoriums() {
           Yangi sanatoriya
         </AddButton>
       </PageHeading>
+      {ctx.admin && pendingCount > 0 && (
+        <div className="pending-reg-banner" role="status">
+          <div>
+            <strong>{pendingCount} ta yangi hamkor sanatoriya arizasi tasdiq kutmoqda</strong>
+            <p className="muted" style={{ margin: "4px 0 0" }}>
+              Tasdiqlangandan so‘ng hamkor hisobi ochiladi, sanatoriya ro‘yxatga qo‘shilib foydalanuvchilarga ko‘rinadi va emailiga xabar boradi.
+            </p>
+          </div>
+          <button
+            type="button"
+            className="button primary"
+            onClick={() => ctx.go("partner-registrations")}
+          >
+            Hamkor arizalarini ko‘rish ({pendingCount}) →
+          </button>
+        </div>
+      )}
       <DataPanel
         path="/superadmin/sanatoriums"
         title="Sanatoriyalar ro‘yxati"
@@ -1373,6 +1396,7 @@ export function Staff() {
     action = useAction(),
     [credentials, setCredentials] = useState<Row | null>(null),
     [manageStaff, setManageStaff] = useState<Row | null>(null),
+    [historyStaff, setHistoryStaff] = useState<Row | null>(null),
     [previewStaffUser, setPreviewStaffUser] = useState<{ row: Row; user: Row } | null>(null),
     [brokenStaffAvatars, setBrokenStaffAvatars] = useState<Record<string, boolean>>({});
   const filters = useSavedFilters("staff", { status: "", role: "" });
@@ -1695,6 +1719,9 @@ export function Staff() {
             {ctx.admin && (
               <Act onClick={() => setManageStaff(r)}>Tahrirlash</Act>
             )}
+            {ctx.admin && r.user?.id && (
+              <Act onClick={() => setHistoryStaff(r.user)}>Kirish-chiqish tarixi</Act>
+            )}
             {ctx.admin && r.status === "PENDING_APPROVAL" && (
               <>
                 <Act
@@ -1832,6 +1859,17 @@ export function Staff() {
             permissionEdit(row);
           }}
           notice={ctx.notice}
+        />
+      )}
+      {historyStaff && (
+        <UserAuthHistoryModal
+          user={{
+            id: String(historyStaff.id),
+            name: historyStaff.name,
+            login: historyStaff.login,
+            publicId: historyStaff.publicId,
+          }}
+          onClose={() => setHistoryStaff(null)}
         />
       )}
       {previewStaffUser && (
@@ -2662,6 +2700,7 @@ export function AppUsers() {
   const [search, setSearch] = useState(""),
     [q, setQ] = useState(""),
     [manageUser, setManageUser] = useState<Row | null>(null),
+    [historyUser, setHistoryUser] = useState<Row | null>(null),
     [previewUser, setPreviewUser] = useState<Row | null>(null),
     [brokenAvatars, setBrokenAvatars] = useState<Record<string, boolean>>({});
 
@@ -2839,7 +2878,10 @@ export function AppUsers() {
             render: (r) => (
               <div>
                 <div>{date(r.lastSeenAt)}</div>
-                <span className="subcell">{r.device}</span>
+                <span className="subcell">
+                  {r.device}
+                  {r.lastIp ? ` · ${r.lastIp}` : ""}
+                </span>
               </div>
             ),
           },
@@ -2848,6 +2890,7 @@ export function AppUsers() {
         actions={(r) => (
           <>
             <Act onClick={() => editUser(r)}>Tahrirlash</Act>
+            <Act onClick={() => setHistoryUser(r)}>Kirish-chiqish tarixi</Act>
             <Act
               danger={r.status === "ACTIVE"}
               onClick={() => toggleStatus(r)}
@@ -2871,6 +2914,17 @@ export function AppUsers() {
           onToggleStatus={toggleStatus}
           onDelete={deleteUser}
           notice={ctx.notice}
+        />
+      )}
+      {historyUser && (
+        <UserAuthHistoryModal
+          user={{
+            id: String(historyUser.id),
+            name: historyUser.name,
+            login: historyUser.login,
+            publicId: historyUser.publicId,
+          }}
+          onClose={() => setHistoryUser(null)}
         />
       )}
       {previewUser && (

@@ -51,6 +51,9 @@ export class EngagementService implements OnModuleInit {
       'ALTER TABLE "SupportMessage" ADD COLUMN IF NOT EXISTS "imageUrl" TEXT',
       'ALTER TABLE "SupportMessage" ADD COLUMN IF NOT EXISTS "isEdited" BOOLEAN NOT NULL DEFAULT false',
       'ALTER TABLE "SupportMessage" ADD COLUMN IF NOT EXISTS "deletedForUser" BOOLEAN NOT NULL DEFAULT false',
+      'ALTER TABLE "SupportTicket" ADD COLUMN IF NOT EXISTS "assignedToUserId" UUID, ADD COLUMN IF NOT EXISTS "assignedByUserId" UUID, ADD COLUMN IF NOT EXISTS "assignedAt" TIMESTAMP(3)',
+      'CREATE INDEX IF NOT EXISTS "SupportTicket_assignedToUserId_status_idx" ON "SupportTicket"("assignedToUserId", "status")',
+      'CREATE INDEX IF NOT EXISTS "SupportTicket_sanatoriumId_status_idx" ON "SupportTicket"("sanatoriumId", "status")',
       ...ENSURE_DEVICE_PUSH_TOKEN_SQL,
     ]) {
       await this.db.$executeRawUnsafe(stmt).catch(()=>{});
@@ -710,15 +713,21 @@ export class EngagementService implements OnModuleInit {
       : (i.imageUrl?.startsWith('data:image/') ? '📷 Rasm' : (i.imageUrl ? '📎 Fayl' : ''));
     const msgText = i.text.trim() || defaultPlaceholder;
     if (!msgText) fail('VALIDATION_ERROR', 'Xabar matni yoki biriktirilgan fayl kiritilishi shart', 422);
-    let tenant=i.sanatorium_id ?? undefined;
-    let resolvedTargetUserId = i.target_user_id ?? undefined;
+    // Mijoz (ilova foydalanuvchisi) murojaati doimo markaziy Superadminga tushadi;
+    // Superadmin o‘zi javob beradi yoki zarur bo‘lsa sanatoriya xodimiga biriktiradi.
+    const isCustomerActor = actor.kind === 'CUSTOMER';
+    let tenant = isCustomerActor ? undefined : (i.sanatorium_id ?? undefined);
+    let resolvedTargetUserId = isCustomerActor ? undefined : (i.target_user_id ?? undefined);
+    const effectiveTargetRole = isCustomerActor ? undefined : (i.target_role ?? undefined);
     if(i.booking_id){
       const b=await this.db.booking.findUnique({where:{id:i.booking_id}});
       if(!b)fail('NOT_FOUND','Bron topilmadi',404);
-      if(actor.kind==='CUSTOMER'){
+      if(isCustomerActor){
         if(b.userId!==actor.id)fail('NOT_FOUND','Bron topilmadi',404);
-      }else scope(actor,b.sanatoriumId,'support.read');
-      tenant=b.sanatoriumId;
+      }else{
+        scope(actor,b.sanatoriumId,'support.read');
+        tenant=b.sanatoriumId;
+      }
     }
     if(resolvedTargetUserId && this.db.user?.findUnique){
       const targetUser = await this.db.user.findUnique({where:{id:resolvedTargetUserId},select:{id:true,kind:true,status:true}});
@@ -728,9 +737,9 @@ export class EngagementService implements OnModuleInit {
         if(m) tenant = m.sanatoriumId;
       }
     }
-    if(!resolvedTargetUserId && i.target_role && tenant && this.db.membership?.findFirst){
+    if(!resolvedTargetUserId && effectiveTargetRole && tenant && this.db.membership?.findFirst){
       const roleMember = await this.db.membership.findFirst({
-        where:{sanatoriumId:tenant,role:i.target_role,status:'ACTIVE'},
+        where:{sanatoriumId:tenant,role:effectiveTargetRole,status:'ACTIVE'},
         select:{userId:true}
       });
       if(roleMember) resolvedTargetUserId = roleMember.userId;
@@ -741,17 +750,17 @@ export class EngagementService implements OnModuleInit {
     }
     let createdInThisCall = false;
     const run=async(tx:Tx)=>{
-      const ticketUserId = (actor.kind !== 'CUSTOMER' && resolvedTargetUserId) ? resolvedTargetUserId : actor.id;
+      const ticketUserId = (!isCustomerActor && resolvedTargetUserId) ? resolvedTargetUserId : actor.id;
       const t=await tx.supportTicket.create({data:{userId:ticketUserId,sanatoriumId:tenant,bookingId:i.booking_id??undefined,title:i.title}});
       await tx.supportMessage.create({data:{ticketId:t.id,userId:actor.id,text:msgText,imageUrl:i.imageUrl??null}});
       await audit(tx,actor.id,'support.opened',t.id,tenant);
       const admins=await tx.user.findMany({where:{kind:'SUPERADMIN',status:'ACTIVE'},select:{id:true}});
-      const staffRecipients = tenant && tx.membership?.findMany
+      const staffRecipients = !isCustomerActor && tenant && tx.membership?.findMany
         ? await tx.membership.findMany({
             where:{
               sanatoriumId:tenant,
               status:'ACTIVE',
-              ...(i.target_role ? {role:i.target_role} : {role:{in:['RECEPTION','DIRECTOR']}})
+              ...(effectiveTargetRole ? {role:effectiveTargetRole} : {role:{in:['RECEPTION','DIRECTOR']}})
             },
             select:{userId:true}
           })
@@ -768,7 +777,7 @@ export class EngagementService implements OnModuleInit {
         text:msgText,
         sanatorium_id:tenant??null,
         target_user_id:resolvedTargetUserId??null,
-        target_role:i.target_role??null,
+        target_role:effectiveTargetRole??null,
         recipient_ids:recipients
       });
       createdInThisCall = true;
@@ -792,8 +801,149 @@ export class EngagementService implements OnModuleInit {
     }
     return ticket;
   }
+  async ticketAssign(actor:Actor,id:string,body:unknown){
+    if(actor.kind!=='SUPERADMIN') fail('PERMISSION_DENIED','Murojaatni faqat Superadmin biriktira oladi',403);
+    parse(uuid,id);
+    const i=parse(z.object({
+      assigned_to_user_id:uuid.nullish(),
+      sanatorium_id:uuid.nullish(),
+      note:z.string().trim().max(500).optional(),
+    }).strict(),body??{});
+    const existing=await this.db.supportTicket.findUnique({where:{id}});
+    if(!existing) fail('NOT_FOUND','Murojaat topilmadi',404);
+
+    let nextAssignedUserId: string | null = null;
+    let nextSanatoriumId: string | null = null;
+    let assignedUser: { id: string; name: string; email: string | null; login: string | null } | null = null;
+    let sanatoriumName: string | null = null;
+    let notifyRecipientIds: string[] = [];
+
+    if (i.assigned_to_user_id) {
+      const staffUser = await this.db.user.findUnique({
+        where: { id: i.assigned_to_user_id },
+        select: { id: true, name: true, kind: true, status: true, email: true, login: true },
+      });
+      if (!staffUser || staffUser.kind !== 'STAFF' || staffUser.status !== 'ACTIVE') {
+        fail('INVALID_ASSIGNEE', 'Tanlangan foydalanuvchi faol sanatoriya xodimi emas', 422);
+      }
+      const membership = await this.db.membership.findFirst({
+        where: {
+          userId: staffUser.id,
+          status: 'ACTIVE',
+          ...(i.sanatorium_id ? { sanatoriumId: i.sanatorium_id } : {}),
+        },
+        select: { sanatoriumId: true, role: true },
+      });
+      if (!membership) {
+        fail('INVALID_ASSIGNEE', 'Tanlangan xodimning faol sanatoriya biriktiruvi topilmadi', 422);
+      }
+      const san = await this.db.sanatorium.findUnique({
+        where: { id: membership.sanatoriumId },
+        select: { id: true, name: true, status: true },
+      });
+      if (!san || san.status === 'ARCHIVED') {
+        fail('NOT_FOUND', 'Sanatoriya topilmadi', 404);
+      }
+      nextAssignedUserId = staffUser.id;
+      nextSanatoriumId = san.id;
+      assignedUser = staffUser;
+      sanatoriumName = san.name;
+      notifyRecipientIds = [staffUser.id];
+    } else if (i.sanatorium_id) {
+      const san = await this.db.sanatorium.findUnique({
+        where: { id: i.sanatorium_id },
+        select: { id: true, name: true, status: true },
+      });
+      if (!san || san.status === 'ARCHIVED') {
+        fail('NOT_FOUND', 'Sanatoriya topilmadi', 404);
+      }
+      nextSanatoriumId = san.id;
+      sanatoriumName = san.name;
+      const members = await this.db.membership.findMany({
+        where: { sanatoriumId: san.id, status: 'ACTIVE', role: { in: ['DIRECTOR', 'RECEPTION'] } },
+        select: { userId: true },
+      });
+      notifyRecipientIds = [...new Set(members.map(m => m.userId))];
+    }
+
+    const now = new Date();
+    const isUnassign = !nextAssignedUserId && !nextSanatoriumId;
+    await this.db.atomic(async tx => {
+      await lock(tx, `support-ticket:${id}`);
+      await tx.supportTicket.update({
+        where: { id },
+        data: {
+          assignedToUserId: nextAssignedUserId,
+          assignedByUserId: isUnassign ? null : actor.id,
+          assignedAt: isUnassign ? null : now,
+          sanatoriumId: nextSanatoriumId,
+        },
+      });
+      await audit(
+        tx,
+        actor.id,
+        isUnassign ? 'support.unassigned' : 'support.assigned',
+        id,
+        nextSanatoriumId ?? existing.sanatoriumId ?? undefined,
+        {
+          assigned_to_user_id: (existing as any).assignedToUserId ?? null,
+          sanatorium_id: existing.sanatoriumId ?? null,
+        },
+        {
+          assigned_to_user_id: nextAssignedUserId,
+          assigned_to_name: assignedUser?.name ?? null,
+          sanatorium_id: nextSanatoriumId,
+          sanatorium_name: sanatoriumName,
+          note: i.note ?? null,
+        },
+      );
+      if (!isUnassign && notifyRecipientIds.length) {
+        const payload = {
+          ticket_id: existing.id,
+          title: existing.title,
+          sanatorium_id: nextSanatoriumId,
+          sanatorium_name: sanatoriumName,
+          assigned_to_user_id: nextAssignedUserId,
+          assigned_to_name: assignedUser?.name ?? null,
+          note: i.note ?? null,
+          recipient_ids: notifyRecipientIds,
+        };
+        const ev = await emit(tx, 'support.assigned', payload);
+        if (ev?.id && (tx as any).notificationDelivery?.createMany) {
+          await (tx as any).notificationDelivery.createMany({
+            data: notifyRecipientIds.map(userId => ({
+              eventId: ev.id,
+              userId,
+              channel: 'IN_APP',
+              status: 'SENT',
+              sentAt: now,
+              payload: { topic: 'support.assigned', ...payload },
+            })),
+            skipDuplicates: true,
+          });
+        }
+      }
+    });
+
+    if (assignedUser) {
+      await this.notifyUserSupportReply({
+        id: `${id}-assign-${now.getTime()}`,
+        email: assignedUser.email ?? assignedUser.login,
+        recipientName: assignedUser.name,
+        ticketTitle: existing.title,
+        messageText: i.note
+          ? `Superadmin ushbu mijoz murojaatini sizga biriktirdi. Izoh: ${i.note}`
+          : 'Superadmin ushbu mijoz murojaatini sizga biriktirdi. Iltimos, Hamkorlar panelining «Yordam va jonli chat» bo‘limida javob bering.',
+      });
+    }
+
+    return this.ticketGet(actor, id);
+  }
   async tickets(actor:Actor){
     const ids=tenantIds(actor,'support.read');
+    const directorTenants = actor.kind === 'STAFF'
+      ? (actor.memberships ?? []).filter(m => m.status === 'ACTIVE' && m.role === 'DIRECTOR').map(m => m.sanatoriumId)
+      : [];
     const authoredRows = actor.kind !== 'SUPERADMIN' && this.db.supportMessage?.findMany
       ? await this.db.supportMessage.findMany({
           where: { userId: actor.id },
@@ -807,13 +957,21 @@ export class EngagementService implements OnModuleInit {
         ? {}
         : actor.kind==='CUSTOMER'
           ? (authoredIds.length ? {OR:[{userId:actor.id},{id:{in:authoredIds}}]} : {userId:actor.id})
-          : {OR:[{userId:actor.id},{sanatoriumId:{in:ids??[]}},...(authoredIds.length?[{id:{in:authoredIds}}]:[])]},
+          : {
+              OR:[
+                {userId:actor.id},
+                {assignedToUserId:actor.id},
+                ...(ids?.length ? [{sanatoriumId:{in:ids}, assignedToUserId:null}] : []),
+                ...(directorTenants.length ? [{sanatoriumId:{in:directorTenants}}] : []),
+                ...(authoredIds.length ? [{id:{in:authoredIds}}] : []),
+              ]
+            },
       take:200,
       orderBy:{createdAt:'desc'}
     });
     if(!tickets.length) return [];
     const userIds = [...new Set(tickets.map(t => t.userId))];
-    const sanatoriumIds = [...new Set(tickets.map(t => t.sanatoriumId).filter(Boolean) as string[])];
+    const assignedUserIds = [...new Set(tickets.map(t => (t as any).assignedToUserId).filter(Boolean) as string[])];
     const bookingIds = [...new Set(tickets.map(t => t.bookingId).filter(Boolean) as string[])];
     const ticketIds = tickets.map(t => t.id);
 
@@ -824,27 +982,41 @@ export class EngagementService implements OnModuleInit {
       ? await this.db.user.findFirst({ where: { kind: 'SUPERADMIN', status: 'ACTIVE' }, select: { id: true, name: true, avatarUrl: true } })
       : null;
 
-    const [sanatoriums, bookings, messages, sanatoriumStaffMembers] = await Promise.all([
-      sanatoriumIds.length ? this.db.sanatorium.findMany({
+    const bookings = bookingIds.length && this.db.booking?.findMany
+      ? await this.db.booking.findMany({
+          where: { id: { in: bookingIds } },
+          select: { id: true, reference: true, sanatoriumId: true, checkIn: true, checkOut: true, status: true },
+        })
+      : [];
+    const sanatoriumIds = [...new Set([
+      ...tickets.map(t => t.sanatoriumId).filter(Boolean) as string[],
+      ...bookings.map(b => b.sanatoriumId).filter(Boolean) as string[],
+    ])];
+
+    const [sanatoriums, messages, sanatoriumStaffMembers] = await Promise.all([
+      sanatoriumIds.length && this.db.sanatorium?.findMany ? this.db.sanatorium.findMany({
         where: { id: { in: sanatoriumIds } },
         select: { id: true, name: true }
-      }) : [],
-      bookingIds.length ? this.db.booking.findMany({
-        where: { id: { in: bookingIds } },
-        select: { id: true, reference: true, checkIn: true, checkOut: true, status: true }
       }) : [],
       this.db.supportMessage.findMany({
         where: { ticketId: { in: ticketIds }, ...(isSuperAdmin ? {} : { deletedForUser: false }) },
         orderBy: { createdAt: 'desc' },
       }),
-      sanatoriumIds.length && this.db.membership?.findMany ? this.db.membership.findMany({
-        where: { sanatoriumId: { in: sanatoriumIds }, status: 'ACTIVE' },
+      (sanatoriumIds.length || assignedUserIds.length) && this.db.membership?.findMany ? this.db.membership.findMany({
+        where: {
+          status: 'ACTIVE',
+          OR: [
+            ...(sanatoriumIds.length ? [{ sanatoriumId: { in: sanatoriumIds } }] : []),
+            ...(assignedUserIds.length ? [{ userId: { in: assignedUserIds } }] : []),
+          ],
+        },
         select: { userId: true, sanatoriumId: true, role: true },
       }) : [],
     ]);
 
     const allUserIds = [...new Set([
       ...userIds,
+      ...assignedUserIds,
       ...messages.map(m => m.userId),
       ...sanatoriumStaffMembers.map(m => m.userId),
       ...(superadminUser ? [superadminUser.id] : []),
@@ -853,7 +1025,7 @@ export class EngagementService implements OnModuleInit {
     const [users, activeSessions] = await Promise.all([
       allUserIds.length ? this.db.user.findMany({
         where: { id: { in: allUserIds } },
-        select: { id: true, name: true, phone: true, login: true, email: true, avatarUrl: true, kind: true, status: true }
+        select: { id: true, publicId: true, name: true, phone: true, login: true, email: true, avatarUrl: true, kind: true, status: true }
       }) : [],
       allUserIds.length && this.db.session?.findMany ? this.db.session.findMany({
         where: {
@@ -869,7 +1041,10 @@ export class EngagementService implements OnModuleInit {
 
     const userMap = new Map(users.map(u => [u.id, u]));
     const sanatoriumMap = new Map(sanatoriums.map(s => [s.id, s.name]));
-    const bookingMap = new Map(bookings.map(b => [b.id, b]));
+    const bookingMap = new Map(bookings.map(b => [b.id, {
+      ...b,
+      sanatoriumName: b.sanatoriumId ? sanatoriumMap.get(b.sanatoriumId) ?? null : null,
+    }]));
     const onlineMap = new Map<string, { isOnline: boolean; lastSeenAt: Date }>();
     for (const s of activeSessions as Array<{ userId: string; lastActivityAt: Date }>) {
       if (!onlineMap.has(s.userId)) {
@@ -913,30 +1088,62 @@ export class EngagementService implements OnModuleInit {
       const presence = u ? onlineMap.get(u.id) : undefined;
       const sanName = t.sanatoriumId ? sanatoriumMap.get(t.sanatoriumId) ?? null : null;
 
+      const assignedId = (t as any).assignedToUserId ?? null;
+      const assignedUser = assignedId ? userMap.get(assignedId) : null;
+      const assignedMem = assignedUser
+        ? (sanatoriumStaffMembers.find(m => m.userId === assignedUser.id && (!t.sanatoriumId || m.sanatoriumId === t.sanatoriumId))
+          ?? sanatoriumStaffMembers.find(m => m.userId === assignedUser.id))
+        : null;
+      const assignedSanId = t.sanatoriumId ?? assignedMem?.sanatoriumId ?? null;
+      const assignedSanName = assignedSanId ? (sanatoriumMap.get(assignedSanId) ?? sanName) : sanName;
+      const assignedStaff = assignedUser ? {
+        id: assignedUser.id,
+        publicId: (assignedUser as any).publicId ?? null,
+        name: assignedUser.name,
+        avatarUrl: assignedUser.avatarUrl ?? null,
+        role: assignedMem?.role ?? null,
+        roleLabel: assignedMem?.role ? (roleLabelMap[assignedMem.role] ?? assignedMem.role) : 'Sanatoriya xodimi',
+        sanatoriumId: assignedSanId,
+        sanatoriumName: assignedSanName,
+        isOnline: onlineMap.get(assignedUser.id)?.isOnline ?? false,
+      } : null;
+
       let ticketPeer: any = defaultSuperadminPeer;
-      if (!isSuperAdmin && actor.kind === 'CUSTOMER' && t.sanatoriumId) {
-        const staffReply = tMsgs.find(m => m.userId !== actor.id && userMap.get(m.userId)?.kind === 'STAFF');
-        const fallbackMember = sanatoriumStaffMembers.find(m => m.sanatoriumId === t.sanatoriumId && m.role === 'RECEPTION')
-          ?? sanatoriumStaffMembers.find(m => m.sanatoriumId === t.sanatoriumId);
-        const staffUser = staffReply ? userMap.get(staffReply.userId) : (fallbackMember ? userMap.get(fallbackMember.userId) : null);
-        const staffMemberRecord = staffUser
-          ? sanatoriumStaffMembers.find(m => m.sanatoriumId === t.sanatoriumId && m.userId === staffUser.id)
-          : fallbackMember;
-        const roleLabel = staffMemberRecord ? (roleLabelMap[staffMemberRecord.role] ?? staffMemberRecord.role) : 'Resepshn';
-        ticketPeer = {
-          id: staffUser?.id ?? null,
-          name: staffUser?.name ? `${staffUser.name} · ${roleLabel}` : `${sanName ?? 'Sanatoriya'} · ${roleLabel}`,
-          kind: 'STAFF',
-          role: staffMemberRecord?.role ?? 'RECEPTION',
-          roleLabel,
-          sanatoriumName: sanName,
-          avatarUrl: staffUser?.avatarUrl ?? null,
-          isOnline: staffUser ? (onlineMap.get(staffUser.id)?.isOnline ?? false) : false,
-        };
+      if (!isSuperAdmin && actor.kind === 'CUSTOMER') {
+        if (assignedStaff) {
+          ticketPeer = {
+            id: assignedStaff.id,
+            name: assignedStaff.name,
+            kind: 'STAFF',
+            role: assignedStaff.role,
+            roleLabel: assignedStaff.roleLabel,
+            sanatoriumId: assignedStaff.sanatoriumId,
+            sanatoriumName: assignedStaff.sanatoriumName,
+            avatarUrl: assignedStaff.avatarUrl,
+            isOnline: assignedStaff.isOnline,
+          };
+        } else if (t.sanatoriumId) {
+          const staffReply = tMsgs.find(m => m.userId !== actor.id && userMap.get(m.userId)?.kind === 'STAFF');
+          const fallbackMember = sanatoriumStaffMembers.find(m => m.sanatoriumId === t.sanatoriumId && m.role === 'RECEPTION')
+            ?? sanatoriumStaffMembers.find(m => m.sanatoriumId === t.sanatoriumId);
+          const staffUser = staffReply ? userMap.get(staffReply.userId) : (fallbackMember ? userMap.get(fallbackMember.userId) : null);
+          ticketPeer = {
+            id: staffUser?.id ?? null,
+            name: staffUser?.name ?? sanName ?? 'Sanatoriya xodimi',
+            kind: 'STAFF',
+            sanatoriumId: t.sanatoriumId,
+            sanatoriumName: sanName,
+            avatarUrl: staffUser?.avatarUrl ?? null,
+            isOnline: staffUser ? (onlineMap.get(staffUser.id)?.isOnline ?? false) : false,
+          };
+        }
       }
 
       return {
         ...t,
+        assignedToUserId: assignedId,
+        assignedAt: (t as any).assignedAt ?? null,
+        assignedStaff,
         sender: u ? {
           id: u.id,
           name: u.name,
@@ -964,21 +1171,38 @@ export class EngagementService implements OnModuleInit {
     if(!t)fail('NOT_FOUND','Murojaat topilmadi',404);
     const rawMessages = await this.db.supportMessage.findMany({where:{ticketId:id},orderBy:{createdAt:'asc'}});
     const hasAuthoredMessage = rawMessages.some(m => m.userId === actor.id);
+    const assignedToId = (t as any).assignedToUserId ?? null;
     if(actor.kind==='CUSTOMER'){
       if(t.userId!==actor.id && !hasAuthoredMessage)fail('NOT_FOUND','Murojaat topilmadi',404);
-    }else if(t.userId!==actor.id && !hasAuthoredMessage && actor.kind!=='SUPERADMIN'){
+    }else if(actor.kind!=='SUPERADMIN' && t.userId!==actor.id && assignedToId!==actor.id && !hasAuthoredMessage){
       if(!t.sanatoriumId)fail('NOT_FOUND','Murojaat topilmadi',404);
-      scope(actor,t.sanatoriumId,'support.read');
+      if(assignedToId){
+        const isDirectorOfSan = (actor.memberships ?? []).some(m => m.sanatoriumId === t.sanatoriumId && m.status === 'ACTIVE' && m.role === 'DIRECTOR');
+        if(!isDirectorOfSan) fail('NOT_FOUND','Murojaat topilmadi',404);
+      }else{
+        scope(actor,t.sanatoriumId,'support.read');
+      }
     }
     const isSuperAdmin = actor.kind === 'SUPERADMIN';
     const messages = isSuperAdmin ? rawMessages : rawMessages.filter(m => !m.deletedForUser);
-    const sanatoriumStaffMembers = t.sanatoriumId && this.db.membership?.findMany
+    const sanatoriumStaffMembers = (t.sanatoriumId || assignedToId) && this.db.membership?.findMany
       ? await this.db.membership.findMany({
-          where: { sanatoriumId: t.sanatoriumId, status: 'ACTIVE' },
+          where: {
+            status: 'ACTIVE',
+            OR: [
+              ...(t.sanatoriumId ? [{ sanatoriumId: t.sanatoriumId }] : []),
+              ...(assignedToId ? [{ userId: assignedToId }] : []),
+            ],
+          },
           select: { userId: true, sanatoriumId: true, role: true },
         })
       : [];
-    const userIds = [...new Set([t.userId, ...messages.map(m => m.userId), ...sanatoriumStaffMembers.map(m => m.userId)])];
+    const userIds = [...new Set([
+      t.userId,
+      ...(assignedToId ? [assignedToId] : []),
+      ...messages.map(m => m.userId),
+      ...sanatoriumStaffMembers.map(m => m.userId),
+    ])];
     const now = new Date();
     const onlineCutoff = new Date(now.getTime() - 180_000);
     const superadminUser = !isSuperAdmin && this.db.user.findFirst
@@ -986,13 +1210,13 @@ export class EngagementService implements OnModuleInit {
       : null;
     const onlineTargetIds = [...new Set([...userIds, ...(superadminUser ? [superadminUser.id] : [])])];
 
-    const [users, sanatorium, booking, activeSessions] = await Promise.all([
+    const [users, sanatorium, rawBooking, activeSessions] = await Promise.all([
       this.db.user.findMany({
         where: { id: { in: userIds } },
-        select: { id: true, name: true, phone: true, login: true, email: true, avatarUrl: true, kind: true, status: true }
+        select: { id: true, publicId: true, name: true, phone: true, login: true, email: true, avatarUrl: true, kind: true, status: true }
       }),
-      t.sanatoriumId ? this.db.sanatorium.findUnique({ where: { id: t.sanatoriumId }, select: { id: true, name: true } }) : null,
-      t.bookingId ? this.db.booking.findUnique({ where: { id: t.bookingId }, select: { id: true, reference: true, checkIn: true, checkOut: true, status: true } }) : null,
+      t.sanatoriumId && this.db.sanatorium?.findUnique ? this.db.sanatorium.findUnique({ where: { id: t.sanatoriumId }, select: { id: true, name: true } }) : null,
+      t.bookingId && this.db.booking?.findUnique ? this.db.booking.findUnique({ where: { id: t.bookingId }, select: { id: true, reference: true, sanatoriumId: true, checkIn: true, checkOut: true, status: true } }) : null,
       onlineTargetIds.length && this.db.session?.findMany ? this.db.session.findMany({
         where: {
           userId: { in: onlineTargetIds },
@@ -1004,6 +1228,13 @@ export class EngagementService implements OnModuleInit {
         select: { userId: true, lastActivityAt: true, channel: true },
       }) : []
     ]);
+    const bookingSanatorium = rawBooking?.sanatoriumId
+      ? (rawBooking.sanatoriumId === t.sanatoriumId
+          ? sanatorium
+          : (this.db.sanatorium?.findUnique ? await this.db.sanatorium.findUnique({ where: { id: rawBooking.sanatoriumId }, select: { id: true, name: true } }) : null))
+      : null;
+    const booking = rawBooking ? { ...rawBooking, sanatoriumName: bookingSanatorium?.name ?? null } : null;
+
     const userMap = new Map(users.map(u => [u.id, u]));
     const onlineMap = new Map<string, { isOnline: boolean; lastSeenAt: Date }>();
     for (const s of activeSessions as Array<{ userId: string; lastActivityAt: Date }>) {
@@ -1040,6 +1271,23 @@ export class EngagementService implements OnModuleInit {
       ACCOUNTANT: 'Hisobchi',
     };
 
+    const assignedUser = assignedToId ? userMap.get(assignedToId) : null;
+    const assignedMem = assignedUser
+      ? (sanatoriumStaffMembers.find(m => m.userId === assignedUser.id && (!t.sanatoriumId || m.sanatoriumId === t.sanatoriumId))
+        ?? sanatoriumStaffMembers.find(m => m.userId === assignedUser.id))
+      : null;
+    const assignedStaff = assignedUser ? {
+      id: assignedUser.id,
+      publicId: (assignedUser as any).publicId ?? null,
+      name: assignedUser.name,
+      avatarUrl: assignedUser.avatarUrl ?? null,
+      role: assignedMem?.role ?? null,
+      roleLabel: assignedMem?.role ? (roleLabelMap[assignedMem.role] ?? assignedMem.role) : 'Sanatoriya xodimi',
+      sanatoriumId: t.sanatoriumId ?? assignedMem?.sanatoriumId ?? null,
+      sanatoriumName: sanatorium?.name ?? null,
+      isOnline: onlineMap.get(assignedUser.id)?.isOnline ?? false,
+    } : null;
+
     let peer: any = !isSuperAdmin ? {
       id: superadminUser?.id ?? null,
       name: 'Superadmin',
@@ -1048,29 +1296,41 @@ export class EngagementService implements OnModuleInit {
       isOnline: superadminUser ? (onlineMap.get(superadminUser.id)?.isOnline ?? false) : false,
     } : null;
 
-    if (!isSuperAdmin && actor.kind === 'CUSTOMER' && t.sanatoriumId) {
-      const staffReply = [...messages].reverse().find(m => m.userId !== actor.id && userMap.get(m.userId)?.kind === 'STAFF');
-      const fallbackMember = sanatoriumStaffMembers.find(m => m.role === 'RECEPTION') ?? sanatoriumStaffMembers[0];
-      const staffUser = staffReply ? userMap.get(staffReply.userId) : (fallbackMember ? userMap.get(fallbackMember.userId) : null);
-      const staffMemberRecord = staffUser
-        ? sanatoriumStaffMembers.find(m => m.userId === staffUser.id)
-        : fallbackMember;
-      const roleLabel = staffMemberRecord ? (roleLabelMap[staffMemberRecord.role] ?? staffMemberRecord.role) : 'Resepshn';
-      const sanName = sanatorium?.name ?? 'Sanatoriya';
-      peer = {
-        id: staffUser?.id ?? null,
-        name: staffUser?.name ? `${staffUser.name} · ${roleLabel}` : `${sanName} · ${roleLabel}`,
-        kind: 'STAFF',
-        role: staffMemberRecord?.role ?? 'RECEPTION',
-        roleLabel,
-        sanatoriumName: sanName,
-        avatarUrl: staffUser?.avatarUrl ?? null,
-        isOnline: staffUser ? (onlineMap.get(staffUser.id)?.isOnline ?? false) : false,
-      };
+    if (!isSuperAdmin && actor.kind === 'CUSTOMER') {
+      if (assignedStaff) {
+        peer = {
+          id: assignedStaff.id,
+          name: assignedStaff.name,
+          kind: 'STAFF',
+          role: assignedStaff.role,
+          roleLabel: assignedStaff.roleLabel,
+          sanatoriumId: assignedStaff.sanatoriumId,
+          sanatoriumName: assignedStaff.sanatoriumName,
+          avatarUrl: assignedStaff.avatarUrl,
+          isOnline: assignedStaff.isOnline,
+        };
+      } else if (t.sanatoriumId) {
+        const staffReply = [...messages].reverse().find(m => m.userId !== actor.id && userMap.get(m.userId)?.kind === 'STAFF');
+        const fallbackMember = sanatoriumStaffMembers.find(m => m.role === 'RECEPTION') ?? sanatoriumStaffMembers[0];
+        const staffUser = staffReply ? userMap.get(staffReply.userId) : (fallbackMember ? userMap.get(fallbackMember.userId) : null);
+        const sanName = sanatorium?.name ?? 'Sanatoriya';
+        peer = {
+          id: staffUser?.id ?? null,
+          name: staffUser?.name ?? sanName,
+          kind: 'STAFF',
+          sanatoriumId: t.sanatoriumId,
+          sanatoriumName: sanName,
+          avatarUrl: staffUser?.avatarUrl ?? null,
+          isOnline: staffUser ? (onlineMap.get(staffUser.id)?.isOnline ?? false) : false,
+        };
+      }
     }
 
     return {
       ...t,
+      assignedToUserId: assignedToId,
+      assignedAt: (t as any).assignedAt ?? null,
+      assignedStaff,
       sender,
       senderDisplay: display,
       peer,
@@ -1084,7 +1344,7 @@ export class EngagementService implements OnModuleInit {
         const uLogin = u?.login ?? (isSender ? sender?.login : null);
         const uRealName = u?.name && u.name !== 'Mijoz' && u.name !== 'User' ? u.name : null;
         const memberRole = u?.kind === 'STAFF' ? sanatoriumStaffMembers.find(sm => sm.userId === u.id)?.role : undefined;
-        const roleSuffix = memberRole ? ` (${roleLabelMap[memberRole] ?? memberRole})` : '';
+        const roleSuffix = isSuperAdmin && memberRole ? ` (${roleLabelMap[memberRole] ?? memberRole})` : '';
         const msgDisplay = u?.kind === 'SUPERADMIN' && !isSuperAdmin
           ? 'Superadmin'
           : ((uRealName ? `${uRealName}${roleSuffix}` : null) || uPhone || uEmail || uLogin || (u?.name !== 'Mijoz' && u?.name !== 'User' ? u?.name : null) || (isSender ? (sender?.name !== 'Mijoz' && sender?.name !== 'User' ? sender?.name : null) || sender?.phone || senderEmail || sender?.login || 'Mobil mijoz' : 'Xodim'));
@@ -1114,7 +1374,8 @@ export class EngagementService implements OnModuleInit {
     }).strict(),body);
     if(!i.text.trim() && !i.imageUrl) fail('VALIDATION_ERROR','Xabar matni yoki rasm kiritilishi shart',422);
     const t=await this.ticketGet(actor,id);
-    if(i.close&&actor.kind!=='SUPERADMIN'&&!(actor.kind==='STAFF'&&t.sanatoriumId&&(tenantIds(actor,'support.read')??[]).includes(t.sanatoriumId)))fail('PERMISSION_DENIED','Murojaatni support yopadi',403);
+    const assignedToId = (t as any).assignedToUserId ?? null;
+    if(i.close&&actor.kind!=='SUPERADMIN'&&!(actor.kind==='STAFF'&&(assignedToId===actor.id||(t.sanatoriumId&&(tenantIds(actor,'support.read')??[]).includes(t.sanatoriumId)))))fail('PERMISSION_DENIED','Murojaatni support yopadi',403);
     const defaultPlaceholder = i.imageUrl?.startsWith('data:video/')
       ? '🎬 Video'
       : (i.imageUrl?.startsWith('data:image/') ? '📷 Rasm' : (i.imageUrl ? '📎 Fayl' : ''));
@@ -1131,12 +1392,14 @@ export class EngagementService implements OnModuleInit {
       });
       if(i.close)await tx.supportTicket.update({where:{id},data:{status:'CLOSED'}});
       const admins=await tx.user.findMany({where:{kind:'SUPERADMIN',status:'ACTIVE'},select:{id:true}});
-      const staffRecipients = t.sanatoriumId && tx.membership?.findMany
-        ? await tx.membership.findMany({
-            where:{sanatoriumId:t.sanatoriumId,status:'ACTIVE',role:{in:['RECEPTION','DIRECTOR']}},
-            select:{userId:true}
-          })
-        : [];
+      const staffRecipients = assignedToId
+        ? [{ userId: assignedToId }]
+        : (t.sanatoriumId && tx.membership?.findMany
+            ? await tx.membership.findMany({
+                where:{sanatoriumId:t.sanatoriumId,status:'ACTIVE',role:{in:['RECEPTION','DIRECTOR']}},
+                select:{userId:true}
+              })
+            : []);
       const participantIds = (t.messages ?? []).map((msg: any) => msg.userId).filter(Boolean);
       const recipientIds = [...new Set([
         ...(t.userId !== actor.id ? [t.userId] : []),
@@ -1369,6 +1632,7 @@ export class EngagementService implements OnModuleInit {
       'message.created': 'Yangi e’lon va xabar',
       'support.opened': 'Yordam xizmatida yangi murojaat ochildi',
       'support.replied': 'Murojaatingizga yangi javob keldi',
+      'support.assigned': 'Sizga yordam murojaati biriktirildi',
       'sanatorium.submitted': 'Sanatoriya anketasi moderatsiyaga yuborildi',
       'sanatorium.moderated': 'Sanatoriya anketasi ko‘rib chiqildi',
       'staff.invited': 'Yangi xodim tasdiqlashni kutmoqda',
@@ -1378,6 +1642,8 @@ export class EngagementService implements OnModuleInit {
       'subscription.status_changed': 'Obuna holati o‘zgardi',
       'bank.change_requested': 'Bank rekvizitlarini yangilash so‘rovi',
       'partner.password_reset_requested': 'Hamkor parolni tiklashni so‘radi',
+      'partner.registration_submitted': 'Yangi sanatoriya hamkor arizasi kelib tushdi',
+      'partner.registration_approved': 'Hamkor hisobingiz tasdiqlandi va ochildi',
       'auth.bruteforce_alert': 'Xavfsizlik ogohlantirishi: ko‘p martalik xato parol urinishi',
       'telegram.linked': 'Telegram bot hisobingizga ulandi',
       'app.update': 'Ilovaning yangi versiyasi mavjud',
@@ -1402,8 +1668,8 @@ export class EngagementService implements OnModuleInit {
       let title = p.title || m?.title || t?.title || topicTitles[topic] || 'Tizim bildirishnomasi';
       if (topic === 'message.created' && m?.title) {
         title = m.kind === 'WARNING' ? `⚠️ Muhim e’lon: ${m.title}` : `📢 E’lon: ${m.title}`;
-      } else if ((topic === 'support.opened' || topic === 'support.replied') && (p.title || t?.title)) {
-        title = `${topic === 'support.opened' ? 'Yangi murojaat' : 'Yangi xabar'}: ${p.title || t?.title}`;
+      } else if ((topic === 'support.opened' || topic === 'support.replied' || topic === 'support.assigned') && (p.title || t?.title)) {
+        title = `${topic === 'support.opened' ? 'Yangi murojaat' : topic === 'support.assigned' ? 'Biriktirilgan murojaat' : 'Yangi xabar'}: ${p.title || t?.title}`;
       } else if ((topic === 'payment.succeeded' || topic.startsWith('booking.')) && b?.reference) {
         title = `${topicTitles[topic] || 'Bron xabarnomasi'} (#${b.reference})`;
       }
@@ -1435,7 +1701,13 @@ export class EngagementService implements OnModuleInit {
         details.push({ label: 'Lavozim', value: mem.role === 'RECEPTION' ? 'Resepshn' : mem.role === 'DIRECTOR' ? 'Direktor' : mem.role === 'ACCOUNTANT' ? 'Hisobchi' : mem.role });
       }
       if (p.attempted_login) details.push({ label: 'Login', value: `@${p.attempted_login}` });
-      if (p.contact_phone || p.user_phone) details.push({ label: 'Aloqa telefoni', value: String(p.contact_phone || p.user_phone) });
+      if (p.applicant_name) details.push({ label: 'Mas’ul shaxs', value: String(p.applicant_name) });
+      if (p.username) details.push({ label: 'Username', value: `@${p.username}` });
+      if (p.email) details.push({ label: 'Email', value: String(p.email) });
+      if (p.region) details.push({ label: 'Hudud', value: String(p.region) });
+      if (p.contact_phone || p.user_phone || p.phone) details.push({ label: 'Aloqa telefoni', value: String(p.contact_phone || p.user_phone || p.phone) });
+      if (p.ip) details.push({ label: 'IP manzil', value: String(p.ip) });
+      if (p.device) details.push({ label: 'Qurilma', value: String(p.device) });
       if (p.reason) details.push({ label: 'Sabab / Izoh', value: String(p.reason) });
       if (topic === 'app.update') {
         if (p.target_version || p.version) details.push({ label: 'Yangi versiya', value: `v${p.target_version || p.version}` });

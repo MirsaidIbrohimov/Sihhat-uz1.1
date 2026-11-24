@@ -15,7 +15,7 @@ export class AuthGuard implements CanActivate {
   constructor(@Inject(Reflector) private readonly reflector: Reflector, @Inject(AuthService) private readonly auth: AuthService) {}
   async canActivate(context: ExecutionContext) {
     const req = context.switchToHttp().getRequest<ApiRequest>();
-    if (this.auth.config.PUBLIC_DEMO_ENABLED && (/^\/(?:superadmin|partner|telegram)(?:\/|$)|^\/auth\/staff\//i.test(req.path)
+    if (this.auth.config.PUBLIC_DEMO_ENABLED && (/^\/(?:superadmin|partner|telegram)(?:\/|$)|^\/auth\/(?:staff|partner-register)(?:\/|$)/i.test(req.path)
       || req.cookies?.sihhat_access || req.cookies?.sihhat_refresh)) fail('DEMO_ACCESS_DENIED', 'Demo server faqat mobil mijoz sinovi uchun', 403);
     if (this.reflector.getAllAndOverride<boolean>('public', [context.getHandler(), context.getClass()])) return true;
     const bearer = req.headers.authorization?.startsWith('Bearer ') ? req.headers.authorization.slice(7) : undefined;

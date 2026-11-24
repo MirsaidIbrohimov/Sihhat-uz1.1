@@ -238,17 +238,31 @@ export class TelegramViews {
   async approvals(ctx: BotContext, page = 0) {
     if (ctx.actor.kind !== 'SUPERADMIN') fail('PERMISSION_DENIED', 'Admin vakolati kerak.', 403);
     const where = ctx.account.sanatoriumId ? { sanatoriumId: ctx.account.sanatoriumId } : {};
-    const [members, revisions, refunds] = await Promise.all([
+    const [members, revisions, refunds, partnerApps] = await Promise.all([
       this.db.membership.findMany({ where: { ...where, status: 'PENDING_APPROVAL' }, take: 6, skip: page * 6 }),
       this.db.sanatoriumRevision.findMany({ where: { ...where, status: 'SUBMITTED' }, take: 6, skip: page * 6 }),
       this.db.refundRequest.count({ where: { ...where, status: 'REQUESTED' } }),
+      typeof (this.db as any).partnerRegistration?.findMany === 'function'
+        ? this.db.partnerRegistration.findMany({ where: { status: 'PENDING' }, orderBy: { createdAt: 'desc' }, take: 6, skip: page * 6 })
+        : [],
     ]);
     const people = await this.db.user.findMany({ where: { id: { in: members.map(m => m.userId) } }, select: { id: true, name: true } });
-    const lines = ['📝 Tasdiqlash navbati', `Qaytarish so‘rovlari: ${refunds}`, ...members.map(m => `• Resepsion: ${people.find(p => p.id === m.userId)?.name || 'Xodim'}`), ...revisions.map(r => `• Anketa: ${String((r.data as any).name || 'Sanatoriya')}`)];
-    if (!members.length && !revisions.length && !refunds) lines.push('Ko‘rib chiqishni kutayotgan so‘rov yo‘q.');
-    const rows: Button[][] = [[this.site(ctx, 'staff', '👥 Xodimlarni ko‘rib chiqish')], [this.site(ctx, 'sanatoriums', '🏥 Anketalarni ko‘rib chiqish')], [this.site(ctx, 'refunds', '💸 Qaytarishlarni ko‘rib chiqish')]];
+    const lines = [
+      '📝 Tasdiqlash navbati',
+      `Qaytarish so‘rovlari: ${refunds}`,
+      ...partnerApps.map((a: any) => `• Yangi hamkor: ${a.sanatoriumName} (@${a.username})`),
+      ...members.map(m => `• Resepsion: ${people.find(p => p.id === m.userId)?.name || 'Xodim'}`),
+      ...revisions.map(r => `• Anketa: ${String((r.data as any).name || 'Sanatoriya')}`),
+    ];
+    if (!members.length && !revisions.length && !refunds && !partnerApps.length) lines.push('Ko‘rib chiqishni kutayotgan so‘rov yo‘q.');
+    const rows: Button[][] = [
+      ...(partnerApps.length ? [[this.site(ctx, 'partner-registrations', '🏥 Hamkor arizalarini ko‘rish')]] : []),
+      [this.site(ctx, 'staff', '👥 Xodimlarni ko‘rib chiqish')],
+      [this.site(ctx, 'sanatoriums', '🏥 Anketalarni ko‘rib chiqish')],
+      [this.site(ctx, 'refunds', '💸 Qaytarishlarni ko‘rib chiqish')],
+    ];
     if (page > 0) rows.push([b('◀️ Oldingi', `approvals:${page - 1}`)]);
-    if (members.length === 6 || revisions.length === 6) rows.push([b('Keyingi ▶️', `approvals:${page + 1}`)]);
+    if (members.length === 6 || revisions.length === 6 || partnerApps.length === 6) rows.push([b('Keyingi ▶️', `approvals:${page + 1}`)]);
     return this.page(lines.join('\n'), rows, 'management');
   }
   communication(ctx: BotContext) { return this.page('💬 Aloqa', [[b('💬 Murojaatlar', 'tickets:0'), b('📨 Xabarlar', 'messages:0')]]); }

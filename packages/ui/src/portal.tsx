@@ -27,6 +27,7 @@ import {
   Settings,
   ShieldCheck,
   Smartphone,
+  UserPlus,
   Users,
   Wallet,
   X,
@@ -42,6 +43,7 @@ import { useIdleSession } from "./session-idle";
 import { portalSection, portalUrl } from "./portal-routes";
 import { ThemeToggle } from "./appearance";
 import { PartnerTerms, PartnerTermsDialog } from "./partner-terms";
+import { PartnerRegistrationModal } from "./partner-registration";
 import { TelegramSettings } from "./telegram";
 import { AccountantReports } from "./accounting";
 import { formatUserPublicId, getAvatarFallback, MyAccount, RoleGuide } from "./account";
@@ -60,6 +62,7 @@ import {
 import {
   Dashboard,
   Sanatoriums,
+  PartnerRegistrations,
   Profile,
   Staff,
   AppUsers,
@@ -85,6 +88,12 @@ const links = [
     group: "Ish jarayoni",
   },
   { id: "sanatoriums", label: "Sanatoriyalar", icon: Building2, admin: true },
+  {
+    id: "partner-registrations",
+    label: "Hamkor arizalari",
+    icon: ClipboardList,
+    admin: true,
+  },
   {
     id: "profile",
     label: "Sanatoriya profili",
@@ -181,6 +190,7 @@ const navigationGroups = [
       "dashboard",
       "today",
       "sanatoriums",
+      "partner-registrations",
       "profile",
       "bookings",
       "inventory",
@@ -210,11 +220,13 @@ function SidebarNavigation({
   items,
   section,
   accountant,
+  pendingRegistrations,
   go,
 }: {
   items: typeof links;
   section: string;
   accountant: boolean;
+  pendingRegistrations: number;
   go: (id: string) => void;
 }) {
   const [expanded, setExpanded] = useState<string[]>([]);
@@ -260,9 +272,16 @@ function SidebarNavigation({
                   onClick={() => go(item.id)}
                 >
                   <item.icon size={19} />
-                  {accountant && item.id === "dashboard"
-                    ? "Hisobotlar"
-                    : item.label}
+                  <span>
+                    {accountant && item.id === "dashboard"
+                      ? "Hisobotlar"
+                      : item.label}
+                  </span>
+                  {item.id === "partner-registrations" && pendingRegistrations > 0 && (
+                    <span className="nav-count-badge" title={`${pendingRegistrations} ta kutilayotgan ariza`}>
+                      {pendingRegistrations}
+                    </span>
+                  )}
                 </button>
               ))}
             </div>
@@ -285,6 +304,7 @@ function Login({
     [error, setError] = useState(""),
     [showPassword, setShowPassword] = useState(false),
     [termsOpen, setTermsOpen] = useState(false),
+    [registerOpen, setRegisterOpen] = useState(false),
     [forgotOpen, setForgotOpen] = useState(false),
     [forgotSuccess, setForgotSuccess] = useState("");
   async function login(e: React.FormEvent<HTMLFormElement>) {
@@ -441,10 +461,20 @@ function Login({
             {busy ? "Tekshirilmoqda…" : "Kirish"}
             <ArrowRight size={16} />
           </button>
+          {mode === "partner" && (
+            <button
+              type="button"
+              className="button secondary partner-register-cta"
+              onClick={() => setRegisterOpen(true)}
+            >
+              <UserPlus size={16} />
+              Yangi hisob ochish
+            </button>
+          )}
           <p className="login-note">
             {mode === "admin"
               ? "Platforma administratori xavfsiz kirish tizimi."
-              : "Kirish ma’lumotlarini direktoringiz yoki administratordan oling."}
+              : "Yangi sanatoriya bo‘lsangiz «Yangi hisob ochish» orqali ariza yuboring yoki direktoringizdan login oling."}
           </p>
           {mode === "partner" && (
             <div className="login-partner-links">
@@ -471,6 +501,9 @@ function Login({
       </div>
       {termsOpen && (
         <PartnerTermsDialog onClose={() => setTermsOpen(false)} />
+      )}
+      {registerOpen && (
+        <PartnerRegistrationModal onClose={() => setRegisterOpen(false)} />
       )}
       {forgotOpen && (
         <FormDialog
@@ -575,7 +608,8 @@ export function Portal({
     [idleNotice, setIdleNotice] = useState(""),
     [tenantError, setTenantError] = useState(""),
     [cmdOpen, setCmdOpen] = useState(false),
-    [cmdQuery, setCmdQuery] = useState("");
+    [cmdQuery, setCmdQuery] = useState(""),
+    [pendingRegistrations, setPendingRegistrations] = useState(0);
   const sessionGeneration = useRef(0);
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -683,6 +717,15 @@ export function Portal({
         setTenantError("");
       })
       .catch((e) => setTenantError(e.message));
+  }, [actor?.id, actor?.mustChangePassword, admin, epoch]);
+  useEffect(() => {
+    if (!admin || !actor || actor.mustChangePassword) {
+      setPendingRegistrations(0);
+      return;
+    }
+    api("/superadmin/partner-registrations?status=PENDING&limit=1")
+      .then((r) => setPendingRegistrations(Number(r?.pending_count ?? r?.total ?? 0)))
+      .catch(() => undefined);
   }, [actor?.id, actor?.mustChangePassword, admin, epoch]);
   useEffect(() => {
     if (!toast) return;
@@ -835,6 +878,8 @@ export function Portal({
         return accountant ? <AccountantReports /> : <Dashboard />;
       case "sanatoriums":
         return <Sanatoriums />;
+      case "partner-registrations":
+        return <PartnerRegistrations />;
       case "profile":
         return <Profile />;
       case "staff":
@@ -948,6 +993,7 @@ export function Portal({
             items={menuLinks}
             section={section}
             accountant={accountant}
+            pendingRegistrations={pendingRegistrations}
             go={go}
           />
           <div className="sidebar-foot">

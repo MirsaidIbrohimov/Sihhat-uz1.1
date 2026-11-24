@@ -11,6 +11,15 @@ import { Db } from '../common/db';
 export class EmailService {
   readonly sent = new Map<string, string>();
   readonly sentAlerts: Array<{ id: string; to: string; topic: string; subject: string; text: string }> = [];
+  readonly sentPartnerEmails: Array<{
+    id: string;
+    to: string;
+    kind: 'approved' | 'rejected';
+    subject: string;
+    text: string;
+    username: string;
+    sanatoriumName: string;
+  }> = [];
   private transporter: Transporter | null = null;
 
   get configured(): boolean {
@@ -284,6 +293,240 @@ export class EmailService {
       errorMessage: 'Superadmin email ogohlantirishini yuborishda xatolik',
     });
     return 'SENT';
+  }
+
+  async sendPartnerAccountApproved(params: {
+    id: string;
+    email: string;
+    applicantName: string;
+    username: string;
+    publicId?: number | null;
+    sanatoriumName: string;
+    region?: string | null;
+  }): Promise<'SENT' | 'SKIPPED' | 'FAILED'> {
+    if (this.config.NODE_ENV === 'production' && !this.configured) {
+      return 'SKIPPED';
+    }
+    const partnerUrl = (this.config.TELEGRAM_PARTNER_URL || 'https://www.sihhat.uz/hamkorlar').replace(/\/+$/, '');
+    const subject = `Sihhat.uz — «${params.sanatoriumName}» hamkor hisobingiz ochildi!`;
+    const publicIdLine = params.publicId ? `\n• Foydalanuvchi ID: #${params.publicId}` : '';
+    const regionLine = params.region ? `\n• Hudud: ${params.region}` : '';
+    const text =
+      `Assalomu alaykum, ${params.applicantName}!\n\n` +
+      `Tabriklaymiz! «${params.sanatoriumName}» sanatoriyasi bo‘yicha hamkorlik arizangiz Superadmin tomonidan tasdiqlandi.\n` +
+      `Hamkor hisobingiz ochildi va sanatoriyangiz Sihhat.uz sanatoriyalar ro‘yxatiga qo‘shilib, foydalanuvchilarga ko‘rinmoqda.\n\n` +
+      `Hisob ma’lumotlaringiz:\n` +
+      `• Sanatoriya: ${params.sanatoriumName}${regionLine}${publicIdLine}\n` +
+      `• Username (Login): @${params.username}\n` +
+      `• Email: ${params.email}\n` +
+      `• Lavozim: Direktor\n\n` +
+      `Ro‘yxatdan o‘tishda o‘zingiz kiritgan parol bilan Hamkorlar paneliga kirishingiz mumkin:\n${partnerUrl}\n\n` +
+      `Panel ichida sanatoriyangiz rasmlari, xonalar, tariflar va qo‘shimcha ma’lumotlarni istalgan payt yangilashingiz mumkin.\n\n` +
+      `Hurmat bilan,\nSihhat.uz jamoasi`;
+
+    const safeName = this.escapeHtml(params.applicantName);
+    const safeSan = this.escapeHtml(params.sanatoriumName);
+    const safeUsername = this.escapeHtml(params.username);
+    const safeEmail = this.escapeHtml(params.email);
+    const safeRegion = params.region ? this.escapeHtml(params.region) : '';
+    const safeUrl = this.escapeHtml(partnerUrl);
+
+    const rowsHtml = [
+      { label: 'Sanatoriya', value: safeSan },
+      ...(safeRegion ? [{ label: 'Hudud', value: safeRegion }] : []),
+      ...(params.publicId ? [{ label: 'Foydalanuvchi ID', value: `#${params.publicId}` }] : []),
+      { label: 'Username (Login)', value: `@${safeUsername}` },
+      { label: 'Elektron pochta', value: safeEmail },
+      { label: 'Lavozim', value: 'Direktor (Faol)' },
+    ]
+      .map(
+        (r) =>
+          `<tr><td style="padding: 9px 14px; border-bottom: 1px solid #e2e8f0; font-size: 12px; color: #64748b; width: 40%;">${r.label}</td><td style="padding: 9px 14px; border-bottom: 1px solid #e2e8f0; font-size: 13px; color: #0f172a; font-weight: 700;">${r.value}</td></tr>`,
+      )
+      .join('');
+
+    const html = `
+            <!doctype html>
+            <html lang="uz">
+            <head><meta charset="utf-8"></head>
+            <body style="margin: 0; padding: 0; background-color: #f1f5f9; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+              <table border="0" cellpadding="0" cellspacing="0" width="100%" style="table-layout: fixed;">
+                <tr>
+                  <td align="center" style="padding: 36px 16px;">
+                    <table border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width: 540px; background: #ffffff; border-radius: 20px; box-shadow: 0 4px 18px rgba(15, 23, 42, 0.08); border: 1px solid #e2e8f0; overflow: hidden;">
+                      <tr>
+                        <td style="background: linear-gradient(135deg, #059669 0%, #0d9488 100%); padding: 28px 32px; text-align: center;">
+                          <div style="display: inline-block; background: rgba(255,255,255,0.2); color: #ffffff; font-size: 11px; font-weight: 700; letter-spacing: 0.08em; padding: 4px 12px; border-radius: 999px; margin-bottom: 8px;">HAMKOR HISOBI TASDIQLANDI</div>
+                          <h1 style="color: #ffffff; font-size: 26px; font-weight: 800; margin: 0;">Sihhat<span style="opacity: 0.85;">.uz</span></h1>
+                          <p style="color: #ecfdf5; font-size: 13px; margin: 6px 0 0 0;">Hamkorlar boshqaruv portali</p>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td style="padding: 30px 32px 24px 32px;">
+                          <h2 style="font-size: 20px; font-weight: 800; color: #0f172a; margin: 0 0 12px 0;">Hisobingiz ochildi!</h2>
+                          <p style="font-size: 14px; color: #334155; margin: 0 0 18px 0; line-height: 1.65;">
+                            Assalomu alaykum, <strong>${safeName}</strong>! «<strong>${safeSan}</strong>» sanatoriyasi bo‘yicha arizangiz Superadmin tomonidan tasdiqlandi.
+                            Hamkor hisobingiz faollashtirildi va sanatoriyangiz Sihhat.uz katalogiga qo‘shilib foydalanuvchilarga ko‘rinmoqda.
+                          </p>
+                          <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; margin-bottom: 22px;">
+                            ${rowsHtml}
+                          </table>
+                          <div style="text-align: center; margin-bottom: 20px;">
+                            <a href="${safeUrl}" style="display: inline-block; background: #059669; color: #ffffff; text-decoration: none; font-weight: 700; font-size: 14px; padding: 12px 26px; border-radius: 12px;">Hamkorlar paneliga kirish →</a>
+                          </div>
+                          <p style="font-size: 13px; color: #64748b; margin: 0; line-height: 1.55;">
+                            Ariza topshirishda o‘zingiz yaratgan parol bilan kirishingiz mumkin. Panel ichida sanatoriya rasmlarini, xonalarni va tariflarni istalgan payt boyitishingiz mumkin.
+                          </p>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td style="background: #f8fafc; padding: 16px 32px; border-top: 1px solid #f1f5f9; text-align: center;">
+                          <p style="font-size: 12px; color: #94a3b8; margin: 0;">© ${new Date().getFullYear()} Sihhat.uz · Barcha huquqlar himoyalangan.</p>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+              </table>
+            </body>
+            </html>`;
+
+    if (this.config.NODE_ENV !== 'production') {
+      this.sentPartnerEmails.push({
+        id: params.id,
+        to: params.email,
+        kind: 'approved',
+        subject,
+        text,
+        username: params.username,
+        sanatoriumName: params.sanatoriumName,
+      });
+    }
+
+    try {
+      await this.deliverEmail({
+        id: `partner-approved-${params.id}`,
+        to: params.email,
+        subject,
+        text,
+        html,
+        devPayload: {
+          email: params.email,
+          kind: 'approved',
+          applicantName: params.applicantName,
+          username: params.username,
+          publicId: params.publicId ?? null,
+          sanatoriumName: params.sanatoriumName,
+          partnerUrl,
+        },
+        failOnError: false,
+        errorMessage: 'Hamkor hisobi tasdiqlanganligi haqidagi emailni yuborishda xatolik',
+      });
+      return 'SENT';
+    } catch {
+      return 'FAILED';
+    }
+  }
+
+  async sendPartnerAccountRejected(params: {
+    id: string;
+    email: string;
+    applicantName: string;
+    username: string;
+    sanatoriumName: string;
+    reason: string;
+  }): Promise<'SENT' | 'SKIPPED' | 'FAILED'> {
+    if (this.config.NODE_ENV === 'production' && !this.configured) {
+      return 'SKIPPED';
+    }
+    const subject = `Sihhat.uz — «${params.sanatoriumName}» hamkorlik arizasi bo‘yicha qaror`;
+    const text =
+      `Assalomu alaykum, ${params.applicantName}!\n\n` +
+      `«${params.sanatoriumName}» sanatoriyasi bo‘yicha yuborgan hamkorlik arizangiz ko‘rib chiqildi va hozircha tasdiqlanmadi.\n\n` +
+      `Sabab / izoh: ${params.reason}\n\n` +
+      `Kamchiliklarni bartaraf etib, Hamkorlar paneli orqali qayta ariza topshirishingiz mumkin.\n\n` +
+      `Hurmat bilan,\nSihhat.uz jamoasi`;
+
+    const safeName = this.escapeHtml(params.applicantName);
+    const safeSan = this.escapeHtml(params.sanatoriumName);
+    const safeReason = this.escapeHtml(params.reason).replace(/\r?\n/g, '<br/>');
+
+    const html = `
+            <!doctype html>
+            <html lang="uz">
+            <head><meta charset="utf-8"></head>
+            <body style="margin: 0; padding: 0; background-color: #f1f5f9; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+              <table border="0" cellpadding="0" cellspacing="0" width="100%" style="table-layout: fixed;">
+                <tr>
+                  <td align="center" style="padding: 36px 16px;">
+                    <table border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width: 520px; background: #ffffff; border-radius: 20px; box-shadow: 0 4px 16px rgba(15, 23, 42, 0.06); border: 1px solid #e2e8f0; overflow: hidden;">
+                      <tr>
+                        <td style="background: linear-gradient(135deg, #475569 0%, #334155 100%); padding: 24px 32px; text-align: center;">
+                          <h1 style="color: #ffffff; font-size: 24px; font-weight: 800; margin: 0;">Sihhat.uz</h1>
+                          <p style="color: #e2e8f0; font-size: 13px; margin: 6px 0 0 0;">Hamkorlik arizasi holati</p>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td style="padding: 28px 32px;">
+                          <h2 style="font-size: 18px; font-weight: 700; color: #0f172a; margin: 0 0 12px 0;">Arizangiz hozircha tasdiqlanmadi</h2>
+                          <p style="font-size: 14px; color: #475569; margin: 0 0 16px 0; line-height: 1.6;">
+                            Assalomu alaykum, <strong>${safeName}</strong>! «<strong>${safeSan}</strong>» sanatoriyasi bo‘yicha arizangiz ko‘rib chiqildi.
+                          </p>
+                          <div style="background: #fef2f2; border-left: 4px solid #dc2626; border-radius: 8px; padding: 14px 16px; margin-bottom: 18px;">
+                            <div style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: #b91c1c; font-weight: 700; margin-bottom: 6px;">Administrator izohi</div>
+                            <div style="font-size: 14px; color: #7f1d1d; line-height: 1.55;">${safeReason}</div>
+                          </div>
+                          <p style="font-size: 13px; color: #64748b; margin: 0; line-height: 1.55;">
+                            Ma’lumotlarni to‘ldirib, Hamkorlar paneli orqali qayta ariza yuborishingiz mumkin.
+                          </p>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td style="background: #f8fafc; padding: 14px 32px; border-top: 1px solid #f1f5f9; text-align: center;">
+                          <p style="font-size: 12px; color: #94a3b8; margin: 0;">© ${new Date().getFullYear()} Sihhat.uz</p>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+              </table>
+            </body>
+            </html>`;
+
+    if (this.config.NODE_ENV !== 'production') {
+      this.sentPartnerEmails.push({
+        id: params.id,
+        to: params.email,
+        kind: 'rejected',
+        subject,
+        text,
+        username: params.username,
+        sanatoriumName: params.sanatoriumName,
+      });
+    }
+
+    try {
+      await this.deliverEmail({
+        id: `partner-rejected-${params.id}`,
+        to: params.email,
+        subject,
+        text,
+        html,
+        devPayload: {
+          email: params.email,
+          kind: 'rejected',
+          applicantName: params.applicantName,
+          username: params.username,
+          sanatoriumName: params.sanatoriumName,
+          reason: params.reason,
+        },
+        failOnError: false,
+        errorMessage: 'Hamkor arizasi rad etilganligi haqidagi emailni yuborishda xatolik',
+      });
+      return 'SENT';
+    } catch {
+      return 'FAILED';
+    }
   }
 
   private escapeHtml(value: string): string {

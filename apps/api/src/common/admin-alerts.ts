@@ -1,5 +1,6 @@
 export type AdminAlertTopic =
   | 'partner.password_reset_requested'
+  | 'partner.registration_submitted'
   | 'auth.bruteforce_alert'
   | 'payment.exception'
   | 'refund.requested'
@@ -13,6 +14,7 @@ export type AdminAlertTopic =
 
 const ADMIN_EMAIL_TOPIC_SET = new Set<string>([
   'partner.password_reset_requested',
+  'partner.registration_submitted',
   'auth.bruteforce_alert',
   'payment.exception',
   'refund.requested',
@@ -31,6 +33,7 @@ export const AUTO_SUPERADMIN_TOPICS = new Set<string>([
   'provider.sms.failed',
   'system.health.issue',
   'partner.password_reset_requested',
+  'partner.registration_submitted',
   'auth.bruteforce_alert',
   'staff.invited',
   'sanatorium.submitted',
@@ -44,7 +47,9 @@ export const URGENT_TELEGRAM_TOPICS = new Set<string>([
   'provider.sms.failed',
   'support.opened',
   'support.replied',
+  'support.assigned',
   'partner.password_reset_requested',
+  'partner.registration_submitted',
   'auth.bruteforce_alert',
 ]);
 
@@ -97,6 +102,38 @@ export function formatAdminAlert(topic: string, payload: Record<string, any> = {
         telegramText: `🔐 Hamkor parolini tiklash so‘rovi!\n\n${rows.map(r => `${r.label}: ${r.value}`).join('\n')}`,
         siteSection: 'staff',
         siteLabel: '🖥 Xodimlar bo‘limini ochish',
+      };
+    }
+
+    case 'partner.registration_submitted': {
+      const sanatoriumName = safeText(payload.sanatorium_name || 'Yangi sanatoriya', 150);
+      const region = safeText(payload.region || 'Ko‘rsatilmagan', 100);
+      const applicantName = safeText(payload.applicant_name || 'Hamkor', 120);
+      const username = safeText(payload.username || '—', 80);
+      const email = safeText(payload.email || '—', 120);
+      const phone = safeText(payload.phone || payload.contact_phone || '—', 40);
+      const ip = safeText(payload.ip || 'Noma’lum', 80);
+      const device = safeText(payload.device || 'Brauzer', 120);
+      const rows = [
+        { label: 'Sanatoriya nomi', value: sanatoriumName },
+        { label: 'Hudud', value: region },
+        { label: 'Mas’ul shaxs', value: applicantName },
+        { label: 'Username', value: `@${username}` },
+        { label: 'Email', value: email },
+        { label: 'Telefon', value: phone },
+        { label: 'IP / Qurilma', value: `${ip} · ${device}` },
+        { label: 'Vaqt', value: nowStr },
+      ];
+      return {
+        severity: 'info',
+        badge: 'YANGI HAMKOR ARIZASI',
+        subject: `Sihhat.uz — 🏥 Yangi sanatoriya hamkor arizasi: ${sanatoriumName}`,
+        headline: 'Yangi sanatoriya hamkorlik uchun ariza yubordi',
+        summary: `«${sanatoriumName}» sanatoriyasi Hamkorlar paneli orqali yangi hisob ochish arizasini yubordi. Ma’lumotlarni tekshirib tasdiqlasangiz, hisob ochiladi va sanatoriya katalogga qo‘shiladi.`,
+        rows,
+        telegramText: `🏥 Yangi sanatoriya hamkor arizasi!\n\n${rows.map(r => `${r.label}: ${r.value}`).join('\n')}`,
+        siteSection: 'partner-registrations',
+        siteLabel: '🖥 Arizani ko‘rib chiqish',
       };
     }
 

@@ -25,11 +25,13 @@ import {
   SquarePen,
   Star,
   Trash2,
+  UserCheck,
   Users,
   Video,
   X,
 } from "lucide-react";
 import { api, toMinor } from "@sihhat/api-client";
+import { AuthHistoryPanel } from "./auth-history";
 import {
   label,
   Act,
@@ -3017,6 +3019,17 @@ export function Support() {
     [newText, setNewText] = useState(""),
     [createError, setCreateError] = useState(""),
     [creatingTicket, setCreatingTicket] = useState(false),
+    // Superadmin Ticket Assignment Modal State
+    [assignModalOpen, setAssignModalOpen] = useState(false),
+    [assignLoading, setAssignLoading] = useState(false),
+    [assignSaving, setAssignSaving] = useState(false),
+    [assignError, setAssignError] = useState(""),
+    [assignSanatoriums, setAssignSanatoriums] = useState<Row[]>([]),
+    [assignStaffList, setAssignStaffList] = useState<Row[]>([]),
+    [assignSanFilter, setAssignSanFilter] = useState(""),
+    [assignSearch, setAssignSearch] = useState(""),
+    [assignTargetUserId, setAssignTargetUserId] = useState<string | null>(null),
+    [assignNote, setAssignNote] = useState(""),
     // Refs
     attachMenuRef = useRef<HTMLDivElement>(null),
     imageInputRef = useRef<HTMLInputElement>(null),
@@ -3121,6 +3134,56 @@ export function Support() {
       isMounted = false;
     };
   }, [newModalOpen, ctx.admin, ctx.tenant, ctx.tenants]);
+
+  const openAssignModal = () => {
+    if (!t?.id) return;
+    setAssignError("");
+    setAssignNote("");
+    setAssignSearch("");
+    setAssignTargetUserId(t.assignedToUserId ?? null);
+    setAssignSanFilter(t.assignedStaff?.sanatoriumId ?? t.booking?.sanatoriumId ?? t.sanatoriumId ?? "");
+    setAssignModalOpen(true);
+    setAssignLoading(true);
+    api<any>("/support/recipients")
+      .then((data) => {
+        setAssignSanatoriums(data?.sanatoriums ?? ctx.tenants ?? []);
+        setAssignStaffList(data?.staff ?? []);
+      })
+      .catch(() => {
+        setAssignSanatoriums(ctx.tenants ?? []);
+      })
+      .finally(() => setAssignLoading(false));
+  };
+
+  const handleAssignSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!t?.id || assignSaving) return;
+    setAssignSaving(true);
+    setAssignError("");
+    try {
+      const chosenStaff = assignTargetUserId
+        ? assignStaffList.find((st: Row) => st.id === assignTargetUserId)
+        : null;
+      const payload: Record<string, any> = {
+        assigned_to_user_id: assignTargetUserId ?? null,
+        sanatorium_id: chosenStaff?.sanatoriumId ?? null,
+        ...(assignNote.trim() ? { note: assignNote.trim() } : {}),
+      };
+      const updated = await api<Row>(`/support/tickets/${t.id}/assign`, "PATCH", payload);
+      if (updated) setThread(updated);
+      setAssignModalOpen(false);
+      await tickets.reload();
+      ctx.notice(
+        chosenStaff
+          ? `Murojaat ${chosenStaff.name} (${chosenStaff.sanatoriumName || "Sanatoriya"}) xodimiga biriktirildi`
+          : "Murojaat Superadmin tasarrufiga qaytarildi",
+      );
+    } catch (err: any) {
+      setAssignError(err?.message || "Murojaatni biriktirishda xatolik yuz berdi");
+    } finally {
+      setAssignSaving(false);
+    }
+  };
 
   const selectTicket = (ticketId: string | null) => {
     setId(ticketId);
@@ -3964,10 +4027,254 @@ export function Support() {
                     !newTitle.trim() ||
                     !newText.trim() ||
                     (ctx.admin && recipientType === "CUSTOMER" && !selectedUserId) ||
-                    ((!ctx.admin || recipientType === "PARTNER") && !(selectedPartnerId || ctx.tenant || partners[0]?.id))
+                    ((recipientType === "PARTNER" || recipientType === "STAFF") && !(selectedPartnerId || ctx.tenant || partners[0]?.id))
                   }
                 >
                   {creatingTicket ? "Yuborilmoqda..." : "Yuborish"}
+                </button>
+              </div>
+            </form>
+          </section>
+        </div>
+      )}
+
+      {/* Superadmin Assign Ticket to Sanatorium Staff Modal */}
+      {ctx.admin && assignModalOpen && t && (
+        <div className="modal-backdrop" style={{ zIndex: 1050 }} onClick={() => !assignSaving && setAssignModalOpen(false)}>
+          <section
+            className="modal"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Murojaatni sanatoriya xodimiga biriktirish"
+            style={{ maxWidth: "560px", width: "95%", maxHeight: "90vh", display: "flex", flexDirection: "column", overflow: "hidden" }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="modal-heading" style={{ padding: "16px 20px", borderBottom: "1px solid var(--line)" }}>
+              <div>
+                <h2 style={{ fontSize: "17px", fontWeight: 700, margin: 0, color: "var(--ink)" }}>
+                  Sanatoriya xodimiga biriktirish
+                </h2>
+                <p className="muted" style={{ fontSize: "12.5px", margin: "4px 0 0" }}>
+                  Murojaatga o‘zingiz javob berishingiz yoki mas’ul sanatoriya xodimiga biriktirishingiz mumkin.
+                </p>
+              </div>
+              <button
+                className="icon-button"
+                type="button"
+                aria-label="Yopish"
+                disabled={assignSaving}
+                onClick={() => setAssignModalOpen(false)}
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <form onSubmit={handleAssignSubmit} style={{ padding: "18px 20px", overflowY: "auto", display: "flex", flexDirection: "column", gap: "14px" }}>
+              {/* Option 1: Keep with Superadmin */}
+              <div
+                role="button"
+                tabIndex={0}
+                onClick={() => setAssignTargetUserId(null)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    setAssignTargetUserId(null);
+                  }
+                }}
+                style={{
+                  padding: "11px 13px",
+                  borderRadius: "10px",
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: "10px",
+                  border: assignTargetUserId === null ? "2px solid var(--green)" : "1px solid var(--line)",
+                  background: assignTargetUserId === null ? "var(--green-light)" : "var(--soft)",
+                }}
+              >
+                <div>
+                  <div style={{ fontSize: "13.5px", fontWeight: 700, color: "var(--ink)" }}>
+                    🛡️ Superadmin o‘zi javob beradi
+                  </div>
+                  <div style={{ fontSize: "12px", color: "var(--muted)", marginTop: "2px" }}>
+                    Sanatoriya xodimiga biriktirilmaydi — markaziy yordam javob beradi
+                  </div>
+                </div>
+                {assignTargetUserId === null && <Check size={17} style={{ color: "var(--green)", flexShrink: 0 }} />}
+              </div>
+
+              {/* Filter by Sanatorium + Search Staff */}
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
+                <div>
+                  <label style={{ fontSize: "11.5px", fontWeight: 600, color: "var(--muted)", display: "block", marginBottom: "5px" }}>
+                    Sanatoriya bo‘yicha filtr
+                  </label>
+                  <select
+                    value={assignSanFilter}
+                    onChange={(e) => setAssignSanFilter(e.target.value)}
+                    style={{
+                      width: "100%",
+                      padding: "8px 10px",
+                      borderRadius: "8px",
+                      border: "1px solid var(--line)",
+                      background: "var(--soft)",
+                      color: "var(--ink)",
+                      fontSize: "12.5px",
+                    }}
+                  >
+                    <option value="">Barcha sanatoriyalar</option>
+                    {assignSanatoriums.map((s: Row) => (
+                      <option key={s.id} value={s.id}>
+                        {s.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label style={{ fontSize: "11.5px", fontWeight: 600, color: "var(--muted)", display: "block", marginBottom: "5px" }}>
+                    Xodimni qidirish
+                  </label>
+                  <input
+                    type="search"
+                    placeholder="Ism, sanatoriya, telefon..."
+                    value={assignSearch}
+                    onChange={(e) => setAssignSearch(e.target.value)}
+                    style={{
+                      width: "100%",
+                      padding: "8px 10px",
+                      borderRadius: "8px",
+                      border: "1px solid var(--line)",
+                      background: "var(--soft)",
+                      color: "var(--ink)",
+                      fontSize: "12.5px",
+                      boxSizing: "border-box",
+                    }}
+                  />
+                </div>
+              </div>
+
+              {/* Staff list */}
+              <div
+                style={{
+                  maxHeight: "220px",
+                  overflowY: "auto",
+                  border: "1px solid var(--line)",
+                  borderRadius: "10px",
+                  background: "var(--soft)",
+                  padding: "6px",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "4px",
+                }}
+              >
+                {assignLoading ? (
+                  <div style={{ padding: "18px", textAlign: "center", fontSize: "12.5px", color: "var(--muted)" }}>
+                    Sanatoriya xodimlari yuklanmoqda...
+                  </div>
+                ) : (() => {
+                  const filtered = assignStaffList.filter((st: Row) => {
+                    if (assignSanFilter && st.sanatoriumId !== assignSanFilter) return false;
+                    if (!assignSearch.trim()) return true;
+                    const q = assignSearch.toLowerCase();
+                    return (
+                      (st.name ?? "").toLowerCase().includes(q) ||
+                      (st.sanatoriumName ?? "").toLowerCase().includes(q) ||
+                      (st.roleLabel ?? "").toLowerCase().includes(q) ||
+                      (st.phone ?? "").toLowerCase().includes(q) ||
+                      (st.login ?? "").toLowerCase().includes(q)
+                    );
+                  });
+                  if (!filtered.length) {
+                    return (
+                      <div style={{ padding: "18px", textAlign: "center", fontSize: "12.5px", color: "var(--muted)" }}>
+                        Faol sanatoriya xodimi topilmadi
+                      </div>
+                    );
+                  }
+                  return filtered.map((st: Row) => {
+                    const isSel = assignTargetUserId === st.id;
+                    return (
+                      <div
+                        key={`${st.sanatoriumId}:${st.id}`}
+                        role="button"
+                        tabIndex={0}
+                        onClick={() => setAssignTargetUserId(st.id)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault();
+                            setAssignTargetUserId(st.id);
+                          }
+                        }}
+                        style={{
+                          padding: "8px 10px",
+                          borderRadius: "8px",
+                          cursor: "pointer",
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "10px",
+                          background: isSel ? "var(--green-light)" : "transparent",
+                          border: isSel ? "1.5px solid var(--green)" : "1px solid transparent",
+                        }}
+                      >
+                        <ChatAvatar
+                          variant="picker"
+                          name={st.name || "X"}
+                          avatarUrl={st.avatarUrl}
+                          seed={st.id || st.name}
+                        />
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontSize: "13px", fontWeight: 700, color: "var(--ink)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                            {st.name} <span style={{ fontWeight: 500, fontSize: "11.5px", color: "var(--muted)" }}>· {st.roleLabel || st.role}</span>
+                          </div>
+                          <div style={{ fontSize: "11.5px", color: "var(--muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                            🏥 {st.sanatoriumName}{st.phone ? ` · ${st.phone}` : ""}
+                          </div>
+                        </div>
+                        {isSel && <Check size={16} style={{ color: "var(--green)", flexShrink: 0 }} />}
+                      </div>
+                    );
+                  });
+                })()}
+              </div>
+
+              <div>
+                <label style={{ fontSize: "11.5px", fontWeight: 600, color: "var(--muted)", display: "block", marginBottom: "5px" }}>
+                  Xodim uchun izoh (ixtiyoriy)
+                </label>
+                <input
+                  type="text"
+                  maxLength={500}
+                  placeholder="Masalan: Mehmon bron sanasi bo‘yicha yordam so‘ramoqda..."
+                  value={assignNote}
+                  onChange={(e) => setAssignNote(e.target.value)}
+                  style={{
+                    width: "100%",
+                    padding: "8px 11px",
+                    borderRadius: "8px",
+                    border: "1px solid var(--line)",
+                    background: "var(--soft)",
+                    color: "var(--ink)",
+                    fontSize: "13px",
+                    boxSizing: "border-box",
+                  }}
+                />
+              </div>
+
+              {assignError && <ErrorBox message={assignError} />}
+
+              <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px" }}>
+                <button
+                  type="button"
+                  className="button secondary"
+                  disabled={assignSaving}
+                  onClick={() => setAssignModalOpen(false)}
+                >
+                  Bekor qilish
+                </button>
+                <button type="submit" className="button primary" disabled={assignSaving}>
+                  <UserCheck size={15} />
+                  <span>{assignSaving ? "Saqlanmoqda..." : assignTargetUserId ? "Xodimga biriktirish" : "Superadminda qoldirish"}</span>
                 </button>
               </div>
             </form>
@@ -4066,6 +4373,11 @@ export function Support() {
                         <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>
                           {row.title || "Suhbat"}
                         </span>
+                        {ctx.admin && row.assignedStaff && (
+                          <span style={{ color: "var(--tg-accent)", fontWeight: 600 }}>
+                            · → {row.assignedStaff.name}
+                          </span>
+                        )}
                         {row.booking && <span>· #{row.booking.reference}</span>}
                       </div>
                       <div className="tg-chat-bottom">
@@ -4128,7 +4440,16 @@ export function Support() {
                         </div>
                         <div className="tg-room-sub" style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap", marginTop: "2px" }}>
                           <span>Mavzu: <strong style={{ color: "var(--tg-ink)" }}>{t?.title ?? "Murojaat"}</strong></span>
-                          {t?.sanatoriumName && <span>• {t.sanatoriumName}</span>}
+                          {t?.assignedStaff ? (
+                            <span style={{ color: "var(--tg-accent)", fontWeight: 700 }}>
+                              • 🏥 Biriktirilgan: {t.assignedStaff.name}
+                              {t.assignedStaff.sanatoriumName ? ` (${t.assignedStaff.sanatoriumName})` : ""}
+                            </span>
+                          ) : t?.sanatoriumName ? (
+                            <span>• {t.sanatoriumName}</span>
+                          ) : ctx.admin && roomInfo.isCustomer ? (
+                            <span style={{ opacity: 0.85 }}>• 🛡️ Superadmin</span>
+                          ) : null}
                           {t?.booking && (
                             <span style={{ color: "var(--tg-accent)", fontWeight: 700 }}>
                               • Bron #{t.booking.reference} ({t.booking.status})
@@ -4142,8 +4463,16 @@ export function Support() {
                         </div>
                       </div>
                     </div>
-                    <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+                    <div style={{ display: "flex", gap: "8px", alignItems: "center", flexWrap: "wrap" }}>
                       <Badge value={t?.status} />
+                      {ctx.admin && !ticketIsClosed && (
+                        <Act onClick={openAssignModal}>
+                          <span style={{ display: "inline-flex", alignItems: "center", gap: "5px" }}>
+                            <UserCheck size={14} />{" "}
+                            {t?.assignedStaff || t?.sanatoriumId ? "Biriktirish" : "Xodimga biriktirish"}
+                          </span>
+                        </Act>
+                      )}
                       {ctx.admin && !ticketIsClosed && (
                         <Act
                           onClick={() =>
@@ -4650,8 +4979,15 @@ const auditLabels: Record<string, string> = {
   "staff.approved": "Resepsion tasdiqlandi",
   "customer.deleted": "Foydalanuvchi o‘chirildi",
   "superadmin.all_accounts_cleared": "Barcha hisoblar tozalandi",
+  "partner.registration_submitted": "Yangi hamkor arizasi yuborildi",
+  "partner.registration_approved": "Hamkor arizasi tasdiqlandi",
+  "partner.registration_rejected": "Hamkor arizasi rad etildi",
+  "support.assigned": "Murojaat sanatoriya xodimiga biriktirildi",
+  "support.unassigned": "Murojaat Superadminga qaytarildi",
   "auth.bootstrap": "Admin hisobi yaratildi",
   "auth.staff_login": "Xodim kirdi",
+  "auth.login": "Hisobga kirildi",
+  "auth.logout": "Hisobdan chiqildi",
   "staff.permissions_updated": "Xodim ruxsatlari yangilandi",
   "sanatorium.created": "Sanatoriya yaratildi",
   "sanatorium.featured_updated": "Mashhur sanatoriyalar tanlovi yangilandi",
@@ -4667,79 +5003,136 @@ const auditLabels: Record<string, string> = {
 };
 export function Audit() {
   const ctx = usePortal();
+  const [view, setView] = useState<"all" | "auth" | "actions">("all");
   return (
     <>
       <PageHeading
         title="Amallar tarixi"
-        subtitle="Parollar yangilanishi, foydalanuvchilar o‘chirilishi va xodimlar harakati tarixi."
+        subtitle="Har bir hisobga kirish-chiqish qurilmasi va IP manzili, shuningdek parol, hamkor arizalari va xodimlar harakati tarixi."
       />
-      <DataPanel
-        path={ctx.admin ? "/superadmin/audit" : "/partner/audit"}
-        params={{ sanatorium_id: (!ctx.admin && ctx.tenant) ? ctx.tenant : (ctx.tenant || undefined) }}
-        columns={[
-          { label: "Vaqt", render: (r) => dateTime(r.createdAt) },
-          {
-            label: "Amal",
-            render: (r) => {
-              if (r.action === "staff.password_reset") return "Xodim paroli tiklandi";
-              if (r.action === "auth.password_changed") return "Parol yangilandi";
-              if (r.action === "customer.deleted") return "Foydalanuvchi o‘chirildi";
-              if (r.action === "superadmin.all_accounts_cleared") return "Barcha hisoblar tozalandi";
-              if (r.action === "staff.invited") {
-                return (r.after as any)?.role === "ACCOUNTANT"
-                  ? "Hisobchi qo‘shildi"
-                  : "Resepsion qo‘shildi";
-              }
-              if (r.action === "staff.approved") {
-                return (r.after as any)?.role === "ACCOUNTANT"
-                  ? "Hisobchi tasdiqlandi"
-                  : "Resepsion tasdiqlandi";
-              }
-              return auditLabels[r.action] ?? r.action.replace(/[._]/g, " ");
+      <div className="tabs" style={{ marginBottom: 16 }}>
+        <button
+          type="button"
+          className={`tab ${view === "all" ? "active" : ""}`}
+          onClick={() => setView("all")}
+        >
+          Barchasi
+        </button>
+        <button
+          type="button"
+          className={`tab ${view === "auth" ? "active" : ""}`}
+          onClick={() => setView("auth")}
+        >
+          Kirish va chiqish tarixi (Qurilma & IP)
+        </button>
+        <button
+          type="button"
+          className={`tab ${view === "actions" ? "active" : ""}`}
+          onClick={() => setView("actions")}
+        >
+          Tizim amallari
+        </button>
+      </div>
+      {(view === "all" || view === "auth") && (
+        <div style={{ marginBottom: view === "all" ? 20 : 0 }}>
+          <AuthHistoryPanel
+            mode={ctx.admin ? "superadmin" : "partner"}
+            compact={view === "all"}
+          />
+        </div>
+      )}
+      {(view === "all" || view === "actions") && (
+        <DataPanel
+          path={ctx.admin ? "/superadmin/audit" : "/partner/audit"}
+          params={{ sanatorium_id: (!ctx.admin && ctx.tenant) ? ctx.tenant : (ctx.tenant || undefined) }}
+          columns={[
+            { label: "Vaqt", render: (r) => dateTime(r.createdAt) },
+            {
+              label: "Amal",
+              render: (r) => {
+                if (r.action === "staff.password_reset") return "Xodim paroli tiklandi";
+                if (r.action === "auth.password_changed") return "Parol yangilandi";
+                if (r.action === "customer.deleted") return "Foydalanuvchi o‘chirildi";
+                if (r.action === "superadmin.all_accounts_cleared") return "Barcha hisoblar tozalandi";
+                if (r.action === "staff.invited") {
+                  return (r.after as any)?.role === "ACCOUNTANT"
+                    ? "Hisobchi qo‘shildi"
+                    : "Resepsion qo‘shildi";
+                }
+                if (r.action === "staff.approved") {
+                  return (r.after as any)?.role === "ACCOUNTANT"
+                    ? "Hisobchi tasdiqlandi"
+                    : "Resepsion tasdiqlandi";
+                }
+                return auditLabels[r.action] ?? r.action.replace(/[._]/g, " ");
+              },
             },
-          },
-          {
-            label: "Tafsilot",
-            render: (r) => {
-              if (r.action === "customer.deleted") {
-                const b = (r.before as any) || {};
-                const parts = [
-                  b.name || b.fullName,
-                  b.phone,
-                  b.login ? `@${b.login}` : null,
-                  b.email,
-                ].filter(Boolean);
-                return (
-                  <span style={{ fontSize: 13, color: "var(--text-muted)" }}>
-                    {parts.length ? parts.join(" · ") : "Foydalanuvchi hisobi"}
-                  </span>
-                );
-              }
-              if (r.action === "superadmin.all_accounts_cleared") {
-                const b = (r.before as any) || {};
-                return (
-                  <span style={{ fontSize: 13, color: "var(--text-muted)" }}>
-                    {b.deletedCount ? `${b.deletedCount} ta hisob o‘chirildi` : "Tozalash yakunlandi"}
-                  </span>
-                );
-              }
-              if (r.note) return <span style={{ fontSize: 13 }}>{r.note}</span>;
-              return "—";
+            {
+              label: "Tafsilot",
+              render: (r) => {
+                if (r.action === "customer.deleted") {
+                  const b = (r.before as any) || {};
+                  const parts = [
+                    b.name || b.fullName,
+                    b.phone,
+                    b.login ? `@${b.login}` : null,
+                    b.email,
+                  ].filter(Boolean);
+                  return (
+                    <span style={{ fontSize: 13, color: "var(--text-muted)" }}>
+                      {parts.length ? parts.join(" · ") : "Foydalanuvchi hisobi"}
+                    </span>
+                  );
+                }
+                if (r.action === "superadmin.all_accounts_cleared") {
+                  const b = (r.before as any) || {};
+                  return (
+                    <span style={{ fontSize: 13, color: "var(--text-muted)" }}>
+                      {b.deletedCount ? `${b.deletedCount} ta hisob o‘chirildi` : "Tozalash yakunlandi"}
+                    </span>
+                  );
+                }
+                if (r.action.startsWith("partner.registration_")) {
+                  const a = (r.after as any) || {};
+                  const parts = [
+                    a.sanatorium_name,
+                    a.username ? `@${a.username}` : null,
+                    a.email,
+                    a.reason,
+                  ].filter(Boolean);
+                  return (
+                    <span style={{ fontSize: 13, color: "var(--text-muted)" }}>
+                      {parts.length ? parts.join(" · ") : "Hamkor arizasi"}
+                    </span>
+                  );
+                }
+                if (r.action === "support.assigned" || r.action === "support.unassigned") {
+                  const a = (r.after as any) || {};
+                  const parts = [a.assigned_to_name, a.sanatorium_name, a.note].filter(Boolean);
+                  return (
+                    <span style={{ fontSize: 13, color: "var(--text-muted)" }}>
+                      {parts.length ? parts.join(" · ") : "Yordam murojaati"}
+                    </span>
+                  );
+                }
+                if (r.note) return <span style={{ fontSize: 13 }}>{r.note}</span>;
+                return "—";
+              },
             },
-          },
-          {
-            label: "Sanatoriya",
-            render: (r) =>
-              ctx.tenants.find((s) => s.id === r.sanatoriumId)?.name ??
-              "Platforma",
-          },
-          {
-            label: "Manba",
-            render: (r) =>
-              r.actor_name ?? (r.actorId ? "Xodim" : "Provayder / tizim"),
-          },
-        ]}
-      />
+            {
+              label: "Sanatoriya",
+              render: (r) =>
+                ctx.tenants.find((s) => s.id === r.sanatoriumId)?.name ??
+                "Platforma",
+            },
+            {
+              label: "Manba",
+              render: (r) =>
+                r.actor_name ?? (r.actorId ? "Xodim" : "Provayder / tizim"),
+            },
+          ]}
+        />
+      )}
     </>
   );
 }
@@ -4858,12 +5251,15 @@ export function Notifications() {
     "ad.moderated": "Reklama moderatsiyasi",
     "support.opened": "Yangi murojaat",
     "support.replied": "Murojaatga javob",
+    "support.assigned": "Sizga yordam murojaati biriktirildi",
     "sanatorium.submitted": "Sanatoriya anketasi tekshiruvda",
     "sanatorium.moderated": "Profil tekshirildi",
     "staff.invited": "Yangi xodim taklifi",
     "refund.requested": "Pul qaytarish so‘rovi",
     "refund.succeeded": "Pul qaytarildi",
     "partner.password_reset_requested": "Hamkor parolini tiklash so‘rovi",
+    "partner.registration_submitted": "Yangi sanatoriya hamkor arizasi",
+    "partner.registration_approved": "Hamkor hisobingiz tasdiqlandi",
     "auth.bruteforce_alert": "Xavfsizlik: 1 soatda 5+ xato parol urinishi",
     "provider.sms.failed": "SMS xizmatida uzilish",
     "system.health.issue": "Tizim holati ogohlantirishi",
@@ -4889,6 +5285,9 @@ export function Notifications() {
     if (payload.body) return String(payload.body);
     if (payload.topic === "partner.password_reset_requested") {
       return `Login: @${payload.attempted_login || "—"} · IP: ${payload.ip || "—"}`;
+    }
+    if (payload.topic === "partner.registration_submitted") {
+      return `${payload.sanatorium_name || "Yangi sanatoriya"} · @${payload.username || "—"} · ${payload.email || "—"}`;
     }
     if (payload.topic === "auth.bruteforce_alert") {
       return `Login: @${payload.attempted_login || "—"} · ${payload.attempts || 5} marta · IP: ${payload.ip || "—"}`;
@@ -5123,6 +5522,18 @@ export function Notifications() {
                 gap: "10px",
               }}
             >
+              {ctx.admin && selected.payload?.topic === "partner.registration_submitted" && (
+                <button
+                  type="button"
+                  className="button primary"
+                  onClick={() => {
+                    setSelected(null);
+                    ctx.go("partner-registrations");
+                  }}
+                >
+                  Hamkor arizalarini ochish →
+                </button>
+              )}
               <button
                 type="button"
                 className="button secondary"

@@ -1,15 +1,23 @@
-import { Body, Controller, Delete, Get, Inject, Param, Patch, Post, Query } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Inject, Param, Patch, Post, Query, Req } from '@nestjs/common';
 import { ApiBody, ApiTags } from '@nestjs/swagger';
+import type { Request } from 'express';
 import { CurrentActor, Roles, AccountantAccess } from './guard';
 import { type Actor } from './permissions';
+import { AuthService } from './auth.service';
 import { StaffService, staffInput, staffInvitationInput, resetPasswordInput } from './staff.service';
 import { apiSchema } from './auth.controller';
+import { extractRequestMeta } from '../common/request-meta';
 
 @ApiTags('Xodimlar va ruxsatlar') @Roles('SUPERADMIN','STAFF') @Controller()
 export class StaffController {
-  constructor(@Inject(StaffService) private readonly staff: StaffService) {}
+  constructor(
+    @Inject(StaffService) private readonly staff: StaffService,
+    @Inject(AuthService) private readonly auth: AuthService,
+  ) {}
   @Get('partner/staff') list(@CurrentActor() a: Actor, @Query() q: unknown) { return this.staff.list(a, q); }
   @Get('superadmin/staff') @Roles('SUPERADMIN') adminList(@CurrentActor() a: Actor, @Query() q: unknown) { return this.staff.list(a, q); }
+  @Get('superadmin/auth-events') @Roles('SUPERADMIN') adminAuthEvents(@CurrentActor() a: Actor, @Query() q: unknown) { return this.auth.listAuthEvents(a, q, false); }
+  @Get('partner/auth-events') partnerAuthEvents(@CurrentActor() a: Actor, @Query() q: unknown) { return this.auth.listAuthEvents(a, q, true); }
   @Get('partner/staff/login-availability') @AccountantAccess() loginAvailability(@CurrentActor() a: Actor, @Query() q: unknown) { return this.staff.checkLoginAvailability(a, q); }
   @Post('superadmin/director-assignments') @Roles('SUPERADMIN') @ApiBody({ schema: apiSchema(staffInput) })
   assign(@CurrentActor() a: Actor, @Body() b: unknown) { return this.staff.assignDirector(a, b); }
@@ -19,13 +27,13 @@ export class StaffController {
   @Post('superadmin/staff-approvals/:id/reject') @Roles('SUPERADMIN') reject(@CurrentActor() a: Actor, @Param('id') id: string, @Body() b: unknown) { return this.staff.decision(a, id, false, b); }
   @Patch('partner/staff/:id/permissions') permissions(@CurrentActor() a: Actor, @Param('id') id: string, @Body() b: unknown) { return this.staff.permissions(a, id, b); }
   @Patch('superadmin/staff/:id') @Roles('SUPERADMIN') updateStaff(@CurrentActor() a: Actor, @Param('id') id: string, @Body() b: unknown) { return this.staff.updateStaff(a, id, b); }
-  @Post('superadmin/staff/:id/revoke-sessions') @Roles('SUPERADMIN') revokeStaffSessions(@CurrentActor() a: Actor, @Param('id') id: string) { return this.staff.revokeStaffSessions(a, id); }
+  @Post('superadmin/staff/:id/revoke-sessions') @Roles('SUPERADMIN') revokeStaffSessions(@CurrentActor() a: Actor, @Param('id') id: string, @Req() req: Request) { return this.staff.revokeStaffSessions(a, id, extractRequestMeta(req, 'WEB')); }
   @Post('superadmin/staff/:id/block') @Roles('SUPERADMIN') block(@CurrentActor() a: Actor, @Param('id') id: string, @Body() b: unknown) { return this.staff.block(a, id, b); }
   @Post('superadmin/staff/:id/reset-password') @Roles('SUPERADMIN') @ApiBody({ schema: apiSchema(resetPasswordInput) }) reset(@CurrentActor() a: Actor, @Param('id') id: string, @Body() b: unknown) { return this.staff.reset(a, id, b); }
   @Post('partner/staff/:id/reset-password') @ApiBody({ schema: apiSchema(resetPasswordInput) }) partnerReset(@CurrentActor() a: Actor, @Param('id') id: string, @Body() b: unknown) { return this.staff.reset(a, id, b, true); }
   @Get('superadmin/customers') @Roles('SUPERADMIN') customers(@CurrentActor() a: Actor, @Query() q: unknown) { return this.staff.customers(a, q); }
   @Post('superadmin/customers/:id/toggle-status') @Roles('SUPERADMIN') toggleCustomerStatus(@CurrentActor() a: Actor, @Param('id') id: string, @Body() b: unknown) { return this.staff.toggleCustomerStatus(a, id, b); }
-  @Post('superadmin/customers/:id/revoke-sessions') @Roles('SUPERADMIN') revokeCustomerSessions(@CurrentActor() a: Actor, @Param('id') id: string) { return this.staff.revokeCustomerSessions(a, id); }
+  @Post('superadmin/customers/:id/revoke-sessions') @Roles('SUPERADMIN') revokeCustomerSessions(@CurrentActor() a: Actor, @Param('id') id: string, @Req() req: Request) { return this.staff.revokeCustomerSessions(a, id, extractRequestMeta(req, 'WEB')); }
   @Patch('superadmin/customers/:id') @Roles('SUPERADMIN') updateCustomer(@CurrentActor() a: Actor, @Param('id') id: string, @Body() b: unknown) { return this.staff.updateCustomer(a, id, b); }
   @Delete('superadmin/customers/:id') @Roles('SUPERADMIN') deleteCustomer(@CurrentActor() a: Actor, @Param('id') id: string) { return this.staff.deleteCustomer(a, id); }
   @Post('superadmin/maintenance/clear-accounts') @Roles('SUPERADMIN') clearAccounts(@CurrentActor() a: Actor) { return this.staff.clearAllNonSuperadmin(a); }

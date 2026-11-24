@@ -255,7 +255,7 @@ export class TelegramService {
       case 'disconnectask': return this.views.page('Botni hisobingizdan uzasizmi?\nTelegramdagi bildirishnomalar to‘xtaydi. Keyin saytdan qayta ulashingiz mumkin.', [[b('🔌 Ha, uzish', 'disconnect')]], 'settings');
       case 'disconnect': await this.links.disconnect(ctx.actor); return this.unlinked();
       case 'site': {
-        if (!['dashboard', 'profile', 'bookings', 'inventory', 'payments', 'payouts', 'billing', 'staff', 'sanatoriums', 'refunds', 'messages', 'reconciliation'].includes(id)) fail('BUTTON_INVALID', 'Bo‘limni tanlang.', 422);
+        if (!['dashboard', 'profile', 'bookings', 'inventory', 'payments', 'payouts', 'billing', 'staff', 'sanatoriums', 'partner-registrations', 'refunds', 'messages', 'reconciliation'].includes(id)) fail('BUTTON_INVALID', 'Bo‘limni tanlang.', 422);
         const button = this.views.site(ctx, id);
         if (button.url) return this.views.page('Saytdagi hisobingiz orqali davom eting.', [[button]]);
         const base = ctx.actor.kind === 'SUPERADMIN' ? this.config.TELEGRAM_ADMIN_URL : this.config.TELEGRAM_PARTNER_URL;
@@ -360,11 +360,17 @@ export class TelegramService {
       const message = await this.db.message.findUnique({ where: { id: payload.message_id } });
       return message ? this.views.page(`📨 Yangi xabar: ${message.title}`, [[b('📨 O‘qish', `message:${message.id}`)]]) : null;
     }
-    if (topic === 'support.replied' || topic === 'support.opened') {
+    if (topic === 'support.replied' || topic === 'support.opened' || topic === 'support.assigned') {
       if (!ctx.account.notifySupport) return null;
       const ticket = await this.engagement.ticketGet(ctx.actor, payload.ticket_id);
       const latest = ticket.messages[ticket.messages.length - 1];
-      return this.views.page(`💬 ${topic === 'support.opened' ? 'Yangi murojaat' : 'Murojaatga javob'}: ${ticket.title}${latest ? '\n\n' + latest.text.slice(0, 1200) : ''}`, [[b('💬 Ochish', `ticket:${ticket.id}`)], ...(ticket.status === 'OPEN' ? [[b('✍️ Javob yozish', `ticketreply:${ticket.id}`)]] : [])]);
+      const heading = topic === 'support.assigned'
+        ? 'Sizga yordam murojaati biriktirildi'
+        : topic === 'support.opened'
+          ? 'Yangi murojaat'
+          : 'Murojaatga javob';
+      const noteLine = topic === 'support.assigned' && payload.note ? `\nIzoh: ${String(payload.note).slice(0, 300)}` : '';
+      return this.views.page(`💬 ${heading}: ${ticket.title}${noteLine}${latest ? '\n\n' + latest.text.slice(0, 1200) : ''}`, [[b('💬 Ochish', `ticket:${ticket.id}`)], ...(ticket.status === 'OPEN' ? [[b('✍️ Javob yozish', `ticketreply:${ticket.id}`)]] : [])]);
     }
     if (topic.startsWith('subscription.')) {
       if (!ctx.account.notifyBilling) return null;
@@ -386,7 +392,7 @@ export class TelegramService {
       const placementText = payload.placement === 'POPUP' ? 'Qalqib chiquvchi (POPUP)' : 'Asosiy sahifada';
       return this.views.page(`📢 Yangi reklama arizasi!\nSarlavha: ${payload.title}\nJoylashuv: ${placementText}`, [[this.views.site(ctx, 'billing', '🖥 E‘lonlarni saytda ko‘rish')]]);
     }
-    if (topic === 'partner.password_reset_requested' || topic === 'auth.bruteforce_alert' || topic === 'bank.change_requested') {
+    if (topic === 'partner.password_reset_requested' || topic === 'partner.registration_submitted' || topic === 'auth.bruteforce_alert' || topic === 'bank.change_requested') {
       if (ctx.actor.kind !== 'SUPERADMIN') return null;
       const alert = formatAdminAlert(topic, payload);
       return this.views.page(

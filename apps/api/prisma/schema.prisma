@@ -52,12 +52,75 @@ model Session {
   csrfHash String
   channel String
   deviceLabel String @default("Noma’lum qurilma")
+  ipAddress String?
+  userAgent String?
   expiresAt DateTime
   refreshExpiresAt DateTime
   lastActivityAt DateTime @default(now())
   revokedAt DateTime?
   createdAt DateTime @default(now())
   @@index([userId])
+}
+
+model AuthEvent {
+  id String @id @default(uuid()) @db.Uuid
+  userId String @db.Uuid
+  sessionId String? @db.Uuid
+  eventType String
+  channel String
+  authMethod String?
+  ipAddress String @default("unknown")
+  deviceLabel String @default("Noma’lum qurilma")
+  userAgent String?
+  userKind String?
+  userName String?
+  userLogin String?
+  userEmail String?
+  sanatoriumId String? @db.Uuid
+  createdAt DateTime @default(now())
+  @@index([userId, createdAt])
+  @@index([sanatoriumId, createdAt])
+  @@index([eventType, createdAt])
+  @@index([createdAt])
+}
+
+model PartnerRegistration {
+  id String @id @default(uuid()) @db.Uuid
+  status String @default("PENDING")
+  applicantName String
+  username String
+  email String
+  phone String
+  passwordHash String
+  sanatoriumName String
+  legalName String?
+  stir String?
+  region String
+  address String
+  description String
+  contactPhone String
+  mapUrl String?
+  checkInTime String @default("14:00")
+  checkOutTime String @default("12:00")
+  amenities String[] @default([])
+  services String[] @default([])
+  meals String @default("")
+  startingPriceMinor BigInt?
+  roomTypeName String?
+  roomsCount Int?
+  submittedIp String?
+  submittedDevice String?
+  reviewedBy String? @db.Uuid
+  reviewedAt DateTime?
+  decisionReason String?
+  createdUserId String? @db.Uuid
+  createdSanatoriumId String? @db.Uuid
+  version Int @default(1)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([status, createdAt])
+  @@index([username])
+  @@index([email])
 }
 
 model OtpChallenge {
@@ -700,9 +763,14 @@ model SupportTicket {
   userId String @db.Uuid
   sanatoriumId String? @db.Uuid
   bookingId String? @db.Uuid
+  assignedToUserId String? @db.Uuid
+  assignedByUserId String? @db.Uuid
+  assignedAt DateTime?
   title String
   status String @default("OPEN")
   createdAt DateTime @default(now())
+  @@index([assignedToUserId, status])
+  @@index([sanatoriumId, status])
 }
 
 model SupportMessage {

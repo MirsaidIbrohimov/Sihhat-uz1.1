@@ -1002,34 +1002,6 @@ class _NewSupportTicketScreenState extends State<NewSupportTicketScreen> {
   final text = TextEditingController();
   bool busy = false;
   String? error;
-  String recipientType = 'ADMIN';
-  String? selectedSanatoriumId;
-  List<Json> sanatoriums = [];
-
-  @override
-  void initState() {
-    super.initState();
-    _loadRecipients();
-  }
-
-  Future<void> _loadRecipients() async {
-    try {
-      final res = await widget.api.send('/support/recipients');
-      if (res is Map && res['sanatoriums'] is List) {
-        final list = (res['sanatoriums'] as List)
-            .whereType<Map<String, dynamic>>()
-            .toList();
-        if (mounted) {
-          setState(() {
-            sanatoriums = list;
-            if (sanatoriums.isNotEmpty && selectedSanatoriumId == null) {
-              selectedSanatoriumId = sanatoriums.first['id']?.toString();
-            }
-          });
-        }
-      }
-    } catch (_) {}
-  }
 
   @override
   void dispose() {
@@ -1048,33 +1020,16 @@ class _NewSupportTicketScreenState extends State<NewSupportTicketScreen> {
       error = null;
     });
     try {
-      final san = sanatoriums.firstWhere(
-        (s) => s['id'] == selectedSanatoriumId,
-        orElse: () => const {},
-      );
-      final sanName = recipientType != 'ADMIN' ? san['name']?.toString() : null;
-      final roleTitle = recipientType == 'RECEPTION'
-          ? 'Resepshnga murojaat'
-          : recipientType == 'DIRECTOR'
-          ? 'Direktorga murojaat'
-          : 'Ilovadan murojaat';
-      final defaultTitle = sanName != null
-          ? '$sanName ($roleTitle)'
-          : roleTitle;
-
       final created = asJson(
         await widget.api.send(
           '/support/tickets',
           method: 'POST',
           body: {
             'title': widget.bookingId == null
-                ? defaultTitle
+                ? 'Ilovadan murojaat'
                 : 'Bron ${widget.reference ?? ''}',
             'text': text.text.trim(),
             if (widget.bookingId != null) 'booking_id': widget.bookingId,
-            if (recipientType != 'ADMIN' && selectedSanatoriumId != null)
-              'sanatorium_id': selectedSanatoriumId,
-            if (recipientType != 'ADMIN') 'target_role': recipientType,
           },
         ),
       );
@@ -1111,73 +1066,8 @@ class _NewSupportTicketScreenState extends State<NewSupportTicketScreen> {
           const ConceptInfo(
             icon: 'message-square',
             title: 'Sizga yordam beramiz',
-            text: 'Savolingizni murojaat orqali yuboring.',
+            text: 'Savolingizni yozing — yordam xizmati javob beradi yoki zarur bo‘lsa sanatoriya xodimiga biriktiradi.',
           ),
-          const SizedBox(height: 18),
-          Text(
-            'Qabul qiluvchi',
-            style: TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-              color: context.colors.muted,
-              letterSpacing: 0.5,
-            ),
-          ),
-          const SizedBox(height: 8),
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              children: [
-                ChoiceChip(
-                  label: const Text('Admin / Platforma'),
-                  selected: recipientType == 'ADMIN',
-                  onSelected: (v) => setState(() => recipientType = 'ADMIN'),
-                ),
-                const SizedBox(width: 8),
-                ChoiceChip(
-                  label: const Text('Resepshn'),
-                  selected: recipientType == 'RECEPTION',
-                  onSelected: (v) =>
-                      setState(() => recipientType = 'RECEPTION'),
-                ),
-                const SizedBox(width: 8),
-                ChoiceChip(
-                  label: const Text('Direktor'),
-                  selected: recipientType == 'DIRECTOR',
-                  onSelected: (v) => setState(() => recipientType = 'DIRECTOR'),
-                ),
-              ],
-            ),
-          ),
-          if (recipientType != 'ADMIN' && sanatoriums.isNotEmpty) ...[
-            const SizedBox(height: 12),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
-              decoration: BoxDecoration(
-                border: Border.all(color: context.colors.border),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: DropdownButtonHideUnderline(
-                child: DropdownButton<String>(
-                  value: selectedSanatoriumId,
-                  isExpanded: true,
-                  hint: const Text('Sanatoriyani tanlang'),
-                  items: [
-                    for (final s in sanatoriums)
-                      DropdownMenuItem<String>(
-                        value: s['id']?.toString(),
-                        child: Text(
-                          s['name']?.toString() ?? 'Sanatoriya',
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                  ],
-                  onChanged: (val) =>
-                      setState(() => selectedSanatoriumId = val),
-                ),
-              ),
-            ),
-          ],
           const SizedBox(height: 18),
           TextField(
             controller: text,
@@ -1773,21 +1663,25 @@ class _SupportThreadState extends State<SupportThread>
                         const SizedBox(height: 2),
                         Builder(
                           builder: (context) {
-                            final targetRole = thread?['target_role']
-                                ?.toString();
-                            final roleLabel = targetRole == 'RECEPTION'
-                                ? 'Resepshn'
-                                : targetRole == 'DIRECTOR'
-                                ? 'Direktor'
-                                : targetRole == 'ACCOUNTANT'
-                                ? 'Hisobchi'
-                                : null;
+                            final peerKind = peer?['kind']?.toString();
+                            final staffSan =
+                                peer?['sanatoriumName']?.toString().trim() ??
+                                t['sanatoriumName']?.toString().trim() ??
+                                '';
+                            final staffName =
+                                peer?['name']?.toString().trim() ?? '';
                             final peerSubtitle = closed
                                 ? 'Murojaat yopilgan (Arxiv)'
-                                : roleLabel != null
-                                ? (peerOnline
-                                      ? '$roleLabel · Onlayn'
-                                      : '$roleLabel · Sanatoriya')
+                                : peerKind == 'STAFF'
+                                ? (staffSan.isNotEmpty
+                                      ? (peerOnline
+                                            ? '$staffSan xodimi · Onlayn'
+                                            : '$staffSan · Sanatoriya xodimi')
+                                      : (peerOnline
+                                            ? '${staffName.isNotEmpty ? staffName : 'Sanatoriya xodimi'} · Onlayn'
+                                            : (staffName.isNotEmpty
+                                                  ? '$staffName · Sanatoriya xodimi'
+                                                  : 'Sanatoriya xodimi')))
                                 : (peerOnline
                                       ? 'Superadmin · Onlayn'
                                       : 'Superadmin · Yordam xizmati');

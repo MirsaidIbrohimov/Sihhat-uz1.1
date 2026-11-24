@@ -3,7 +3,8 @@ import { z } from 'zod';
 import { Db, audit, emit, lock, type Tx } from '../common/db';
 import { fail, parse, uuid, version, reason, pageQuery, paged } from '../common/errors';
 import { passwordHash, opaque } from '../common/crypto';
-import { loginSchema, optionalEmailSchema, passwordSchema, phoneSchema } from './auth.service';
+import { loginSchema, optionalEmailSchema, passwordSchema, phoneSchema, type AuthRequestMeta } from './auth.service';
+import { normalizeIp, sanitizeUserAgent } from '../common/request-meta';
 import { normalizeAvatarInput } from './avatar.util';
 import { allocateUserPublicId, resolveUserPublicId } from './public-id.util';
 import { Actor, ACCOUNTANT, DELEGATABLE, DIRECTOR, effective, requirePlatform, scope, tenantIds } from './permissions';
@@ -62,7 +63,7 @@ export class StaffService {
         ? this.db.session.findMany({
             where: { userId: { in: userIds } },
             orderBy: { lastActivityAt: 'desc' },
-            select: { userId: true, lastActivityAt: true, revokedAt: true, refreshExpiresAt: true, deviceLabel: true, channel: true },
+            select: { userId: true, lastActivityAt: true, revokedAt: true, refreshExpiresAt: true, deviceLabel: true, ipAddress: true, channel: true },
             distinct: ['userId'],
           })
         : [],
@@ -99,6 +100,7 @@ export class StaffService {
                 activeSessionsCount: activeSessionMap.get(u.id) || 0,
                 lastSeenAt: s?.lastActivityAt ?? u.updatedAt,
                 device: s?.deviceLabel || s?.channel || 'Veb panel',
+                lastIp: s?.ipAddress ?? null,
               }
             : undefined,
           permissions: effective(m),
@@ -143,6 +145,12 @@ export class StaffService {
           },
           select: { id: true },
         });
+      }
+      if (!existingEmail && typeof (this.db as any).partnerRegistration?.findFirst === 'function') {
+        existingEmail = await this.db.partnerRegistration.findFirst({
+          where: { status: 'PENDING', email: { equals: normalizedEmail, mode: 'insensitive' as const } },
+          select: { id: true },
+        }).catch(() => null);
       }
       return {
         login: normalizedEmail,
@@ -189,6 +197,18 @@ export class StaffService {
         },
         select: { id: true },
       });
+    }
+    if (!existing && typeof (this.db as any).partnerRegistration?.findFirst === 'function') {
+      existing = await this.db.partnerRegistration.findFirst({
+        where: {
+          status: 'PENDING',
+          OR: [
+            { username: { equals: normalized, mode: 'insensitive' as const } },
+            ...(normalized.includes('@') ? [{ email: { equals: normalized, mode: 'insensitive' as const } }] : []),
+          ],
+        },
+        select: { id: true },
+      }).catch(() => null);
     }
     return {
       login: normalized,
@@ -625,7 +645,7 @@ export class StaffService {
       };
     });
   }
-  async revokeStaffSessions(actor: Actor, id: string) {
+  async revokeStaffSessions(actor: Actor, id: string, meta?: AuthRequestMeta) {
     if (actor.kind !== 'SUPERADMIN') fail('PERMISSION_DENIED', 'Faqat superadmin bajara oladi', 403);
     parse(uuid, id);
     return this.db.atomic(async tx => {
@@ -634,10 +654,34 @@ export class StaffService {
       await lock(tx, `user:${userId}`);
       const target = await tx.user.findUnique({ where: { id: userId } });
       if (!target) fail('NOT_FOUND', 'Xodim hisobi topilmadi', 404);
+      const activeSessions = typeof (tx as any).session?.findMany === 'function'
+        ? await tx.session.findMany({ where: { userId, revokedAt: null }, select: { id: true, channel: true, deviceLabel: true, ipAddress: true, userAgent: true } })
+        : [];
       const res = await tx.session.updateMany({
         where: { userId, revokedAt: null },
         data: { revokedAt: new Date() },
       });
+      if (typeof (tx as any).authEvent?.create === 'function') {
+        for (const s of activeSessions) {
+          await tx.authEvent.create({
+            data: {
+              userId,
+              sessionId: s.id,
+              eventType: 'SESSION_REVOKED',
+              channel: s.channel,
+              authMethod: 'ADMIN_REVOKE',
+              ipAddress: normalizeIp(s.ipAddress ?? meta?.ipAddress),
+              deviceLabel: s.deviceLabel || 'Veb panel',
+              userAgent: sanitizeUserAgent(s.userAgent ?? meta?.userAgent),
+              userKind: target.kind,
+              userName: target.name,
+              userLogin: target.login,
+              userEmail: target.email ?? (target.login?.includes('@') ? target.login : null),
+              sanatoriumId: membership?.sanatoriumId ?? null,
+            },
+          }).catch(() => undefined);
+        }
+      }
       await audit(tx, actor.id, 'staff.sessions_revoked', userId, membership?.sanatoriumId, undefined, { revoked_count: res.count });
       return { success: true, revoked_count: res.count };
     });
@@ -706,7 +750,7 @@ export class StaffService {
       userIds.length ? this.db.session.findMany({
         where: { userId: { in: userIds } },
         orderBy: { lastActivityAt: 'desc' },
-        select: { userId: true, lastActivityAt: true, revokedAt: true, refreshExpiresAt: true, deviceLabel: true, channel: true },
+        select: { userId: true, lastActivityAt: true, revokedAt: true, refreshExpiresAt: true, deviceLabel: true, ipAddress: true, channel: true },
         distinct: ['userId'],
       }) : [],
       userIds.length ? this.db.session.groupBy({
@@ -741,6 +785,7 @@ export class StaffService {
         ticketsCount: ticketMap.get(u.id) || 0,
         lastSeenAt: s?.lastActivityAt ?? u.updatedAt,
         device: s?.deviceLabel || s?.channel || 'Mobil ilova',
+        lastIp: s?.ipAddress ?? null,
       };
     });
 
@@ -885,17 +930,40 @@ export class StaffService {
     });
   }
 
-  async revokeCustomerSessions(actor: Actor, id: string) {
+  async revokeCustomerSessions(actor: Actor, id: string, meta?: AuthRequestMeta) {
     if (actor.kind !== 'SUPERADMIN') fail('PERMISSION_DENIED', 'Faqat superadmin bajara oladi', 403);
     parse(uuid, id);
     return this.db.atomic(async tx => {
       await lock(tx, `user:${id}`);
       const target = await tx.user.findUnique({ where: { id } });
       if (!target || target.kind !== 'CUSTOMER') fail('NOT_FOUND', 'Ilova foydalanuvchisi topilmadi', 404);
+      const activeSessions = typeof (tx as any).session?.findMany === 'function'
+        ? await tx.session.findMany({ where: { userId: id, revokedAt: null }, select: { id: true, channel: true, deviceLabel: true, ipAddress: true, userAgent: true } })
+        : [];
       const res = await tx.session.updateMany({
         where: { userId: id, revokedAt: null },
         data: { revokedAt: new Date() },
       });
+      if (typeof (tx as any).authEvent?.create === 'function') {
+        for (const s of activeSessions) {
+          await tx.authEvent.create({
+            data: {
+              userId: id,
+              sessionId: s.id,
+              eventType: 'SESSION_REVOKED',
+              channel: s.channel,
+              authMethod: 'ADMIN_REVOKE',
+              ipAddress: normalizeIp(s.ipAddress ?? meta?.ipAddress),
+              deviceLabel: s.deviceLabel || 'Mobil ilova',
+              userAgent: sanitizeUserAgent(s.userAgent ?? meta?.userAgent),
+              userKind: target.kind,
+              userName: target.name,
+              userLogin: target.login,
+              userEmail: target.email ?? (target.login?.includes('@') ? target.login : null),
+            },
+          }).catch(() => undefined);
+        }
+      }
       await audit(tx, actor.id, 'customer.sessions_revoked', id, undefined, undefined, { revoked_count: res.count });
       return { success: true, revoked_count: res.count };
     });

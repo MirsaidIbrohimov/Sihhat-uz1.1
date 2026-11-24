@@ -451,4 +451,100 @@ void main() {
       api.client.close();
     },
   );
+
+  testWidgets(
+    'NewSupportTicketScreen has no admin/reception/director chips and routes directly to central support; assigned staff peer displays cleanly',
+    (tester) async {
+      Map<String, dynamic>? postedBody;
+      final api = Api(
+        baseUrl: 'http://localhost',
+        store: MemoryStore(),
+        client: MockClient((r) async {
+          if (r.method == 'POST' && r.url.path == '/support/tickets') {
+            postedBody = jsonDecode(r.body) as Map<String, dynamic>;
+            return reply({'id': 't-central', 'status': 'OPEN'});
+          }
+          if (r.method == 'GET' &&
+              r.url.path == '/support/tickets/t-assigned') {
+            return reply({
+              'id': 't-assigned',
+              'userId': 'cust-1',
+              'title': 'Ilovadan murojaat',
+              'status': 'OPEN',
+              'sanatoriumName': 'Zomin Sanatoriyasi',
+              'peer': {
+                'id': 'staff-1',
+                'name': 'Dilnoza',
+                'kind': 'STAFF',
+                'sanatoriumName': 'Zomin Sanatoriyasi',
+                'isOnline': true,
+              },
+              'messages': [
+                {
+                  'id': 'm-1',
+                  'userId': 'staff-1',
+                  'isMe': false,
+                  'text': 'Assalomu alaykum, sizga yordam beraman',
+                  'createdAt': DateTime.now().toUtc().toIso8601String(),
+                },
+              ],
+            });
+          }
+          return reply({});
+        }),
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Builder(
+            builder: (ctx) => Scaffold(
+              body: ElevatedButton(
+                onPressed: () => Navigator.push(
+                  ctx,
+                  MaterialPageRoute(
+                    builder: (_) => NewSupportTicketScreen(api),
+                  ),
+                ),
+                child: const Text('Ochish'),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.tap(find.text('Ochish'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Qabul qiluvchi'), findsNothing);
+      expect(find.text('Admin / Platforma'), findsNothing);
+      expect(find.text('Resepshn'), findsNothing);
+      expect(find.text('Direktor'), findsNothing);
+      expect(find.text('Sanatoriyani tanlang'), findsNothing);
+
+      await tester.enterText(
+        find.byType(TextField),
+        'Bronim bo‘yicha yordam kerak',
+      );
+      await tester.tap(find.text('Murojaat yuborish'));
+      await tester.pumpAndSettle();
+
+      expect(postedBody, isNotNull);
+      expect(postedBody!['text'], 'Bronim bo‘yicha yordam kerak');
+      expect(postedBody!.containsKey('target_role'), isFalse);
+      expect(postedBody!.containsKey('sanatorium_id'), isFalse);
+      expect(postedBody!.containsKey('target_user_id'), isFalse);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          key: const ValueKey('assigned-thread'),
+          home: SupportThread(api, 't-assigned'),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Zomin Sanatoriyasi xodimi · Onlayn'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+
+      await tester.pumpWidget(const SizedBox.shrink());
+      api.client.close();
+    },
+  );
 }
