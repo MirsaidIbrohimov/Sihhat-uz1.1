@@ -2,6 +2,26 @@
 
 Yangilangan: 2026-11-27. Asos: ISHLAB_CHIQISH_REJASI.md va SIHHAT_UZ_ARXITEKTURA.md.
 
+## 2026-11-27 Barcha web panellar va `sihhat.uz` bosh sahifasini T6 (Tungi Aurora Multi-Color) dizayniga o‘tkazish hamda yangi qulayliklar (`apps/superadmin-web`, `apps/partner-web`, `packages/ui`, `UI/new web`)
+
+- **Web dizayn maketlari va rang palitralari ([`UI/new web/`](../UI/new%20web/README.md))**:
+  - Superadmin uchun 12 ta to‘liq ekran maketi (`00`..`11`), kunduzgi ranglar (`ranglar/`), yorqin ranglar (`yorqin_ranglar/`) va oq rangsiz tungi ranglar (`tungi_ranglar/` — `T1`..`T6`) Retina PNG formatida tayyorlandi; foydalanuvchi tanlovi — **T6 (Tungi Aurora Multi-Color: Indigo + Sky + Mint)**.
+- **Superadmin (`/superadmin`) va Hamkorlar (`/hamkorlar`) panellarida T6 rang tizimi**:
+  - [`apps/superadmin-web/app/layout.tsx`](../apps/superadmin-web/app/layout.tsx), [`apps/partner-web/app/layout.tsx`](../apps/partner-web/app/layout.tsx), [`packages/ui/src/appearance.tsx`](../packages/ui/src/appearance.tsx), [`manifest.json`](../apps/superadmin-web/public/manifest.json): standart mavzu **T6 tungi rejim (`data-theme="dark"`, `#0a0f1f`)** qilib belgilandi (kunduzgi rejim `localStorage` orqali saqlanadi).
+  - [`packages/ui/src/styles.css`](../packages/ui/src/styles.css), [`packages/ui/src/portal-enhancements.css`](../packages/ui/src/portal-enhancements.css), [`account.tsx`](../packages/ui/src/account.tsx), [`governance.tsx`](../packages/ui/src/governance.tsx), [`operations.tsx`](../packages/ui/src/operations.tsx), [`communication.tsx`](../packages/ui/src/communication.tsx): eski Neon Emerald / to‘q yashil ranglar (`#03201c`, `#00866c`, `#3ee6bf`, `#25e2a2`, `#8ff5dc` va b.) to‘liq olib tashlanib, T6 Midnight Indigo (`#0a0f1f` fon, `#0e152a` sidebar, `#141d38` kartalar, `#1c284a` ichki bloklar, `#6366f1 → #0ea5e9` asosiy tugma, `#4f46e5 → #0284c7 → #059669` featured KPI, 5 rangli bar-chart, ko‘p rangli KPI sparkline va ikonka tile’lari) hamda mos Y6 kunduzgi palitra joriy etildi; Telegram-uslubdagi chat va bildirishnoma detallaridagi oq fallback yuzalar bartaraf etildi.
+- **`sihhat.uz` bosh sahifasi T6 yangilanishi va yangi qulayliklar ([`packages/ui/src/landing.css`](../packages/ui/src/landing.css), [`packages/ui/src/landing.tsx`](../packages/ui/src/landing.tsx))**:
+  - Bosh sahifa, splash-ekran, diagonal aurora chiziqlari, AI robot SVG, to‘lqinlar, kartalar, modallar va mobil pastki dock to‘liq **T6 Tungi Aurora** va mos **Y6 kunduzgi** palitraga o‘tkazildi; ilova versiyasi yozuvlari `v0.2.10` ga yangilandi.
+  - **Yangi qulayliklar**:
+    1. **Sanatoriyalarni yonma-yon taqqoslash (`3` tagacha)**: har bir kartada taqqoslash tugmasi, pastki suzuvchi taqqoslash paneli (`.l-compare-dock`) va jadval modali («Eng hamyonbop» va «Top reyting» nishonlari bilan).
+    2. **Byudjet filtri, aqlli saralash va jonli hisoblagich**: `≤ 300 ming`, `300 – 600 ming`, `600 ming+`, narx/reyting/alifbo saralash hamda `Topildi: N ta` indikatori.
+    3. **Jonli yo‘llanma narx kalkulyatori**: tafsilot va TezCheck modallarida `3 / 7 / 10 / 12 / 14` kun tezkor tanlovlari, mehmon soni (`1–3`), avtomatik chiqish sanasi va jami summa hisob-kitobi (tanlangan kunlar va tarif to‘g‘ridan-to‘g‘ri TezCheck oynasiga o‘tadi).
+    4. **Yaqinda ko‘rilganlar va 1-klik havola ulashish**: `localStorage` asosidagi tezkor qaytish qatori hamda `?sanatorium=<id>` deep-link ulashish + toast xabarnoma.
+    5. **Tezkor klaviatura qidiruvi (`/` va `Ctrl+K`), 6 savolli FAQ akkordeon va yuqoriga qaytish (`↑`) tugmasi**.
+- **Tekshirilgan lokal natijalar (`2026-11-27`, lokal build + Chromium tekshiruvi; rasmiy production qabuli emas; GitHubga push qilinmagan)**:
+  - Eski yashil ranglar bo‘yicha `styles.css`, `portal-enhancements.css`, `landing.css`, `landing.tsx`, `manifest.json` va panel TSX fayllari skaneri: **0 moslik**.
+  - TypeScript typecheck (`@sihhat/ui`, `@sihhat/superadmin-web`, `@sihhat/partner-web`): **0 xato**; `test:portal-routes` (**2/2 pass**); `test:report-periods` (**3/3 pass**); `npm run build:web` (`superadmin-web` va `partner-web` production build): **pass**; `npm run check:secrets` (`510` fayl, `24` maxfiy qiymat): **`matches: []`**.
+  - Headless Chromium (`Playwright`) orqali build qilingan `/`, `/superadmin` va `/hamkorlar` jonli tekshiruvi: **0 sahifa xatosi**, barcha sahifalarda standart `dark` T6 (`rgb(10, 15, 31)` / `rgba(20, 29, 56, 0.97)`), `/` qidiruv fokusi, narx saralash, 2 sanatoriyani taqqoslash (`Eng hamyonbop` + `Top reyting`), kalkulyator (`10 kun` → `14 kun`), ulashish toasti va «Yaqinda ko‘rilganlar» qatori tasdiqlandi.
+
 ## 2026-11-27 Amallar tarixi, kirilgan qurilmalar ta’rifi va yuqori tezkor qidiruvda `#ID` orqali User/Hamkor profilini ochish (`apps/api`, `packages/api-client-ts`, `packages/ui`)
 
 - **Amallar tarixi va Kirilgan qurilmalar ta’rifi tiklanishi**:
@@ -12,6 +32,9 @@ Yangilangan: 2026-11-27. Asos: ISHLAB_CHIQISH_REJASI.md va SIHHAT_UZ_ARXITEKTURA
 - **Yuqoridagi tezkor qidiruvda (`Ctrl + K`) `#ID` bilan User yoki Hamkor profilini ochish**:
   - [`apps/api/src/auth/staff.controller.ts`](../apps/api/src/auth/staff.controller.ts) va [`staff.service.ts`](../apps/api/src/auth/staff.service.ts): `GET /auth/quick-lookup?q=#<ID>` endpointi qo‘shildi — `#` bilan 6 xonali ID (yoki qisman prefiks) yozilganda Superadmin uchun barcha User (`CUSTOMER`) va Hamkor (`STAFF`), Hamkor panelida esa faqat o‘z sanatoriyasiga tegishli xodim va mijozlarni (faol kirilgan qurilmalari bilan birga) topadi.
   - [`packages/ui/src/portal.tsx`](../packages/ui/src/portal.tsx), [`governance.tsx`](../packages/ui/src/governance.tsx) (`QuickAccountProfileModal`), [`portal-enhancements.css`](../packages/ui/src/portal-enhancements.css): yuqori tezkor qidiruv barcha ekran o‘lchamlarida ko‘rinadigan qilindi; `#` bilan ID kiritilganda jonli User/Hamkor natijalari chiqadi, aniq 6 xonali `#ID` mos kelganda (yoki `Enter` / bosish orqali) mos User yoki Hamkor profili oynasi darhol ochiladi.
+- **Tekshirilgan lokal natijalar (`2026-11-27`, lokal unit va build tekshiruvlari; rasmiy provider yoki production qabul natijasi emas; Render deploy alohida talab qilinadi)**:
+  - `apps/api/test/quick-lookup-audit-devices.test.ts` (**4/4 pass** — `describeDeviceMeta`, Client Hints, har bir `sessionId` bo‘yicha backfill + generic qurilma nomini yangilash, `#ID` bo‘yicha User va Hamkor qidiruvi + RBAC sanatoriya izolyatsiyasi, `ReportsService.audit` `q` qidiruvi va `sanatoriumId=null` xodim amallari), mavjud backend unit testlari (`18/18 pass`), UI/yo‘l unit testlari (`6/6 pass`).
+  - `npm run check` (`5/5` workspace), `npm run openapi`, `npm run build:api`, `npm run build:web` (`@sihhat/superadmin-web` va `@sihhat/partner-web`), `npm run check:secrets` (`511` fayl, `24` maxfiy qiymat, `matches: []`) — **0 xato**.
 
 ## 2026-11-24 Hamkor ro‘yxatdan o‘tish tekshiruvi, Amallar tarixi va Kirilgan qurilmalar tarixi tuzatishlari (`apps/api`, `packages/ui`)
 

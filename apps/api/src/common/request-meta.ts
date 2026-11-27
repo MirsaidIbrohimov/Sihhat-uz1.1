@@ -158,7 +158,7 @@ function parseOsInfo(
     const m = /Android\s+[\d.]+;\s*([^;)]+?)(?:\s+Build\/|\))/i.exec(ua);
     const rawModel = m?.[1]?.trim().slice(0, 40);
     const model = rawModel && !/^K$|^wv$/i.test(rawModel) ? rawModel : cleanHintModel;
-    const isTablet = /Tablet|SM-T|Pad/i.test(ua) || (Boolean(/Android/i.test(ua)) && !/Mobile/i.test(ua) && Boolean(model));
+    const isTablet = /Tablet|SM-T|SM-X|Pad/i.test(ua);
     const shortOs = model ? `Android (${model})` : 'Android';
     const fullOs = [verMatch ? `Android ${verMatch}` : 'Android', model ? `(${model})` : ''].filter(Boolean).join(' ');
     return {
