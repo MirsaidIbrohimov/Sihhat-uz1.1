@@ -3802,10 +3802,10 @@ export function LandingPage() {
                                 borderRadius: 12,
                                 cursor: "pointer",
                                 background: active
-                                  ? "rgba(62, 230, 191, 0.16)"
-                                  : "rgba(255, 255, 255, 0.03)",
+                                  ? "var(--l-accent-soft-2)"
+                                  : "var(--l-soft)",
                                 border: active
-                                  ? "1.5px solid var(--l-neon)"
+                                  ? "1.5px solid var(--l-border-bright)"
                                   : "1px solid var(--l-border)",
                                 color: "var(--l-ink)",
                               }}
@@ -3870,10 +3870,10 @@ export function LandingPage() {
                                 fontWeight: 700,
                                 textAlign: "left",
                                 background: active
-                                  ? "rgba(62, 230, 191, 0.16)"
-                                  : "rgba(255, 255, 255, 0.03)",
+                                  ? "var(--l-accent-soft-2)"
+                                  : "var(--l-soft)",
                                 border: active
-                                  ? "1.5px solid var(--l-neon)"
+                                  ? "1.5px solid var(--l-border-bright)"
                                   : "1px solid var(--l-border)",
                                 color: active ? "var(--l-neon)" : "var(--l-ink)",
                               }}
