@@ -125,31 +125,45 @@ export class AuthService implements OnModuleInit {
     }
     const cleanIp = normalizeIp(meta.ipAddress);
     const cleanUa = sanitizeUserAgent(meta.userAgent);
-    if (cleanIp === 'unknown' && !cleanUa) return;
+    const cleanDevice = meta.deviceLabel && !isGenericDeviceLabel(meta.deviceLabel) ? meta.deviceLabel.trim().slice(0, 140) : null;
+    if (cleanIp === 'unknown' && !cleanUa && !cleanDevice) return;
     try {
       const existing = await this.db.session.findUnique({
         where: { id: sessionId },
-        select: { id: true, ipAddress: true, userAgent: true },
+        select: { id: true, deviceLabel: true, ipAddress: true, userAgent: true },
       });
       if (!existing) return;
       const needsIp = (!existing.ipAddress || existing.ipAddress === 'unknown') && cleanIp !== 'unknown';
       const needsUa = !existing.userAgent && Boolean(cleanUa);
-      if (!needsIp && !needsUa) return;
+      const needsDevice = isGenericDeviceLabel(existing.deviceLabel) && Boolean(cleanDevice);
+      if (!needsIp && !needsUa && !needsDevice) return;
       await this.db.session.updateMany({
         where: { id: sessionId },
         data: {
           ...(needsIp ? { ipAddress: cleanIp } : {}),
           ...(needsUa ? { userAgent: cleanUa } : {}),
+          ...(needsDevice && cleanDevice ? { deviceLabel: cleanDevice } : {}),
         },
       });
-      if (needsIp && typeof (this.db as any)?.authEvent?.updateMany === 'function') {
-        await this.db.authEvent.updateMany({
-          where: { sessionId, ipAddress: 'unknown' },
-          data: {
-            ipAddress: cleanIp,
-            ...(needsUa ? { userAgent: cleanUa } : {}),
-          },
-        });
+      if (typeof (this.db as any)?.authEvent?.updateMany === 'function') {
+        if (needsIp) {
+          await this.db.authEvent.updateMany({
+            where: { sessionId, ipAddress: 'unknown' },
+            data: {
+              ipAddress: cleanIp,
+              ...(needsUa ? { userAgent: cleanUa } : {}),
+              ...(needsDevice && cleanDevice ? { deviceLabel: cleanDevice } : {}),
+            },
+          });
+        } else if (needsDevice && cleanDevice) {
+          await this.db.authEvent.updateMany({
+            where: { sessionId },
+            data: {
+              deviceLabel: cleanDevice,
+              ...(needsUa ? { userAgent: cleanUa } : {}),
+            },
+          });
+        }
       }
     } catch {
       // Never block /auth/me or /auth/sessions on telemetry hydration
@@ -181,25 +195,27 @@ export class AuthService implements OnModuleInit {
       });
       if (!sessions.length) return 0;
 
-      const candidateUserIds = [...new Set(sessions.map((s) => s.userId))];
-      const usersWithEvents = await this.db.authEvent.findMany({
-        where: { userId: { in: candidateUserIds } },
-        distinct: ['userId'],
-        select: { userId: true },
+      const candidateSessionIds = sessions.map((s) => s.id);
+      const existingEvents = await this.db.authEvent.findMany({
+        where: { sessionId: { in: candidateSessionIds } },
+        select: { sessionId: true },
       });
-      const existingUserSet = new Set(usersWithEvents.map((e) => e.userId));
-      const legacySessions = sessions.filter((s) => !existingUserSet.has(s.userId));
-      if (!legacySessions.length) return 0;
+      const existingSessionSet = new Set(existingEvents.map((e) => e.sessionId).filter(Boolean));
+      const missingSessions = sessions.filter((s) => !existingSessionSet.has(s.id));
+      if (!missingSessions.length) return 0;
 
-      const legacyUserIds = [...new Set(legacySessions.map((s) => s.userId))];
+      // Group all sessions of affected users so token-refresh rotation chains collapse accurately
+      const affectedUserIds = [...new Set(missingSessions.map((s) => s.userId))];
+      const affectedSessions = sessions.filter((s) => affectedUserIds.includes(s.userId));
+
       const [users, memberships] = await Promise.all([
         this.db.user.findMany({
-          where: { id: { in: legacyUserIds } },
+          where: { id: { in: affectedUserIds } },
           select: { id: true, kind: true, name: true, login: true, email: true },
         }),
         typeof (this.db as any)?.membership?.findMany === 'function'
           ? this.db.membership.findMany({
-              where: { userId: { in: legacyUserIds }, status: 'ACTIVE' },
+              where: { userId: { in: affectedUserIds }, status: 'ACTIVE' },
               orderBy: { createdAt: 'asc' },
               select: { userId: true, sanatoriumId: true },
             })
@@ -211,10 +227,8 @@ export class AuthService implements OnModuleInit {
         if (!sanMap.has(m.userId)) sanMap.set(m.userId, m.sanatoriumId);
       }
 
-      // Group per user chronologically and collapse token-refresh rotation chains
-      // (where an old session is revoked within 5s of a new session starting on the same device/channel).
-      const byUser = new Map<string, typeof legacySessions>();
-      for (const s of legacySessions) {
+      const byUser = new Map<string, typeof affectedSessions>();
+      for (const s of affectedSessions) {
         const arr = byUser.get(s.userId) ?? [];
         arr.push(s);
         byUser.set(s.userId, arr);
@@ -244,14 +258,16 @@ export class AuthService implements OnModuleInit {
         }
         const sanId = u.kind === 'STAFF' ? (sanMap.get(u.id) ?? null) : null;
         for (const s of sorted) {
-          const channel = s.channel || (u.kind === 'CUSTOMER' ? 'MOBILE' : 'WEB');
+          if (existingSessionSet.has(s.id)) continue;
+          const channel = (s.channel || (u.kind === 'CUSTOMER' ? 'MOBILE' : 'WEB')) as 'WEB' | 'MOBILE';
           const email = u.email ?? (u.login?.includes('@') ? u.login : null);
+          const meta = describeDeviceMeta(s.userAgent, channel, s.deviceLabel);
           const base = {
             userId: s.userId,
             sessionId: s.id,
             channel,
             ipAddress: normalizeIp(s.ipAddress),
-            deviceLabel: (s.deviceLabel?.trim() || (channel === 'MOBILE' ? 'Android ilovasi' : 'Veb brauzer')).slice(0, 140),
+            deviceLabel: meta.deviceLabel.slice(0, 140),
             userAgent: sanitizeUserAgent(s.userAgent),
             userKind: u.kind,
             userName: u.name,

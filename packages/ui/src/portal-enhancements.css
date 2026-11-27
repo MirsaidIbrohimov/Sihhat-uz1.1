@@ -1,5 +1,5 @@
 :where(button, a, input, select, textarea):focus-visible {
-  outline: 3px solid #259c76;
+  outline: 3px solid #6366f1;
   outline-offset: 3px;
 }
 .list-filters {
@@ -55,32 +55,32 @@
 }
 
 /* ========================================================
-   TELEGRAM MESSENGER STYLE FOR SUPPORT & CHATS (LIGHT + DARK)
+   TELEGRAM MESSENGER STYLE FOR SUPPORT & CHATS (T6 AURORA)
    ======================================================== */
 .tg-messenger {
   --tg-shell-bg: #ffffff;
   --tg-sidebar-bg: #ffffff;
   --tg-header-bg: #ffffff;
-  --tg-room-bg: #e7f2ec;
-  --tg-wallpaper-tint: rgba(8, 125, 102, 0.06);
-  --tg-border: #dce8e2;
-  --tg-ink: #112a22;
-  --tg-muted: #667e75;
-  --tg-search-bg: #f1f6f4;
-  --tg-hover-bg: #eff6f2;
-  --tg-active-bg: #1e8f71;
+  --tg-room-bg: #eef2fa;
+  --tg-wallpaper-tint: rgba(79, 70, 229, 0.06);
+  --tg-border: #e2e8f4;
+  --tg-ink: #0f172a;
+  --tg-muted: #64748b;
+  --tg-search-bg: #f1f5fc;
+  --tg-hover-bg: #eef2ff;
+  --tg-active-bg: #4f46e5;
   --tg-active-ink: #ffffff;
-  --tg-bubble-own: #dcfce9;
-  --tg-bubble-own-ink: #0f2c22;
+  --tg-bubble-own: #e0e7ff;
+  --tg-bubble-own-ink: #1e1b4b;
   --tg-bubble-in: #ffffff;
-  --tg-bubble-in-ink: #112a22;
-  --tg-bubble-meta: #527c6c;
+  --tg-bubble-in-ink: #0f172a;
+  --tg-bubble-meta: #4f46e5;
   --tg-composer-bg: #ffffff;
-  --tg-input-bg: #f3f7f5;
-  --tg-date-pill-bg: rgba(17, 42, 34, 0.34);
+  --tg-input-bg: #f6f8fc;
+  --tg-date-pill-bg: rgba(15, 23, 42, 0.44);
   --tg-date-pill-ink: #ffffff;
-  --tg-accent: #10a37f;
-  --tg-accent-deep: #0b8264;
+  --tg-accent: #4f46e5;
+  --tg-accent-deep: #4338ca;
   --tg-danger: #dc2626;
 
   display: grid;
@@ -93,35 +93,35 @@
   background: var(--tg-shell-bg);
   border: 1px solid var(--tg-border);
   overflow: hidden;
-  box-shadow: 0 12px 34px rgba(10, 40, 30, 0.08);
+  box-shadow: 0 12px 34px rgba(15, 23, 42, 0.08);
 }
 
 :root[data-theme="dark"] .tg-messenger {
-  --tg-shell-bg: #0c1915;
-  --tg-sidebar-bg: #0e1e19;
-  --tg-header-bg: #10241d;
-  --tg-room-bg: #081310;
-  --tg-wallpaper-tint: rgba(52, 211, 153, 0.055);
-  --tg-border: #1b382c;
-  --tg-ink: #edf7f2;
-  --tg-muted: #8ea99d;
-  --tg-search-bg: #152b23;
-  --tg-hover-bg: rgba(37, 226, 162, 0.08);
-  --tg-active-bg: #1b6b53;
+  --tg-shell-bg: #0e152a;
+  --tg-sidebar-bg: #111933;
+  --tg-header-bg: #141d38;
+  --tg-room-bg: #0a0f1f;
+  --tg-wallpaper-tint: rgba(99, 102, 241, 0.07);
+  --tg-border: rgba(129, 140, 248, 0.24);
+  --tg-ink: #f1f5ff;
+  --tg-muted: #8799bf;
+  --tg-search-bg: #1c284a;
+  --tg-hover-bg: rgba(99, 102, 241, 0.16);
+  --tg-active-bg: #4f46e5;
   --tg-active-ink: #ffffff;
-  --tg-bubble-own: #145440;
-  --tg-bubble-own-ink: #f3fcf8;
-  --tg-bubble-in: #13251e;
-  --tg-bubble-in-ink: #e8f3ee;
-  --tg-bubble-meta: #9cd4be;
-  --tg-composer-bg: #0f211b;
-  --tg-input-bg: #162d24;
-  --tg-date-pill-bg: rgba(16, 36, 29, 0.78);
-  --tg-date-pill-ink: #d5ebe1;
-  --tg-accent: #25e2a2;
-  --tg-accent-deep: #15b884;
-  --tg-danger: #f87171;
-  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.36);
+  --tg-bubble-own: #273770;
+  --tg-bubble-own-ink: #f1f5ff;
+  --tg-bubble-in: #141d38;
+  --tg-bubble-in-ink: #e2e8ff;
+  --tg-bubble-meta: #93c5fd;
+  --tg-composer-bg: #111933;
+  --tg-input-bg: #1c284a;
+  --tg-date-pill-bg: rgba(20, 29, 56, 0.88);
+  --tg-date-pill-ink: #c6d3f0;
+  --tg-accent: #60a5fa;
+  --tg-accent-deep: #38bdf8;
+  --tg-danger: #fda4af;
+  box-shadow: 0 16px 40px rgba(3, 6, 18, 0.48);
 }
 
 .tg-sidebar {
@@ -264,7 +264,7 @@
 
 .tg-folder-tab.active .tg-folder-badge {
   background: var(--tg-accent);
-  color: #041d15;
+  color: #ffffff;
 }
 
 .tg-chat-list {
@@ -531,7 +531,7 @@
   flex-direction: column;
   gap: 6px;
   background-color: var(--tg-room-bg);
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='96' height='96' viewBox='0 0 96 96'%3E%3Cg fill='none' stroke='%2325e2a2' stroke-opacity='0.065' stroke-width='1.3'%3E%3Cpath d='M16 24c4-6 12-6 14 2-6 4-12 2-14-2z'/%3E%3Ccircle cx='72' cy='22' r='5'/%3E%3Cpath d='M68 70l4-8 4 8h-8z'/%3E%3Cpath d='M22 68c0-4 6-6 9-2 3 4-3 10-9 6'/%3E%3Cpath d='M48 44l3 6 6 1-4 4 1 6-6-3-6 3 1-6-4-4 6-1z'/%3E%3C/g%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='96' height='96' viewBox='0 0 96 96'%3E%3Cg fill='none' stroke='%2360a5fa' stroke-opacity='0.07' stroke-width='1.3'%3E%3Cpath d='M16 24c4-6 12-6 14 2-6 4-12 2-14-2z'/%3E%3Ccircle cx='72' cy='22' r='5'/%3E%3Cpath d='M68 70l4-8 4 8h-8z'/%3E%3Cpath d='M22 68c0-4 6-6 9-2 3 4-3 10-9 6'/%3E%3Cpath d='M48 44l3 6 6 1-4 4 1 6-6-3-6 3 1-6-4-4 6-1z'/%3E%3C/g%3E%3C/svg%3E");
 }
 
 .tg-date-sep {
@@ -678,19 +678,19 @@
   width: 40px;
   height: 40px;
   border-radius: 50%;
-  background: var(--tg-accent);
-  color: #032219;
+  background: linear-gradient(135deg, #6366f1 0%, #0ea5e9 100%);
+  color: #ffffff;
   border: none;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
   flex-shrink: 0;
-  transition: background 0.15s ease, transform 0.1s ease;
+  transition: filter 0.15s ease, transform 0.1s ease;
 }
 
 .tg-composer-send:hover:not(:disabled) {
-  background: var(--tg-accent-deep);
+  filter: brightness(1.08);
   color: #ffffff;
   transform: scale(1.05);
 }
@@ -728,7 +728,8 @@
    ======================================================== */
 .profile-hero {
   background:
-    radial-gradient(460px 220px at 96% 12%, rgba(62, 230, 191, 0.2), transparent 65%),
+    radial-gradient(460px 220px at 96% 12%, rgba(99, 102, 241, 0.2), transparent 65%),
+    radial-gradient(360px 180px at 8% 92%, rgba(14, 165, 233, 0.14), transparent 62%),
     var(--glass-strong, var(--surface));
   border: 1px solid var(--border-bright, var(--line));
   border-radius: var(--radius-lg, 24px);
@@ -740,7 +741,7 @@
   gap: 20px;
   margin-bottom: 24px;
   backdrop-filter: blur(16px);
-  box-shadow: var(--glow-sm, 0 6px 20px rgba(0, 134, 108, 0.12));
+  box-shadow: var(--glow-sm);
 }
 
 .profile-hero-left {
@@ -753,15 +754,15 @@
   width: 68px;
   height: 68px;
   border-radius: 50%;
-  background: linear-gradient(135deg, var(--green), var(--neon-deep, #006c56));
+  background: linear-gradient(135deg, #6366f1 0%, #0ea5e9 100%);
   border: 2px solid var(--mint);
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 24px;
   font-weight: 800;
-  color: var(--on-primary);
-  box-shadow: var(--glow-sm, 0 4px 14px rgba(37, 156, 118, 0.3));
+  color: #ffffff;
+  box-shadow: 0 6px 20px rgba(14, 165, 233, 0.34);
 }
 
 .profile-hero-name {
@@ -855,7 +856,7 @@
 
 .guide-search:focus {
   border-color: var(--green);
-  box-shadow: 0 0 0 4px rgba(62, 230, 191, 0.16);
+  box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.22);
 }
 
 .guide-category-chips {
@@ -1088,7 +1089,7 @@
 }
 
 /* ============================================================================
-   AURORA EMERALD COMMAND V3 — WEB PANELS ENHANCEMENTS (2026-11-22)
+   TUNGI AURORA MULTI-COLOR (T6) — WEB PANELS ENHANCEMENTS
    ============================================================================ */
 .command-search-trigger {
   display: inline-flex;
@@ -1234,8 +1235,8 @@
   flex-shrink: 0;
 }
 .stat-card.featured-stat .stat-trend-pill {
-  background: rgba(62, 230, 191, 0.22);
-  color: #8ff5dc;
+  background: rgba(255, 255, 255, 0.18);
+  color: #ffffff;
 }
 
 /* Split Login V3 Frame Overlay */
@@ -1243,8 +1244,8 @@
   position: relative;
   border-radius: 22px;
   overflow: hidden;
-  border: 1px solid rgba(143, 245, 220, 0.32);
-  box-shadow: 0 22px 52px rgba(0, 0, 0, 0.44);
+  border: 1px solid rgba(125, 211, 252, 0.34);
+  box-shadow: 0 22px 52px rgba(3, 6, 18, 0.48);
   margin-top: 14px;
 }
 .login-art-frame .login-illustration {
@@ -1260,15 +1261,15 @@
   inset: auto 12px 12px 12px;
   padding: 10px 14px;
   border-radius: 15px;
-  background: rgba(3, 30, 25, 0.84);
+  background: rgba(14, 21, 42, 0.88);
   backdrop-filter: blur(14px);
-  border: 1px solid rgba(62, 230, 191, 0.32);
+  border: 1px solid rgba(125, 211, 252, 0.34);
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 10px;
   font-size: 11.5px;
-  color: #eefaf6;
+  color: #f1f5ff;
 }
 .login-art-overlay strong {
   display: block;
@@ -1276,7 +1277,7 @@
   color: #ffffff;
 }
 .login-art-overlay span {
-  color: #9fd4c5;
+  color: #93c5fd;
   font-size: 11px;
 }
 
@@ -1298,7 +1299,7 @@
 .quota-progress-fill {
   height: 100%;
   border-radius: 999px;
-  background: linear-gradient(90deg, var(--green), var(--neon-bright, #3ee6bf));
+  background: linear-gradient(90deg, #6366f1 0%, #38bdf8 55%, #34d399 100%);
 }
 
 .booking-detail-split {
@@ -1313,16 +1314,16 @@
 }
 .emehmon-preview-card {
   background: #ffffff;
-  color: #0b2922;
-  border: 2px solid #00866c;
+  color: #0f172a;
+  border: 2px solid #4f46e5;
   border-radius: 20px;
   padding: 20px 22px;
   box-shadow: var(--glow-md);
 }
 :root[data-theme="dark"] .emehmon-preview-card {
-  background: #07231e;
-  color: #eefaf6;
-  border-color: #3ee6bf;
+  background: #141d38;
+  color: #f1f5ff;
+  border-color: #60a5fa;
 }
 .emehmon-preview-head {
   display: flex;

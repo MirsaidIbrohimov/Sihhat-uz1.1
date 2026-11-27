@@ -4,7 +4,7 @@ import { Db, audit, emit, lock, type Tx } from '../common/db';
 import { fail, parse, uuid, version, reason, pageQuery, paged } from '../common/errors';
 import { passwordHash, opaque } from '../common/crypto';
 import { loginSchema, optionalEmailSchema, passwordSchema, phoneSchema, type AuthRequestMeta } from './auth.service';
-import { normalizeIp, sanitizeUserAgent } from '../common/request-meta';
+import { describeDeviceMeta, normalizeIp, sanitizeUserAgent } from '../common/request-meta';
 import { normalizeAvatarInput } from './avatar.util';
 import { allocateUserPublicId, resolveUserPublicId } from './public-id.util';
 import { Actor, ACCOUNTANT, DELEGATABLE, DIRECTOR, effective, requirePlatform, scope, tenantIds } from './permissions';
