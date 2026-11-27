@@ -498,4 +498,84 @@ test('Legacy sessions backfill into AuthEvent, session IP hydrates on /auth/me, 
   assert.ok(partnerAudit.body.total > 0, 'Partner audit must not be empty after login/approval');
   assert.ok(partnerAudit.body.data.some((r: any) => r.action === 'auth.login'));
   assert.ok(partnerAudit.body.data.every((r: any) => r.sanatorium_name === 'Chortoq Shifo Sanatoriyasi'));
+
+  // 6. Session device description (kirilgan qurilmalar ta'rifi) & generic label upgrade on /auth/me + /auth/sessions
+  const genericTok = opaque();
+  const genericSession = await ctx.db.session.create({
+    data: {
+      userId: legacyUser.id,
+      tokenHash: hash(genericTok),
+      refreshHash: hash(opaque()),
+      csrfHash: hash(opaque()),
+      channel: 'MOBILE',
+      deviceLabel: 'Noma’lum qurilma',
+      ipAddress: null,
+      userAgent: null,
+      expiresAt: new Date(Date.now() + 600_000),
+      refreshExpiresAt: new Date(Date.now() + 86_400_000),
+      createdAt: new Date(Date.now() - 5_000),
+      lastActivityAt: new Date(),
+    },
+  });
+  const genericClient = new Client(ctx.base);
+  genericClient.token = genericTok;
+  await genericClient.call('/auth/heartbeat', 'POST', {}, {
+    'User-Agent': 'Mozilla/5.0 (Linux; Android 15; SM-S928B Build/UP1A) Dart/3.13',
+    'X-App-Version': '0.2.10',
+    'X-Real-IP': '198.51.100.120',
+  });
+  const upgradedSession = await ctx.db.session.findUniqueOrThrow({ where: { id: genericSession.id } });
+  assert.match(upgradedSession.deviceLabel, /SM-S928B/);
+  assert.equal(upgradedSession.ipAddress, '198.51.100.120');
+
+  // Even though legacyUser ALREADY had 1 AuthEvent earlier, per-session backfill must record this 2nd session too!
+  const histAfterSecond = await genericClient.call('/auth/login-history');
+  assert.equal(histAfterSecond.status, 200);
+  assert.equal(histAfterSecond.body.total, 2, 'Per-session backfill must add new unrecorded sessions even when user already had prior AuthEvents');
+  assert.ok(histAfterSecond.body.data[0].deviceSummary.includes('Smartfon'));
+  assert.ok(histAfterSecond.body.data[0].browser.includes('Sihhat.uz'));
+
+  // /auth/sessions on web returns rich device description fields
+  const dirSessions = await dirClient.call('/auth/sessions');
+  assert.equal(dirSessions.status, 200);
+  assert.ok(dirSessions.body.data.length >= 1);
+  assert.ok(dirSessions.body.data[0].deviceSummary, 'Active session must include deviceSummary');
+  assert.ok(dirSessions.body.data[0].deviceTypeLabel);
+  assert.ok(dirSessions.body.data[0].browser);
+  assert.ok(dirSessions.body.data[0].os);
+
+  // 7. Quick #ID lookup (/auth/quick-lookup) for both Users (CUSTOMER) and Partners (STAFF)
+  const userLookup = await ctx.admin.call('/auth/quick-lookup?q=%23778899');
+  assert.equal(userLookup.status, 200);
+  assert.equal(userLookup.body.isHashId, true);
+  assert.ok(userLookup.body.exactMatch, 'Must find exact match for #778899 customer');
+  assert.equal(userLookup.body.exactMatch.matchType, 'USER');
+  assert.equal(userLookup.body.exactMatch.user.id, legacyUser.id);
+  assert.ok(Array.isArray(userLookup.body.exactMatch.user.activeDevices));
+  assert.ok(userLookup.body.exactMatch.user.activeDevices.length >= 1, 'Matched user profile must include active logged-in devices');
+
+  // Prefix #778 lookup also returns the user
+  const prefixLookup = await ctx.admin.call('/auth/quick-lookup?q=%23778');
+  assert.equal(prefixLookup.status, 200);
+  assert.ok(prefixLookup.body.data.some((it: any) => it.user.id === legacyUser.id));
+
+  // Partner lookup by #publicId
+  const partnerUser = await ctx.db.user.findUniqueOrThrow({ where: { login: 'chortoq.shifo' } });
+  assert.ok(partnerUser.publicId, 'Approved partner must have a 6-digit publicId');
+  const partnerLookup = await ctx.admin.call(`/auth/quick-lookup?q=%23${partnerUser.publicId}`);
+  assert.equal(partnerLookup.status, 200);
+  assert.ok(partnerLookup.body.exactMatch, 'Must find exact match for partner #ID');
+  assert.equal(partnerLookup.body.exactMatch.matchType, 'PARTNER');
+  assert.equal(partnerLookup.body.exactMatch.staff.sanatoriumName, 'Chortoq Shifo Sanatoriyasi');
+  assert.equal(partnerLookup.body.exactMatch.staff.role, 'DIRECTOR');
+  assert.ok(partnerLookup.body.exactMatch.user.activeDevices.length >= 1);
+
+  // Partner Director can look up own sanatorium partner #ID, but CANNOT look up unrelated customer #778899
+  const dirOwnLookup = await dirClient.call(`/auth/quick-lookup?q=%23${partnerUser.publicId}`);
+  assert.equal(dirOwnLookup.status, 200);
+  assert.ok(dirOwnLookup.body.exactMatch);
+  const dirStrangerLookup = await dirClient.call('/auth/quick-lookup?q=%23778899');
+  assert.equal(dirStrangerLookup.status, 200);
+  assert.equal(dirStrangerLookup.body.exactMatch, null, 'Partner must not see unrelated customer by #ID');
+  assert.equal(dirStrangerLookup.body.data.length, 0);
 });
