@@ -46,7 +46,11 @@ export class AuthController {
     return this.auth.refresh(input.refresh_token, 'MOBILE', undefined, undefined, meta);
   }
   @Get('me') @AccountantAccess()
-  me(@CurrentActor() actor: Actor, @Req() req: ApiRequest) { return { ...actor, csrf_token: req.cookies?.sihhat_csrf ?? null }; }
+  async me(@CurrentActor() actor: Actor, @Req() req: ApiRequest) {
+    const channel = req.headers.authorization?.startsWith('Bearer ') ? 'MOBILE' : 'WEB';
+    await this.auth.hydrateSessionMeta(actor.sessionId, extractRequestMeta(req, channel));
+    return { ...actor, csrf_token: req.cookies?.sihhat_csrf ?? null };
+  }
   @Post('logout') @AccountantAccess()
   async logout(@CurrentActor() actor: Actor, @Body() body: unknown, @Req() req: Request, @Res({ passthrough: true }) res: Response) {
     if (!this.auth.config.PUBLIC_DEMO_ENABLED) for (const name of ['sihhat_access', 'sihhat_refresh', 'sihhat_csrf']) res.clearCookie(name, { path: '/' });
@@ -55,13 +59,23 @@ export class AuthController {
     return this.auth.logout(actor, body, meta);
   }
   @Post('activity') @Roles('STAFF', 'SUPERADMIN') @AccountantAccess()
-  activity(@CurrentActor() actor: Actor) { return this.auth.activity(actor); }
+  async activity(@CurrentActor() actor: Actor, @Req() req: Request) {
+    await this.auth.hydrateSessionMeta(actor.sessionId, extractRequestMeta(req, 'WEB'));
+    return this.auth.activity(actor);
+  }
   @Post('heartbeat') @AccountantAccess()
-  heartbeat(@CurrentActor() actor: Actor) { return this.auth.heartbeat(actor); }
+  async heartbeat(@CurrentActor() actor: Actor, @Req() req: Request) {
+    const channel = req.headers.authorization?.startsWith('Bearer ') ? 'MOBILE' : 'WEB';
+    await this.auth.hydrateSessionMeta(actor.sessionId, extractRequestMeta(req, channel));
+    return this.auth.heartbeat(actor);
+  }
   @Post('change-password') @AccountantAccess() @ApiBody({ schema: apiSchema(changePasswordInput) })
   changePassword(@CurrentActor() actor: Actor, @Body() body: unknown) { return this.auth.changePassword(actor, body); }
   @Get('sessions') @Roles('STAFF', 'SUPERADMIN') @AccountantAccess()
-  sessions(@CurrentActor() a: Actor) { return this.auth.sessions(a); }
+  async sessions(@CurrentActor() a: Actor, @Req() req: Request) {
+    await this.auth.hydrateSessionMeta(a.sessionId, extractRequestMeta(req, 'WEB'));
+    return this.auth.sessions(a);
+  }
   @Get('login-history') @AccountantAccess()
   loginHistory(@CurrentActor() a: Actor, @Query() q: unknown) { return this.auth.loginHistory(a, q); }
   @Post('sessions/revoke-others') @Roles('STAFF', 'SUPERADMIN') @AccountantAccess()

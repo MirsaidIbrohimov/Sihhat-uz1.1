@@ -115,7 +115,7 @@ export class PartnerRegistrationService {
     if (this.auth.config.PUBLIC_DEMO_ENABLED) {
       fail('DEMO_ACCESS_DENIED', 'Demo serverda hamkor ro‘yxatdan o‘tishi yopiq', 403);
     }
-    await this.auth.limit(`partner-reg-avail-ip:${rateLimitIp}`, 120, 900);
+    await this.auth.limit(`partner-reg-avail-ip:${rateLimitIp}`, 240, 900);
     const q = parse(partnerAvailabilityQuery, query);
 
     if (q.email !== undefined) {
@@ -126,8 +126,9 @@ export class PartnerRegistrationService {
       if (!optionalEmailSchema.safeParse(normalizedEmail).success) {
         return { field: 'email', email: normalizedEmail, valid: false, available: false, reason: 'INVALID_FORMAT' as const };
       }
-      const [existingUser, existingPending] = await Promise.all([
-        this.db.user.findFirst({
+      let existingUser: { id: string } | null = null;
+      try {
+        existingUser = await this.db.user.findFirst({
           where: {
             OR: [
               { email: { equals: normalizedEmail, mode: 'insensitive' as const } },
@@ -135,15 +136,25 @@ export class PartnerRegistrationService {
             ],
           },
           select: { id: true },
-        }),
-        this.db.partnerRegistration.findFirst({
-          where: {
-            status: 'PENDING',
-            email: { equals: normalizedEmail, mode: 'insensitive' as const },
-          },
+        });
+      } catch {
+        existingUser = await this.db.user.findFirst({
+          where: { login: { equals: normalizedEmail, mode: 'insensitive' as const } },
           select: { id: true },
-        }),
-      ]);
+        });
+      }
+      const existingPending =
+        !existingUser && typeof (this.db as any).partnerRegistration?.findFirst === 'function'
+          ? await this.db.partnerRegistration
+              .findFirst({
+                where: {
+                  status: 'PENDING',
+                  email: { equals: normalizedEmail, mode: 'insensitive' as const },
+                },
+                select: { id: true },
+              })
+              .catch(() => null)
+          : null;
       const taken = Boolean(existingUser || existingPending);
       return {
         field: 'email',
@@ -170,8 +181,9 @@ export class PartnerRegistrationService {
       };
     }
 
-    const [existingUser, existingPending] = await Promise.all([
-      this.db.user.findFirst({
+    let existingUser: { id: string } | null = null;
+    try {
+      existingUser = await this.db.user.findFirst({
         where: {
           OR: [
             { login: { equals: rawUsername, mode: 'insensitive' as const } },
@@ -179,15 +191,25 @@ export class PartnerRegistrationService {
           ],
         },
         select: { id: true },
-      }),
-      this.db.partnerRegistration.findFirst({
-        where: {
-          status: 'PENDING',
-          username: { equals: rawUsername, mode: 'insensitive' as const },
-        },
+      });
+    } catch {
+      existingUser = await this.db.user.findFirst({
+        where: { login: { equals: rawUsername, mode: 'insensitive' as const } },
         select: { id: true },
-      }),
-    ]);
+      });
+    }
+    const existingPending =
+      !existingUser && typeof (this.db as any).partnerRegistration?.findFirst === 'function'
+        ? await this.db.partnerRegistration
+            .findFirst({
+              where: {
+                status: 'PENDING',
+                username: { equals: rawUsername, mode: 'insensitive' as const },
+              },
+              select: { id: true },
+            })
+            .catch(() => null)
+        : null;
 
     const taken = Boolean(existingUser || existingPending);
     return {

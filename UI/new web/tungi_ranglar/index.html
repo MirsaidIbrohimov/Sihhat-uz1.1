@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="uz">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Sihhat.uz — To‘liq Tungi Yorqin Ranglar (T1–T6)</title>
+    <style>
+      @font-face { font-family: "DM Sans"; src: url("../../web/assets/DMSans.ttf") format("truetype"); font-weight: 100 900; }
+      @font-face { font-family: "Manrope"; src: url("../../web/assets/Manrope.ttf") format("truetype"); font-weight: 100 900; }
+      * { box-sizing: border-box; }
+      body { margin: 0; font-family: "DM Sans", system-ui, sans-serif; background: #090b12; color: #f1f5f9; }
+      header {
+        position: sticky; top: 0; z-index: 20;
+        background: rgba(14, 18, 30, 0.94); backdrop-filter: blur(12px);
+        border-bottom: 1px solid rgba(148, 163, 184, 0.16);
+        padding: 14px 24px; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px;
+      }
+      .title h1 { margin: 0; font-family: Manrope, sans-serif; font-size: 18px; font-weight: 800; }
+      .title p { margin: 2px 0 0; font-size: 12.5px; color: #94a3b8; }
+      .tabs { display: flex; flex-wrap: wrap; gap: 7px; }
+      .tab {
+        display: inline-flex; align-items: center; gap: 7px;
+        border: 1px solid rgba(148, 163, 184, 0.22); background: #141929; color: #cbd5e1;
+        padding: 7px 12px; border-radius: 999px; font-size: 12.5px; font-weight: 600; cursor: pointer;
+      }
+      .tab.active { background: linear-gradient(135deg, #6366f1, #0ea5e9); color: #fff; border-color: transparent; }
+      .dot { width: 11px; height: 11px; border-radius: 50%; display: inline-block; border: 1px solid rgba(255,255,255,0.28); }
+      main { max-width: 1500px; margin: 20px auto 40px; padding: 0 24px; }
+      .frame {
+        background: #101422; border: 1px solid rgba(148, 163, 184, 0.18); border-radius: 18px;
+        overflow: hidden; box-shadow: 0 18px 46px rgba(0,0,0,0.55);
+      }
+      .frame img { width: 100%; display: block; }
+      .bar {
+        padding: 13px 18px; border-top: 1px solid rgba(148, 163, 184, 0.16);
+        display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px;
+      }
+      .bar strong { font-family: Manrope, sans-serif; font-size: 15px; color: #f8fafc; }
+      .bar span { font-size: 12.5px; color: #94a3b8; }
+    </style>
+  </head>
+  <body>
+    <header>
+      <div class="title">
+        <h1>Superadmin — To‘liq Tungi Yorqin Ranglar (Oq rangsiz, T1–T6)</h1>
+        <p>Tugmalarni bosing — rasm darhol almashadi (← / → tugmalari ham ishlaydi)</p>
+      </div>
+      <div class="tabs" id="tabs"></div>
+    </header>
+    <main>
+      <div class="frame">
+        <img id="preview" alt="" />
+        <div class="bar">
+          <div><strong id="name"></strong> · <span id="desc"></span></div>
+          <span id="file"></span>
+        </div>
+      </div>
+    </main>
+    <script>
+      const LIST = [
+        { file: "00-tungi-ranglar-taqqoslash.png", dot: "linear-gradient(135deg,#6366f1,#0ea5e9,#10b981)", label: "Barchasi (6 ta)", name: "6 ta to‘liq tungi rang varianti yonma-yon", desc: "100% oq fonsiz barcha tungi palitralar" },
+        { file: "T1-tungi-yorqin-indigo.png", dot: "linear-gradient(135deg,#4f46e5,#a855f7)", label: "T1 · Chuqur Indigo", name: "T1 — Chuqur Indigo & Elektr Binafsha", desc: "To‘liq chuqur indigo fon + yorqin binafsha aksent" },
+        { file: "T2-karbon-qora-elektr-kok.png", dot: "linear-gradient(135deg,#121316,#3b82f6)", label: "T2 · Karbon + Ko‘k", name: "T2 — Karbon Qora & Elektr Ko‘k", desc: "1-skrinshotingiz uslubi: toza qora mat fon + elektr ko‘k" },
+        { file: "T3-chuqur-sapphire-feruza.png", dot: "linear-gradient(135deg,#07162c,#22d3ee)", label: "T3 · Sapphire-Feruza", name: "T3 — To‘liq Qirollik Moviy & Feruza", desc: "Chuqur okean-sapphire fon + elektr feruza" },
+        { file: "T4-tungi-binafsha-orxideya.png", dot: "linear-gradient(135deg,#180c2f,#ec4899)", label: "T4 · Binafsha-Orxideya", name: "T4 — To‘liq Qirollik Binafsha & Orxideya", desc: "To‘q binafsha fon + yorqin pushti-orxideya gradient" },
+        { file: "T5-tungi-zumrad-aqua.png", dot: "linear-gradient(135deg,#061b18,#10b981)", label: "T5 · Zumrad-Aqua", name: "T5 — To‘liq Chuqur Zumrad & Yorqin Aqua", desc: "Sihhat logosiga mos boy zumrad-aqua tungi rejim" },
+        { file: "T6-tungi-aurora-multi.png", dot: "linear-gradient(135deg,#6366f1,#38bdf8,#34d399)", label: "T6 · Tungi Aurora", name: "T6 — Tungi Aurora Multi-Color", desc: "To‘q midnight fon + Indigo/Moviy/Zumrad yorqin nuri" }
+      ];
+      let idx = 0;
+      function show(i) {
+        idx = (i + LIST.length) % LIST.length;
+        const it = LIST[idx];
+        document.getElementById("preview").src = it.file;
+        document.getElementById("name").textContent = it.name;
+        document.getElementById("desc").textContent = it.desc;
+        document.getElementById("file").textContent = it.file;
+        document.getElementById("tabs").innerHTML = LIST.map((x, n) =>
+          `<button class="tab ${n === idx ? "active" : ""}" onclick="show(${n})"><span class="dot" style="background:${x.dot}"></span>${x.label}</button>`
+        ).join("");
+      }
+      window.show = show;
+      document.addEventListener("keydown", (e) => {
+        if (e.key === "ArrowRight") show(idx + 1);
+        if (e.key === "ArrowLeft") show(idx - 1);
+      });
+      show(0);
+    </script>
+  </body>
+</html>

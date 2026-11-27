@@ -1,0 +1,830 @@
+<!doctype html>
+<html lang="uz" data-theme="dark">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Sihhat.uz — Superadmin To‘liq Tungi Yorqin Ranglar (T1–T6)</title>
+    <link rel="stylesheet" href="studio.css" />
+    <script src="../../web/assets/icons.js" defer></script>
+    <style>
+      /* 100% Zero-White Full Dark Surface Overrides */
+      .stage, .app-shell {
+        background: var(--canvas-bg) !important;
+      }
+      .sidebar {
+        background: var(--sidebar-bg) !important;
+        border-right: 1px solid var(--border) !important;
+      }
+      .topbar {
+        background: var(--topbar-bg) !important;
+        border-bottom: 1px solid var(--border) !important;
+      }
+      .card, .kpi-card {
+        background: var(--card-bg) !important;
+        border: 1px solid var(--border) !important;
+        box-shadow: var(--card-shadow) !important;
+      }
+      .card-head {
+        border-bottom-color: var(--border) !important;
+      }
+      .kv-row, .cmd-search, .select-pill, .icon-btn, .user-pill, .sb-foot-card, .segmented, .btn.secondary {
+        background: var(--surface-2) !important;
+        border-color: var(--border) !important;
+        color: var(--ink) !important;
+      }
+      .cmd-search, .select-pill { color: var(--muted) !important; }
+      .select-pill { color: var(--ink-2) !important; }
+      .cmd-search kbd {
+        background: var(--card-bg) !important;
+        border-color: var(--border-strong) !important;
+        color: var(--muted) !important;
+      }
+      .seg-item { color: var(--muted) !important; }
+      .seg-item.active {
+        background: var(--accent-soft-2) !important;
+        color: var(--accent-bright) !important;
+        box-shadow: inset 0 0 0 1px var(--accent-border);
+      }
+      .btn.primary {
+        background: var(--btn-grad) !important;
+        color: #ffffff !important;
+        border-color: transparent !important;
+        box-shadow: var(--btn-shadow) !important;
+      }
+      .sb-brand, .sb-footer { border-color: var(--border) !important; }
+      .sb-item { color: var(--ink-2) !important; }
+      .sb-item svg { color: var(--muted) !important; }
+      .sb-item.active {
+        background: var(--sb-active-bg) !important;
+        color: var(--accent-bright) !important;
+        box-shadow: inset 0 0 0 1px var(--accent-border);
+      }
+      .sb-item.active svg { color: var(--accent-bright) !important; }
+      .sb-item.active::before {
+        background: var(--btn-grad) !important;
+        width: 3.5px;
+      }
+      .sb-badge {
+        background: var(--surface-2) !important;
+        color: var(--ink-2) !important;
+        border-color: var(--border) !important;
+      }
+      .sb-badge.warn {
+        background: rgba(245, 158, 11, 0.18) !important;
+        color: #fcd34d !important;
+        border-color: rgba(245, 158, 11, 0.35) !important;
+      }
+      .sb-badge.accent {
+        background: var(--btn-grad) !important;
+        color: #ffffff !important;
+        border-color: transparent !important;
+      }
+      .sb-badge.live {
+        background: rgba(16, 185, 129, 0.18) !important;
+        color: #6ee7b7 !important;
+        border-color: rgba(16, 185, 129, 0.36) !important;
+      }
+      .sb-role-pill {
+        background: var(--accent-soft) !important;
+        color: var(--accent-bright) !important;
+        border-color: var(--accent-border) !important;
+      }
+      .sb-foot-icon {
+        background: var(--accent-soft) !important;
+        color: var(--accent-bright) !important;
+      }
+      .kpi-icon.c1 { background: var(--ic1-bg) !important; color: var(--ic1-ink) !important; border: 1px solid var(--ic1-bd); }
+      .kpi-icon.c2 { background: var(--ic2-bg) !important; color: var(--ic2-ink) !important; border: 1px solid var(--ic2-bd); }
+      .kpi-icon.c3 { background: var(--ic3-bg) !important; color: var(--ic3-ink) !important; border: 1px solid var(--ic3-bd); }
+
+      .kpi-card.accent {
+        background: var(--kpi-featured-bg) !important;
+        border: 1px solid var(--kpi-featured-bd) !important;
+        box-shadow: var(--kpi-featured-shadow) !important;
+      }
+      .kpi-card.accent .kpi-icon {
+        background: rgba(255, 255, 255, 0.18) !important;
+        color: #ffffff !important;
+      }
+      .kpi-card.accent .delta {
+        background: rgba(255, 255, 255, 0.2) !important;
+        color: #ffffff !important;
+      }
+      .bar-track {
+        background: var(--surface-2) !important;
+        border-color: var(--border) !important;
+      }
+      .bar-fill {
+        background: var(--bar-grad) !important;
+        box-shadow: var(--bar-glow);
+      }
+      .avatar {
+        background: var(--btn-grad) !important;
+      }
+      .online-ring { border-color: var(--sidebar-bg) !important; }
+      .notif-dot { border-color: var(--surface-2) !important; }
+      .delta.neutral {
+        background: var(--surface-2) !important;
+        color: var(--ink-2) !important;
+        border: 1px solid var(--border);
+      }
+      .ai-tile {
+        padding: 10px;
+        border-radius: 10px;
+        background: var(--surface-2);
+        border: 1px solid var(--border);
+        text-align: center;
+      }
+      .palette-ribbon {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 4px 12px;
+        border-radius: 999px;
+        background: var(--accent-soft);
+        border: 1px solid var(--accent-border);
+        color: var(--accent-bright);
+        font-size: 11.5px;
+        font-weight: 700;
+        white-space: nowrap;
+      }
+      .swatch-dots { display: inline-flex; align-items: center; gap: 4px; }
+      .swatch-dots i {
+        width: 10px; height: 10px; border-radius: 50%;
+        display: inline-block; border: 1px solid rgba(255, 255, 255, 0.25);
+      }
+
+      /* 3x2 Dark Comparison Board (Zero White) */
+      .cmp-stage {
+        width: 1600px; height: 1040px; padding: 24px 28px;
+        background: radial-gradient(1000px 520px at 10% 0%, rgba(99, 102, 241, 0.16), transparent 60%),
+                    radial-gradient(900px 520px at 95% 100%, rgba(14, 165, 233, 0.14), transparent 60%),
+                    #090b12;
+        display: flex; flex-direction: column; gap: 16px;
+      }
+      .cmp-grid {
+        display: grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(2, 1fr);
+        gap: 16px; flex: 1; min-height: 0;
+      }
+      .cmp-card {
+        background: #121624; border: 1px solid rgba(148, 163, 184, 0.18); border-radius: 16px;
+        overflow: hidden; display: flex; flex-direction: column;
+        box-shadow: 0 10px 28px rgba(0, 0, 0, 0.45);
+      }
+      .cmp-thumb {
+        flex: 1; min-height: 0; overflow: hidden; background: #0a0d16;
+        border-bottom: 1px solid rgba(148, 163, 184, 0.14); display: flex; align-items: center; justify-content: center; padding: 4px;
+      }
+      .cmp-thumb img { width: 100%; height: 100%; object-fit: contain; display: block; border-radius: 8px; }
+      .cmp-meta {
+        padding: 10px 14px; display: flex; align-items: center; justify-content: space-between; gap: 10px;
+      }
+      .cmp-meta strong { font-family: Manrope, sans-serif; font-size: 13.5px; font-weight: 800; color: #f1f5f9; display: block; }
+      .cmp-meta span { font-size: 11.5px; color: #94a3b8; }
+    </style>
+  </head>
+  <body>
+    <div id="stage" class="stage"></div>
+    <script>
+      "use strict";
+      (function () {
+        const LOGO = "../../web/assets/sihhat-logo.jpg";
+        const EXTRA = {
+          Smartphone: '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="20" x="5" y="2" rx="2" ry="2"/><path d="M12 18h.01"/></svg>',
+        };
+        function ic(name) {
+          return EXTRA[name] || (window.WEB_ICONS && window.WEB_ICONS[name]) || "";
+        }
+        function spark(points, stroke, fill) {
+          return `<svg width="78" height="28" viewBox="0 0 78 28" fill="none" style="flex-shrink:0">
+            <path d="M${points} L76,26 L2,26 Z" fill="${fill}" />
+            <polyline points="${points}" fill="none" stroke="${stroke}" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>`;
+        }
+
+        const PALETTES = {
+          "T1-tungi-yorqin-indigo": {
+            code: "T1",
+            name: "Chuqur Indigo & Elektr Binafsha",
+            sub: "To‘liq indigo tungi fon · Oq rangsiz · Yorqin indigo-binafsha nur",
+            dots: ["#0c0b22", "#171540", "#6366f1", "#a855f7"],
+            vars: {
+              "--canvas-bg": "radial-gradient(960px 520px at 12% -6%, rgba(99,102,241,0.26), transparent 60%), radial-gradient(840px 480px at 95% 8%, rgba(168,85,247,0.22), transparent 58%), linear-gradient(180deg, #0d0c24 0%, #09081a 100%)",
+              "--sidebar-bg": "#100f2c",
+              "--topbar-bg": "rgba(16, 15, 44, 0.90)",
+              "--card-bg": "rgba(23, 21, 61, 0.92)",
+              "--surface-2": "#1f1c52",
+              "--border": "rgba(129, 140, 248, 0.24)",
+              "--border-strong": "rgba(165, 180, 252, 0.40)",
+              "--card-shadow": "0 8px 28px rgba(4, 3, 18, 0.45)",
+              "--ink": "#f2f3ff",
+              "--ink-2": "#c9ccf2",
+              "--muted": "#8c90c2",
+              "--muted-2": "#6b6fa3",
+              "--accent": "#818cf8",
+              "--accent-bright": "#a5b4fc",
+              "--accent-soft": "rgba(99, 102, 241, 0.18)",
+              "--accent-soft-2": "rgba(99, 102, 241, 0.28)",
+              "--accent-border": "rgba(129, 140, 248, 0.42)",
+              "--sb-active-bg": "rgba(99, 102, 241, 0.24)",
+              "--btn-grad": "linear-gradient(135deg, #6366f1 0%, #9333ea 100%)",
+              "--btn-shadow": "0 6px 20px rgba(99, 102, 241, 0.42)",
+              "--bar-grad": "linear-gradient(90deg, #6366f1 0%, #c084fc 100%)",
+              "--bar-glow": "0 0 12px rgba(129, 140, 248, 0.45)",
+              "--kpi-featured-bg": "linear-gradient(135deg, #4f46e5 0%, #7c3aed 58%, #9333ea 100%)",
+              "--kpi-featured-bd": "rgba(196, 181, 253, 0.45)",
+              "--kpi-featured-shadow": "0 14px 34px rgba(79, 70, 229, 0.42)",
+              "--ic1-bg": "rgba(99,102,241,0.22)", "--ic1-ink": "#a5b4fc", "--ic1-bd": "rgba(129,140,248,0.35)",
+              "--ic2-bg": "rgba(56,189,248,0.18)", "--ic2-ink": "#7dd3fc", "--ic2-bd": "rgba(56,189,248,0.35)",
+              "--ic3-bg": "rgba(192,132,252,0.20)", "--ic3-ink": "#d8b4fe", "--ic3-bd": "rgba(192,132,252,0.35)",
+            },
+            sparks: [
+              ["#818cf8", "rgba(129,140,248,0.22)"],
+              ["#38bdf8", "rgba(56,189,248,0.22)"],
+              ["#c084fc", "rgba(192,132,252,0.22)"],
+            ],
+            bars: [
+              "linear-gradient(180deg, #818cf8 0%, #4f46e5 100%)",
+              "linear-gradient(180deg, #38bdf8 0%, #0284c7 100%)",
+              "linear-gradient(180deg, #34d399 0%, #059669 100%)",
+              "linear-gradient(180deg, #fbbf24 0%, #d97706 100%)",
+              "linear-gradient(180deg, #fb7185 0%, #e11d48 100%)",
+            ],
+          },
+
+          "T2-karbon-qora-elektr-kok": {
+            code: "T2",
+            name: "Karbon Qora & Elektr Ko‘k (Terminal Carbon)",
+            sub: "1-skrinshotingiz uslubi: toza mat qora fon + yorqin elektr ko‘k aksent",
+            dots: ["#0e0f12", "#17191f", "#3b82f6", "#38bdf8"],
+            vars: {
+              "--canvas-bg": "radial-gradient(900px 480px at 14% -8%, rgba(59,130,246,0.16), transparent 58%), radial-gradient(760px 440px at 94% 4%, rgba(56,189,248,0.11), transparent 56%), #0d0e11",
+              "--sidebar-bg": "#111216",
+              "--topbar-bg": "rgba(17, 18, 22, 0.92)",
+              "--card-bg": "#16181e",
+              "--surface-2": "#1d2029",
+              "--border": "#282c38",
+              "--border-strong": "#3a4052",
+              "--card-shadow": "0 8px 26px rgba(0, 0, 0, 0.45)",
+              "--ink": "#f1f5f9",
+              "--ink-2": "#cbd5e1",
+              "--muted": "#8892a6",
+              "--muted-2": "#646e82",
+              "--accent": "#3b82f6",
+              "--accent-bright": "#60a5fa",
+              "--accent-soft": "rgba(59, 130, 246, 0.16)",
+              "--accent-soft-2": "rgba(59, 130, 246, 0.26)",
+              "--accent-border": "rgba(96, 165, 250, 0.38)",
+              "--sb-active-bg": "rgba(59, 130, 246, 0.20)",
+              "--btn-grad": "linear-gradient(135deg, #2563eb 0%, #3b82f6 100%)",
+              "--btn-shadow": "0 6px 20px rgba(37, 99, 235, 0.42)",
+              "--bar-grad": "linear-gradient(90deg, #3b82f6 0%, #38bdf8 100%)",
+              "--bar-glow": "0 0 12px rgba(59, 130, 246, 0.42)",
+              "--kpi-featured-bg": "linear-gradient(135deg, #1d4ed8 0%, #2563eb 60%, #0284c7 100%)",
+              "--kpi-featured-bd": "rgba(147, 197, 253, 0.42)",
+              "--kpi-featured-shadow": "0 14px 32px rgba(37, 99, 235, 0.38)",
+              "--ic1-bg": "rgba(59,130,246,0.18)", "--ic1-ink": "#60a5fa", "--ic1-bd": "rgba(96,165,250,0.32)",
+              "--ic2-bg": "rgba(56,189,248,0.16)", "--ic2-ink": "#38bdf8", "--ic2-bd": "rgba(56,189,248,0.32)",
+              "--ic3-bg": "rgba(52,211,153,0.16)", "--ic3-ink": "#34d399", "--ic3-bd": "rgba(52,211,153,0.32)",
+            },
+            sparks: [
+              ["#60a5fa", "rgba(96,165,250,0.22)"],
+              ["#38bdf8", "rgba(56,189,248,0.22)"],
+              ["#34d399", "rgba(52,211,153,0.22)"],
+            ],
+            bars: [
+              "linear-gradient(180deg, #60a5fa 0%, #2563eb 100%)",
+              "linear-gradient(180deg, #38bdf8 0%, #0284c7 100%)",
+              "linear-gradient(180deg, #34d399 0%, #059669 100%)",
+              "linear-gradient(180deg, #fbbf24 0%, #d97706 100%)",
+              "linear-gradient(180deg, #fb7185 0%, #e11d48 100%)",
+            ],
+          },
+
+          "T3-chuqur-sapphire-feruza": {
+            code: "T3",
+            name: "To‘liq Qirollik Moviy & Feruza",
+            sub: "Chuqur okean-sapphire fon + elektr feruza va moviy aksent",
+            dots: ["#071529", "#0f2444", "#0ea5e9", "#22d3ee"],
+            vars: {
+              "--canvas-bg": "radial-gradient(960px 520px at 14% -6%, rgba(14,165,233,0.25), transparent 60%), radial-gradient(840px 480px at 94% 6%, rgba(34,211,238,0.18), transparent 58%), linear-gradient(180deg, #07162c 0%, #051020 100%)",
+              "--sidebar-bg": "#0a1c36",
+              "--topbar-bg": "rgba(10, 28, 54, 0.92)",
+              "--card-bg": "rgba(15, 36, 68, 0.92)",
+              "--surface-2": "#153059",
+              "--border": "rgba(56, 189, 248, 0.24)",
+              "--border-strong": "rgba(125, 211, 252, 0.40)",
+              "--card-shadow": "0 8px 28px rgba(2, 10, 24, 0.48)",
+              "--ink": "#eef7ff",
+              "--ink-2": "#c2dcf4",
+              "--muted": "#7fa4c9",
+              "--muted-2": "#5f84aa",
+              "--accent": "#38bdf8",
+              "--accent-bright": "#7dd3fc",
+              "--accent-soft": "rgba(14, 165, 233, 0.18)",
+              "--accent-soft-2": "rgba(14, 165, 233, 0.28)",
+              "--accent-border": "rgba(56, 189, 248, 0.42)",
+              "--sb-active-bg": "rgba(14, 165, 233, 0.24)",
+              "--btn-grad": "linear-gradient(135deg, #0284c7 0%, #06b6d4 100%)",
+              "--btn-shadow": "0 6px 20px rgba(14, 165, 233, 0.40)",
+              "--bar-grad": "linear-gradient(90deg, #0ea5e9 0%, #22d3ee 100%)",
+              "--bar-glow": "0 0 12px rgba(34, 211, 238, 0.45)",
+              "--kpi-featured-bg": "linear-gradient(135deg, #0369a1 0%, #0284c7 55%, #06b6d4 100%)",
+              "--kpi-featured-bd": "rgba(125, 211, 252, 0.45)",
+              "--kpi-featured-shadow": "0 14px 34px rgba(2, 132, 199, 0.42)",
+              "--ic1-bg": "rgba(14,165,233,0.22)", "--ic1-ink": "#7dd3fc", "--ic1-bd": "rgba(56,189,248,0.36)",
+              "--ic2-bg": "rgba(34,211,238,0.20)", "--ic2-ink": "#67e8f9", "--ic2-bd": "rgba(34,211,238,0.36)",
+              "--ic3-bg": "rgba(96,165,250,0.20)", "--ic3-ink": "#93c5fd", "--ic3-bd": "rgba(96,165,250,0.36)",
+            },
+            sparks: [
+              ["#38bdf8", "rgba(56,189,248,0.24)"],
+              ["#22d3ee", "rgba(34,211,238,0.24)"],
+              ["#60a5fa", "rgba(96,165,250,0.24)"],
+            ],
+            bars: [
+              "linear-gradient(180deg, #38bdf8 0%, #0284c7 100%)",
+              "linear-gradient(180deg, #22d3ee 0%, #0891b2 100%)",
+              "linear-gradient(180deg, #34d399 0%, #059669 100%)",
+              "linear-gradient(180deg, #fbbf24 0%, #d97706 100%)",
+              "linear-gradient(180deg, #fb7185 0%, #e11d48 100%)",
+            ],
+          },
+
+          "T4-tungi-binafsha-orxideya": {
+            code: "T4",
+            name: "To‘liq Qirollik Binafsha & Orxideya",
+            sub: "Boy to‘q binafsha fon + yorqin pushti-orxideya gradientlar",
+            dots: ["#130926", "#20113e", "#a855f7", "#ec4899"],
+            vars: {
+              "--canvas-bg": "radial-gradient(960px 520px at 14% -6%, rgba(168,85,247,0.26), transparent 60%), radial-gradient(840px 480px at 94% 6%, rgba(236,72,153,0.22), transparent 58%), linear-gradient(180deg, #130926 0%, #0c061a 100%)",
+              "--sidebar-bg": "#180c2f",
+              "--topbar-bg": "rgba(24, 12, 47, 0.92)",
+              "--card-bg": "rgba(33, 18, 64, 0.92)",
+              "--surface-2": "#2c1854",
+              "--border": "rgba(192, 132, 252, 0.25)",
+              "--border-strong": "rgba(216, 180, 254, 0.42)",
+              "--card-shadow": "0 8px 28px rgba(8, 2, 20, 0.50)",
+              "--ink": "#faf5ff",
+              "--ink-2": "#dfd0f7",
+              "--muted": "#a68ec9",
+              "--muted-2": "#8068a6",
+              "--accent": "#c084fc",
+              "--accent-bright": "#e9d5ff",
+              "--accent-soft": "rgba(168, 85, 247, 0.20)",
+              "--accent-soft-2": "rgba(168, 85, 247, 0.30)",
+              "--accent-border": "rgba(192, 132, 252, 0.44)",
+              "--sb-active-bg": "rgba(168, 85, 247, 0.26)",
+              "--btn-grad": "linear-gradient(135deg, #9333ea 0%, #ec4899 100%)",
+              "--btn-shadow": "0 6px 20px rgba(192, 38, 211, 0.44)",
+              "--bar-grad": "linear-gradient(90deg, #a855f7 0%, #f472b6 100%)",
+              "--bar-glow": "0 0 12px rgba(236, 72, 153, 0.42)",
+              "--kpi-featured-bg": "linear-gradient(135deg, #7c3aed 0%, #c026d3 55%, #ec4899 100%)",
+              "--kpi-featured-bd": "rgba(244, 114, 182, 0.48)",
+              "--kpi-featured-shadow": "0 14px 34px rgba(192, 38, 211, 0.42)",
+              "--ic1-bg": "rgba(168,85,247,0.24)", "--ic1-ink": "#d8b4fe", "--ic1-bd": "rgba(192,132,252,0.38)",
+              "--ic2-bg": "rgba(236,72,153,0.22)", "--ic2-ink": "#f9a8d4", "--ic2-bd": "rgba(244,114,182,0.38)",
+              "--ic3-bg": "rgba(56,189,248,0.20)", "--ic3-ink": "#7dd3fc", "--ic3-bd": "rgba(56,189,248,0.36)",
+            },
+            sparks: [
+              ["#c084fc", "rgba(192,132,252,0.24)"],
+              ["#f472b6", "rgba(244,114,182,0.24)"],
+              ["#38bdf8", "rgba(56,189,248,0.24)"],
+            ],
+            bars: [
+              "linear-gradient(180deg, #c084fc 0%, #7c3aed 100%)",
+              "linear-gradient(180deg, #f472b6 0%, #db2777 100%)",
+              "linear-gradient(180deg, #38bdf8 0%, #0284c7 100%)",
+              "linear-gradient(180deg, #fbbf24 0%, #d97706 100%)",
+              "linear-gradient(180deg, #fb7185 0%, #e11d48 100%)",
+            ],
+          },
+
+          "T5-tungi-zumrad-aqua": {
+            code: "T5",
+            name: "To‘liq Chuqur Zumrad & Yorqin Aqua",
+            sub: "Sihhat brendining yorqin tungi ko‘rinishi · Chuqur zumrad + jonli aqua",
+            dots: ["#051917", "#0c2d29", "#10b981", "#22d3ee"],
+            vars: {
+              "--canvas-bg": "radial-gradient(960px 520px at 14% -6%, rgba(16,185,129,0.24), transparent 60%), radial-gradient(840px 480px at 94% 6%, rgba(34,211,238,0.18), transparent 58%), linear-gradient(180deg, #061b18 0%, #041311 100%)",
+              "--sidebar-bg": "#08221e",
+              "--topbar-bg": "rgba(8, 34, 30, 0.92)",
+              "--card-bg": "rgba(13, 44, 39, 0.92)",
+              "--surface-2": "#133a34",
+              "--border": "rgba(52, 211, 153, 0.24)",
+              "--border-strong": "rgba(110, 231, 183, 0.40)",
+              "--card-shadow": "0 8px 28px rgba(1, 14, 12, 0.48)",
+              "--ink": "#ecfdf7",
+              "--ink-2": "#bce6d8",
+              "--muted": "#7bb3a2",
+              "--muted-2": "#588c7d",
+              "--accent": "#2dd4bf",
+              "--accent-bright": "#6ee7b7",
+              "--accent-soft": "rgba(16, 185, 129, 0.18)",
+              "--accent-soft-2": "rgba(16, 185, 129, 0.28)",
+              "--accent-border": "rgba(52, 211, 153, 0.42)",
+              "--sb-active-bg": "rgba(16, 185, 129, 0.24)",
+              "--btn-grad": "linear-gradient(135deg, #10b981 0%, #06b6d4 100%)",
+              "--btn-shadow": "0 6px 20px rgba(16, 185, 129, 0.40)",
+              "--bar-grad": "linear-gradient(90deg, #10b981 0%, #22d3ee 100%)",
+              "--bar-glow": "0 0 12px rgba(45, 212, 191, 0.44)",
+              "--kpi-featured-bg": "linear-gradient(135deg, #059669 0%, #0d9488 55%, #0891b2 100%)",
+              "--kpi-featured-bd": "rgba(110, 231, 183, 0.45)",
+              "--kpi-featured-shadow": "0 14px 34px rgba(13, 148, 136, 0.40)",
+              "--ic1-bg": "rgba(16,185,129,0.22)", "--ic1-ink": "#6ee7b7", "--ic1-bd": "rgba(52,211,153,0.36)",
+              "--ic2-bg": "rgba(34,211,238,0.20)", "--ic2-ink": "#67e8f9", "--ic2-bd": "rgba(34,211,238,0.36)",
+              "--ic3-bg": "rgba(96,165,250,0.20)", "--ic3-ink": "#93c5fd", "--ic3-bd": "rgba(96,165,250,0.36)",
+            },
+            sparks: [
+              ["#34d399", "rgba(52,211,153,0.24)"],
+              ["#22d3ee", "rgba(34,211,238,0.24)"],
+              ["#60a5fa", "rgba(96,165,250,0.24)"],
+            ],
+            bars: [
+              "linear-gradient(180deg, #34d399 0%, #059669 100%)",
+              "linear-gradient(180deg, #22d3ee 0%, #0891b2 100%)",
+              "linear-gradient(180deg, #60a5fa 0%, #2563eb 100%)",
+              "linear-gradient(180deg, #fbbf24 0%, #d97706 100%)",
+              "linear-gradient(180deg, #fb7185 0%, #e11d48 100%)",
+            ],
+          },
+
+          "T6-tungi-aurora-multi": {
+            code: "T6",
+            name: "Tungi Aurora Multi-Color (Indigo + Sky + Mint)",
+            sub: "To‘q midnight fon + 3 ta yorqin gradient (Indigo · Moviy · Zumrad)",
+            dots: ["#0a0f1f", "#141d38", "#6366f1", "#38bdf8", "#34d399"],
+            vars: {
+              "--canvas-bg": "radial-gradient(900px 480px at 10% -6%, rgba(99,102,241,0.26), transparent 58%), radial-gradient(820px 460px at 56% -4%, rgba(14,165,233,0.20), transparent 56%), radial-gradient(840px 480px at 96% 100%, rgba(16,185,129,0.20), transparent 58%), #0a0f1f",
+              "--sidebar-bg": "#0e152a",
+              "--topbar-bg": "rgba(14, 21, 42, 0.90)",
+              "--card-bg": "rgba(20, 29, 56, 0.92)",
+              "--surface-2": "#1c284a",
+              "--border": "rgba(129, 140, 248, 0.24)",
+              "--border-strong": "rgba(125, 211, 252, 0.40)",
+              "--card-shadow": "0 8px 28px rgba(3, 6, 18, 0.48)",
+              "--ink": "#f1f5ff",
+              "--ink-2": "#c6d3f0",
+              "--muted": "#8799bf",
+              "--muted-2": "#65769e",
+              "--accent": "#60a5fa",
+              "--accent-bright": "#93c5fd",
+              "--accent-soft": "rgba(99, 102, 241, 0.18)",
+              "--accent-soft-2": "rgba(14, 165, 233, 0.24)",
+              "--accent-border": "rgba(125, 211, 252, 0.40)",
+              "--sb-active-bg": "linear-gradient(90deg, rgba(99,102,241,0.28), rgba(14,165,233,0.18))",
+              "--btn-grad": "linear-gradient(135deg, #6366f1 0%, #0ea5e9 100%)",
+              "--btn-shadow": "0 6px 20px rgba(14, 165, 233, 0.38)",
+              "--bar-grad": "linear-gradient(90deg, #6366f1 0%, #38bdf8 55%, #34d399 100%)",
+              "--bar-glow": "0 0 12px rgba(56, 189, 248, 0.44)",
+              "--kpi-featured-bg": "linear-gradient(135deg, #4f46e5 0%, #0284c7 55%, #059669 100%)",
+              "--kpi-featured-bd": "rgba(125, 211, 252, 0.45)",
+              "--kpi-featured-shadow": "0 14px 34px rgba(79, 70, 229, 0.40)",
+              "--ic1-bg": "rgba(99,102,241,0.22)", "--ic1-ink": "#a5b4fc", "--ic1-bd": "rgba(129,140,248,0.36)",
+              "--ic2-bg": "rgba(14,165,233,0.22)", "--ic2-ink": "#7dd3fc", "--ic2-bd": "rgba(56,189,248,0.36)",
+              "--ic3-bg": "rgba(16,185,129,0.22)", "--ic3-ink": "#6ee7b7", "--ic3-bd": "rgba(52,211,153,0.36)",
+            },
+            sparks: [
+              ["#818cf8", "rgba(129,140,248,0.24)"],
+              ["#38bdf8", "rgba(56,189,248,0.24)"],
+              ["#34d399", "rgba(52,211,153,0.24)"],
+            ],
+            bars: [
+              "linear-gradient(180deg, #818cf8 0%, #4f46e5 100%)",
+              "linear-gradient(180deg, #38bdf8 0%, #0284c7 100%)",
+              "linear-gradient(180deg, #34d399 0%, #059669 100%)",
+              "linear-gradient(180deg, #fbbf24 0%, #d97706 100%)",
+              "linear-gradient(180deg, #f472b6 0%, #db2777 100%)",
+            ],
+          },
+        };
+
+        const NAV_GROUPS = [
+          {
+            title: "Ish jarayoni",
+            items: [
+              { id: "dashboard", label: "Umumiy ko‘rinish", icon: "LayoutDashboard" },
+              { id: "today", label: "Bugungi ishlar", icon: "CalendarDays", badge: "14" },
+              { id: "sanatoriums", label: "Sanatoriyalar", icon: "Building2", badge: "16" },
+              { id: "partner-registrations", label: "Hamkor arizalari", icon: "ClipboardList", badge: "3", tone: "warn" },
+              { id: "bookings", label: "Bronlar va CRM", icon: "BookOpen", badge: "142" },
+              { id: "inventory", label: "Xonalar va tariflar", icon: "BedDouble" },
+              { id: "staff", label: "Jamoa va ruxsatlar", icon: "Users", badge: "2", tone: "warn" },
+              { id: "app-users", label: "Ilova mijozlari", icon: "Smartphone", badge: "1 480" },
+            ],
+          },
+          {
+            title: "Moliya",
+            items: [
+              { id: "payments", label: "To‘lovlar", icon: "CreditCard" },
+              { id: "payouts", label: "Sanatoriyaga o‘tkazma", icon: "FileCheck", badge: "3" },
+              { id: "refunds", label: "Pulni qaytarish", icon: "Wallet", badge: "1", tone: "warn" },
+              { id: "billing", label: "Abonent va hisoblar", icon: "FileText" },
+              { id: "ads", label: "Reklama vitrinasi", icon: "Megaphone", badge: "LIVE", tone: "live" },
+              { id: "reconciliation", label: "Solishtirish", icon: "ChartNoAxesCombined" },
+            ],
+          },
+          {
+            title: "Aloqa va nazorat",
+            items: [
+              { id: "support", label: "Yordam va jonli chat", icon: "MessageSquare", badge: "4", tone: "accent" },
+              { id: "messages", label: "E’lonlar va xabarlar", icon: "Megaphone" },
+              { id: "reviews", label: "Sharhlar", icon: "HeartPulse" },
+              { id: "notifications", label: "Bildirishnomalar", icon: "Bell", badge: "5" },
+            ],
+          },
+          {
+            title: "Sozlamalar",
+            items: [
+              { id: "telegram", label: "Telegram bot", icon: "Mail", badge: "Faol", tone: "live" },
+              { id: "audit", label: "Amallar tarixi", icon: "ShieldCheck" },
+              { id: "account", label: "Mening hisobim", icon: "Settings" },
+            ],
+          },
+        ];
+
+        function renderDashboard(p) {
+          const bars = [
+            { label: "Tasdiqlangan", val: 84, pct: 100, bg: p.bars[0] },
+            { label: "Joylashtirilgan", val: 31, pct: 46, bg: p.bars[1] },
+            { label: "Yakunlangan", val: 18, pct: 32, bg: p.bars[2] },
+            { label: "Kutilmoqda", val: 6, pct: 16, bg: p.bars[3] },
+            { label: "Bekor", val: 3, pct: 10, bg: p.bars[4] },
+          ];
+          return `
+            <div class="app-shell">
+              <aside class="sidebar">
+                <div class="sb-brand">
+                  <div class="sb-logo"><img src="${LOGO}" alt="Sihhat uz" /></div>
+                  <div>
+                    <div class="brand-name">sihhat<span>.uz</span></div>
+                    <div class="brand-sub">Platforma boshqaruvi</div>
+                  </div>
+                  <span class="sb-role-pill">Admin</span>
+                </div>
+                <nav class="sb-nav" style="gap:9px">
+                  ${NAV_GROUPS.map(
+                    (g) => `
+                    <div>
+                      <div class="sb-group-title">${g.title}</div>
+                      <div class="sb-items">
+                        ${g.items
+                          .map(
+                            (it) => `
+                          <div class="sb-item ${it.id === "dashboard" ? "active" : ""}" style="padding:5.5px 10px;font-size:12.6px">
+                            ${ic(it.icon)}
+                            <span>${it.label}</span>
+                            ${it.badge ? `<span class="sb-badge ${it.tone || ""}">${it.badge}</span>` : ""}
+                          </div>`
+                          )
+                          .join("")}
+                      </div>
+                    </div>`
+                  ).join("")}
+                </nav>
+                <div class="sb-footer" style="padding-top:9px">
+                  <div class="sb-foot-card" style="padding:8px 10px">
+                    <div class="sb-foot-icon">${ic("HeartPulse")}</div>
+                    <div>
+                      <strong>0% bron komissiyasi</strong>
+                      <span>Ochiq hamkorlik · v0.2.10</span>
+                    </div>
+                  </div>
+                </div>
+              </aside>
+
+              <div class="main">
+                <header class="topbar">
+                  <div class="tb-left">
+                    <div class="breadcrumb"><span>Superadmin</span><span>/</span><strong>Umumiy ko‘rinish (Tungi)</strong></div>
+                    <div class="tb-divider"></div>
+                    <span class="palette-ribbon">
+                      <span class="swatch-dots">${p.dots.map((d) => `<i style="background:${d}"></i>`).join("")}</span>
+                      <span>${p.code}: ${p.name}</span>
+                    </span>
+                  </div>
+                  <div class="tb-right">
+                    <div class="cmd-search" style="width:225px">${ic("Search")}<span>Bo‘lim, bron yoki #ID...</span><kbd>Ctrl K</kbd></div>
+                    <div class="health-chip"><span class="dot-pulse"></span><span>Tizim faol</span></div>
+                    <div class="icon-btn">${ic("Sun")}</div>
+                    <div class="icon-btn">${ic("Bell")}<span class="notif-dot"></span></div>
+                    <div class="user-pill">
+                      <div class="avatar">SA<span class="online-ring"></span></div>
+                      <div class="user-meta"><strong>Sardor Alimov</strong><span>#100001 · Superadmin</span></div>
+                    </div>
+                  </div>
+                </header>
+
+                <main class="content">
+                  <div class="page-head">
+                    <div>
+                      <h1>Platforma ko‘rsatkichlari</h1>
+                      <p>Bron aylanmasi (GMV · 0% komissiya) va platforma xizmatlari daromadi alohida hisoblanadi · Toshkent vaqti (UTC+5).</p>
+                    </div>
+                    <div class="head-actions">
+                      <div class="segmented">
+                        <span class="seg-item">Bugun</span>
+                        <span class="seg-item">7 kun</span>
+                        <span class="seg-item active">Noyabr 2026</span>
+                        <span class="seg-item">90 kun</span>
+                      </div>
+                      <span class="select-pill">${ic("CalendarDays")} 01.11 — 27.11 · Yashash davri ${ic("ChevronDown")}</span>
+                      <span class="btn secondary">${ic("FileSpreadsheet")} XLSX</span>
+                      <span class="btn primary">${ic("Download")} CSV</span>
+                    </div>
+                  </div>
+
+                  <div class="kpi-grid">
+                    <div class="kpi-card">
+                      <div class="kpi-top"><span class="kpi-label">To‘langan bronlar</span><div class="kpi-icon c1">${ic("BookOpen")}</div></div>
+                      <div class="kpi-mid"><div class="kpi-val">142<small>ta bron</small></div>${spark("2,23 15,19 28,21 42,13 55,15 67,8 76,5", p.sparks[0][0], p.sparks[0][1])}</div>
+                      <div class="kpi-foot"><span class="delta">▲ +18.4%</span><span>106 ilova · 36 qo‘lda va profsoyuz</span></div>
+                    </div>
+                    <div class="kpi-card">
+                      <div class="kpi-top"><span class="kpi-label">O‘rtacha xonalar bandligi</span><div class="kpi-icon c2">${ic("BedDouble")}</div></div>
+                      <div class="kpi-mid"><div class="kpi-val">76.4<small>%</small></div>${spark("2,22 16,18 30,15 45,17 59,10 70,7 76,5", p.sparks[1][0], p.sparks[1][1])}</div>
+                      <div class="kpi-foot"><span class="delta">▲ +6.8%</span><span>940 / 1 230 xona-tun · 1 820 mehmon-tun</span></div>
+                    </div>
+                    <div class="kpi-card">
+                      <div class="kpi-top"><span class="kpi-label">Bron aylanmasi (GMV)</span><div class="kpi-icon c3">${ic("CreditCard")}</div></div>
+                      <div class="kpi-mid"><div class="kpi-val">214.8 mln<small>so‘m</small></div>${spark("2,24 15,20 29,18 44,19 57,12 68,8 76,4", p.sparks[2][0], p.sparks[2][1])}</div>
+                      <div class="kpi-foot"><span class="delta neutral">0% komissiya</span><span>214 800 000 so‘m tasdiqlangan</span></div>
+                    </div>
+                    <div class="kpi-card accent">
+                      <div class="kpi-top"><span class="kpi-label">Platforma sof daromadi</span><div class="kpi-icon">${ic("Coins")}</div></div>
+                      <div class="kpi-mid"><div class="kpi-val">22.4 mln<small>so‘m</small></div>${spark("2,24 17,20 32,16 48,13 62,8 76,3", "#ffffff", "rgba(255,255,255,0.24)")}</div>
+                      <div class="kpi-foot"><span class="delta">▲ +22.0%</span><span>16 ta faol abonent · Reklama xizmatlari</span></div>
+                    </div>
+                  </div>
+
+                  <div class="grid-main-side" style="flex:1.15">
+                    <div class="card">
+                      <div class="card-head">
+                        <div>
+                          <h3>${ic("ChartNoAxesCombined")} Bronlar holati va Top sanatoriyalar bandligi</h3>
+                          <div class="card-sub">Yashash sanalari kesishgan tasdiqlangan bronlar va yetakchi sanatoriyalar kesimi</div>
+                        </div>
+                        <span class="badge ok">Jami 142 ta bron</span>
+                      </div>
+                      <div class="card-body" style="display:grid;grid-template-columns:1fr 1.15fr;gap:22px;align-items:end">
+                        <div style="display:flex;flex-direction:column;height:100%;justify-content:flex-end">
+                          <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:12px;height:190px;padding:12px 8px 0">
+                            ${bars
+                              .map(
+                                (b) => `
+                              <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:6px;height:100%;justify-content:flex-end">
+                                <strong style="font-size:13px;color:var(--ink)">${b.val}</strong>
+                                <div style="width:100%;max-width:46px;height:${Math.round(b.pct * 1.42)}px;border-radius:11px 11px 5px 5px;background:${b.bg};box-shadow:0 6px 18px rgba(0,0,0,0.34)"></div>
+                                <span style="font-size:11px;color:var(--muted);white-space:nowrap">${b.label}</span>
+                              </div>`
+                              )
+                              .join("")}
+                          </div>
+                          <div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--border);display:flex;justify-content:space-between;font-size:11.5px;color:var(--muted)">
+                            <span>Hisob mezoni: <strong>Yashash davri</strong></span>
+                            <span>Bekor qilish darajasi: <strong style="color:var(--ok-ink)">2.1%</strong></span>
+                          </div>
+                        </div>
+
+                        <div style="display:flex;flex-direction:column;gap:13px;justify-content:center;height:100%">
+                          <div class="f-label" style="letter-spacing:0.05em">TOP SANATORIYALAR BANDLIGI</div>
+                          ${[
+                            ["Zomin Sog‘lomlik Maskani", "Jizzax · 52 bron · 78.4 mln", 88],
+                            ["Chimyon Sanatoriyasi", "Farg‘ona · 41 bron · 61.2 mln", 81],
+                            ["Oqtosh Tog‘ Kurorti", "Toshkent · 29 bron · 44.6 mln", 73],
+                            ["Chortoq Mineral Suv", "Namangan · 20 bron · 30.6 mln", 65],
+                          ]
+                            .map(
+                              ([n, sub, pct]) => `
+                            <div>
+                              <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:5px">
+                                <div><strong style="font-size:13px">${n}</strong> <span style="font-size:11.5px;color:var(--muted)">· ${sub}</span></div>
+                                <strong style="font-size:13px;color:var(--accent-bright)">${pct}%</strong>
+                              </div>
+                              <div class="bar-track" style="height:8px"><div class="bar-fill" style="width:${pct}%"></div></div>
+                            </div>`
+                            )
+                            .join("")}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div class="card">
+                      <div class="card-head">
+                        <div>
+                          <h3>${ic("Wallet")} Hisob-kitob va Kassa qoldiqlari</h3>
+                          <div class="card-sub">Davr oxirigacha ledger bo‘yicha hisoblangan</div>
+                        </div>
+                        <span class="badge info">Ledger Guard 4/4</span>
+                      </div>
+                      <div class="card-body">
+                        <div class="kv-list">
+                          <div class="kv-row"><span class="kv-row-l">${ic("CreditCard")} Sof onlayn tushum (Net)</span><strong>182 400 000 so‘m</strong></div>
+                          <div class="kv-row"><span class="kv-row-l">${ic("Coins")} Joyida to‘lovlar (Naqd / Terminal)</span><strong>32 400 000 so‘m</strong></div>
+                          <div class="kv-row"><span class="kv-row-l">${ic("ArrowUpRight")} Sanatoriyalarga o‘tkazilgan</span><strong style="color:var(--ok-ink)">166 200 000 so‘m</strong></div>
+                          <div class="kv-row"><span class="kv-row-l">${ic("Clock")} Bankka yuborilayotgan (In-transit)</span><strong style="color:var(--warn-ink)">16 200 000 so‘m</strong></div>
+                          <div class="kv-row"><span class="kv-row-l">${ic("RefreshCw")} Mijozga qaytarilgan (Refund)</span><strong>4 850 000 so‘m</strong></div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="grid-3" style="flex:0.78">
+                    <div class="card">
+                      <div class="card-head"><h3>${ic("Sparkles")} Gemini AI Maslahatchi sarfi</h3><span class="badge ok">Faol · 3.1-flash-lite</span></div>
+                      <div class="card-body" style="display:flex;flex-direction:column;justify-content:space-between;gap:10px">
+                        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">
+                          <div class="ai-tile"><strong style="font-size:18px;display:block">386</strong><span style="font-size:11px;color:var(--muted)">So‘rovlar</span></div>
+                          <div class="ai-tile"><strong style="font-size:18px;display:block">134.2k</strong><span style="font-size:11px;color:var(--muted)">Kirish token</span></div>
+                          <div class="ai-tile"><strong style="font-size:18px;display:block;color:var(--accent-bright)">$0.05</strong><span style="font-size:11px;color:var(--muted)">Taxminiy USD</span></div>
+                        </div>
+                        <div style="font-size:12px;color:var(--muted)">Telefon va email avtomatik niqoblanadi · Kunlik limit: 100/mijoz.</div>
+                      </div>
+                    </div>
+
+                    <div class="card">
+                      <div class="card-head"><h3>${ic("ShieldCheck")} Provayderlar va Push xizmati</h3><span class="badge ok">4/4 Tayyor</span></div>
+                      <div class="card-body" style="display:flex;flex-direction:column;gap:7px">
+                        <div class="kv-row" style="padding:7px 10px"><span class="kv-row-l">Tezcheck Kassa (Click · Payme)</span><span class="badge ok">accepts_payments</span></div>
+                        <div class="kv-row" style="padding:7px 10px"><span class="kv-row-l">Firebase Push (FCM HTTP v1)</span><span class="badge ok">Ulashgan · 0 ms</span></div>
+                        <div class="kv-row" style="padding:7px 10px"><span class="kv-row-l">Telegram Bot (@sihhat_admins_bot)</span><span class="badge ok">Webhook Faol</span></div>
+                      </div>
+                    </div>
+
+                    <div class="card">
+                      <div class="card-head"><h3>${ic("Smartphone")} Mobil Ilova va Tezkor Navbat</h3><span class="badge info">APK v0.2.10</span></div>
+                      <div class="card-body" style="display:flex;flex-direction:column;justify-content:space-between;gap:8px">
+                        <div style="display:flex;flex-direction:column;gap:7px">
+                          <div class="kv-row" style="padding:7px 10px"><span class="kv-row-l">Tasdiq kutayotgan hamkor arizalari</span><span class="badge warn">3 ta yangi →</span></div>
+                          <div class="kv-row" style="padding:7px 10px"><span class="kv-row-l">Ochiq markaziy yordam suhbatlari</span><span class="badge info">4 ta suhbat →</span></div>
+                        </div>
+                        <div style="display:flex;align-items:center;justify-content:space-between;font-size:12px;color:var(--muted);padding-top:4px;border-top:1px solid var(--border)">
+                          <span>Universal APK (31.3 MB) · iOS PWA</span>
+                          <span style="color:var(--accent-bright);font-weight:700">GitHub Releases ✓</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </main>
+              </div>
+            </div>
+          `;
+        }
+
+        function renderComparison() {
+          const list = Object.entries(PALETTES);
+          return `
+            <div class="cmp-stage">
+              <div style="display:flex;align-items:center;justify-content:space-between">
+                <div style="display:flex;align-items:center;gap:12px">
+                  <div class="sb-logo" style="width:42px;height:42px;border-radius:12px;border-color:rgba(148,163,184,0.3)"><img src="${LOGO}" alt="" /></div>
+                  <div>
+                    <h1 style="margin:0;font-family:Manrope,sans-serif;font-size:21px;font-weight:800;color:#f8fafc">Sihhat.uz Superadmin — 6 ta To‘liq Tungi Yorqin Rang Varianti (T1–T6)</h1>
+                    <div style="font-size:12.5px;color:#94a3b8">100% oq fonsiz haqiqiy tungi rejim · Chuqur boy rangli fonlar va yorqin aksentlar</div>
+                  </div>
+                </div>
+                <span style="font-size:12px;font-weight:700;padding:6px 13px;border-radius:999px;background:#161c2e;border:1px solid rgba(129,140,248,0.35);color:#c7d2fe">UI/new web/tungi_ranglar</span>
+              </div>
+              <div class="cmp-grid">
+                ${list
+                  .map(
+                    ([id, p]) => `
+                  <div class="cmp-card">
+                    <div class="cmp-thumb"><img src="../tungi_ranglar/${id}.png" alt="${p.name}" /></div>
+                    <div class="cmp-meta">
+                      <div>
+                        <strong>${p.code} — ${p.name}</strong>
+                        <span>${p.sub}</span>
+                      </div>
+                      <span class="swatch-dots">${p.dots.map((d) => `<i style="background:${d};width:13px;height:13px"></i>`).join("")}</span>
+                    </div>
+                  </div>`
+                  )
+                  .join("")}
+              </div>
+            </div>
+          `;
+        }
+
+        function boot() {
+          const q = new URLSearchParams(location.search);
+          const id = q.get("palette") || "T1-tungi-yorqin-indigo";
+          const stage = document.getElementById("stage");
+          if (id === "compare") {
+            stage.innerHTML = renderComparison();
+          } else {
+            const p = PALETTES[id] || PALETTES["T1-tungi-yorqin-indigo"];
+            Object.entries(p.vars).forEach(([k, v]) => document.documentElement.style.setProperty(k, v));
+            stage.innerHTML = renderDashboard(p);
+          }
+          document.body.setAttribute("data-ready", "true");
+        }
+
+        if (document.readyState === "loading") {
+          document.addEventListener("DOMContentLoaded", boot);
+        } else {
+          boot();
+        }
+      })();
+    </script>
+  </body>
+</html>

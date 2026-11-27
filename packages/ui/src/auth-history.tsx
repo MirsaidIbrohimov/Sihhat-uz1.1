@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Globe,
   Laptop,
@@ -41,12 +41,20 @@ const METHOD_LABELS: Record<string, string> = {
   PASSWORD: "Login / Parol",
   EMAIL_OTP: "Email OTP",
   SMS_OTP: "SMS OTP",
+  OTP: "Bir martalik kod",
   LOGOUT: "Qo‘lda chiqish",
   REVOKE: "Qurilmani yopish",
   REVOKE_OTHERS: "Boshqa qurilmalarni yopish",
   ADMIN_REVOKE: "Superadmin yopdi",
   IDLE_EXPIRED: "Faolsizlik muddati",
 };
+
+function formatAuthHistoryError(message: string): string {
+  if (/Cannot GET \/(?:auth\/login-history|superadmin\/auth-events|partner\/auth-events)/i.test(message)) {
+    return "Kirish va chiqish tarixi endpointi API serverda hali yangilanmagan (404). Backend serverni oxirgi versiyaga yangilang.";
+  }
+  return message;
+}
 
 const USER_KIND_LABELS: Record<string, string> = {
   SUPERADMIN: "Superadmin",
@@ -105,12 +113,14 @@ export function DeviceCell({
 export function AuthHistoryPanel({
   mode,
   userId,
+  sanatoriumId,
   title,
   showUserColumn = true,
   compact = false,
 }: {
   mode: "superadmin" | "partner" | "self";
   userId?: string;
+  sanatoriumId?: string;
   title?: string;
   showUserColumn?: boolean;
   compact?: boolean;
@@ -121,6 +131,16 @@ export function AuthHistoryPanel({
   const [q, setQ] = useState("");
   const [eventType, setEventType] = useState("");
   const [userKind, setUserKind] = useState("");
+  const [selectedSanatorium, setSelectedSanatorium] = useState("");
+
+  const controlledSanatorium = sanatoriumId !== undefined;
+  const effectiveSuperadminSanatorium = controlledSanatorium
+    ? sanatoriumId
+    : selectedSanatorium;
+
+  useEffect(() => {
+    setPage(1);
+  }, [sanatoriumId, userId, mode]);
 
   const endpoint =
     mode === "self"
@@ -141,8 +161,8 @@ export function AuthHistoryPanel({
           sanatorium_id:
             mode === "partner"
               ? ctx.tenant || undefined
-              : !userId && ctx.tenant
-                ? ctx.tenant
+              : !userId && effectiveSuperadminSanatorium
+                ? effectiveSuperadminSanatorium
                 : undefined,
         }
       : {}),
@@ -223,13 +243,30 @@ export function AuthHistoryPanel({
               <option value="CUSTOMER">Ilova foydalanuvchilari</option>
             </select>
           )}
+          {mode === "superadmin" && !userId && !controlledSanatorium && ctx.tenants.length > 0 && (
+            <select
+              aria-label="Sanatoriya bo‘yicha filtr"
+              value={selectedSanatorium}
+              onChange={(e) => {
+                setSelectedSanatorium(e.target.value);
+                setPage(1);
+              }}
+            >
+              <option value="">Barcha sanatoriyalar / Platforma</option>
+              {ctx.tenants.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.name}
+                </option>
+              ))}
+            </select>
+          )}
         </div>
       </div>
 
       {remote.loading ? (
         <Loading />
       ) : remote.error ? (
-        <ErrorBox message={remote.error} retry={remote.reload} />
+        <ErrorBox message={formatAuthHistoryError(remote.error)} retry={remote.reload} />
       ) : !rows.length ? (
         <Empty text="Kirish va chiqish qaydlari hali mavjud emas" />
       ) : (
@@ -326,11 +363,15 @@ export function AuthHistoryPanel({
 
 export function UserAuthHistoryModal({
   user,
+  mode,
   onClose,
 }: {
   user: { id: string; name?: string | null; login?: string | null; publicId?: number | null };
+  mode?: "superadmin" | "partner";
   onClose: () => void;
 }) {
+  const ctx = usePortal();
+  const resolvedMode = mode ?? (ctx.admin ? "superadmin" : "partner");
   return (
     <div
       className="modal-backdrop"
@@ -363,7 +404,7 @@ export function UserAuthHistoryModal({
         </div>
         <div className="partner-reg-body">
           <AuthHistoryPanel
-            mode="superadmin"
+            mode={resolvedMode}
             userId={user.id}
             showUserColumn={false}
             compact

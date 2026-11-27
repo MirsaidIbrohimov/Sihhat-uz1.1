@@ -1,0 +1,777 @@
+<!doctype html>
+<html lang="uz">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Sihhat.uz — Superadmin Bosh Sahifa Rang Variantlari</title>
+    <link rel="stylesheet" href="studio.css" />
+    <script src="../../web/assets/icons.js" defer></script>
+    <style>
+      /* Palette-override hooks */
+      .kpi-card.accent {
+        background: var(--kpi-featured-bg) !important;
+        border-color: var(--kpi-featured-border, transparent) !important;
+      }
+      .kpi-card.accent .kpi-icon {
+        background: var(--kpi-featured-icon-bg, rgba(255,255,255,0.15)) !important;
+        color: var(--kpi-featured-icon-ink, #ffffff) !important;
+      }
+      .kpi-card.accent .delta {
+        background: var(--kpi-featured-delta-bg, rgba(255,255,255,0.18)) !important;
+        color: var(--kpi-featured-delta-ink, #ffffff) !important;
+      }
+      .avatar {
+        background: var(--avatar-grad, linear-gradient(135deg, var(--accent), var(--accent-bright))) !important;
+      }
+      .sidebar {
+        background: var(--sidebar) !important;
+        border-right-color: var(--sb-border, var(--border)) !important;
+      }
+      .sidebar .brand-name { color: var(--sb-ink, var(--ink)) !important; }
+      .sidebar .brand-sub { color: var(--sb-muted, var(--muted)) !important; }
+      .sidebar .sb-brand { border-bottom-color: var(--sb-border, var(--border)) !important; }
+      .sidebar .sb-group-title { color: var(--sb-group, var(--muted-2)) !important; }
+      .sidebar .sb-item { color: var(--sb-item-ink, var(--ink-2)) !important; }
+      .sidebar .sb-item svg { color: var(--sb-item-icon, var(--muted)) !important; }
+      .sidebar .sb-item.active {
+        background: var(--sb-active-bg, var(--accent-soft)) !important;
+        color: var(--sb-active-ink, var(--accent-deep)) !important;
+      }
+      .sidebar .sb-item.active svg { color: var(--sb-active-icon, var(--accent)) !important; }
+      .sidebar .sb-item.active::before { background: var(--sb-active-bar, var(--accent)) !important; }
+      .sidebar .sb-badge {
+        background: var(--sb-badge-bg, var(--card-subtle));
+        color: var(--sb-badge-ink, var(--muted));
+        border-color: var(--sb-badge-border, var(--border));
+      }
+      .sidebar .sb-badge.warn {
+        background: var(--warn-bg);
+        color: var(--warn-ink);
+        border-color: var(--warn-border);
+      }
+      .sidebar .sb-badge.accent {
+        background: var(--accent);
+        color: var(--on-accent);
+        border-color: transparent;
+      }
+      .sidebar .sb-badge.live {
+        background: var(--ok-bg);
+        color: var(--ok-ink);
+        border-color: var(--ok-border);
+      }
+      .sidebar .sb-footer { border-top-color: var(--sb-border, var(--border)) !important; }
+      .sidebar .sb-foot-card {
+        background: var(--sb-foot-bg, var(--card-subtle)) !important;
+        border-color: var(--sb-border, var(--border)) !important;
+      }
+      .sidebar .sb-foot-card strong { color: var(--sb-ink, var(--ink)) !important; }
+      .sidebar .sb-foot-card span { color: var(--sb-muted, var(--muted)) !important; }
+      .sidebar .sb-foot-icon {
+        background: var(--sb-active-bg, var(--accent-soft)) !important;
+        color: var(--sb-active-icon, var(--accent)) !important;
+      }
+      .sidebar .sb-role-pill {
+        background: var(--sb-role-bg, var(--accent-soft)) !important;
+        color: var(--sb-role-ink, var(--accent)) !important;
+        border-color: var(--sb-role-border, var(--accent-border)) !important;
+      }
+      .palette-ribbon {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 4px 11px;
+        border-radius: 999px;
+        background: var(--accent-soft);
+        border: 1px solid var(--accent-border);
+        color: var(--accent-deep);
+        font-size: 11.5px;
+        font-weight: 700;
+        white-space: nowrap;
+      }
+      :root[data-theme="dark"] .palette-ribbon {
+        color: var(--accent-bright);
+      }
+      .swatch-dots {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+      }
+      .swatch-dots i {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        display: inline-block;
+        border: 1px solid rgba(0, 0, 0, 0.14);
+      }
+
+      /* Comparison 3x2 Board */
+      .cmp-stage {
+        width: 1600px;
+        height: 1040px;
+        padding: 24px 28px;
+        background: #f3f4f6;
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+      }
+      .cmp-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        grid-template-rows: repeat(2, 1fr);
+        gap: 16px;
+        flex: 1;
+        min-height: 0;
+      }
+      .cmp-card {
+        background: #ffffff;
+        border: 1px solid #e2e6ea;
+        border-radius: 16px;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        box-shadow: 0 2px 10px rgba(15, 23, 42, 0.05);
+      }
+      .cmp-thumb {
+        flex: 1;
+        min-height: 0;
+        overflow: hidden;
+        background: #f8fafc;
+        border-bottom: 1px solid #e2e6ea;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 4px;
+      }
+      .cmp-thumb img {
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+        display: block;
+        border-radius: 8px;
+      }
+      .cmp-meta {
+        padding: 10px 14px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+      }
+      .cmp-meta strong {
+        font-family: Manrope, sans-serif;
+        font-size: 13.5px;
+        font-weight: 800;
+        color: #0f172a;
+        display: block;
+      }
+      .cmp-meta span {
+        font-size: 11.5px;
+        color: #64748b;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="stage" class="stage"></div>
+    <script>
+      "use strict";
+      (function () {
+        const LOGO = "../../web/assets/sihhat-logo.jpg";
+        const EXTRA = {
+          Smartphone: '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="20" x="5" y="2" rx="2" ry="2"/><path d="M12 18h.01"/></svg>',
+        };
+        function ic(name) {
+          return EXTRA[name] || (window.WEB_ICONS && window.WEB_ICONS[name]) || "";
+        }
+        function spark(points, stroke, fill) {
+          return `<svg width="78" height="28" viewBox="0 0 78 28" fill="none" style="flex-shrink:0">
+            <path d="M${points} L76,26 L2,26 Z" fill="${fill}" />
+            <polyline points="${points}" fill="none" stroke="${stroke}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>`;
+        }
+
+        const PALETTES = {
+          "A-moviy-klinika-sapphire": {
+            code: "A",
+            name: "Moviy Klinika (Royal Sapphire)",
+            sub: "Kunduzgi · Tiniq tibbiy-texnologik ko‘k",
+            dark: false,
+            dots: ["#f4f6fa", "#ffffff", "#1d5fd6", "#102c66"],
+            vars: {
+              "--canvas": "#f3f6fb",
+              "--sidebar": "#ffffff",
+              "--topbar": "rgba(255,255,255,0.95)",
+              "--card": "#ffffff",
+              "--card-subtle": "#f7f9fc",
+              "--border": "#e3e9f2",
+              "--border-strong": "#cbd6e6",
+              "--ink": "#0f1c33",
+              "--ink-2": "#334663",
+              "--muted": "#64748b",
+              "--muted-2": "#8b9ab0",
+              "--accent": "#1d5fd6",
+              "--accent-deep": "#1549ab",
+              "--accent-bright": "#3b82f6",
+              "--accent-soft": "#eef4ff",
+              "--accent-border": "#c3d8ff",
+              "--on-accent": "#ffffff",
+              "--kpi-featured-bg": "linear-gradient(145deg, #1a4db3 0%, #102e6e 100%)",
+              "--kpi-featured-icon-ink": "#bfdbfe",
+              "--kpi-featured-delta-bg": "rgba(191,219,254,0.2)",
+              "--kpi-featured-delta-ink": "#dbeafe",
+              "--avatar-grad": "linear-gradient(135deg, #1d5fd6, #3b82f6)",
+            },
+            sparkStroke: "#1d5fd6",
+            sparkFill: "rgba(29,95,214,0.11)",
+            featSpark: "#93c5fd",
+            featFill: "rgba(147,197,253,0.22)",
+            bars: ["#1d5fd6", "#0ea5a8", "#6366f1", "#d97706", "#e11d48"],
+          },
+
+          "B-issiq-qum-terrakota": {
+            code: "B",
+            name: "Issiq Qum va Terrakota (Luxury Retreat)",
+            sub: "Kunduzgi · Premium dam olish maskani va issiq ko‘z qulayligi",
+            dark: false,
+            dots: ["#f7f3ed", "#fffdf9", "#b5522c", "#3b261d"],
+            vars: {
+              "--canvas": "#f6f2eb",
+              "--sidebar": "#fffdf9",
+              "--topbar": "rgba(255,253,249,0.94)",
+              "--card": "#ffffff",
+              "--card-subtle": "#faf7f2",
+              "--border": "#eae2d7",
+              "--border-strong": "#d8cbb9",
+              "--ink": "#231a15",
+              "--ink-2": "#4d3e35",
+              "--muted": "#7d6d63",
+              "--muted-2": "#9d8d82",
+              "--accent": "#b5522c",
+              "--accent-deep": "#8f3d1e",
+              "--accent-bright": "#d46c42",
+              "--accent-soft": "#fdf2ec",
+              "--accent-border": "#f0cfc0",
+              "--on-accent": "#ffffff",
+              "--kpi-featured-bg": "linear-gradient(145deg, #4a2e22 0%, #2a1912 100%)",
+              "--kpi-featured-icon-ink": "#fcd9bd",
+              "--kpi-featured-delta-bg": "rgba(252,217,189,0.2)",
+              "--kpi-featured-delta-ink": "#fde8d7",
+              "--avatar-grad": "linear-gradient(135deg, #b5522c, #d97745)",
+            },
+            sparkStroke: "#b5522c",
+            sparkFill: "rgba(181,82,44,0.11)",
+            featSpark: "#f6ad82",
+            featFill: "rgba(246,173,130,0.22)",
+            bars: ["#b5522c", "#2f7a64", "#c98a2c", "#7c5cbf", "#c93b47"],
+          },
+
+          "C-zamonaviy-indigo": {
+            code: "C",
+            name: "Zamonaviy Indigo (Crisp SaaS)",
+            sub: "Kunduzgi · Sof oq va chuqur indigo-binafsha",
+            dark: false,
+            dots: ["#f5f5fa", "#ffffff", "#4f46e5", "#241f73"],
+            vars: {
+              "--canvas": "#f5f5fa",
+              "--sidebar": "#ffffff",
+              "--topbar": "rgba(255,255,255,0.94)",
+              "--card": "#ffffff",
+              "--card-subtle": "#f8f8fc",
+              "--border": "#e5e5f0",
+              "--border-strong": "#cfcfe3",
+              "--ink": "#16152b",
+              "--ink-2": "#3b3a5c",
+              "--muted": "#6c6c8a",
+              "--muted-2": "#9292ad",
+              "--accent": "#4f46e5",
+              "--accent-deep": "#3e35c4",
+              "--accent-bright": "#6d66f2",
+              "--accent-soft": "#f1f0ff",
+              "--accent-border": "#d2cfff",
+              "--on-accent": "#ffffff",
+              "--kpi-featured-bg": "linear-gradient(145deg, #3b33b5 0%, #221c70 100%)",
+              "--kpi-featured-icon-ink": "#ddd6fe",
+              "--kpi-featured-delta-bg": "rgba(221,214,254,0.2)",
+              "--kpi-featured-delta-ink": "#ede9fe",
+              "--avatar-grad": "linear-gradient(135deg, #4f46e5, #7c3aed)",
+            },
+            sparkStroke: "#4f46e5",
+            sparkFill: "rgba(79,70,229,0.11)",
+            featSpark: "#c4b5fd",
+            featFill: "rgba(196,181,253,0.24)",
+            bars: ["#4f46e5", "#0ea5e9", "#10b981", "#f59e0b", "#f43f5e"],
+          },
+
+          "D-okean-va-toq-kok-sidebar": {
+            code: "D",
+            name: "Okean va Qorong‘i Ko‘k Menyu (Executive Navy)",
+            sub: "Aralash · To‘q dengiz-ko‘k yon panel + yorug‘ mineral ish maydoni",
+            dark: false,
+            dots: ["#132234", "#f3f6f9", "#0c7c92", "#38bdf8"],
+            vars: {
+              "--canvas": "#f2f6f9",
+              "--sidebar": "linear-gradient(180deg, #142438 0%, #0e1a29 100%)",
+              "--sb-border": "rgba(148,184,218,0.16)",
+              "--sb-ink": "#f1f6fb",
+              "--sb-muted": "#8da4be",
+              "--sb-group": "#647f9e",
+              "--sb-item-ink": "#c7d6e6",
+              "--sb-item-icon": "#859eb9",
+              "--sb-active-bg": "rgba(56,189,248,0.15)",
+              "--sb-active-ink": "#7dd3fc",
+              "--sb-active-icon": "#38bdf8",
+              "--sb-active-bar": "#38bdf8",
+              "--sb-badge-bg": "rgba(255,255,255,0.08)",
+              "--sb-badge-ink": "#cbd5e1",
+              "--sb-badge-border": "rgba(255,255,255,0.12)",
+              "--sb-foot-bg": "rgba(255,255,255,0.06)",
+              "--sb-role-bg": "rgba(56,189,248,0.16)",
+              "--sb-role-ink": "#7dd3fc",
+              "--sb-role-border": "rgba(56,189,248,0.3)",
+              "--topbar": "rgba(255,255,255,0.95)",
+              "--card": "#ffffff",
+              "--card-subtle": "#f6f9fb",
+              "--border": "#e0e8ef",
+              "--border-strong": "#c6d5e2",
+              "--ink": "#0f2233",
+              "--ink-2": "#314a60",
+              "--muted": "#5f768c",
+              "--muted-2": "#889cb0",
+              "--accent": "#0c7c92",
+              "--accent-deep": "#096072",
+              "--accent-bright": "#149cb5",
+              "--accent-soft": "#e8f6f9",
+              "--accent-border": "#b5e0ea",
+              "--on-accent": "#ffffff",
+              "--kpi-featured-bg": "linear-gradient(145deg, #123b57 0%, #0b2438 100%)",
+              "--kpi-featured-icon-ink": "#7dd3fc",
+              "--kpi-featured-delta-bg": "rgba(125,211,252,0.18)",
+              "--kpi-featured-delta-ink": "#bae6fd",
+              "--avatar-grad": "linear-gradient(135deg, #0c7c92, #0284c7)",
+            },
+            sparkStroke: "#0c7c92",
+            sparkFill: "rgba(12,124,146,0.12)",
+            featSpark: "#7dd3fc",
+            featFill: "rgba(125,211,252,0.22)",
+            bars: ["#0c7c92", "#2563eb", "#0d9488", "#d97706", "#e11d48"],
+          },
+
+          "E-zaytun-va-tabiat": {
+            code: "E",
+            name: "Zaytun va Tog‘ Tabiati (Botanical Olive)",
+            sub: "Kunduzgi · Organik zaytun-yashil va iliq tosh foni",
+            dark: false,
+            dots: ["#f5f5f0", "#fcfbf8", "#4d6b38", "#2d3f20"],
+            vars: {
+              "--canvas": "#f5f5ef",
+              "--sidebar": "#fcfcf8",
+              "--topbar": "rgba(252,252,248,0.95)",
+              "--card": "#ffffff",
+              "--card-subtle": "#f8f8f3",
+              "--border": "#e5e5dc",
+              "--border-strong": "#d0d1c3",
+              "--ink": "#1c2418",
+              "--ink-2": "#3e4b37",
+              "--muted": "#6c7665",
+              "--muted-2": "#8f9888",
+              "--accent": "#4d6b38",
+              "--accent-deep": "#3a5229",
+              "--accent-bright": "#658a4b",
+              "--accent-soft": "#eff4ea",
+              "--accent-border": "#c9dab9",
+              "--on-accent": "#ffffff",
+              "--kpi-featured-bg": "linear-gradient(145deg, #374d28 0%, #202e17 100%)",
+              "--kpi-featured-icon-ink": "#d9f0c5",
+              "--kpi-featured-delta-bg": "rgba(217,240,197,0.18)",
+              "--kpi-featured-delta-ink": "#e4f5d5",
+              "--avatar-grad": "linear-gradient(135deg, #4d6b38, #6b8f4e)",
+            },
+            sparkStroke: "#4d6b38",
+            sparkFill: "rgba(77,107,56,0.12)",
+            featSpark: "#c4e4a8",
+            featFill: "rgba(196,228,168,0.22)",
+            bars: ["#4d6b38", "#b3802c", "#2d7a73", "#c96f32", "#b83b46"],
+          },
+
+          "F-tungi-midnight-navy": {
+            code: "F",
+            name: "Tungi Ko‘k-Grafit (Midnight Navy Dark)",
+            sub: "Tungi · Ko‘zga eng qulay klassik to‘q ko‘k-grafit rejim",
+            dark: true,
+            dots: ["#0b101b", "#131c2e", "#4f9cf9", "#34d399"],
+            vars: {
+              "--canvas": "#0b101b",
+              "--sidebar": "#101726",
+              "--topbar": "rgba(16,23,38,0.94)",
+              "--card": "#141d2f",
+              "--card-subtle": "#1a253b",
+              "--border": "#24324d",
+              "--border-strong": "#33466b",
+              "--ink": "#eef3fb",
+              "--ink-2": "#c0cee4",
+              "--muted": "#8295b3",
+              "--muted-2": "#607394",
+              "--accent": "#4f9cf9",
+              "--accent-deep": "#3b82f6",
+              "--accent-bright": "#7cb8ff",
+              "--accent-soft": "rgba(79,156,249,0.14)",
+              "--accent-border": "rgba(79,156,249,0.32)",
+              "--on-accent": "#07172e",
+              "--kpi-featured-bg": "linear-gradient(145deg, #1b3d7a 0%, #10264f 100%)",
+              "--kpi-featured-border": "rgba(79,156,249,0.38)",
+              "--kpi-featured-icon-ink": "#93c5fd",
+              "--kpi-featured-delta-bg": "rgba(52,211,153,0.2)",
+              "--kpi-featured-delta-ink": "#6ee7b7",
+              "--avatar-grad": "linear-gradient(135deg, #2563eb, #4f9cf9)",
+            },
+            sparkStroke: "#4f9cf9",
+            sparkFill: "rgba(79,156,249,0.16)",
+            featSpark: "#93c5fd",
+            featFill: "rgba(147,197,253,0.22)",
+            bars: ["#4f9cf9", "#34d399", "#a78bfa", "#fbbf24", "#fb7185"],
+          },
+        };
+
+        const NAV_GROUPS = [
+          {
+            title: "Ish jarayoni",
+            items: [
+              { id: "dashboard", label: "Umumiy ko‘rinish", icon: "LayoutDashboard" },
+              { id: "today", label: "Bugungi ishlar", icon: "CalendarDays", badge: "14" },
+              { id: "sanatoriums", label: "Sanatoriyalar", icon: "Building2", badge: "16" },
+              { id: "partner-registrations", label: "Hamkor arizalari", icon: "ClipboardList", badge: "3", tone: "warn" },
+              { id: "bookings", label: "Bronlar va CRM", icon: "BookOpen", badge: "142" },
+              { id: "inventory", label: "Xonalar va tariflar", icon: "BedDouble" },
+              { id: "staff", label: "Jamoa va ruxsatlar", icon: "Users", badge: "2", tone: "warn" },
+              { id: "app-users", label: "Ilova mijozlari", icon: "Smartphone", badge: "1 480" },
+            ],
+          },
+          {
+            title: "Moliya",
+            items: [
+              { id: "payments", label: "To‘lovlar", icon: "CreditCard" },
+              { id: "payouts", label: "Sanatoriyaga o‘tkazma", icon: "FileCheck", badge: "3" },
+              { id: "refunds", label: "Pulni qaytarish", icon: "Wallet", badge: "1", tone: "warn" },
+              { id: "billing", label: "Abonent va hisoblar", icon: "FileText" },
+              { id: "ads", label: "Reklama vitrinasi", icon: "Megaphone", badge: "LIVE", tone: "live" },
+              { id: "reconciliation", label: "Solishtirish", icon: "ChartNoAxesCombined" },
+            ],
+          },
+          {
+            title: "Aloqa va nazorat",
+            items: [
+              { id: "support", label: "Yordam va jonli chat", icon: "MessageSquare", badge: "4", tone: "accent" },
+              { id: "messages", label: "E’lonlar va xabarlar", icon: "Megaphone" },
+              { id: "reviews", label: "Sharhlar", icon: "HeartPulse" },
+              { id: "notifications", label: "Bildirishnomalar", icon: "Bell", badge: "5" },
+            ],
+          },
+          {
+            title: "Sozlamalar",
+            items: [
+              { id: "telegram", label: "Telegram bot", icon: "Mail", badge: "Faol", tone: "live" },
+              { id: "audit", label: "Amallar tarixi", icon: "ShieldCheck" },
+              { id: "account", label: "Mening hisobim", icon: "Settings" },
+            ],
+          },
+        ];
+
+        function renderDashboard(p) {
+          const bars = [
+            { label: "Tasdiqlangan", val: 84, pct: 100, color: p.bars[0] },
+            { label: "Joylashtirilgan", val: 31, pct: 46, color: p.bars[1] },
+            { label: "Yakunlangan", val: 18, pct: 32, color: p.bars[2] },
+            { label: "Kutilmoqda", val: 6, pct: 16, color: p.bars[3] },
+            { label: "Bekor", val: 3, pct: 10, color: p.bars[4] },
+          ];
+          return `
+            <div class="app-shell">
+              <aside class="sidebar">
+                <div class="sb-brand">
+                  <div class="sb-logo"><img src="${LOGO}" alt="Sihhat uz" /></div>
+                  <div>
+                    <div class="brand-name">sihhat<span>.uz</span></div>
+                    <div class="brand-sub">Platforma boshqaruvi</div>
+                  </div>
+                  <span class="sb-role-pill">Admin</span>
+                </div>
+                <nav class="sb-nav" style="gap:9px">
+                  ${NAV_GROUPS.map(
+                    (g) => `
+                    <div>
+                      <div class="sb-group-title">${g.title}</div>
+                      <div class="sb-items">
+                        ${g.items
+                          .map(
+                            (it) => `
+                          <div class="sb-item ${it.id === "dashboard" ? "active" : ""}" style="padding:5.5px 10px;font-size:12.6px">
+                            ${ic(it.icon)}
+                            <span>${it.label}</span>
+                            ${it.badge ? `<span class="sb-badge ${it.tone || ""}">${it.badge}</span>` : ""}
+                          </div>`
+                          )
+                          .join("")}
+                      </div>
+                    </div>`
+                  ).join("")}
+                </nav>
+                <div class="sb-footer" style="padding-top:9px">
+                  <div class="sb-foot-card" style="padding:8px 10px">
+                    <div class="sb-foot-icon">${ic("HeartPulse")}</div>
+                    <div>
+                      <strong>0% bron komissiyasi</strong>
+                      <span>Ochiq hamkorlik · v0.2.10</span>
+                    </div>
+                  </div>
+                </div>
+              </aside>
+
+              <div class="main">
+                <header class="topbar">
+                  <div class="tb-left">
+                    <div class="breadcrumb">
+                      <span>Superadmin</span>
+                      <span>/</span>
+                      <strong>Umumiy ko‘rinish</strong>
+                    </div>
+                    <div class="tb-divider"></div>
+                    <span class="palette-ribbon">
+                      <span class="swatch-dots">${p.dots.map((d) => `<i style="background:${d}"></i>`).join("")}</span>
+                      <span>Variant ${p.code}: ${p.name}</span>
+                    </span>
+                  </div>
+                  <div class="tb-right">
+                    <div class="cmd-search" style="width:235px">
+                      ${ic("Search")}
+                      <span>Bo‘lim, bron yoki #ID...</span>
+                      <kbd>Ctrl K</kbd>
+                    </div>
+                    <div class="health-chip"><span class="dot-pulse"></span><span>Tizim faol</span></div>
+                    <div class="icon-btn">${ic(p.dark ? "Sun" : "Moon")}</div>
+                    <div class="icon-btn">${ic("Bell")}<span class="notif-dot"></span></div>
+                    <div class="user-pill">
+                      <div class="avatar">SA<span class="online-ring"></span></div>
+                      <div class="user-meta">
+                        <strong>Sardor Alimov</strong>
+                        <span>#100001 · Superadmin</span>
+                      </div>
+                    </div>
+                  </div>
+                </header>
+
+                <main class="content">
+                  <div class="page-head">
+                    <div>
+                      <h1>Platforma ko‘rsatkichlari</h1>
+                      <p>Bron aylanmasi (GMV · 0% komissiya) va platforma xizmatlari daromadi alohida hisoblanadi · Toshkent vaqti (UTC+5).</p>
+                    </div>
+                    <div class="head-actions">
+                      <div class="segmented">
+                        <span class="seg-item">Bugun</span>
+                        <span class="seg-item">7 kun</span>
+                        <span class="seg-item active">Noyabr 2026</span>
+                        <span class="seg-item">90 kun</span>
+                      </div>
+                      <span class="select-pill">${ic("CalendarDays")} 01.11 — 27.11 · Yashash davri ${ic("ChevronDown")}</span>
+                      <span class="btn secondary">${ic("FileSpreadsheet")} XLSX</span>
+                      <span class="btn primary">${ic("Download")} CSV</span>
+                    </div>
+                  </div>
+
+                  <div class="kpi-grid">
+                    <div class="kpi-card">
+                      <div class="kpi-top"><span class="kpi-label">To‘langan bronlar</span><div class="kpi-icon">${ic("BookOpen")}</div></div>
+                      <div class="kpi-mid"><div class="kpi-val">142<small>ta bron</small></div>${spark("2,23 15,19 28,21 42,13 55,15 67,8 76,5", p.sparkStroke, p.sparkFill)}</div>
+                      <div class="kpi-foot"><span class="delta">▲ +18.4%</span><span>106 ilova · 36 qo‘lda va profsoyuz</span></div>
+                    </div>
+                    <div class="kpi-card">
+                      <div class="kpi-top"><span class="kpi-label">O‘rtacha xonalar bandligi</span><div class="kpi-icon">${ic("BedDouble")}</div></div>
+                      <div class="kpi-mid"><div class="kpi-val">76.4<small>%</small></div>${spark("2,22 16,18 30,15 45,17 59,10 70,7 76,5", p.sparkStroke, p.sparkFill)}</div>
+                      <div class="kpi-foot"><span class="delta">▲ +6.8%</span><span>940 / 1 230 xona-tun · 1 820 mehmon-tun</span></div>
+                    </div>
+                    <div class="kpi-card">
+                      <div class="kpi-top"><span class="kpi-label">Bron aylanmasi (GMV)</span><div class="kpi-icon">${ic("CreditCard")}</div></div>
+                      <div class="kpi-mid"><div class="kpi-val">214.8 mln<small>so‘m</small></div>${spark("2,24 15,20 29,18 44,19 57,12 68,8 76,4", p.sparkStroke, p.sparkFill)}</div>
+                      <div class="kpi-foot"><span class="delta neutral">0% komissiya</span><span>214 800 000 so‘m tasdiqlangan</span></div>
+                    </div>
+                    <div class="kpi-card accent">
+                      <div class="kpi-top"><span class="kpi-label">Platforma sof daromadi</span><div class="kpi-icon">${ic("Coins")}</div></div>
+                      <div class="kpi-mid"><div class="kpi-val">22.4 mln<small>so‘m</small></div>${spark("2,24 17,20 32,16 48,13 62,8 76,3", p.featSpark, p.featFill)}</div>
+                      <div class="kpi-foot"><span class="delta">▲ +22.0%</span><span>16 ta faol abonent · Reklama xizmatlari</span></div>
+                    </div>
+                  </div>
+
+                  <div class="grid-main-side" style="flex:1.15">
+                    <div class="card">
+                      <div class="card-head">
+                        <div>
+                          <h3>${ic("ChartNoAxesCombined")} Bronlar holati va Top sanatoriyalar bandligi</h3>
+                          <div class="card-sub">Yashash sanalari kesishgan tasdiqlangan bronlar va yetakchi sanatoriyalar kesimi</div>
+                        </div>
+                        <span class="badge ok">Jami 142 ta bron</span>
+                      </div>
+                      <div class="card-body" style="display:grid;grid-template-columns:1fr 1.15fr;gap:22px;align-items:end">
+                        <div style="display:flex;flex-direction:column;height:100%;justify-content:flex-end">
+                          <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:12px;height:190px;padding:12px 8px 0">
+                            ${bars
+                              .map(
+                                (b) => `
+                              <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:6px;height:100%;justify-content:flex-end">
+                                <strong style="font-size:13px;color:var(--ink)">${b.val}</strong>
+                                <div style="width:100%;max-width:46px;height:${Math.round(b.pct * 1.42)}px;border-radius:10px 10px 4px 4px;background:${b.color}"></div>
+                                <span style="font-size:11px;color:var(--muted);white-space:nowrap">${b.label}</span>
+                              </div>`
+                              )
+                              .join("")}
+                          </div>
+                          <div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--border);display:flex;justify-content:space-between;font-size:11.5px;color:var(--muted)">
+                            <span>Hisob mezoni: <strong>Yashash davri</strong></span>
+                            <span>Bekor qilish darajasi: <strong style="color:var(--ok-ink)">2.1%</strong></span>
+                          </div>
+                        </div>
+
+                        <div style="display:flex;flex-direction:column;gap:13px;justify-content:center;height:100%">
+                          <div class="f-label" style="letter-spacing:0.05em">TOP SANATORIYALAR BANDLIGI</div>
+                          ${[
+                            ["Zomin Sog‘lomlik Maskani", "Jizzax · 52 bron · 78.4 mln", 88],
+                            ["Chimyon Sanatoriyasi", "Farg‘ona · 41 bron · 61.2 mln", 81],
+                            ["Oqtosh Tog‘ Kurorti", "Toshkent · 29 bron · 44.6 mln", 73],
+                            ["Chortoq Mineral Suv", "Namangan · 20 bron · 30.6 mln", 65],
+                          ]
+                            .map(
+                              ([n, sub, pct]) => `
+                            <div>
+                              <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:5px">
+                                <div><strong style="font-size:13px">${n}</strong> <span style="font-size:11.5px;color:var(--muted)">· ${sub}</span></div>
+                                <strong style="font-size:13px;color:var(--accent)">${pct}%</strong>
+                              </div>
+                              <div class="bar-track"><div class="bar-fill" style="width:${pct}%"></div></div>
+                            </div>`
+                            )
+                            .join("")}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div class="card">
+                      <div class="card-head">
+                        <div>
+                          <h3>${ic("Wallet")} Hisob-kitob va Kassa qoldiqlari</h3>
+                          <div class="card-sub">Davr oxirigacha ledger bo‘yicha hisoblangan</div>
+                        </div>
+                        <span class="badge info">Ledger Guard 4/4</span>
+                      </div>
+                      <div class="card-body">
+                        <div class="kv-list">
+                          <div class="kv-row"><span class="kv-row-l">${ic("CreditCard")} Sof onlayn tushum (Net)</span><strong>182 400 000 so‘m</strong></div>
+                          <div class="kv-row"><span class="kv-row-l">${ic("Coins")} Joyida to‘lovlar (Naqd / Terminal)</span><strong>32 400 000 so‘m</strong></div>
+                          <div class="kv-row"><span class="kv-row-l">${ic("ArrowUpRight")} Sanatoriyalarga o‘tkazilgan</span><strong style="color:var(--ok-ink)">166 200 000 so‘m</strong></div>
+                          <div class="kv-row"><span class="kv-row-l">${ic("Clock")} Bankka yuborilayotgan (In-transit)</span><strong style="color:var(--warn-ink)">16 200 000 so‘m</strong></div>
+                          <div class="kv-row"><span class="kv-row-l">${ic("RefreshCw")} Mijozga qaytarilgan (Refund)</span><strong>4 850 000 so‘m</strong></div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="grid-3" style="flex:0.78">
+                    <div class="card">
+                      <div class="card-head"><h3>${ic("Sparkles")} Gemini AI Maslahatchi sarfi</h3><span class="badge ok">Faol · 3.1-flash-lite</span></div>
+                      <div class="card-body" style="display:flex;flex-direction:column;justify-content:space-between;gap:10px">
+                        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">
+                          <div style="padding:10px;border-radius:10px;background:var(--card-subtle);border:1px solid var(--border);text-align:center"><strong style="font-size:18px;display:block">386</strong><span style="font-size:11px;color:var(--muted)">So‘rovlar</span></div>
+                          <div style="padding:10px;border-radius:10px;background:var(--card-subtle);border:1px solid var(--border);text-align:center"><strong style="font-size:18px;display:block">134.2k</strong><span style="font-size:11px;color:var(--muted)">Kirish token</span></div>
+                          <div style="padding:10px;border-radius:10px;background:var(--card-subtle);border:1px solid var(--border);text-align:center"><strong style="font-size:18px;display:block;color:var(--accent)">$0.05</strong><span style="font-size:11px;color:var(--muted)">Taxminiy USD</span></div>
+                        </div>
+                        <div style="font-size:12px;color:var(--muted)">Telefon va email avtomatik niqoblanadi · Kunlik limit: 100/mijoz.</div>
+                      </div>
+                    </div>
+
+                    <div class="card">
+                      <div class="card-head"><h3>${ic("ShieldCheck")} Provayderlar va Push xizmati</h3><span class="badge ok">4/4 Tayyor</span></div>
+                      <div class="card-body" style="display:flex;flex-direction:column;gap:7px">
+                        <div class="kv-row" style="padding:7px 10px"><span class="kv-row-l">Tezcheck Kassa (Click · Payme)</span><span class="badge ok">accepts_payments</span></div>
+                        <div class="kv-row" style="padding:7px 10px"><span class="kv-row-l">Firebase Push (FCM HTTP v1)</span><span class="badge ok">Ulashgan · 0 ms</span></div>
+                        <div class="kv-row" style="padding:7px 10px"><span class="kv-row-l">Telegram Bot (@sihhat_admins_bot)</span><span class="badge ok">Webhook Faol</span></div>
+                      </div>
+                    </div>
+
+                    <div class="card">
+                      <div class="card-head"><h3>${ic("Smartphone")} Mobil Ilova va Tezkor Navbat</h3><span class="badge info">APK v0.2.10</span></div>
+                      <div class="card-body" style="display:flex;flex-direction:column;justify-content:space-between;gap:8px">
+                        <div style="display:flex;flex-direction:column;gap:7px">
+                          <div class="kv-row" style="padding:7px 10px"><span class="kv-row-l">Tasdiq kutayotgan hamkor arizalari</span><span class="badge warn">3 ta yangi →</span></div>
+                          <div class="kv-row" style="padding:7px 10px"><span class="kv-row-l">Ochiq markaziy yordam suhbatlari</span><span class="badge info">4 ta suhbat →</span></div>
+                        </div>
+                        <div style="display:flex;align-items:center;justify-content:space-between;font-size:12px;color:var(--muted);padding-top:4px;border-top:1px solid var(--border)">
+                          <span>Universal APK (31.3 MB) · iOS PWA</span>
+                          <span style="color:var(--accent);font-weight:700">GitHub Releases ✓</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </main>
+              </div>
+            </div>
+          `;
+        }
+
+        function renderComparison() {
+          const list = Object.entries(PALETTES);
+          return `
+            <div class="cmp-stage">
+              <div style="display:flex;align-items:center;justify-content:space-between">
+                <div style="display:flex;align-items:center;gap:12px">
+                  <div class="sb-logo" style="width:42px;height:42px;border-radius:12px"><img src="${LOGO}" alt="" /></div>
+                  <div>
+                    <h1 style="margin:0;font-family:Manrope,sans-serif;font-size:21px;font-weight:800;color:#0f172a">Sihhat.uz Superadmin — 6 ta Yangi Rang Variantini Taqqoslash</h1>
+                    <div style="font-size:12.5px;color:#64748b">Aynan bitta bosh sahifa 6 xil asosiy rang palitrasida · Har birini alohida to‘liq o‘lchamda ham ochish mumkin</div>
+                  </div>
+                </div>
+                <span style="font-size:12px;font-weight:700;padding:6px 13px;border-radius:999px;background:#ffffff;border:1px solid #cbd5e1;color:#334155">UI/new web/ranglar</span>
+              </div>
+              <div class="cmp-grid">
+                ${list
+                  .map(
+                    ([id, p]) => `
+                  <div class="cmp-card">
+                    <div class="cmp-thumb"><img src="../ranglar/${id}.png" alt="${p.name}" /></div>
+                    <div class="cmp-meta">
+                      <div>
+                        <strong>Variant ${p.code} — ${p.name}</strong>
+                        <span>${p.sub}</span>
+                      </div>
+                      <span class="swatch-dots">${p.dots.map((d) => `<i style="background:${d};width:13px;height:13px"></i>`).join("")}</span>
+                    </div>
+                  </div>`
+                  )
+                  .join("")}
+              </div>
+            </div>
+          `;
+        }
+
+        function boot() {
+          const q = new URLSearchParams(location.search);
+          const id = q.get("palette") || "A-moviy-klinika-sapphire";
+          const stage = document.getElementById("stage");
+          if (id === "compare") {
+            document.documentElement.setAttribute("data-theme", "light");
+            stage.innerHTML = renderComparison();
+          } else {
+            const p = PALETTES[id] || PALETTES["A-moviy-klinika-sapphire"];
+            document.documentElement.setAttribute("data-theme", p.dark ? "dark" : "light");
+            Object.entries(p.vars).forEach(([k, v]) => {
+              document.documentElement.style.setProperty(k, v);
+            });
+            stage.innerHTML = renderDashboard(p);
+          }
+          document.body.setAttribute("data-ready", "true");
+        }
+
+        if (document.readyState === "loading") {
+          document.addEventListener("DOMContentLoaded", boot);
+        } else {
+          boot();
+        }
+      })();
+    </script>
+  </body>
+</html>

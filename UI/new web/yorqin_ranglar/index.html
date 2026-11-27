@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="uz">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Sihhat.uz — Yorqin Rang Variantlari (Y1–Y6)</title>
+    <style>
+      @font-face { font-family: "DM Sans"; src: url("../../web/assets/DMSans.ttf") format("truetype"); font-weight: 100 900; }
+      @font-face { font-family: "Manrope"; src: url("../../web/assets/Manrope.ttf") format("truetype"); font-weight: 100 900; }
+      * { box-sizing: border-box; }
+      body { margin: 0; font-family: "DM Sans", system-ui, sans-serif; background: #f5f6ff; color: #0f172a; }
+      header {
+        position: sticky; top: 0; z-index: 20;
+        background: rgba(255,255,255,0.95); backdrop-filter: blur(12px);
+        border-bottom: 1px solid #e2e8f0;
+        padding: 14px 24px; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px;
+      }
+      .title h1 { margin: 0; font-family: Manrope, sans-serif; font-size: 18px; font-weight: 800; }
+      .title p { margin: 2px 0 0; font-size: 12.5px; color: #64748b; }
+      .tabs { display: flex; flex-wrap: wrap; gap: 7px; }
+      .tab {
+        display: inline-flex; align-items: center; gap: 7px;
+        border: 1px solid #cbd5e1; background: #fff; color: #1e293b;
+        padding: 7px 12px; border-radius: 999px; font-size: 12.5px; font-weight: 600; cursor: pointer;
+      }
+      .tab.active { background: linear-gradient(135deg, #4f46e5, #7c3aed); color: #fff; border-color: transparent; }
+      .dot { width: 11px; height: 11px; border-radius: 50%; display: inline-block; border: 1px solid rgba(0,0,0,0.12); }
+      main { max-width: 1500px; margin: 20px auto 40px; padding: 0 24px; }
+      .frame {
+        background: #fff; border: 1px solid #e2e8f0; border-radius: 18px;
+        overflow: hidden; box-shadow: 0 12px 36px rgba(15,23,42,0.08);
+      }
+      .frame img { width: 100%; display: block; }
+      .bar {
+        padding: 13px 18px; border-top: 1px solid #e2e8f0;
+        display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px;
+      }
+      .bar strong { font-family: Manrope, sans-serif; font-size: 15px; }
+      .bar span { font-size: 12.5px; color: #64748b; }
+    </style>
+  </head>
+  <body>
+    <header>
+      <div class="title">
+        <h1>Superadmin Bosh Sahifa — Yorqin va Jonli Ranglar (Y1–Y6)</h1>
+        <p>Tugmalarni bosing — rasm darhol almashadi (`←` / `→` klaviatura ham ishlaydi)</p>
+      </div>
+      <div class="tabs" id="tabs"></div>
+    </header>
+    <main>
+      <div class="frame">
+        <img id="preview" alt="" />
+        <div class="bar">
+          <div><strong id="name"></strong> · <span id="desc"></span></div>
+          <span id="file"></span>
+        </div>
+      </div>
+    </main>
+    <script>
+      const LIST = [
+        { file: "00-yorqin-ranglar-taqqoslash.png", dot: "linear-gradient(135deg,#4f46e5,#0ea5e9,#10b981)", label: "Barchasi (6 ta)", name: "6 ta yorqin rang varianti yonma-yon", desc: "Barcha yorqin palitralar bitta ekranda" },
+        { file: "Y1-yorqin-indigo-binafsha.png", dot: "linear-gradient(135deg,#4f46e5,#7c3aed)", label: "Y1 · Indigo-Binafsha", name: "Y1 — Yorqin Indigo & Binafsha (Vivid Indigo Pro)", desc: "Elektr indigo + binafsha gradient" },
+        { file: "Y2-osmonsimon-moviy-feruza.png", dot: "linear-gradient(135deg,#0ea5e9,#2563eb)", label: "Y2 · Moviy-Feruza", name: "Y2 — Osmonsimon Moviy & Feruza (Electric Sky)", desc: "Yorqin ko‘k-feruza, musaffo ko‘rinish" },
+        { file: "Y3-yorqin-zumrad-aqua.png", dot: "linear-gradient(135deg,#10b981,#0891b2)", label: "Y3 · Zumrad-Aqua", name: "Y3 — Yorqin Zumrad & Aqua (Fresh Emerald)", desc: "Yorug‘ oq + jonli zumrad-feruza (Sihhat logosiga mos)" },
+        { file: "Y4-qirollik-binafsha-pushti.png", dot: "linear-gradient(135deg,#7c3aed,#ec4899)", label: "Y4 · Binafsha-Orxideya", name: "Y4 — Qirollik Binafsha & Orxideya", desc: "Yorqin binafsha-pushti premium gradient" },
+        { file: "Y5-yorqin-koral-quyosh.png", dot: "linear-gradient(135deg,#f43f5e,#f97316)", label: "Y5 · Koral-Quyosh", name: "Y5 — Yorqin Koral & Quyosh Nuri", desc: "Issiq, jonli va mehmondo‘st koral-apelsin" },
+        { file: "Y6-aurora-multi-saas.png", dot: "linear-gradient(135deg,#4f46e5,#0ea5e9,#10b981)", label: "Y6 · Aurora Multi", name: "Y6 — Aurora Multi-Accent (Indigo + Moviy + Zumrad)", desc: "Stripe/Linear uslubidagi eng jonli ko‘p rangli uyg‘unlik" },
+        { file: "../ranglar/C-zamonaviy-indigo.png", dot: "#4f46e5", label: "Asl C · Indigo", name: "Siz yuborgan Variant C — Zamonaviy Indigo", desc: "Taqqoslash uchun avvalgi C varianti" }
+      ];
+      let idx = 0;
+      function show(i) {
+        idx = (i + LIST.length) % LIST.length;
+        const it = LIST[idx];
+        document.getElementById("preview").src = it.file;
+        document.getElementById("name").textContent = it.name;
+        document.getElementById("desc").textContent = it.desc;
+        document.getElementById("file").textContent = it.file;
+        document.getElementById("tabs").innerHTML = LIST.map((x, n) =>
+          `<button class="tab ${n === idx ? "active" : ""}" onclick="show(${n})"><span class="dot" style="background:${x.dot}"></span>${x.label}</button>`
+        ).join("");
+      }
+      window.show = show;
+      document.addEventListener("keydown", (e) => {
+        if (e.key === "ArrowRight") show(idx + 1);
+        if (e.key === "ArrowLeft") show(idx - 1);
+      });
+      show(0);
+    </script>
+  </body>
+</html>

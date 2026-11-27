@@ -2,6 +2,28 @@
 
 Yangilangan: 2026-11-24. Asos: ISHLAB_CHIQISH_REJASI.md va SIHHAT_UZ_ARXITEKTURA.md.
 
+## 2026-11-24 Hamkor ro‘yxatdan o‘tish tekshiruvi, Amallar tarixi va Kirilgan qurilmalar tarixi tuzatishlari (`apps/api`, `packages/ui`)
+
+- **Aniqlangan asl sabablar**:
+  1. **Jonli Render backend (`https://sihhat-api.onrender.com`) versiya farqi**: Vercel (`https://www.sihhat.uz`) `d193564` frontendini chiqargan bo‘lsa-da, jonli Render API hali undan oldingi commitda (166 yo‘l; `/auth/partner-register/availability`, `/auth/partner-register`, `/auth/login-history`, `/superadmin/auth-events`, `/partner/auth-events` yo‘q — `404 Not Found`) qolgani uchun «Yangi hisob ochish»dagi `username`/`email` tekshiruvi hamda kirish-chiqish tarixi 404 qaytargan.
+  2. **Superadmin `Amallar tarixi` va `Kirish va chiqish tarixi`da yashirin `ctx.tenant` filtri**: [`packages/ui/src/portal.tsx`](../packages/ui/src/portal.tsx) Superadmin kirganda `ctx.tenant`ni birinchi sanatoriyaga o‘rnatib qo‘ygani, `Audit` sahifasida esa yuqori sanatoriya tanlovchisi ko‘rinmagani holda [`packages/ui/src/communication.tsx`](../packages/ui/src/communication.tsx) va [`packages/ui/src/auth-history.tsx`](../packages/ui/src/auth-history.tsx) har doim `sanatorium_id=ctx.tenant` yuborgan; natijada Superadmin (`sanatoriumId=null`), mobil mijozlar (`sanatoriumId=null`), platforma darajasidagi amallar va boshqa sanatoriyalar tarixi yashirinib bo‘sh ko‘ringan.
+  3. **`ReportsService.audit()` haddan tashqari tor 11 talik filtr**: [`apps/api/src/reports/reports.service.ts`](../apps/api/src/reports/reports.service.ts) faqat 11 ta kam uchraydigan `allowedActions` turini chiqarib, real kirish/chiqish, profil, sanatoriya, bron, to‘lov va xodim amallarini yashirib qo‘ygan.
+  4. **Yangi `AuthEvent` jadvali eski `Session` yozuvlarisiz bo‘sh boshlangani**: migratsiyadan avvalgi faol va tarixiy sessiyalar `AuthEvent`ga o‘tkazilmagani, `SESSION_EXPIRED` da `sanatoriumId` saqlanmagani hamda `UserAuthHistoryModal`da `mode="superadmin"` qattiq yozib qo‘yilgani aniqlangan.
+- **Kiritilgan tuzatishlar**:
+  - [`apps/api/src/auth/auth.service.ts`](../apps/api/src/auth/auth.service.ts) va [`auth.controller.ts`](../apps/api/src/auth/auth.controller.ts):
+    - `backfillAuthEventsFromSessions()` (idempotent, token-refresh zanjirlarini dublikatsiz birlashtirgan holda) `onModuleInit()` hamda bo‘sh `loginHistory` / `listAuthEvents` so‘rovlarida mavjud `Session` yozuvlarini `AuthEvent`ga avtomatik to‘ldiradi.
+    - `hydrateSessionMeta()` `/auth/me` va `/auth/sessions` da eski sessiyalarning yetishmayotgan `ipAddress`/`userAgent` qiymatlarini to‘ldiradi.
+    - `SESSION_EXPIRED`, `auth.session_revoked`, `auth.other_sessions_revoked`, `account.profile_updated` hodisalariga faol `sanatoriumId` biriktirildi; `listAuthEvents` sanatoriya va qidiruv (`q`) filtrlarini `AND` orqali to‘qnashuvsiz ishlatadi va hamkor rejimida `userKind='STAFF'` ni qat’iy majburlaydi.
+  - [`apps/api/src/auth/partner-registration.controller.ts`](../apps/api/src/auth/partner-registration.controller.ts) va [`partner-registration.service.ts`](../apps/api/src/auth/partner-registration.service.ts): `GET /auth/partner-register/availability` real mijoz IP (`resolveAuditIp`) bo‘yicha rate-limit (`240/15m`) va `User`/`PartnerRegistration` xavfsiz zaxira so‘rovi bilan mustahkamlandi.
+  - [`apps/api/src/reports/reports.service.ts`](../apps/api/src/reports/reports.service.ts): 11 ta amallik sun’iy cheklov olib tashlandi; `/superadmin/audit` va `/partner/audit` barcha real audit yozuvlarini `actor_name`, `actor_login`, `actor_public_id` va `sanatorium_name` bilan qaytaradi (hamkor uchun qat’iy `sanatoriumId` izolyatsiyasi saqlangan).
+  - [`packages/ui/src/communication.tsx`](../packages/ui/src/communication.tsx), [`auth-history.tsx`](../packages/ui/src/auth-history.tsx), [`governance.tsx`](../packages/ui/src/governance.tsx), [`partner-registration.tsx`](../packages/ui/src/partner-registration.tsx):
+    - Superadmin **Amallar tarixi** va `AuthHistoryPanel` odatiy holatda **«Barcha sanatoriyalar va platforma»** (`sanatorium_id`siz) ni ko‘rsatadi, ichki sanatoriya va amal turi filtrlari qo‘shildi, o‘zbekcha `auditLabels` va `formatAuditDetail` kengaytirildi.
+    - `UserAuthHistoryModal` `mode`ni (`superadmin` / `partner`) qo‘llaydi va hamkor direktori ham Jamoa jadvalidan o‘z xodimlarining kirish-chiqish tarixini ko‘ra oladi.
+    - `PublicAvailabilityField`ga `onBlur` tekshiruvi, **«Qayta tekshirish»** tugmasi va 404/429 xatolari uchun aniq o‘zbekcha xabarlar qo‘shildi.
+- **Tekshirilgan lokal natijalar (`2026-11-24`, lokal PostgreSQL `sihhat_test` va unit sinovlari; rasmiy production qabuli emas; jonli Render deploy alohida talab qilinadi)**:
+  - `apps/api/test/partner-registration-auth-events.test.ts` (**4/4 pass**, shu jumladan eski `Session` backfill + IP hydration + kengaytirilgan `/superadmin/audit` va `/partner/audit` testi), `portal-features.test.ts` (**7/7 pass**), `support-assignment.test.ts` (**1/1 pass**), `B10: OpenAPI` (**1/1 pass**), mock-DB backend unit testlari (`staff-login-availability`, `avatar-presence`, `support-email`, `app-version`: **18/18 pass**), UI/yo‘l unit testlari (**6/6 pass**).
+  - `npm run check` (`5/5` workspace), `npm run openapi`, `npm run build:api`, `npm run build:web`, `npm run check:secrets` — **0 xato**.
+
 ## 2026-11-24 Ilovada yordam bo‘limini markazlashtirish (Superadmin javobi va sanatoriya xodimiga biriktirish) (`apps/api`, `packages/ui`, `apps/mobile`)
 
 - **Mobil ilovada qabul qiluvchi (Admin / Resepshn / Direktor) tanlovini olib tashlash**:

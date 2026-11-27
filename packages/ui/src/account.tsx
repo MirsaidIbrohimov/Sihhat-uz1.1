@@ -286,8 +286,8 @@ export function MyAccount({ changePassword }: { changePassword: () => void }) {
                 width: "26px",
                 height: "26px",
                 borderRadius: "50%",
-                border: "2px solid #0b241d",
-                background: "#22c55e",
+                border: "2px solid var(--surface)",
+                background: "linear-gradient(135deg, #6366f1 0%, #0ea5e9 100%)",
                 color: "#ffffff",
                 display: "flex",
                 alignItems: "center",
@@ -309,11 +309,11 @@ export function MyAccount({ changePassword }: { changePassword: () => void }) {
                 <span className="status-dot" /> Onlayn
               </span>
             </div>
-            <div style={{ fontSize: "12px", color: "rgba(255,255,255,0.72)", marginTop: "6px" }}>
+            <div style={{ fontSize: "12px", color: "var(--muted)", marginTop: "6px" }}>
               Profil rasmi chatda ko‘rinadi · PNG, JPEG, WEBP, GIF (maks. 15 MB)
             </div>
             {avatarError && (
-              <div style={{ fontSize: "12px", color: "#fecaca", marginTop: "4px", fontWeight: 600 }}>
+              <div style={{ fontSize: "12px", color: "var(--error-ink)", marginTop: "4px", fontWeight: 600 }}>
                 {avatarError}
               </div>
             )}
@@ -339,7 +339,7 @@ export function MyAccount({ changePassword }: { changePassword: () => void }) {
               type="button"
               className="button secondary"
               disabled={avatarBusy}
-              style={{ display: "inline-flex", alignItems: "center", gap: "6px", color: "#fca5a5" }}
+              style={{ display: "inline-flex", alignItems: "center", gap: "6px", color: "var(--error-ink)" }}
               onClick={handleAvatarRemove}
             >
               <Trash2 size={14} /> Rasmni o‘chirish
@@ -463,7 +463,7 @@ export function MyAccount({ changePassword }: { changePassword: () => void }) {
                   const isMobile = /mobile|android|iphone|ipad/i.test(row.deviceLabel || "");
                   return (
                     <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                      {isMobile ? <Smartphone size={18} color="#34d399" /> : <Laptop size={18} color="#34d399" />}
+                      {isMobile ? <Smartphone size={18} color="var(--green)" /> : <Laptop size={18} color="var(--green)" />}
                       <div>
                         <strong>{row.deviceLabel}</strong>
                         {row.current && (
@@ -741,7 +741,7 @@ export function RoleGuide() {
       {/* Guide Cards Grid */}
       <div className="guide-grid">
         {!filteredGuides.length && (
-          <div style={{ gridColumn: "1 / -1", padding: "40px 20px", textAlign: "center", color: "#8ea69d" }}>
+          <div style={{ gridColumn: "1 / -1", padding: "40px 20px", textAlign: "center", color: "var(--muted)" }}>
             Qidiruv bo‘yicha yo‘riqnoma topilmadi. Boshqa so‘z bilan izlab ko‘ring.
           </div>
         )}

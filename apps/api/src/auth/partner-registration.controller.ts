@@ -4,7 +4,7 @@ import type { Request } from 'express';
 import { CurrentActor, Public, Roles } from './guard';
 import type { Actor } from './permissions';
 import { apiSchema } from './auth.controller';
-import { extractRequestMeta } from '../common/request-meta';
+import { extractRequestMeta, resolveAuditIp } from '../common/request-meta';
 import {
   PartnerRegistrationService,
   partnerApproveInput,
@@ -24,7 +24,7 @@ export class PartnerRegistrationController {
   @Get('auth/partner-register/availability')
   @ApiOperation({ summary: 'Yangi hamkor hisobi uchun username va emailni baza bilan jonli tekshirish' })
   availability(@Query() q: unknown, @Req() req: Request) {
-    return this.service.checkAvailability(q, req.ip ?? 'unknown');
+    return this.service.checkAvailability(q, resolveAuditIp(req));
   }
 
   @Public()

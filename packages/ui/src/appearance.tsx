@@ -5,14 +5,14 @@ import { Moon, Sun } from "lucide-react";
 const preference = "sihhat-web-theme";
 
 export function ThemeToggle() {
-  const [dark, setDark] = useState(false);
+  const [dark, setDark] = useState(true);
   useEffect(() => {
     const sync = () =>
-      setDark(document.documentElement.dataset.theme === "dark");
+      setDark(document.documentElement.dataset.theme !== "light");
     const storage = (event: StorageEvent) => {
       if (event.key !== preference) return;
       document.documentElement.dataset.theme =
-        event.newValue === "dark" ? "dark" : "light";
+        event.newValue === "light" ? "light" : "dark";
       sync();
     };
     sync();

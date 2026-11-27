@@ -1023,7 +1023,7 @@ function AnnouncementsAndMessagesCenter({ embedded = false }: { embedded?: boole
                         padding: "10px 14px",
                         borderRadius: "10px",
                         border: "1px solid var(--line)",
-                        background: cs.total > 0 ? "rgba(16, 185, 129, 0.06)" : "var(--soft)",
+                        background: cs.total > 0 ? "var(--green-light)" : "var(--soft)",
                         display: "flex",
                         flexDirection: "column",
                         gap: "6px",
@@ -1062,7 +1062,7 @@ function AnnouncementsAndMessagesCenter({ embedded = false }: { embedded?: boole
                         padding: "10px 14px",
                         borderRadius: "10px",
                         border: "1px solid var(--line)",
-                        background: ps.total > 0 ? "rgba(16, 185, 129, 0.06)" : "var(--soft)",
+                        background: ps.total > 0 ? "var(--green-light)" : "var(--soft)",
                         display: "flex",
                         flexDirection: "column",
                         gap: "6px",
@@ -4975,8 +4975,19 @@ export function Support() {
 const auditLabels: Record<string, string> = {
   "staff.password_reset": "Xodim paroli tiklandi",
   "auth.password_changed": "Parol yangilandi",
-  "staff.invited": "Resepsion qo‘shildi",
-  "staff.approved": "Resepsion tasdiqlandi",
+  "staff.invited": "Xodim qo‘shildi",
+  "staff.approved": "Xodim tasdiqlandi",
+  "staff.rejected": "Xodim taklifi rad etildi",
+  "staff.director_assigned": "Direktor tayinlandi",
+  "staff.blocked": "Xodim bloklandi",
+  "staff.profile_updated": "Xodim profili yangilandi",
+  "staff.avatar_removed": "Xodim rasmi o‘chirildi",
+  "staff.sessions_revoked": "Xodim sessiyalari yopildi",
+  "staff.permissions_updated": "Xodim ruxsatlari yangilandi",
+  "customer.status_updated": "Mijoz holati o‘zgartirildi",
+  "customer.profile_updated": "Mijoz profili yangilandi",
+  "customer.avatar_removed": "Mijoz rasmi o‘chirildi",
+  "customer.sessions_revoked": "Mijoz sessiyalari yopildi",
   "customer.deleted": "Foydalanuvchi o‘chirildi",
   "superadmin.all_accounts_cleared": "Barcha hisoblar tozalandi",
   "partner.registration_submitted": "Yangi hamkor arizasi yuborildi",
@@ -4985,58 +4996,218 @@ const auditLabels: Record<string, string> = {
   "support.assigned": "Murojaat sanatoriya xodimiga biriktirildi",
   "support.unassigned": "Murojaat Superadminga qaytarildi",
   "auth.bootstrap": "Admin hisobi yaratildi",
-  "auth.staff_login": "Xodim kirdi",
+  "auth.staff_login": "Xodim tizimga kirdi",
   "auth.login": "Hisobga kirildi",
+  "auth.otp_login": "Ilovaga OTP bilan kirildi",
   "auth.logout": "Hisobdan chiqildi",
-  "staff.permissions_updated": "Xodim ruxsatlari yangilandi",
+  "auth.session_revoked": "Qurilma sessiyasi yopildi",
+  "auth.other_sessions_revoked": "Boshqa qurilmalar yopildi",
+  "auth.bruteforce_alert": "Ko‘p xato parol urinishi",
+  "auth.partner_forgot_password": "Parol tiklash so‘rovi",
+  "account.profile_updated": "Shaxsiy profil yangilandi",
+  "account.phone_changed": "Telefon raqami o‘zgartirildi",
   "sanatorium.created": "Sanatoriya yaratildi",
-  "sanatorium.featured_updated": "Mashhur sanatoriyalar tanlovi yangilandi",
-  "sanatorium.approved": "Profil tasdiqlandi",
+  "sanatorium.draft_created": "Profil qoralamasi yaratildi",
   "sanatorium.draft_saved": "Profil saqlandi",
+  "sanatorium.submitted": "Profil tekshiruvga yuborildi",
+  "sanatorium.approved": "Profil tasdiqlandi",
+  "sanatorium.changes_requested": "Profilga tuzatish so‘raldi",
+  "sanatorium.featured_updated": "Mashhur sanatoriyalar tanlovi yangilandi",
+  "sanatorium.config_updated": "Sanatoriya sozlamalari yangilandi",
+  "sanatorium.paused": "Sanatoriya to‘xtatildi",
+  "sanatorium.archived": "Sanatoriya arxivlandi",
+  "sanatorium.reopened": "Sanatoriya qayta faollashtirildi",
+  "bank.change_requested": "Bank rekvizitlari yuborildi",
+  "bank.approved": "Bank rekvizitlari tasdiqlandi",
   "booking.hold_created": "Xona vaqtincha band qilindi",
   "booking.manual_created": "Qo‘lda bron yaratildi",
   "booking.checked_in": "Mehmon joylashtirildi",
   "booking.checked_out": "Yashash yakunlandi",
+  "booking.no_show": "Mehmon kelmadi (no-show)",
+  "booking.cancelled": "Bron bekor qilindi",
+  "booking.room_moved": "Mehmon boshqa xonaga ko‘chirildi",
   "payment.performed": "To‘lov tasdiqlandi",
-  "refund.requested": "Refund so‘raldi",
+  "payment.succeeded": "To‘lov muvaffaqiyatli yakunlandi",
+  "payment.cancelled": "To‘lov bekor qilindi",
+  "offline_payment.recorded": "Naqd/terminal to‘lov kiritildi",
+  "offline_payment.verified": "Naqd/terminal to‘lov tasdiqlandi",
+  "refund.requested": "Pul qaytarish so‘raldi",
+  "refund.approved": "Pul qaytarish tasdiqlandi",
+  "refund.rejected": "Pul qaytarish rad etildi",
+  "payout.created": "O‘tkazma yaratildi",
   "payout.bank_verified": "Bank o‘tkazmasi tekshirildi",
+  "reconciliation.imported": "Solishtirish reestri yuklandi",
+  "report.exported": "Hisobot eksport qilindi",
+  "ad.requested": "Reklama so‘rovi yuborildi",
+  "ad.approved": "Reklama tasdiqlandi",
+  "ad.rejected": "Reklama rad etildi",
+  "billing.plan_created": "Abonent tarifi yaratildi",
+  "telegram.link_started": "Telegram ulash boshlandi",
+  "telegram.link_confirmed": "Telegram bot ulandi",
+  "telegram.disconnected": "Telegram bot uzildi",
+  "media.uploaded": "Fayl/surat yuklandi",
 };
+function formatAuditDetail(r: Row): string {
+  const after = (r.after && typeof r.after === "object" ? r.after : {}) as Record<string, any>;
+  const before = (r.before && typeof r.before === "object" ? r.before : {}) as Record<string, any>;
+  if (r.action === "auth.login" || r.action === "auth.logout" || r.action === "auth.otp_login") {
+    const parts = [
+      after.device,
+      after.ip ? `IP: ${after.ip}` : null,
+      after.method,
+    ].filter(Boolean);
+    return parts.join(" · ") || "Hisob sessiyasi";
+  }
+  if (r.action === "auth.bruteforce_alert") {
+    const parts = [
+      after.attempted_login ? `@${after.attempted_login}` : null,
+      after.attempts ? `${after.attempts} urinish` : null,
+      after.ip ? `IP: ${after.ip}` : null,
+    ].filter(Boolean);
+    return parts.join(" · ") || "Xavfsizlik ogohlantirishi";
+  }
+  if (r.action === "auth.partner_forgot_password") {
+    const parts = [
+      after.attempted_login ? `@${after.attempted_login}` : null,
+      after.ip ? `IP: ${after.ip}` : null,
+    ].filter(Boolean);
+    return parts.join(" · ") || "Parolni tiklash so‘rovi";
+  }
+  if (r.action === "auth.other_sessions_revoked" || r.action === "staff.sessions_revoked" || r.action === "customer.sessions_revoked") {
+    const count = after.count ?? after.revoked_count;
+    return count !== undefined ? `${count} ta sessiya yopildi` : "Sessiyalar yopildi";
+  }
+  if (r.action === "customer.deleted") {
+    const parts = [
+      before.name || before.fullName,
+      before.phone,
+      before.login ? `@${before.login}` : null,
+      before.email,
+    ].filter(Boolean);
+    return parts.join(" · ") || "Foydalanuvchi hisobi";
+  }
+  if (r.action === "superadmin.all_accounts_cleared") {
+    const count = before.deletedCount ?? before.deleted_count;
+    return count ? `${count} ta hisob o‘chirildi` : "Tozalash yakunlandi";
+  }
+  if (r.action.startsWith("partner.registration_")) {
+    const parts = [
+      after.sanatorium_name,
+      after.username ? `@${after.username}` : null,
+      after.email,
+      after.reason,
+    ].filter(Boolean);
+    return parts.join(" · ") || "Hamkor arizasi";
+  }
+  if (r.action === "support.assigned" || r.action === "support.unassigned") {
+    const parts = [after.assigned_to_name, after.sanatorium_name, after.note].filter(Boolean);
+    return parts.join(" · ") || "Yordam murojaati";
+  }
+  if (r.action === "account.profile_updated" || r.action === "staff.profile_updated" || r.action === "customer.profile_updated") {
+    const parts = [
+      after.name,
+      after.login ? `@${after.login}` : null,
+      after.email,
+      after.role,
+      after.status,
+    ].filter(Boolean);
+    return parts.join(" · ") || "Profil yangilandi";
+  }
+  if (r.action === "sanatorium.created") {
+    return after.name || "Yangi sanatoriya";
+  }
+  if (r.action === "report.exported") {
+    const parts = [after.format, after.from && after.to ? `${after.from} — ${after.to}` : null].filter(Boolean);
+    return parts.join(" · ") || "Hisobot yuklandi";
+  }
+  if (after.reason) return String(after.reason);
+  if (r.note) return String(r.note);
+  if (after.status) return `Holat: ${after.status}`;
+  return "—";
+}
 export function Audit() {
   const ctx = usePortal();
   const [view, setView] = useState<"all" | "auth" | "actions">("all");
+  const [selectedSanatorium, setSelectedSanatorium] = useState("");
+  const [actionFilter, setActionFilter] = useState("");
+  const effectiveSanatorium = ctx.admin
+    ? selectedSanatorium || undefined
+    : ctx.tenant || undefined;
   return (
     <>
       <PageHeading
         title="Amallar tarixi"
-        subtitle="Har bir hisobga kirish-chiqish qurilmasi va IP manzili, shuningdek parol, hamkor arizalari va xodimlar harakati tarixi."
+        subtitle="Har bir hisobga kirish-chiqish qurilmasi va IP manzili, shuningdek parol, hamkor arizalari, bronlar va tizim amallari tarixi."
       />
-      <div className="tabs" style={{ marginBottom: 16 }}>
-        <button
-          type="button"
-          className={`tab ${view === "all" ? "active" : ""}`}
-          onClick={() => setView("all")}
-        >
-          Barchasi
-        </button>
-        <button
-          type="button"
-          className={`tab ${view === "auth" ? "active" : ""}`}
-          onClick={() => setView("auth")}
-        >
-          Kirish va chiqish tarixi (Qurilma & IP)
-        </button>
-        <button
-          type="button"
-          className={`tab ${view === "actions" ? "active" : ""}`}
-          onClick={() => setView("actions")}
-        >
-          Tizim amallari
-        </button>
+      <div
+        className="toolbar"
+        style={{ marginBottom: 16, justifyContent: "space-between", flexWrap: "wrap", gap: 10 }}
+      >
+        <div className="tabs" style={{ margin: 0 }}>
+          <button
+            type="button"
+            className={`tab ${view === "all" ? "active" : ""}`}
+            onClick={() => setView("all")}
+          >
+            Barchasi
+          </button>
+          <button
+            type="button"
+            className={`tab ${view === "auth" ? "active" : ""}`}
+            onClick={() => setView("auth")}
+          >
+            Kirish va chiqish tarixi (Qurilma & IP)
+          </button>
+          <button
+            type="button"
+            className={`tab ${view === "actions" ? "active" : ""}`}
+            onClick={() => setView("actions")}
+          >
+            Tizim amallari
+          </button>
+        </div>
+        <div className="toolbar" style={{ margin: 0, gap: 8 }}>
+          {ctx.admin && ctx.tenants.length > 0 && (
+            <select
+              aria-label="Sanatoriya filtri"
+              value={selectedSanatorium}
+              onChange={(e) => setSelectedSanatorium(e.target.value)}
+            >
+              <option value="">Barcha sanatoriyalar va platforma</option>
+              {ctx.tenants.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.name}
+                </option>
+              ))}
+            </select>
+          )}
+          {(view === "all" || view === "actions") && (
+            <select
+              aria-label="Amal turi filtri"
+              value={actionFilter}
+              onChange={(e) => setActionFilter(e.target.value)}
+            >
+              <option value="">Barcha tizim amallari</option>
+              <option value="auth.login">Hisobga kirishlar</option>
+              <option value="auth.logout">Hisobdan chiqishlar</option>
+              <option value="auth.password_changed">Parol yangilanishi</option>
+              <option value="staff.password_reset">Xodim paroli tiklanishi</option>
+              <option value="staff.invited">Xodim qo‘shilishi</option>
+              <option value="staff.approved">Xodim tasdiqlanishi</option>
+              <option value="partner.registration_submitted">Hamkor arizasi yuborilishi</option>
+              <option value="partner.registration_approved">Hamkor arizasi tasdiqlanishi</option>
+              <option value="partner.registration_rejected">Hamkor arizasi rad etilishi</option>
+              <option value="support.assigned">Murojaat biriktirilishi</option>
+              <option value="customer.deleted">Foydalanuvchi o‘chirilishi</option>
+            </select>
+          )}
+        </div>
       </div>
       {(view === "all" || view === "auth") && (
         <div style={{ marginBottom: view === "all" ? 20 : 0 }}>
           <AuthHistoryPanel
             mode={ctx.admin ? "superadmin" : "partner"}
+            sanatoriumId={ctx.admin ? selectedSanatorium : undefined}
             compact={view === "all"}
           />
         </div>
@@ -5044,7 +5215,10 @@ export function Audit() {
       {(view === "all" || view === "actions") && (
         <DataPanel
           path={ctx.admin ? "/superadmin/audit" : "/partner/audit"}
-          params={{ sanatorium_id: (!ctx.admin && ctx.tenant) ? ctx.tenant : (ctx.tenant || undefined) }}
+          params={{
+            sanatorium_id: effectiveSanatorium,
+            action: actionFilter || undefined,
+          }}
           columns={[
             { label: "Vaqt", render: (r) => dateTime(r.createdAt) },
             {
@@ -5069,66 +5243,27 @@ export function Audit() {
             },
             {
               label: "Tafsilot",
-              render: (r) => {
-                if (r.action === "customer.deleted") {
-                  const b = (r.before as any) || {};
-                  const parts = [
-                    b.name || b.fullName,
-                    b.phone,
-                    b.login ? `@${b.login}` : null,
-                    b.email,
-                  ].filter(Boolean);
-                  return (
-                    <span style={{ fontSize: 13, color: "var(--text-muted)" }}>
-                      {parts.length ? parts.join(" · ") : "Foydalanuvchi hisobi"}
-                    </span>
-                  );
-                }
-                if (r.action === "superadmin.all_accounts_cleared") {
-                  const b = (r.before as any) || {};
-                  return (
-                    <span style={{ fontSize: 13, color: "var(--text-muted)" }}>
-                      {b.deletedCount ? `${b.deletedCount} ta hisob o‘chirildi` : "Tozalash yakunlandi"}
-                    </span>
-                  );
-                }
-                if (r.action.startsWith("partner.registration_")) {
-                  const a = (r.after as any) || {};
-                  const parts = [
-                    a.sanatorium_name,
-                    a.username ? `@${a.username}` : null,
-                    a.email,
-                    a.reason,
-                  ].filter(Boolean);
-                  return (
-                    <span style={{ fontSize: 13, color: "var(--text-muted)" }}>
-                      {parts.length ? parts.join(" · ") : "Hamkor arizasi"}
-                    </span>
-                  );
-                }
-                if (r.action === "support.assigned" || r.action === "support.unassigned") {
-                  const a = (r.after as any) || {};
-                  const parts = [a.assigned_to_name, a.sanatorium_name, a.note].filter(Boolean);
-                  return (
-                    <span style={{ fontSize: 13, color: "var(--text-muted)" }}>
-                      {parts.length ? parts.join(" · ") : "Yordam murojaati"}
-                    </span>
-                  );
-                }
-                if (r.note) return <span style={{ fontSize: 13 }}>{r.note}</span>;
-                return "—";
-              },
+              render: (r) => (
+                <span style={{ fontSize: 13, color: "var(--text-muted)" }}>
+                  {formatAuditDetail(r)}
+                </span>
+              ),
             },
             {
               label: "Sanatoriya",
               render: (r) =>
+                r.sanatorium_name ??
                 ctx.tenants.find((s) => s.id === r.sanatoriumId)?.name ??
                 "Platforma",
             },
             {
               label: "Manba",
-              render: (r) =>
-                r.actor_name ?? (r.actorId ? "Xodim" : "Provayder / tizim"),
+              render: (r) => (
+                <div>
+                  <strong>{r.actor_name ?? (r.actorId ? "Xodim" : "Provayder / tizim")}</strong>
+                  {r.actor_login && <span className="subcell">@{r.actor_login}</span>}
+                </div>
+              ),
             },
           ]}
         />
@@ -5355,8 +5490,8 @@ export function Notifications() {
                     width: 38,
                     height: 38,
                     borderRadius: 10,
-                    background: "var(--accent-soft, #e0f2fe)",
-                    color: "var(--accent, #0284c7)",
+                    background: "var(--accent-soft, var(--green-light))",
+                    color: "var(--accent, var(--green))",
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
@@ -5385,7 +5520,7 @@ export function Notifications() {
                       gap: 8,
                       marginTop: 4,
                       fontSize: "12px",
-                      color: "var(--text-muted)",
+                      color: "var(--muted)",
                     }}
                   >
                     <span>{dateTime(selected.createdAt)}</span>
@@ -5420,7 +5555,7 @@ export function Notifications() {
               {(selected.payload?.body || selected.payload?.summary) && (
                 <div
                   style={{
-                    background: "var(--bg-subtle, #f8fafc)",
+                    background: "var(--soft)",
                     border: "1px solid var(--line)",
                     borderRadius: "8px",
                     padding: "14px",
@@ -5472,10 +5607,10 @@ export function Notifications() {
                             background:
                               idx % 2 === 0
                                 ? "transparent"
-                                : "var(--bg-subtle, #fafafa)",
+                                : "var(--soft)",
                           }}
                         >
-                          <span style={{ color: "var(--text-muted)" }}>
+                          <span style={{ color: "var(--muted)" }}>
                             {d.label}
                           </span>
                           <strong
@@ -5499,7 +5634,7 @@ export function Notifications() {
                 !selected.payload?.body && (
                   <div
                     style={{
-                      background: "var(--bg-subtle, #f8fafc)",
+                      background: "var(--soft)",
                       border: "1px solid var(--line)",
                       borderRadius: "8px",
                       padding: "12px 14px",

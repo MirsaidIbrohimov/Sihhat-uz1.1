@@ -16,6 +16,7 @@ export class StaffController {
   ) {}
   @Get('partner/staff') list(@CurrentActor() a: Actor, @Query() q: unknown) { return this.staff.list(a, q); }
   @Get('superadmin/staff') @Roles('SUPERADMIN') adminList(@CurrentActor() a: Actor, @Query() q: unknown) { return this.staff.list(a, q); }
+  @Get('auth/quick-lookup') @AccountantAccess() quickLookup(@CurrentActor() a: Actor, @Query() q: unknown) { return this.staff.quickLookup(a, q); }
   @Get('superadmin/auth-events') @Roles('SUPERADMIN') adminAuthEvents(@CurrentActor() a: Actor, @Query() q: unknown) { return this.auth.listAuthEvents(a, q, false); }
   @Get('partner/auth-events') partnerAuthEvents(@CurrentActor() a: Actor, @Query() q: unknown) { return this.auth.listAuthEvents(a, q, true); }
   @Get('partner/staff/login-availability') @AccountantAccess() loginAvailability(@CurrentActor() a: Actor, @Query() q: unknown) { return this.staff.checkLoginAvailability(a, q); }

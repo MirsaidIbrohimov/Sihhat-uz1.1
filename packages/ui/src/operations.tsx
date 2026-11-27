@@ -1868,7 +1868,7 @@ export function Bookings() {
                     <span className="subcell">
                       <a
                         href={`tel:${r.phone}`}
-                        style={{ color: "#25e2a2", textDecoration: "none", fontWeight: 600 }}
+                        style={{ color: "var(--green)", textDecoration: "none", fontWeight: 600 }}
                       >
                         {r.phone}
                       </a>
@@ -1999,7 +1999,7 @@ export function Bookings() {
                 render: (r) => (
                   <a
                     href={`tel:${r.contact_phone}`}
-                    style={{ color: "#25e2a2", textDecoration: "none", fontWeight: 600 }}
+                    style={{ color: "var(--green)", textDecoration: "none", fontWeight: 600 }}
                   >
                     {r.contact_phone}
                   </a>

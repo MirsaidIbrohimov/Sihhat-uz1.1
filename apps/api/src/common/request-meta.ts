@@ -65,11 +65,145 @@ export function sanitizeUserAgent(userAgent?: string | null): string | null {
   return clean || null;
 }
 
+export type DeviceDescriptor = {
+  deviceLabel: string;
+  deviceType: 'SMARTPHONE' | 'TABLET' | 'DESKTOP';
+  deviceTypeLabel: string;
+  browser: string;
+  os: string;
+  channelLabel: string;
+  summary: string;
+};
+
+const GENERIC_DEVICE_LABELS = new Set([
+  '',
+  'unknown',
+  'web',
+  'mobile',
+  'brauzer',
+  'veb brauzer',
+  'veb panel',
+  'mobil ilova',
+  'noma’lum qurilma',
+  "noma'lum qurilma",
+  'brauzer · noma’lum qurilma',
+  "brauzer · noma'lum qurilma",
+]);
+
+export function isGenericDeviceLabel(label?: string | null): boolean {
+  if (!label || typeof label !== 'string') return true;
+  return GENERIC_DEVICE_LABELS.has(label.trim().toLowerCase());
+}
+
+function parseBrowserWithVersion(ua: string, chUa = ''): { shortName: string; fullName: string } {
+  const matchVer = (re: RegExp) => re.exec(ua)?.[1]?.split('.')[0] ?? '';
+  if (/Edg\//i.test(ua) || /Microsoft Edge/i.test(chUa)) {
+    const v = matchVer(/Edg\/([\d.]+)/i) || /Microsoft Edge";v="(\d+)/i.exec(chUa)?.[1] || '';
+    return { shortName: 'Edge', fullName: v ? `Microsoft Edge ${v}` : 'Microsoft Edge' };
+  }
+  if (/OPR\/|Opera/i.test(ua) || /Opera/i.test(chUa)) {
+    const v = matchVer(/(?:OPR|Opera)\/([\d.]+)/i);
+    return { shortName: 'Opera', fullName: v ? `Opera ${v}` : 'Opera' };
+  }
+  if (/YaBrowser\//i.test(ua)) {
+    const v = matchVer(/YaBrowser\/([\d.]+)/i);
+    return { shortName: 'Yandex Browser', fullName: v ? `Yandex Browser ${v}` : 'Yandex Browser' };
+  }
+  if (/SamsungBrowser\//i.test(ua)) {
+    const v = matchVer(/SamsungBrowser\/([\d.]+)/i);
+    return { shortName: 'Samsung Browser', fullName: v ? `Samsung Internet ${v}` : 'Samsung Internet' };
+  }
+  if (/Telegram/i.test(ua)) {
+    return { shortName: 'Telegram Browser', fullName: 'Telegram ichki brauzeri' };
+  }
+  if (/Firefox\//i.test(ua)) {
+    const v = matchVer(/Firefox\/([\d.]+)/i);
+    return { shortName: 'Firefox', fullName: v ? `Mozilla Firefox ${v}` : 'Mozilla Firefox' };
+  }
+  if (/Chrome\//i.test(ua) || /Google Chrome/i.test(chUa)) {
+    const v = matchVer(/Chrome\/([\d.]+)/i) || /Google Chrome";v="(\d+)/i.exec(chUa)?.[1] || '';
+    return { shortName: 'Chrome', fullName: v ? `Google Chrome ${v}` : 'Google Chrome' };
+  }
+  if (/Safari\//i.test(ua)) {
+    const v = matchVer(/Version\/([\d.]+)/i);
+    return { shortName: 'Safari', fullName: v ? `Apple Safari ${v}` : 'Apple Safari' };
+  }
+  return { shortName: 'Brauzer', fullName: 'Veb brauzer' };
+}
+
+function parseOsInfo(
+  ua: string,
+  chPlatform = '',
+  chModel = '',
+): { shortOs: string; fullOs: string; deviceType: 'SMARTPHONE' | 'TABLET' | 'DESKTOP' } {
+  const cleanHintModel = chModel.replace(/"/g, '').trim().slice(0, 40);
+  if (/iPad/i.test(ua) || /iPad/i.test(chPlatform)) {
+    const iosVer = /OS (\d+[._]\d+)/i.exec(ua)?.[1]?.replace('_', '.') ?? '';
+    return {
+      shortOs: 'iPad (iOS)',
+      fullOs: iosVer ? `iPadOS ${iosVer}` : 'iPad (iPadOS)',
+      deviceType: 'TABLET',
+    };
+  }
+  if (/iPhone/i.test(ua) || /iOS/i.test(chPlatform)) {
+    const iosVer = /iPhone OS (\d+[._]\d+)/i.exec(ua)?.[1]?.replace('_', '.') ?? '';
+    return {
+      shortOs: 'iPhone (iOS)',
+      fullOs: iosVer ? `iPhone · iOS ${iosVer}` : 'iPhone (iOS)',
+      deviceType: 'SMARTPHONE',
+    };
+  }
+  if (/Android/i.test(ua) || /Android/i.test(chPlatform)) {
+    const verMatch = /Android\s+([\d.]+)/i.exec(ua)?.[1] ?? '';
+    const m = /Android\s+[\d.]+;\s*([^;)]+?)(?:\s+Build\/|\))/i.exec(ua);
+    const rawModel = m?.[1]?.trim().slice(0, 40);
+    const model = rawModel && !/^K$|^wv$/i.test(rawModel) ? rawModel : cleanHintModel;
+    const isTablet = /Tablet|SM-T|Pad/i.test(ua) || (Boolean(/Android/i.test(ua)) && !/Mobile/i.test(ua) && Boolean(model));
+    const shortOs = model ? `Android (${model})` : 'Android';
+    const fullOs = [verMatch ? `Android ${verMatch}` : 'Android', model ? `(${model})` : ''].filter(Boolean).join(' ');
+    return {
+      shortOs,
+      fullOs,
+      deviceType: isTablet ? 'TABLET' : 'SMARTPHONE',
+    };
+  }
+  if (/Windows/i.test(ua) || /Windows/i.test(chPlatform)) {
+    const isWin10Or11 = /Windows NT 10\.0/i.test(ua);
+    return {
+      shortOs: 'Windows',
+      fullOs: isWin10Or11 ? 'Windows 10/11 (Kompyuter)' : 'Windows (Kompyuter)',
+      deviceType: 'DESKTOP',
+    };
+  }
+  if (/Macintosh|Mac OS X/i.test(ua) || /macOS/i.test(chPlatform)) {
+    return {
+      shortOs: 'macOS',
+      fullOs: 'Apple macOS (Mac)',
+      deviceType: 'DESKTOP',
+    };
+  }
+  if (/Linux/i.test(ua) || /Linux/i.test(chPlatform)) {
+    return {
+      shortOs: 'Linux',
+      fullOs: 'Linux (Kompyuter)',
+      deviceType: 'DESKTOP',
+    };
+  }
+  return {
+    shortOs: 'Noma’lum qurilma',
+    fullOs: 'Aniqlanmagan tizim',
+    deviceType: 'DESKTOP',
+  };
+}
+
 export function detectDeviceLabel(
   userAgent?: string | null,
   channel: 'WEB' | 'MOBILE' = 'WEB',
   customDeviceLabel?: string | null,
   appVersion?: string | null,
+  chUa?: string | null,
+  chPlatform?: string | null,
+  chModel?: string | null,
 ): string {
   const custom = typeof customDeviceLabel === 'string'
     ? customDeviceLabel.replace(/[\r\n\t]+/g, ' ').trim().slice(0, 120)
@@ -77,7 +211,7 @@ export function detectDeviceLabel(
   const cleanAppVer = typeof appVersion === 'string'
     ? appVersion.replace(/[^a-zA-Z0-9.+_-]/g, '').slice(0, 32)
     : '';
-  if (custom) {
+  if (custom && !isGenericDeviceLabel(custom)) {
     return cleanAppVer && !custom.includes(cleanAppVer)
       ? `${custom} (v${cleanAppVer})`
       : custom;
@@ -86,10 +220,12 @@ export function detectDeviceLabel(
   const ua = (userAgent ?? '').slice(0, 512);
   if (channel === 'MOBILE') {
     const androidModelMatch = /Android\s+[\d.]+;\s*([^;)]+?)(?:\s+Build\/|\))/i.exec(ua);
-    const model = androidModelMatch?.[1]?.trim().slice(0, 48);
+    const rawModel = androidModelMatch?.[1]?.trim().slice(0, 48);
+    const hintModel = (chModel ?? '').replace(/"/g, '').trim().slice(0, 48);
+    const model = rawModel && !/^wv$|^K$/i.test(rawModel) ? rawModel : hintModel;
     if (/iPhone/i.test(ua)) return cleanAppVer ? `iPhone · iOS ilovasi (v${cleanAppVer})` : 'iPhone · iOS ilovasi';
     if (/iPad/i.test(ua)) return cleanAppVer ? `iPad · iOS ilovasi (v${cleanAppVer})` : 'iPad · iOS ilovasi';
-    if (model && !/^wv$|^K$/i.test(model)) {
+    if (model) {
       return cleanAppVer ? `Android (${model}) · v${cleanAppVer}` : `Android (${model})`;
     }
     if (/Android|Dart\/|okhttp|Flutter/i.test(ua)) {
@@ -98,51 +234,104 @@ export function detectDeviceLabel(
     return cleanAppVer ? `Mobil ilova (v${cleanAppVer})` : 'Android ilovasi';
   }
 
-  const browser = /Edg\//i.test(ua)
-    ? 'Edge'
-    : /OPR\/|Opera/i.test(ua)
-      ? 'Opera'
-      : /YaBrowser\//i.test(ua)
-        ? 'Yandex Browser'
-        : /SamsungBrowser\//i.test(ua)
-          ? 'Samsung Browser'
-          : /Firefox\//i.test(ua)
-            ? 'Firefox'
-            : /Chrome\//i.test(ua)
-              ? 'Chrome'
-              : /Safari\//i.test(ua)
-                ? 'Safari'
-                : 'Brauzer';
+  const { shortName: browser } = parseBrowserWithVersion(ua, chUa ?? '');
+  const { shortOs: system } = parseOsInfo(ua, chPlatform ?? '', chModel ?? '');
+  return `${browser} · ${system}`;
+}
 
-  let system = 'Noma’lum qurilma';
-  if (/Android/i.test(ua)) {
-    const m = /Android\s+[\d.]+;\s*([^;)]+?)(?:\s+Build\/|\))/i.exec(ua);
-    const model = m?.[1]?.trim().slice(0, 40);
-    system = model && !/^K$|^wv$/i.test(model) ? `Android (${model})` : 'Android';
-  } else if (/iPhone/i.test(ua)) {
-    system = 'iPhone (iOS)';
-  } else if (/iPad/i.test(ua)) {
-    system = 'iPad (iOS)';
-  } else if (/Windows/i.test(ua)) {
-    system = 'Windows';
-  } else if (/Macintosh|Mac OS X/i.test(ua)) {
-    system = 'macOS';
-  } else if (/Linux/i.test(ua)) {
-    system = 'Linux';
+export function describeDeviceMeta(
+  userAgent?: string | null,
+  channel: 'WEB' | 'MOBILE' = 'WEB',
+  deviceLabel?: string | null,
+  appVersion?: string | null,
+): DeviceDescriptor {
+  const ua = (userAgent ?? '').slice(0, 512);
+  const resolvedLabel = !isGenericDeviceLabel(deviceLabel)
+    ? String(deviceLabel).trim()
+    : detectDeviceLabel(ua, channel, null, appVersion);
+
+  const osParsed = parseOsInfo(ua);
+  let os = osParsed.fullOs;
+  let deviceType = osParsed.deviceType;
+  let browser = '';
+
+  if (channel === 'MOBILE') {
+    if (deviceType === 'DESKTOP') deviceType = /iPad|Tablet/i.test(resolvedLabel) ? 'TABLET' : 'SMARTPHONE';
+    if (os === 'Aniqlanmagan tizim') {
+      if (/iPhone|iOS/i.test(resolvedLabel)) os = 'iPhone (iOS)';
+      else if (/iPad/i.test(resolvedLabel)) os = 'iPad (iPadOS)';
+      else {
+        const m = /Android\s*\(([^)]+)\)/i.exec(resolvedLabel);
+        os = m ? `Android (${m[1]})` : 'Android smartfoni';
+      }
+    }
+    const verMatch = /v(\d+\.\d+(?:\.\d+)?)/i.exec(resolvedLabel) || (appVersion ? [null, appVersion] : null);
+    browser = verMatch?.[1] ? `Sihhat.uz ilovasi v${verMatch[1]}` : 'Sihhat.uz mobil ilovasi';
+  } else {
+    const b = parseBrowserWithVersion(ua);
+    browser = b.fullName;
+    if (browser === 'Veb brauzer' && !isGenericDeviceLabel(resolvedLabel)) {
+      const parts = resolvedLabel.split('·').map((s) => s.trim());
+      if (parts[0]) browser = parts[0];
+      if (parts[1] && os === 'Aniqlanmagan tizim') os = parts[1];
+    }
+    if (os === 'Aniqlanmagan tizim') {
+      if (/Android/i.test(resolvedLabel)) {
+        os = 'Android';
+        deviceType = 'SMARTPHONE';
+      } else if (/iPhone|iOS/i.test(resolvedLabel)) {
+        os = 'iPhone (iOS)';
+        deviceType = 'SMARTPHONE';
+      } else if (/iPad/i.test(resolvedLabel)) {
+        os = 'iPad (iPadOS)';
+        deviceType = 'TABLET';
+      } else if (/Windows/i.test(resolvedLabel)) {
+        os = 'Windows (Kompyuter)';
+      } else if (/macOS|Mac/i.test(resolvedLabel)) {
+        os = 'Apple macOS';
+      } else if (/Linux/i.test(resolvedLabel)) {
+        os = 'Linux';
+      } else {
+        os = 'Kompyuter / Veb qurilma';
+      }
+    }
   }
 
-  return `${browser} · ${system}`;
+  const deviceTypeLabel =
+    deviceType === 'SMARTPHONE'
+      ? 'Smartfon'
+      : deviceType === 'TABLET'
+        ? 'Planshet'
+        : 'Kompyuter';
+  const channelLabel = channel === 'MOBILE' ? 'Sihhat.uz mobil ilovasi' : 'Veb boshqaruv paneli';
+  const displayLabel = isGenericDeviceLabel(resolvedLabel)
+    ? (channel === 'MOBILE' ? 'Android ilovasi' : `${browser} · ${os}`)
+    : resolvedLabel;
+  const summary = `${deviceTypeLabel} · ${os} · ${browser} · ${channelLabel}`;
+
+  return {
+    deviceLabel: displayLabel,
+    deviceType,
+    deviceTypeLabel,
+    browser,
+    os,
+    channelLabel,
+    summary,
+  };
 }
 
 export function extractRequestMeta(req?: Request, channel: 'WEB' | 'MOBILE' = 'WEB') {
   const userAgent = sanitizeUserAgent(req?.header('User-Agent'));
   const customDevice = req?.header('X-Device-Label') || req?.header('X-Device-Name') || null;
   const appVersion = req?.header('X-App-Version') || null;
+  const chUa = req?.header('Sec-CH-UA') || null;
+  const chPlatform = req?.header('Sec-CH-UA-Platform') || null;
+  const chModel = req?.header('Sec-CH-UA-Model') || null;
   return {
     rateLimitIp: req?.ip ?? 'unknown',
     ipAddress: resolveAuditIp(req),
     userAgent,
-    deviceLabel: detectDeviceLabel(userAgent, channel, customDevice, appVersion),
+    deviceLabel: detectDeviceLabel(userAgent, channel, customDevice, appVersion, chUa, chPlatform, chModel),
   };
 }
 

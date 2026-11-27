@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="uz">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Sihhat.uz — Superadmin Bosh Sahifa Rang Variantlari</title>
+    <style>
+      @font-face { font-family: "DM Sans"; src: url("../../web/assets/DMSans.ttf") format("truetype"); font-weight: 100 900; }
+      @font-face { font-family: "Manrope"; src: url("../../web/assets/Manrope.ttf") format("truetype"); font-weight: 100 900; }
+      * { box-sizing: border-box; }
+      body { margin: 0; font-family: "DM Sans", system-ui, sans-serif; background: #f3f5f7; color: #0f172a; }
+      header {
+        position: sticky; top: 0; z-index: 20;
+        background: rgba(255,255,255,0.95); backdrop-filter: blur(12px);
+        border-bottom: 1px solid #e2e8f0;
+        padding: 14px 24px; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px;
+      }
+      .title h1 { margin: 0; font-family: Manrope, sans-serif; font-size: 18px; font-weight: 800; }
+      .title p { margin: 2px 0 0; font-size: 12.5px; color: #64748b; }
+      .tabs { display: flex; flex-wrap: wrap; gap: 7px; }
+      .tab {
+        display: inline-flex; align-items: center; gap: 7px;
+        border: 1px solid #cbd5e1; background: #fff; color: #1e293b;
+        padding: 7px 12px; border-radius: 999px; font-size: 12.5px; font-weight: 600; cursor: pointer;
+      }
+      .tab.active { background: #0f172a; color: #fff; border-color: #0f172a; }
+      .dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; border: 1px solid rgba(0,0,0,0.15); }
+      main { max-width: 1500px; margin: 20px auto 40px; padding: 0 24px; }
+      .frame {
+        background: #fff; border: 1px solid #e2e8f0; border-radius: 18px;
+        overflow: hidden; box-shadow: 0 12px 36px rgba(15,23,42,0.08);
+      }
+      .frame img { width: 100%; display: block; }
+      .bar {
+        padding: 13px 18px; border-top: 1px solid #e2e8f0;
+        display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px;
+      }
+      .bar strong { font-family: Manrope, sans-serif; font-size: 15px; }
+      .bar span { font-size: 12.5px; color: #64748b; }
+    </style>
+  </head>
+  <body>
+    <header>
+      <div class="title">
+        <h1>Superadmin Bosh Sahifa — Asosiy Ranglarni Jonli Taqqoslash</h1>
+        <p>Istalgan tugmani bosing — rasm o‘z joyida almashadi va rang farqi darhol seziladi (← / → tugmalari ham ishlaydi)</p>
+      </div>
+      <div class="tabs" id="tabs"></div>
+    </header>
+    <main>
+      <div class="frame">
+        <img id="preview" alt="" />
+        <div class="bar">
+          <div><strong id="name"></strong> · <span id="desc"></span></div>
+          <span id="file"></span>
+        </div>
+      </div>
+    </main>
+    <script>
+      const LIST = [
+        { k: "00", file: "00-ranglar-taqqoslash.png", dot: "#64748b", label: "Barchasi (6 ta)", name: "6 ta rang variantini yonma-yon taqqoslash", desc: "Barcha palitralar bitta ekranda" },
+        { k: "A", file: "A-moviy-klinika-sapphire.png", dot: "#1d5fd6", label: "A · Moviy Sapphire", name: "Variant A — Moviy Klinika (Royal Sapphire)", desc: "Tiniq, zamonaviy tibbiy-texnologik ko‘k (Kunduzgi)" },
+        { k: "B", file: "B-issiq-qum-terrakota.png", dot: "#b5522c", label: "B · Issiq Terrakota", name: "Variant B — Issiq Qum va Terrakota", desc: "Premium dam olish maskani va ko‘zga iliq krem-terrakota (Kunduzgi)" },
+        { k: "C", file: "C-zamonaviy-indigo.png", dot: "#4f46e5", label: "C · Indigo SaaS", name: "Variant C — Zamonaviy Indigo", desc: "Sof oq va chuqur indigo-binafsha (Kunduzgi)" },
+        { k: "D", file: "D-okean-va-toq-kok-sidebar.png", dot: "#0c7c92", label: "D · Okean + To‘q Menyu", name: "Variant D — Okean va To‘q Ko‘k Yon Menyu", desc: "Qat’iy to‘q dengiz-ko‘k yon panel + yorug‘ ish maydoni (Aralash)" },
+        { k: "E", file: "E-zaytun-va-tabiat.png", dot: "#4d6b38", label: "E · Zaytun Tabiat", name: "Variant E — Zaytun va Tog‘ Tabiati", desc: "Organik zaytun-yashil va iliq tosh foni (Kunduzgi)" },
+        { k: "F", file: "F-tungi-midnight-navy.png", dot: "#1b3d7a", label: "F · Tungi Navy", name: "Variant F — Tungi Ko‘k-Grafit (Midnight Navy)", desc: "Klassik ko‘zga eng qulay to‘q ko‘k-grafit tungi rejim (Tungi)" },
+        { k: "V4", file: "../02-superadmin-bosh-sahifa-kunduzgi.png", dot: "#0d7a5f", label: "Avvalgi · Zumrad V4", name: "Avvalgi variant — Botanik Zumrad (Serenity V4)", desc: "Taqqoslash uchun oldingi zumrad varianti" }
+      ];
+      let idx = 0;
+      function show(i) {
+        idx = (i + LIST.length) % LIST.length;
+        const it = LIST[idx];
+        document.getElementById("preview").src = it.file;
+        document.getElementById("name").textContent = it.name;
+        document.getElementById("desc").textContent = it.desc;
+        document.getElementById("file").textContent = it.file;
+        document.getElementById("tabs").innerHTML = LIST.map((x, n) =>
+          `<button class="tab ${n === idx ? "active" : ""}" onclick="show(${n})"><span class="dot" style="background:${x.dot}"></span>${x.label}</button>`
+        ).join("");
+      }
+      window.show = show;
+      document.addEventListener("keydown", (e) => {
+        if (e.key === "ArrowRight") show(idx + 1);
+        if (e.key === "ArrowLeft") show(idx - 1);
+      });
+      show(0);
+    </script>
+  </body>
+</html>

@@ -393,3 +393,109 @@ test('AuthEvent tracking: records device and IP on every LOGIN, LOGOUT, and SESS
   // Partner cannot access /superadmin/auth-events
   assert.equal((await dirClient.call('/superadmin/auth-events')).status, 403);
 });
+
+test('Legacy sessions backfill into AuthEvent, session IP hydrates on /auth/me, and Audit includes login/profile/sanatorium actions', async () => {
+  const { hash } = await import('../src/common/db');
+  const { opaque, passwordHash } = await import('../src/common/crypto');
+  const legacyPass = 'Legacy-Partner-2026!';
+  const legacyUser = await ctx.db.user.create({
+    data: {
+      publicId: 778899,
+      kind: 'CUSTOMER',
+      status: 'ACTIVE',
+      name: 'Eski Sessiya Mijozi',
+      phone: '+998901112299',
+      email: 'legacy.session@example.com',
+      passwordHash: await passwordHash(legacyPass),
+    },
+  });
+
+  // Simulate a pre-migration session chain (1 initial session rotated via refresh into 1 active session with ipAddress=null)
+  const t0 = new Date(Date.now() - 60_000);
+  const tRotate = new Date(Date.now() - 30_000);
+  const oldTok = opaque();
+  const curTok = opaque();
+  await ctx.db.session.create({
+    data: {
+      userId: legacyUser.id,
+      tokenHash: hash(oldTok),
+      refreshHash: hash(opaque()),
+      csrfHash: hash(opaque()),
+      channel: 'MOBILE',
+      deviceLabel: 'Android (SM-A165F)',
+      ipAddress: null,
+      expiresAt: new Date(Date.now() + 600_000),
+      refreshExpiresAt: new Date(Date.now() + 86_400_000),
+      createdAt: t0,
+      lastActivityAt: tRotate,
+      revokedAt: tRotate,
+    },
+  });
+  const activeSession = await ctx.db.session.create({
+    data: {
+      userId: legacyUser.id,
+      tokenHash: hash(curTok),
+      refreshHash: hash(opaque()),
+      csrfHash: hash(opaque()),
+      channel: 'MOBILE',
+      deviceLabel: 'Android (SM-A165F)',
+      ipAddress: null,
+      expiresAt: new Date(Date.now() + 600_000),
+      refreshExpiresAt: new Date(Date.now() + 86_400_000),
+      createdAt: new Date(tRotate.getTime() + 500),
+      lastActivityAt: new Date(),
+    },
+  });
+
+  // 1. Calling /auth/me hydrates the missing ipAddress on the active legacy session
+  const legacyClient = new Client(ctx.base);
+  legacyClient.token = curTok;
+  const meRes = await legacyClient.call('/auth/me', 'GET', undefined, {
+    'X-Real-IP': '198.51.100.88',
+    'User-Agent': 'Mozilla/5.0 (Linux; Android 15; SM-A165F) Dart/3.13',
+  });
+  assert.equal(meRes.status, 200);
+  const hydrated = await ctx.db.session.findUniqueOrThrow({ where: { id: activeSession.id } });
+  assert.equal(hydrated.ipAddress, '198.51.100.88');
+
+  // 2. Calling /auth/login-history backfills the legacy session into AuthEvent without duplicating the refresh rotation
+  const histRes = await legacyClient.call('/auth/login-history');
+  assert.equal(histRes.status, 200);
+  assert.equal(histRes.body.total, 1, 'Rotated refresh session chain must collapse into 1 LOGIN event');
+  assert.equal(histRes.body.data[0].eventType, 'LOGIN');
+  assert.equal(histRes.body.data[0].deviceLabel, 'Android (SM-A165F)');
+
+  // 3. Superadmin /superadmin/audit returns all real actions (auth.login, partner.registration_*, etc.) with actor & sanatorium metadata
+  const adminAudit = await ctx.admin.call('/superadmin/audit?limit=50');
+  assert.equal(adminAudit.status, 200);
+  assert.ok(adminAudit.body.total > 0);
+  assert.ok(
+    adminAudit.body.data.some((r: any) => r.action === 'auth.login'),
+    'Superadmin audit must include auth.login actions',
+  );
+  assert.ok(
+    adminAudit.body.data.some((r: any) => r.action === 'partner.registration_approved' && r.sanatorium_name === 'Chortoq Shifo Sanatoriyasi'),
+    'Superadmin audit must include sanatorium_name metadata',
+  );
+
+  // 4. Superadmin /superadmin/auth-events without sanatorium_id returns SUPERADMIN, STAFF, and CUSTOMER events together
+  const allEvents = await ctx.admin.call('/superadmin/auth-events?limit=50');
+  assert.equal(allEvents.status, 200);
+  const kinds = new Set(allEvents.body.data.map((e: any) => e.userKind));
+  assert.ok(kinds.has('SUPERADMIN'), 'Must include SUPERADMIN events');
+  assert.ok(kinds.has('STAFF'), 'Must include STAFF events');
+  assert.ok(kinds.has('CUSTOMER'), 'Must include CUSTOMER events');
+
+  // 5. Partner /partner/audit includes own sanatorium auth.login and excludes other sanatoriums
+  const dirClient = new Client(ctx.base);
+  const dirLogin = await dirClient.call('/auth/staff/login', 'POST', {
+    login: 'chortoq.shifo',
+    password: 'Partner-2026-Strong!',
+  });
+  assert.equal(dirLogin.status, 201);
+  const partnerAudit = await dirClient.call('/partner/audit');
+  assert.equal(partnerAudit.status, 200);
+  assert.ok(partnerAudit.body.total > 0, 'Partner audit must not be empty after login/approval');
+  assert.ok(partnerAudit.body.data.some((r: any) => r.action === 'auth.login'));
+  assert.ok(partnerAudit.body.data.every((r: any) => r.sanatorium_name === 'Chortoq Shifo Sanatoriyasi'));
+});

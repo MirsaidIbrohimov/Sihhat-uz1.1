@@ -261,15 +261,18 @@ export function Dashboard() {
                       <path
                         d={`M${s.spark} L80,28 L2,28 Z`}
                         fill={
-                          index === 3
-                            ? "rgba(143, 245, 220, 0.24)"
-                            : "rgba(16, 185, 129, 0.16)"
+                          [
+                            "rgba(129, 140, 248, 0.24)",
+                            "rgba(56, 189, 248, 0.24)",
+                            "rgba(52, 211, 153, 0.24)",
+                            "rgba(255, 255, 255, 0.22)",
+                          ][index % 4]
                         }
                       />
                       <polyline
                         points={s.spark}
                         fill="none"
-                        stroke={index === 3 ? "#8ff5dc" : "#10b981"}
+                        stroke={["#818cf8", "#38bdf8", "#34d399", "#ffffff"][index % 4]}
                         strokeWidth="2.1"
                         strokeLinecap="round"
                         strokeLinejoin="round"
@@ -1689,7 +1692,7 @@ export function Staff() {
                   {u.phone ? (
                     <a
                       href={`tel:${u.phone}`}
-                      style={{ color: "#25e2a2", textDecoration: "none", fontWeight: 600 }}
+                      style={{ color: "var(--green)", textDecoration: "none", fontWeight: 600 }}
                     >
                       {u.phone}
                     </a>
@@ -1719,7 +1722,7 @@ export function Staff() {
             {ctx.admin && (
               <Act onClick={() => setManageStaff(r)}>Tahrirlash</Act>
             )}
-            {ctx.admin && r.user?.id && (
+            {(ctx.admin || ctx.allowed("audit.read")) && r.user?.id && (
               <Act onClick={() => setHistoryStaff(r.user)}>Kirish-chiqish tarixi</Act>
             )}
             {ctx.admin && r.status === "PENDING_APPROVAL" && (
@@ -1863,6 +1866,7 @@ export function Staff() {
       )}
       {historyStaff && (
         <UserAuthHistoryModal
+          mode={ctx.admin ? "superadmin" : "partner"}
           user={{
             id: String(historyStaff.id),
             name: historyStaff.name,
@@ -2827,7 +2831,7 @@ export function AppUsers() {
             label: "Telefon",
             render: (r) =>
               r.phone ? (
-                <a href={`tel:${r.phone}`} style={{ color: "#25e2a2", textDecoration: "none", fontWeight: 600 }}>
+                <a href={`tel:${r.phone}`} style={{ color: "var(--green)", textDecoration: "none", fontWeight: 600 }}>
                   {r.phone}
                 </a>
               ) : (
@@ -2839,8 +2843,8 @@ export function AppUsers() {
             render: (r) => (
               <span
                 style={{
-                  background: r.bookingsCount > 0 ? "rgba(37,226,162,0.15)" : "rgba(255,255,255,0.05)",
-                  color: r.bookingsCount > 0 ? "#25e2a2" : "#8ea69d",
+                  background: r.bookingsCount > 0 ? "var(--green-light)" : "var(--soft)",
+                  color: r.bookingsCount > 0 ? "var(--green)" : "var(--muted)",
                   padding: "2px 8px",
                   borderRadius: "12px",
                   fontWeight: 600,
@@ -2857,8 +2861,8 @@ export function AppUsers() {
             render: (r) => (
               <span
                 style={{
-                  background: r.ticketsCount > 0 ? "rgba(235,178,57,0.15)" : "rgba(255,255,255,0.05)",
-                  color: r.ticketsCount > 0 ? "#ebb239" : "#8ea69d",
+                  background: r.ticketsCount > 0 ? "var(--warning-bg)" : "var(--soft)",
+                  color: r.ticketsCount > 0 ? "var(--warning-ink)" : "var(--muted)",
                   padding: "2px 8px",
                   borderRadius: "12px",
                   fontWeight: 600,

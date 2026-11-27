@@ -5,7 +5,7 @@ import { CONFIG, type Config } from '../common/config';
 import { Db, audit, hash, lock, emit, type Tx } from '../common/db';
 import { fail, parse, uuid, pageQuery, paged } from '../common/errors';
 import { decrypt, encrypt, matchTotp, opaque, passwordHash, passwordMatches } from '../common/crypto';
-import { detectDeviceLabel, ENSURE_AUTH_EVENTS_AND_PARTNER_REG_SQL, normalizeIp, sanitizeUserAgent } from '../common/request-meta';
+import { describeDeviceMeta, detectDeviceLabel, ENSURE_AUTH_EVENTS_AND_PARTNER_REG_SQL, isGenericDeviceLabel, normalizeIp, sanitizeUserAgent } from '../common/request-meta';
 import { dateFilter } from '../bookings/search';
 import { Sms } from './sms';
 import { EmailService } from './email';
@@ -60,6 +60,7 @@ export class AuthService implements OnModuleInit {
       for (const stmt of ENSURE_AUTH_EVENTS_AND_PARTNER_REG_SQL) {
         await this.db.$executeRawUnsafe(stmt).catch(() => undefined);
       }
+      await this.backfillAuthEventsFromSessions(500);
       if (typeof (this.db as unknown as { user?: { findMany?: unknown; update?: unknown } })?.user?.findMany === 'function') {
         await this.db.$executeRawUnsafe('CREATE UNIQUE INDEX IF NOT EXISTS "User_publicId_key" ON "User"("publicId")');
         const missing = await this.db.user.findMany({
@@ -115,6 +116,172 @@ export class AuthService implements OnModuleInit {
       });
     } catch {
       // Never break auth flow if AuthEvent DDL is absent in mocked tests
+    }
+  }
+  async hydrateSessionMeta(sessionId: string | undefined, meta?: AuthRequestMeta) {
+    if (!sessionId || !meta) return;
+    if (typeof (this.db as any)?.session?.findUnique !== 'function' || typeof (this.db as any)?.session?.updateMany !== 'function') {
+      return;
+    }
+    const cleanIp = normalizeIp(meta.ipAddress);
+    const cleanUa = sanitizeUserAgent(meta.userAgent);
+    if (cleanIp === 'unknown' && !cleanUa) return;
+    try {
+      const existing = await this.db.session.findUnique({
+        where: { id: sessionId },
+        select: { id: true, ipAddress: true, userAgent: true },
+      });
+      if (!existing) return;
+      const needsIp = (!existing.ipAddress || existing.ipAddress === 'unknown') && cleanIp !== 'unknown';
+      const needsUa = !existing.userAgent && Boolean(cleanUa);
+      if (!needsIp && !needsUa) return;
+      await this.db.session.updateMany({
+        where: { id: sessionId },
+        data: {
+          ...(needsIp ? { ipAddress: cleanIp } : {}),
+          ...(needsUa ? { userAgent: cleanUa } : {}),
+        },
+      });
+      if (needsIp && typeof (this.db as any)?.authEvent?.updateMany === 'function') {
+        await this.db.authEvent.updateMany({
+          where: { sessionId, ipAddress: 'unknown' },
+          data: {
+            ipAddress: cleanIp,
+            ...(needsUa ? { userAgent: cleanUa } : {}),
+          },
+        });
+      }
+    } catch {
+      // Never block /auth/me or /auth/sessions on telemetry hydration
+    }
+  }
+  async backfillAuthEventsFromSessions(limit = 500, onlyUserId?: string): Promise<number> {
+    if (
+      typeof (this.db as any)?.session?.findMany !== 'function' ||
+      typeof (this.db as any)?.authEvent?.findMany !== 'function' ||
+      typeof (this.db as any)?.authEvent?.createMany !== 'function'
+    ) {
+      return 0;
+    }
+    try {
+      const sessions = await this.db.session.findMany({
+        where: onlyUserId ? { userId: onlyUserId } : undefined,
+        orderBy: { createdAt: 'desc' },
+        take: limit,
+        select: {
+          id: true,
+          userId: true,
+          channel: true,
+          deviceLabel: true,
+          ipAddress: true,
+          userAgent: true,
+          createdAt: true,
+          revokedAt: true,
+        },
+      });
+      if (!sessions.length) return 0;
+
+      const candidateUserIds = [...new Set(sessions.map((s) => s.userId))];
+      const usersWithEvents = await this.db.authEvent.findMany({
+        where: { userId: { in: candidateUserIds } },
+        distinct: ['userId'],
+        select: { userId: true },
+      });
+      const existingUserSet = new Set(usersWithEvents.map((e) => e.userId));
+      const legacySessions = sessions.filter((s) => !existingUserSet.has(s.userId));
+      if (!legacySessions.length) return 0;
+
+      const legacyUserIds = [...new Set(legacySessions.map((s) => s.userId))];
+      const [users, memberships] = await Promise.all([
+        this.db.user.findMany({
+          where: { id: { in: legacyUserIds } },
+          select: { id: true, kind: true, name: true, login: true, email: true },
+        }),
+        typeof (this.db as any)?.membership?.findMany === 'function'
+          ? this.db.membership.findMany({
+              where: { userId: { in: legacyUserIds }, status: 'ACTIVE' },
+              orderBy: { createdAt: 'asc' },
+              select: { userId: true, sanatoriumId: true },
+            })
+          : [],
+      ]);
+      const userMap = new Map(users.map((u) => [u.id, u]));
+      const sanMap = new Map<string, string>();
+      for (const m of memberships) {
+        if (!sanMap.has(m.userId)) sanMap.set(m.userId, m.sanatoriumId);
+      }
+
+      // Group per user chronologically and collapse token-refresh rotation chains
+      // (where an old session is revoked within 5s of a new session starting on the same device/channel).
+      const byUser = new Map<string, typeof legacySessions>();
+      for (const s of legacySessions) {
+        const arr = byUser.get(s.userId) ?? [];
+        arr.push(s);
+        byUser.set(s.userId, arr);
+      }
+
+      const toInsert: any[] = [];
+      for (const [uid, list] of byUser.entries()) {
+        const u = userMap.get(uid);
+        if (!u) continue;
+        const sorted = [...list].sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
+        const rotatedRevokedIds = new Set<string>();
+        const rotatedCreatedIds = new Set<string>();
+        for (let idx = 0; idx < sorted.length; idx++) {
+          const cur = sorted[idx];
+          if (!cur.revokedAt) continue;
+          const next = sorted.find(
+            (cand, j) =>
+              j > idx &&
+              cand.channel === cur.channel &&
+              cand.deviceLabel === cur.deviceLabel &&
+              Math.abs(cand.createdAt.getTime() - cur.revokedAt!.getTime()) <= 5000,
+          );
+          if (next) {
+            rotatedRevokedIds.add(cur.id);
+            rotatedCreatedIds.add(next.id);
+          }
+        }
+        const sanId = u.kind === 'STAFF' ? (sanMap.get(u.id) ?? null) : null;
+        for (const s of sorted) {
+          const channel = s.channel || (u.kind === 'CUSTOMER' ? 'MOBILE' : 'WEB');
+          const email = u.email ?? (u.login?.includes('@') ? u.login : null);
+          const base = {
+            userId: s.userId,
+            sessionId: s.id,
+            channel,
+            ipAddress: normalizeIp(s.ipAddress),
+            deviceLabel: (s.deviceLabel?.trim() || (channel === 'MOBILE' ? 'Android ilovasi' : 'Veb brauzer')).slice(0, 140),
+            userAgent: sanitizeUserAgent(s.userAgent),
+            userKind: u.kind,
+            userName: u.name,
+            userLogin: u.login,
+            userEmail: email,
+            sanatoriumId: sanId,
+          };
+          if (!rotatedCreatedIds.has(s.id)) {
+            toInsert.push({
+              ...base,
+              eventType: 'LOGIN',
+              authMethod: channel === 'MOBILE' ? (email ? 'EMAIL_OTP' : 'SMS_OTP') : 'PASSWORD',
+              createdAt: s.createdAt,
+            });
+          }
+          if (s.revokedAt && !rotatedRevokedIds.has(s.id)) {
+            toInsert.push({
+              ...base,
+              eventType: 'LOGOUT',
+              authMethod: 'LOGOUT',
+              createdAt: s.revokedAt,
+            });
+          }
+        }
+      }
+      if (!toInsert.length) return 0;
+      await this.db.authEvent.createMany({ data: toInsert });
+      return toInsert.length;
+    } catch {
+      return 0;
     }
   }
   async incrementCounter(key: string, seconds: number): Promise<number> {
@@ -434,6 +601,9 @@ export class AuthService implements OnModuleInit {
     if (idleExpired(session, user.kind)) {
       const revoked = await this.db.session.updateMany({ where: { id: session.id, revokedAt: null }, data: { revokedAt: new Date() } });
       if (revoked.count) {
+        const activeMem = user.kind === 'STAFF'
+          ? await this.db.membership.findFirst({ where: { userId: user.id, status: 'ACTIVE' }, select: { sanatoriumId: true } }).catch(() => null)
+          : null;
         await this.recordAuthEvent(this.db, {
           userId: user.id,
           sessionId: session.id,
@@ -447,6 +617,7 @@ export class AuthService implements OnModuleInit {
           userName: user.name,
           userLogin: user.login,
           userEmail: user.email ?? (user.login?.includes('@') ? user.login : null),
+          sanatoriumId: activeMem?.sanatoriumId ?? null,
         });
       }
       idleFailure();
@@ -479,6 +650,9 @@ export class AuthService implements OnModuleInit {
       if (user.status !== 'ACTIVE' || (user.kind === 'STAFF' && !await tx.membership.count({ where: { userId: user.id, status: 'ACTIVE' } }))) fail('UNAUTHENTICATED', 'Hisob faol emas', 401);
       if (idleExpired(session, user.kind)) {
         await tx.session.update({ where: { id: session.id }, data: { revokedAt: new Date() } });
+        const activeMem = user.kind === 'STAFF'
+          ? await tx.membership.findFirst({ where: { userId: user.id, status: 'ACTIVE' }, select: { sanatoriumId: true } }).catch(() => null)
+          : null;
         await this.recordAuthEvent(tx, {
           userId: user.id,
           sessionId: session.id,
@@ -492,6 +666,7 @@ export class AuthService implements OnModuleInit {
           userName: user.name,
           userLogin: user.login,
           userEmail: user.email ?? (user.login?.includes('@') ? user.login : null),
+          sanatoriumId: activeMem?.sanatoriumId ?? null,
         });
         return null;
       }
@@ -598,7 +773,7 @@ export class AuthService implements OnModuleInit {
       userId: actor.id,
       ...(i.event_type ? { eventType: i.event_type } : {}),
     };
-    const [data, total] = await Promise.all([
+    let [data, total] = await Promise.all([
       this.db.authEvent.findMany({
         where,
         skip: (i.page - 1) * i.limit,
@@ -607,6 +782,20 @@ export class AuthService implements OnModuleInit {
       }),
       this.db.authEvent.count({ where }),
     ]);
+    if (total === 0) {
+      const inserted = await this.backfillAuthEventsFromSessions(100, actor.id);
+      if (inserted > 0) {
+        [data, total] = await Promise.all([
+          this.db.authEvent.findMany({
+            where,
+            skip: (i.page - 1) * i.limit,
+            take: i.limit,
+            orderBy: { createdAt: 'desc' },
+          }),
+          this.db.authEvent.count({ where }),
+        ]);
+      }
+    }
     return paged(data, total, i.page, i.limit);
   }
   async listAuthEvents(actor: Actor, query: unknown, partner = false) {
@@ -638,15 +827,21 @@ export class AuthService implements OnModuleInit {
     if (typeof (this.db as any)?.authEvent?.findMany !== 'function') {
       return paged([], 0, i.page, i.limit);
     }
-    const where: Record<string, any> = {
-      ...(tenant ? { sanatoriumId: tenant } : {}),
-      ...(i.user_id ? { userId: i.user_id } : {}),
-      ...(i.event_type ? { eventType: i.event_type } : {}),
-      ...(i.user_kind ? { userKind: i.user_kind } : {}),
-      ...((i.from || i.to) ? { createdAt: dateFilter(i.from, i.to, true) } : {}),
-    };
-    if (partner && !where.userKind) {
-      where.userKind = 'STAFF';
+    const andClauses: Record<string, any>[] = [];
+    if (tenant) {
+      const tenantStaff = typeof (this.db as any)?.membership?.findMany === 'function'
+        ? await this.db.membership.findMany({
+            where: { sanatoriumId: tenant },
+            select: { userId: true },
+          })
+        : [];
+      const tenantStaffIds = [...new Set(tenantStaff.map((m) => m.userId))];
+      andClauses.push({
+        OR: [
+          { sanatoriumId: tenant },
+          ...(tenantStaffIds.length ? [{ userId: { in: tenantStaffIds }, userKind: 'STAFF' }] : []),
+        ],
+      });
     }
     if (i.q) {
       const cleanIdDigits = i.q.replace(/^#/, '').trim();
@@ -654,16 +849,26 @@ export class AuthService implements OnModuleInit {
       const matchedUsers = numericPublicId !== null
         ? await this.db.user.findMany({ where: { publicId: numericPublicId }, select: { id: true } })
         : [];
-      where.OR = [
-        { userName: { contains: i.q, mode: 'insensitive' } },
-        { userLogin: { contains: i.q, mode: 'insensitive' } },
-        { userEmail: { contains: i.q, mode: 'insensitive' } },
-        { ipAddress: { contains: i.q, mode: 'insensitive' } },
-        { deviceLabel: { contains: i.q, mode: 'insensitive' } },
-        ...(matchedUsers.length ? [{ userId: { in: matchedUsers.map(u => u.id) } }] : []),
-      ];
+      andClauses.push({
+        OR: [
+          { userName: { contains: i.q, mode: 'insensitive' } },
+          { userLogin: { contains: i.q, mode: 'insensitive' } },
+          { userEmail: { contains: i.q, mode: 'insensitive' } },
+          { ipAddress: { contains: i.q, mode: 'insensitive' } },
+          { deviceLabel: { contains: i.q, mode: 'insensitive' } },
+          ...(matchedUsers.length ? [{ userId: { in: matchedUsers.map(u => u.id) } }] : []),
+        ],
+      });
     }
-    const [rows, total] = await Promise.all([
+    const where: Record<string, any> = {
+      ...(i.user_id ? { userId: i.user_id } : {}),
+      ...(i.event_type ? { eventType: i.event_type } : {}),
+      ...(i.user_kind ? { userKind: i.user_kind } : {}),
+      ...(partner ? { userKind: 'STAFF' } : {}),
+      ...((i.from || i.to) ? { createdAt: dateFilter(i.from, i.to, true) } : {}),
+      ...(andClauses.length ? { AND: andClauses } : {}),
+    };
+    let [rows, total] = await Promise.all([
       this.db.authEvent.findMany({
         where,
         skip: (i.page - 1) * i.limit,
@@ -672,6 +877,20 @@ export class AuthService implements OnModuleInit {
       }),
       this.db.authEvent.count({ where }),
     ]);
+    if (total === 0 && !i.q && !i.from && !i.to) {
+      const inserted = await this.backfillAuthEventsFromSessions(300, i.user_id);
+      if (inserted > 0) {
+        [rows, total] = await Promise.all([
+          this.db.authEvent.findMany({
+            where,
+            skip: (i.page - 1) * i.limit,
+            take: i.limit,
+            orderBy: { createdAt: 'desc' },
+          }),
+          this.db.authEvent.count({ where }),
+        ]);
+      }
+    }
     const userIds = [...new Set(rows.map(r => r.userId))];
     const sanIds = [...new Set(rows.map(r => r.sanatoriumId).filter((v): v is string => Boolean(v)))];
     const [users, sanatoriums] = await Promise.all([
@@ -734,7 +953,8 @@ export class AuthService implements OnModuleInit {
         userEmail: actor.email ?? null,
         sanatoriumId: actor.memberships?.find(m => m.status === 'ACTIVE')?.sanatoriumId ?? null,
       });
-      await audit(tx, actor.id, 'auth.session_revoked', id);
+      const activeSanatoriumId = actor.memberships?.find(m => m.status === 'ACTIVE')?.sanatoriumId;
+      await audit(tx, actor.id, 'auth.session_revoked', id, activeSanatoriumId);
       return { success: true };
     });
   }
@@ -763,7 +983,8 @@ export class AuthService implements OnModuleInit {
           sanatoriumId: actor.memberships?.find(m => m.status === 'ACTIVE')?.sanatoriumId ?? null,
         });
       }
-      await audit(tx, actor.id, 'auth.other_sessions_revoked', actor.id, undefined, undefined, { count: changed.count });
+      const activeSanatoriumId = actor.memberships?.find(m => m.status === 'ACTIVE')?.sanatoriumId;
+      await audit(tx, actor.id, 'auth.other_sessions_revoked', actor.id, activeSanatoriumId, undefined, { count: changed.count });
       return { success: true, count: changed.count };
     });
   }
@@ -853,7 +1074,8 @@ export class AuthService implements OnModuleInit {
         if (takenPhone) fail('PHONE_IN_USE', 'Bu telefon raqami boshqa foydalanuvchiga biriktirilgan', 409);
       }
       const user = await tx.user.update({ where: { id: actor.id }, data });
-      await audit(tx, actor.id, 'account.profile_updated', actor.id, undefined, undefined, {
+      const activeSanatoriumId = actor.memberships?.find(m => m.status === 'ACTIVE')?.sanatoriumId;
+      await audit(tx, actor.id, 'account.profile_updated', actor.id, activeSanatoriumId, undefined, {
         name: user.name,
         login: user.login,
         phone: user.phone,

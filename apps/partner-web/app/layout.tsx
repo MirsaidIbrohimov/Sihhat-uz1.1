@@ -14,12 +14,12 @@ export const metadata: Metadata = {
 };
 export default function Layout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="uz" suppressHydrationWarning>
+    <html lang="uz" data-theme="dark" suppressHydrationWarning>
       <head>
         <script
           dangerouslySetInnerHTML={{
             __html:
-              'try{document.documentElement.dataset.theme=localStorage.getItem("sihhat-web-theme")==="dark"?"dark":"light"}catch{}',
+              'try{document.documentElement.dataset.theme=localStorage.getItem("sihhat-web-theme")==="light"?"light":"dark"}catch{}',
           }}
         />
       </head>

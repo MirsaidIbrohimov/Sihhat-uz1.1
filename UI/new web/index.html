@@ -1,0 +1,235 @@
+<!doctype html>
+<html lang="uz">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Sihhat.uz — Superadmin Yangi Dizayn Galereyasi (Serenity Pro V4)</title>
+    <style>
+      @font-face { font-family: "DM Sans"; src: url("../web/assets/DMSans.ttf") format("truetype"); font-weight: 100 900; }
+      @font-face { font-family: "Manrope"; src: url("../web/assets/Manrope.ttf") format("truetype"); font-weight: 100 900; }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        font-family: "DM Sans", system-ui, sans-serif;
+        background: #f4f6f4;
+        color: #10241e;
+      }
+      header {
+        position: sticky;
+        top: 0;
+        z-index: 20;
+        background: rgba(255, 255, 255, 0.94);
+        backdrop-filter: blur(12px);
+        border-bottom: 1px solid #e5ebe7;
+        padding: 16px 28px;
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 14px;
+      }
+      .brand { display: flex; align-items: center; gap: 12px; }
+      .brand img { width: 42px; height: 42px; border-radius: 12px; border: 1px solid #cdd8d2; }
+      .brand h1 { margin: 0; font-family: Manrope, sans-serif; font-size: 19px; font-weight: 800; }
+      .brand p { margin: 2px 0 0; font-size: 12.5px; color: #657c74; }
+      .filters { display: flex; flex-wrap: wrap; gap: 8px; }
+      .pill {
+        border: 1px solid #cdd8d2;
+        background: #fff;
+        color: #2f4941;
+        padding: 7px 14px;
+        border-radius: 999px;
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+      }
+      .pill.active {
+        background: #0d7a5f;
+        border-color: #0d7a5f;
+        color: #fff;
+      }
+      main {
+        max-width: 1520px;
+        margin: 0 auto;
+        padding: 26px 28px 60px;
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(430px, 1fr));
+        gap: 22px;
+      }
+      .card {
+        background: #fff;
+        border: 1px solid #e5ebe7;
+        border-radius: 18px;
+        overflow: hidden;
+        box-shadow: 0 2px 8px rgba(16, 36, 30, 0.04);
+        transition: transform 0.16s ease, box-shadow 0.16s ease, border-color 0.16s ease;
+        cursor: pointer;
+      }
+      .card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 14px 32px rgba(16, 36, 30, 0.09);
+        border-color: #b6dfd0;
+      }
+      .thumb {
+        aspect-ratio: 1600 / 1040;
+        background: #eaf0ec;
+        overflow: hidden;
+        border-bottom: 1px solid #e5ebe7;
+      }
+      .thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+      .meta { padding: 15px 18px; }
+      .meta-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 6px; }
+      .num {
+        font-family: ui-monospace, monospace;
+        font-size: 11.5px;
+        font-weight: 700;
+        padding: 2px 8px;
+        border-radius: 6px;
+        background: #eaf6f1;
+        color: #095f4a;
+      }
+      .tag {
+        font-size: 11.5px;
+        font-weight: 600;
+        color: #657c74;
+      }
+      .meta h2 { margin: 0 0 4px; font-family: Manrope, sans-serif; font-size: 15.5px; font-weight: 700; }
+      .meta p { margin: 0; font-size: 12.8px; color: #657c74; line-height: 1.45; }
+      .lightbox {
+        position: fixed;
+        inset: 0;
+        z-index: 100;
+        background: rgba(10, 20, 17, 0.9);
+        display: none;
+        flex-direction: column;
+        padding: 18px 24px;
+      }
+      .lightbox.open { display: flex; }
+      .lb-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        color: #fff;
+        margin-bottom: 12px;
+      }
+      .lb-head strong { font-family: Manrope, sans-serif; font-size: 16px; }
+      .lb-actions { display: flex; gap: 8px; }
+      .lb-btn {
+        background: rgba(255, 255, 255, 0.14);
+        color: #fff;
+        border: 1px solid rgba(255, 255, 255, 0.24);
+        border-radius: 9px;
+        padding: 7px 13px;
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+      }
+      .lb-stage {
+        flex: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: auto;
+      }
+      .lb-stage img {
+        max-width: 100%;
+        max-height: 100%;
+        border-radius: 12px;
+        box-shadow: 0 24px 60px rgba(0, 0, 0, 0.55);
+      }
+      .lb-stage.zoom img { max-width: none; max-height: none; width: 1600px; }
+    </style>
+  </head>
+  <body>
+    <header>
+      <div class="brand">
+        <img src="../web/assets/sihhat-logo.jpg" alt="Sihhat uz" />
+        <div>
+          <h1>Sihhat.uz — Superadmin Yangi Dizayn Taklifi (Serenity Pro V4)</h1>
+          <p>Ko‘rishlik uchun qulay, sokin va to‘liq 12 ta ekran · Tasdiqlangach React kodiga o‘tkaziladi</p>
+        </div>
+      </div>
+      <div class="filters" id="filters"></div>
+    </header>
+    <main id="grid"></main>
+    <div class="lightbox" id="lb">
+      <div class="lb-head">
+        <strong id="lb-title"></strong>
+        <div class="lb-actions">
+          <button class="lb-btn" id="lb-prev">← Oldingi</button>
+          <button class="lb-btn" id="lb-next">Keyingi →</button>
+          <button class="lb-btn" id="lb-zoom">1:1 Kattalashtirish</button>
+          <button class="lb-btn" id="lb-close">Yopish (Esc)</button>
+        </div>
+      </div>
+      <div class="lb-stage" id="lb-stage"><img id="lb-img" alt="" /></div>
+    </div>
+    <script>
+      const ITEMS = [
+        { n: "00", cat: "tizim", file: "00-superadmin-dizayn-tizimi.png", title: "Dizayn tizimi va Konsepsiya (V4)", desc: "Ko‘zni charchatmaydigan Sokin Alabaster (kunduzgi) va Slate Charcoal (tungi) palitrasi, tipografiya va UI komponentlar." },
+        { n: "01", cat: "kirish", file: "01-superadmin-kirish.png", title: "Superadmin Kirish sahifasi", desc: "Tog‘ sanatoriyasi manzarali split-kirish, HTTPS/HttpOnly/CSRF va 5+ xato urinish trevogasi." },
+        { n: "02", cat: "asosiy", file: "02-superadmin-bosh-sahifa-kunduzgi.png", title: "Umumiy ko‘rinish — Kunduzgi rejim", desc: "4 KPI karta, bronlar grafigi, Top sanatoriyalar, Ledger qoldiqlari, Gemini AI sarfi va FCM/APK holati." },
+        { n: "03", cat: "asosiy", file: "03-superadmin-bosh-sahifa-tungi.png", title: "Umumiy ko‘rinish — Tungi rejim (Slate Dark)", desc: "Neon nursiz, tunda ishlash uchun ko‘zga juda qulay chuqur slate-charcoal dizayn." },
+        { n: "04", cat: "asosiy", file: "04-superadmin-sanatoriyalar-va-mashhur.png", title: "Sanatoriyalar va «Mashhur» vitrinasi", desc: "Bosh sahifa switch tanlovi, yangi hamkor arizalari banneri, profil moderatsiyasi va bank rekviziti tasdig‘i." },
+        { n: "05", cat: "asosiy", file: "05-superadmin-hamkor-arizalari.png", title: "Hamkor arizalari (Yangi modul)", desc: "Yangi sanatoriya hamkor arizalari, jonli username/email tekshiruvi va 1-klikda katalogga chiqarish." },
+        { n: "06", cat: "asosiy", file: "06-superadmin-bronlar-va-bugungi-ishlar.png", title: "Bronlar CRM, Bugungi ishlar va E-mehmon", desc: "3-tabli CRM, butun xona/koyka-o‘rin, Profsoyuz kvotasi va 1 tugmada chop etiladigan E-mehmon anketasi." },
+        { n: "07", cat: "boshqaruv", file: "07-superadmin-jamoa-va-ilova-foydalanuvchilari.png", title: "Jamoa, Ruxsatlar va Ilova mijozlari", desc: "6-xonali #ID, profil suratlari, onlayn nuqta, StaffManageModal va 25 ta vakolat matritsasi." },
+        { n: "08", cat: "moliya", file: "08-superadmin-moliya-va-reklama.png", title: "Moliya, O‘tkazmalar va Reklama Vitrinasi", desc: "Tezcheck kassa, bank dalilli o‘tkazmalar, refund, solishtirish va ilovadagi HOME reklama previewi." },
+        { n: "09", cat: "aloqa", file: "09-superadmin-yordam-jonli-chat-biriktirish.png", title: "Yordam va jonli chat + Xodimga biriktirish", desc: "Markaziy mijoz suhbatlari, Telegram bot sinxronizatsiyasi va murojaatni sanatoriya xodimiga biriktirish oynasi." },
+        { n: "10", cat: "aloqa", file: "10-superadmin-elonlar-va-xabarlar-markazi.png", title: "E’lonlar va xabarlar markazi (Yangi modul)", desc: "Users va Hamkorlar yetkazilish/o‘qilish ko‘rsatkichlari, API verify-delivery, shablonlar va jonli Preview." },
+        { n: "11", cat: "boshqaruv", file: "11-superadmin-amallar-tarixi-va-xavfsizlik.png", title: "Amallar tarixi, Qurilma/IP va Mobil ko‘rinish", desc: "Barcha hisoblar kirish-chiqish qurilmasi va IP jurnali, Telegram bot hamda smartfon responsive preview." }
+      ];
+      const CATS = [
+        ["all", "Barchasi (12)"],
+        ["tizim", "Dizayn tizimi"],
+        ["kirish", "Kirish"],
+        ["asosiy", "Asosiy panellar"],
+        ["boshqaruv", "Jamoa & Xavfsizlik"],
+        ["moliya", "Moliya & Reklama"],
+        ["aloqa", "Chat & E’lonlar"]
+      ];
+      let activeCat = "all";
+      let currentIndex = 0;
+
+      function renderFilters() {
+        document.getElementById("filters").innerHTML = CATS.map(([k, l]) =>
+          `<button class="pill ${activeCat === k ? "active" : ""}" onclick="setCat('${k}')">${l}</button>`
+        ).join("");
+      }
+      function renderGrid() {
+        const list = activeCat === "all" ? ITEMS : ITEMS.filter((x) => x.cat === activeCat);
+        document.getElementById("grid").innerHTML = list.map((it) => `
+          <article class="card" onclick="openLb(${ITEMS.indexOf(it)})">
+            <div class="thumb"><img src="${it.file}" alt="${it.title}" loading="lazy" /></div>
+            <div class="meta">
+              <div class="meta-top"><span class="num">${it.n}</span><span class="tag">${it.file}</span></div>
+              <h2>${it.title}</h2>
+              <p>${it.desc}</p>
+            </div>
+          </article>
+        `).join("");
+      }
+      window.setCat = (c) => { activeCat = c; renderFilters(); renderGrid(); };
+      window.openLb = (idx) => {
+        currentIndex = (idx + ITEMS.length) % ITEMS.length;
+        const it = ITEMS[currentIndex];
+        document.getElementById("lb-title").textContent = `${it.n} — ${it.title}`;
+        document.getElementById("lb-img").src = it.file;
+        document.getElementById("lb-stage").classList.remove("zoom");
+        document.getElementById("lb").classList.add("open");
+      };
+      document.getElementById("lb-prev").onclick = () => openLb(currentIndex - 1);
+      document.getElementById("lb-next").onclick = () => openLb(currentIndex + 1);
+      document.getElementById("lb-zoom").onclick = () => document.getElementById("lb-stage").classList.toggle("zoom");
+      document.getElementById("lb-close").onclick = () => document.getElementById("lb").classList.remove("open");
+      document.addEventListener("keydown", (e) => {
+        if (!document.getElementById("lb").classList.contains("open")) return;
+        if (e.key === "Escape") document.getElementById("lb").classList.remove("open");
+        if (e.key === "ArrowLeft") openLb(currentIndex - 1);
+        if (e.key === "ArrowRight") openLb(currentIndex + 1);
+      });
+      renderFilters();
+      renderGrid();
+    </script>
+  </body>
+</html>

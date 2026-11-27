@@ -52,6 +52,44 @@ const csrf = () =>
           .join("=") ?? "",
       );
 const pendingKeys = new Map<string, string>();
+function browserDeviceHeader(): string | null {
+  if (typeof navigator === "undefined") return null;
+  try {
+    const ua = navigator.userAgent || "";
+    const uaData = (navigator as Navigator & {
+      userAgentData?: { brands?: { brand: string; version: string }[]; platform?: string; mobile?: boolean };
+    }).userAgentData;
+    const browser = /Edg\//i.test(ua)
+      ? "Edge"
+      : /OPR\/|Opera/i.test(ua)
+        ? "Opera"
+        : /YaBrowser\//i.test(ua)
+          ? "Yandex Browser"
+          : /SamsungBrowser\//i.test(ua)
+            ? "Samsung Browser"
+            : /Firefox\//i.test(ua)
+              ? "Firefox"
+              : /Chrome\//i.test(ua)
+                ? "Chrome"
+                : /Safari\//i.test(ua)
+                  ? "Safari"
+                  : uaData?.brands?.find((b) => !/Not.?A.?Brand|Chromium/i.test(b.brand))?.brand || "";
+    let os = "";
+    if (/iPad/i.test(ua)) os = "iPad (iOS)";
+    else if (/iPhone/i.test(ua)) os = "iPhone (iOS)";
+    else if (/Android/i.test(ua)) {
+      const m = /Android\s+[\d.]+;\s*([^;)]+?)(?:\s+Build\/|\))/i.exec(ua);
+      const model = m?.[1]?.trim().slice(0, 36);
+      os = model && !/^K$|^wv$/i.test(model) ? `Android (${model})` : "Android";
+    } else if (/Windows/i.test(ua) || /Windows/i.test(uaData?.platform || "")) os = "Windows";
+    else if (/Macintosh|Mac OS X/i.test(ua) || /macOS/i.test(uaData?.platform || "")) os = "macOS";
+    else if (/Linux/i.test(ua) || /Linux/i.test(uaData?.platform || "")) os = "Linux";
+    if (!browser && !os) return null;
+    return `${browser || "Brauzer"} · ${os || "Veb qurilma"}`.slice(0, 110);
+  } catch {
+    return null;
+  }
+}
 export async function api<T = any>(
   path: string,
   method = "GET",
@@ -62,6 +100,7 @@ export async function api<T = any>(
   const mutation = !["GET", "HEAD"].includes(method);
   if (mutation && !pendingKeys.has(signature))
     pendingKeys.set(signature, crypto.randomUUID());
+  const deviceLabel = browserDeviceHeader();
   let response: Response;
   try {
     response = await fetch("/api" + path, {
@@ -70,6 +109,7 @@ export async function api<T = any>(
       cache: "no-store",
       headers: {
         "Content-Type": "application/json",
+        ...(deviceLabel ? { "X-Device-Label": deviceLabel } : {}),
         ...(mutation
           ? {
               "X-CSRF-Token": csrf(),

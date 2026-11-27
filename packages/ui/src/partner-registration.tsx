@@ -23,7 +23,7 @@ import {
   X,
   XCircle,
 } from "lucide-react";
-import { api, formatMoney, query, toMinor } from "@sihhat/api-client";
+import { api, ApiError, formatMoney, query, toMinor } from "@sihhat/api-client";
 import {
   Act,
   Badge,
@@ -82,6 +82,24 @@ export async function checkPublicAvailability(
   );
 }
 
+function formatAvailabilityError(err: unknown): string {
+  if (err instanceof ApiError) {
+    if (err.status === 404) {
+      return "Tekshiruv endpointi API serverda hali yangilanmagan (404). Backend serverni oxirgi versiyaga yangilang.";
+    }
+    if (err.status === 429) {
+      return "Tekshiruv urinishlari ko‘payib ketdi. Biroz kutib qayta urinib ko‘ring.";
+    }
+    if (err.status === 403 && err.message) {
+      return err.message;
+    }
+    if (err.message) {
+      return err.message;
+    }
+  }
+  return "Baza bilan tekshirib bo‘lmadi, qayta urinib ko‘ring.";
+}
+
 function PublicAvailabilityField({
   kind,
   label,
@@ -119,7 +137,7 @@ function PublicAvailabilityField({
   }, []);
 
   const triggerCheck = useCallback(
-    (raw: string) => {
+    (raw: string, immediate = false) => {
       if (timerRef.current) {
         clearTimeout(timerRef.current);
         timerRef.current = null;
@@ -154,12 +172,18 @@ function PublicAvailabilityField({
         }
       }
 
-      onStatusChange("checking", "Baza bilan tekshirilmoqda…", clean);
-      timerRef.current = setTimeout(async () => {
-        timerRef.current = null;
+      const execute = async () => {
         try {
           const res = await checkPublicAvailability(kind, clean);
           if (!mountedRef.current || seq !== seqRef.current) return;
+          if (!res || typeof res.valid !== "boolean" || typeof res.available !== "boolean") {
+            onStatusChange(
+              "error",
+              "Serverdan kutilmagan javob keldi, qayta urinib ko‘ring.",
+              clean,
+            );
+            return;
+          }
           if (!res.valid) {
             onStatusChange(
               "invalid",
@@ -187,15 +211,21 @@ function PublicAvailabilityField({
               clean,
             );
           }
-        } catch {
+        } catch (err) {
           if (!mountedRef.current || seq !== seqRef.current) return;
-          onStatusChange(
-            "error",
-            "Baza bilan tekshirib bo‘lmadi, qayta urinib ko‘ring.",
-            clean,
-          );
+          onStatusChange("error", formatAvailabilityError(err), clean);
         }
-      }, 300);
+      };
+
+      onStatusChange("checking", "Baza bilan tekshirilmoqda…", clean);
+      if (immediate) {
+        void execute();
+      } else {
+        timerRef.current = setTimeout(() => {
+          timerRef.current = null;
+          void execute();
+        }, 300);
+      }
     },
     [kind, onStatusChange],
   );
@@ -215,6 +245,11 @@ function PublicAvailabilityField({
               const next = e.target.value;
               onChange(next);
               triggerCheck(next);
+            }}
+            onBlur={() => {
+              if (value.trim() && (status === "idle" || status === "error")) {
+                triggerCheck(value, true);
+              }
             }}
             required
             disabled={disabled}
@@ -254,6 +289,19 @@ function PublicAvailabilityField({
               <X size={14} />
             )}
             <span>{message}</span>
+            {status === "error" && !disabled && (
+              <button
+                type="button"
+                className="text-button"
+                style={{ marginLeft: "auto", fontSize: 12, padding: 0 }}
+                onClick={(e) => {
+                  e.preventDefault();
+                  triggerCheck(value, true);
+                }}
+              >
+                Qayta tekshirish
+              </button>
+            )}
           </div>
         )}
       </div>
@@ -394,8 +442,8 @@ export function PartnerRegistrationModal({
       setPhone(cleanPhone);
       if (!contactPhone) setContactPhone(cleanPhone);
       return true;
-    } catch (e: any) {
-      setError(e?.message || "Username va emailni baza bilan tekshirib bo‘lmadi.");
+    } catch (e: unknown) {
+      setError(formatAvailabilityError(e));
       return false;
     } finally {
       setBusy(false);
