@@ -458,32 +458,29 @@ export function MyAccount({ changePassword }: { changePassword: () => void }) {
             rows={sessions.data?.data ?? []}
             columns={[
               {
-                label: "Qurilma / Brauzer",
-                render: (row) => {
-                  const isMobile = /mobile|android|iphone|ipad/i.test(row.deviceLabel || "");
-                  return (
-                    <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                      {isMobile ? <Smartphone size={18} color="var(--green)" /> : <Laptop size={18} color="var(--green)" />}
-                      <div>
-                        <strong>{row.deviceLabel}</strong>
-                        {row.current && (
-                          <div style={{ marginTop: "2px" }}>
-                            <span className="status-pill online" style={{ fontSize: "11px", padding: "1px 6px" }}>
-                              <span className="status-dot" /> Joriy qurilma
-                            </span>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  );
-                },
+                label: "Qurilma va ta’rifi",
+                render: (row) => (
+                  <DeviceCell
+                    deviceLabel={row.deviceLabel}
+                    channel={row.channel}
+                    userAgent={row.userAgent}
+                    deviceType={row.deviceType}
+                    deviceTypeLabel={row.deviceTypeLabel}
+                    browser={row.browser}
+                    os={row.os}
+                    channelLabel={row.channelLabel}
+                    deviceSummary={row.deviceSummary}
+                    current={Boolean(row.current)}
+                    isOnline={Boolean(row.isOnline)}
+                  />
+                ),
               },
               {
                 label: "IP manzil",
                 render: (row) => (
                   <span className="ip-chip">
                     <Globe size={12} />
-                    {row.ipAddress || "—"}
+                    {row.ipAddress || "unknown"}
                   </span>
                 ),
               },

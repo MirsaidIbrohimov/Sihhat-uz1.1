@@ -602,12 +602,18 @@ export function AuthHistoryPanel({
                 ),
               },
               {
-                label: "Qurilma",
+                label: "Qurilma va ta’rifi",
                 render: (r) => (
                   <DeviceCell
                     deviceLabel={r.deviceLabel}
                     channel={r.channel}
                     userAgent={r.userAgent}
+                    deviceType={r.deviceType}
+                    deviceTypeLabel={r.deviceTypeLabel}
+                    browser={r.browser}
+                    os={r.os}
+                    channelLabel={r.channelLabel}
+                    deviceSummary={r.deviceSummary}
                   />
                 ),
               },

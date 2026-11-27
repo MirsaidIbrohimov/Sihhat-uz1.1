@@ -36,6 +36,7 @@ import {
   api,
   ApiError,
   can,
+  query,
   restoreSession,
   type Actor,
 } from "@sihhat/api-client";
@@ -66,6 +67,7 @@ import {
   Profile,
   Staff,
   AppUsers,
+  QuickAccountProfileModal,
   Inventory,
   Bookings,
   Payments,
@@ -609,8 +611,12 @@ export function Portal({
     [tenantError, setTenantError] = useState(""),
     [cmdOpen, setCmdOpen] = useState(false),
     [cmdQuery, setCmdQuery] = useState(""),
+    [quickResults, setQuickResults] = useState<Row[]>([]),
+    [quickLoading, setQuickLoading] = useState(false),
+    [quickProfile, setQuickProfile] = useState<Row | null>(null),
     [pendingRegistrations, setPendingRegistrations] = useState(0);
   const sessionGeneration = useRef(0);
+  const lastAutoOpenedRef = useRef("");
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") {
@@ -624,6 +630,68 @@ export function Portal({
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [cmdOpen]);
+  useEffect(() => {
+    if (!cmdOpen) {
+      lastAutoOpenedRef.current = "";
+      setQuickResults([]);
+      setQuickLoading(false);
+      return;
+    }
+    const trimmed = cmdQuery.trim();
+    const isIdQuery = trimmed.startsWith("#") || /^\d{5,8}$/.test(trimmed);
+    const cleanBody = trimmed.replace(/^#+\s*/, "").trim();
+    if (!isIdQuery || !cleanBody) {
+      setQuickResults([]);
+      setQuickLoading(false);
+      return;
+    }
+    let active = true;
+    setQuickLoading(true);
+    const timer = setTimeout(() => {
+      const staffTenant = !admin
+        ? (actor?.memberships.find((m) => m.sanatoriumId === tenant && m.status === "ACTIVE")?.sanatoriumId ||
+           actor?.memberships.find((m) => m.status === "ACTIVE")?.sanatoriumId || "")
+        : "";
+      api(
+        "/auth/quick-lookup" +
+          query({
+            q: trimmed,
+            sanatorium_id: !admin && (tenant || staffTenant) ? (tenant || staffTenant) : undefined,
+            limit: 8,
+          }),
+      )
+        .then((res) => {
+          if (!active) return;
+          const items: Row[] = Array.isArray(res?.data) ? res.data : [];
+          setQuickResults(items);
+          setQuickLoading(false);
+          if (
+            /^#\s*\d{6}$/.test(trimmed) &&
+            res?.exactMatch &&
+            lastAutoOpenedRef.current !== trimmed
+          ) {
+            lastAutoOpenedRef.current = trimmed;
+            setCmdOpen(false);
+            if (res.exactMatch.matchType === "SELF") {
+              window.history.pushState({}, "", portalUrl("account", basePath));
+              setSection("account");
+              setEpoch((value) => value + 1);
+            } else {
+              setQuickProfile(res.exactMatch);
+            }
+          }
+        })
+        .catch(() => {
+          if (!active) return;
+          setQuickResults([]);
+          setQuickLoading(false);
+        });
+    }, 120);
+    return () => {
+      active = false;
+      clearTimeout(timer);
+    };
+  }, [cmdOpen, cmdQuery, admin, tenant, actor, basePath]);
   useEffect(() => {
     const media = window.matchMedia("(max-width: 760px)");
     const sync = () => {
@@ -825,7 +893,9 @@ export function Portal({
         : !l.permission || allowed(l.permission)),
   );
   const authorized =
-    menuLinks.some((l) => l.id === section) || section === "messages";
+    menuLinks.some((l) => l.id === section) ||
+    section === "messages" ||
+    (section === "auth-events" && allowed("audit.read"));
   const changePassword = () =>
     setForm({
       title: "Parolni almashtirish",
@@ -906,6 +976,8 @@ export function Portal({
         return <Support />;
       case "audit":
         return <Audit />;
+      case "auth-events":
+        return <Audit initialView="auth" />;
       case "reconciliation":
         return <Reconciliation />;
       case "notifications":
@@ -1078,7 +1150,7 @@ export function Portal({
                 }}
               >
                 <Search size={15} aria-hidden="true" />
-                <span>Bo‘lim, bron yoki mijoz #ID...</span>
+                <span>Bo‘lim yoki #ID (user / hamkor)...</span>
                 <kbd>Ctrl + K</kbd>
               </button>
             </div>
@@ -1192,7 +1264,9 @@ export function Portal({
                   ? "Hisobotlar"
                   : section === "messages"
                     ? "E’lonlar va xabarlar"
-                    : menuLinks.find((item) => item.id === section)?.label}
+                    : section === "auth-events"
+                      ? "Kirish va chiqish tarixi"
+                      : menuLinks.find((item) => item.id === section)?.label}
               </div>
               <div className="breadcrumb-meta-v3" aria-hidden="true">
                 <span>Asia/Tashkent · 0% komissiya · Jonli sinxronizatsiya</span>
@@ -1216,16 +1290,77 @@ export function Portal({
             className="command-palette"
             role="dialog"
             aria-modal="true"
-            aria-label="Tezkor bo‘limga o‘tish"
+            aria-label="Tezkor qidiruv va #ID profilni ochish"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="command-palette-head">
               <Search size={18} aria-hidden="true" />
               <input
                 type="search"
-                placeholder="Bo‘lim nomini yozing (masalan: Shaxmatka, Bronlar, Moliya)..."
+                placeholder="#ID yozing (masalan: #482915 — user yoki hamkor) yoki bo‘lim nomi..."
                 value={cmdQuery}
                 onChange={(e) => setCmdQuery(e.target.value)}
+                onKeyDown={async (e) => {
+                  if (e.key !== "Enter") return;
+                  const trimmed = cmdQuery.trim();
+                  if (!trimmed) return;
+                  const isIdQuery = trimmed.startsWith("#") || /^\d{5,8}$/.test(trimmed);
+                  if (isIdQuery) {
+                    e.preventDefault();
+                    const cleanBody = trimmed.replace(/^#+\s*/, "").trim();
+                    if (!cleanBody) return;
+                    const pickAndOpen = (item: Row | null | undefined) => {
+                      if (!item) {
+                        notice(`${trimmed.startsWith("#") ? trimmed : `#${trimmed}`} ID raqamli foydalanuvchi yoki hamkor topilmadi`);
+                        return;
+                      }
+                      lastAutoOpenedRef.current = trimmed;
+                      setCmdOpen(false);
+                      if (item.matchType === "SELF") {
+                        go("account");
+                      } else {
+                        setQuickProfile(item);
+                      }
+                    };
+                    const existingExact =
+                      quickResults.find((it) => it.exactIdMatch) ??
+                      (!quickLoading && quickResults.length > 0 ? quickResults[0] : null);
+                    if (existingExact) {
+                      pickAndOpen(existingExact);
+                      return;
+                    }
+                    try {
+                      setQuickLoading(true);
+                      const res = await api(
+                        "/auth/quick-lookup" +
+                          query({
+                            q: trimmed,
+                            sanatorium_id: !admin && effectiveTenant ? effectiveTenant : undefined,
+                            limit: 8,
+                          }),
+                      );
+                      setQuickLoading(false);
+                      pickAndOpen(res?.exactMatch ?? res?.data?.[0] ?? null);
+                    } catch (err) {
+                      setQuickLoading(false);
+                      notice((err as Error).message);
+                    }
+                    return;
+                  }
+                  const qLower = trimmed.toLowerCase();
+                  const firstNav = menuLinks.find((item) => {
+                    const lbl =
+                      accountant && item.id === "dashboard"
+                        ? "hisobotlar"
+                        : item.label.toLowerCase();
+                    return lbl.includes(qLower) || item.id.toLowerCase().includes(qLower);
+                  });
+                  if (firstNav) {
+                    e.preventDefault();
+                    setCmdOpen(false);
+                    go(firstNav.id);
+                  }
+                }}
                 autoFocus
               />
               <button
@@ -1238,10 +1373,96 @@ export function Portal({
               </button>
             </div>
             <div className="command-palette-list">
+              {(() => {
+                const trimmed = cmdQuery.trim();
+                const isIdQuery = trimmed.startsWith("#") || /^\d{5,8}$/.test(trimmed);
+                const cleanBody = trimmed.replace(/^#+\s*/, "").trim();
+                if (isIdQuery) {
+                  return (
+                    <>
+                      <div className="quick-lookup-section-title">
+                        #ID bo‘yicha User va Hamkorlar qidiruvi
+                      </div>
+                      {!cleanBody ? (
+                        <div className="quick-lookup-empty">
+                          <strong>#</strong> dan keyin 6 xonali ID raqamni kiriting (masalan: <code>#482915</code>) — mos User yoki Hamkor profili darhol ochiladi.
+                        </div>
+                      ) : quickLoading ? (
+                        <div className="quick-lookup-empty">ID tekshirilmoqda…</div>
+                      ) : quickResults.length === 0 ? (
+                        <div className="quick-lookup-empty">
+                          <strong>{trimmed.startsWith("#") ? trimmed : `#${trimmed}`}</strong> ID raqamiga mos foydalanuvchi yoki hamkor topilmadi.
+                        </div>
+                      ) : (
+                        quickResults.map((item) => {
+                          const u = item.user ?? {};
+                          const st = item.staff;
+                          const pubId = formatUserPublicId(u);
+                          const isPartner = item.matchType === "PARTNER";
+                          const isSelf = item.matchType === "SELF";
+                          const subtitle = isSelf
+                            ? "🛡️ Sizning Superadmin profilingiz"
+                            : isPartner
+                              ? `🏥 Hamkor (${label[st?.role] ?? st?.role ?? "Xodim"}${st?.sanatoriumName ? ` · ${st.sanatoriumName}` : ""})`
+                              : `📱 Ilova foydalanuvchisi${u.phone ? ` · ${u.phone}` : u.email ? ` · ${u.email}` : ""}`;
+                          return (
+                            <button
+                              type="button"
+                              key={`${item.matchType}-${u.id}`}
+                              className={`quick-lookup-item ${item.exactIdMatch ? "exact" : ""}`}
+                              onClick={() => {
+                                lastAutoOpenedRef.current = trimmed;
+                                setCmdOpen(false);
+                                if (isSelf) {
+                                  go("account");
+                                } else {
+                                  setQuickProfile(item);
+                                }
+                              }}
+                            >
+                              <div className="quick-lookup-avatar">
+                                {u.avatarUrl ? (
+                                  <img src={u.avatarUrl} alt={u.name || "Profil"} />
+                                ) : (
+                                  (u.name || "U").slice(0, 1).toUpperCase()
+                                )}
+                              </div>
+                              <div className="quick-lookup-meta">
+                                <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                                  <strong style={{ fontSize: 13.5 }}>{u.name || "Foydalanuvchi"}</strong>
+                                  <span className="id-chip">#{pubId}</span>
+                                  {u.isOnline && (
+                                    <span className="badge green" style={{ fontSize: 10, padding: "1px 6px" }}>
+                                      Onlayn
+                                    </span>
+                                  )}
+                                </div>
+                                <span style={{ fontSize: 12, color: "var(--muted)" }}>{subtitle}</span>
+                              </div>
+                              <span
+                                style={{
+                                  fontSize: 12,
+                                  fontWeight: 700,
+                                  color: "var(--green)",
+                                  whiteSpace: "nowrap",
+                                }}
+                              >
+                                Profilni ochish →
+                              </span>
+                            </button>
+                          );
+                        })
+                      )}
+                    </>
+                  );
+                }
+                return null;
+              })()}
               {menuLinks
                 .filter((item) => {
                   const q = cmdQuery.trim().toLowerCase();
                   if (!q) return true;
+                  if (q.startsWith("#")) return false;
                   const lbl =
                     accountant && item.id === "dashboard"
                       ? "hisobotlar"
@@ -1270,6 +1491,12 @@ export function Portal({
             </div>
           </section>
         </div>
+      )}
+      {quickProfile && (
+        <QuickAccountProfileModal
+          match={quickProfile}
+          onClose={() => setQuickProfile(null)}
+        />
       )}
       {form && (
         <FormDialog spec={form} onClose={() => setForm(null)} notice={notice} />

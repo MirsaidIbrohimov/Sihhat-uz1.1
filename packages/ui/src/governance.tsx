@@ -27,7 +27,7 @@ import {
 import { api, formatMoney, query } from "@sihhat/api-client";
 import { prepareAvatarDataUrl, validateAvatarFile } from "./avatar";
 import { formatUserPublicId } from "./account";
-import { UserAuthHistoryModal } from "./auth-history";
+import { ActiveDevicesSection, UserAuthHistoryModal } from "./auth-history";
 import { ProfileWizard } from "./wizard";
 import { ListFilters, useSavedFilters } from "./list-filters";
 import { newPasswordFields } from "./password-fields";
@@ -1714,6 +1714,21 @@ export function Staff() {
               ctx.tenants.find((s) => s.id === r.sanatoriumId)?.name ?? "—",
           },
           { label: "Lavozim", render: (r) => label[r.role] },
+          {
+            label: "Kirilgan qurilma",
+            render: (r) => {
+              const u = r.user ?? {};
+              return (
+                <div>
+                  <strong style={{ fontSize: 12.5 }}>{u.device || "Veb panel"}</strong>
+                  <span className="subcell" style={{ display: "block" }}>
+                    {u.deviceSummary || (u.lastIp ? `IP: ${u.lastIp}` : "Sessiya ma’lumoti")}
+                    {u.deviceSummary && u.lastIp ? ` · IP: ${u.lastIp}` : ""}
+                  </span>
+                </div>
+              );
+            },
+          },
           statusColumn,
           { label: "Faol vakolatlar", render: (r) => r.permissions.length },
         ]}
@@ -1946,7 +1961,7 @@ function StaffManageModal({
   sanatoriumName: string;
   onClose: () => void;
   onRefresh: () => void;
-  onEditPermissions: (r: Row) => void;
+  onEditPermissions?: (r: Row) => void;
   notice: (msg: string) => void;
 }) {
   const u = staff.user ?? {};
@@ -1964,6 +1979,10 @@ function StaffManageModal({
   const [sessionsCount, setSessionsCount] = useState<number>(
     Number(u.activeSessionsCount ?? 0),
   );
+  const [activeDevices, setActiveDevices] = useState<Row[]>(
+    Array.isArray(u.activeDevices) ? u.activeDevices : [],
+  );
+  const [showHistory, setShowHistory] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
@@ -2104,6 +2123,7 @@ function StaffManageModal({
         {},
       );
       setSessionsCount(0);
+      setActiveDevices([]);
       notice(
         res.revoked_count
           ? `${res.revoked_count} ta faol sessiya yopildi`
@@ -2314,18 +2334,29 @@ function StaffManageModal({
             </span>
           </div>
 
+          <ActiveDevicesSection
+            devices={activeDevices}
+            lastDevice={u.device}
+            lastDeviceSummary={u.deviceSummary}
+            lastIp={u.lastIp}
+            lastSeenAt={u.lastSeenAt}
+            onOpenHistory={staffUserId ? () => setShowHistory(true) : undefined}
+          />
+
           {error && <ErrorBox message={error} />}
 
           <div className="customer-manage-footer">
             <div className="customer-manage-actions">
-              <button
-                type="button"
-                className="button secondary"
-                disabled={busy}
-                onClick={() => onEditPermissions(staff)}
-              >
-                <ShieldCheck size={15} /> Ruxsatlarni sozlash
-              </button>
+              {onEditPermissions && (
+                <button
+                  type="button"
+                  className="button secondary"
+                  disabled={busy}
+                  onClick={() => onEditPermissions(staff)}
+                >
+                  <ShieldCheck size={15} /> Ruxsatlarni sozlash
+                </button>
+              )}
               <button
                 type="button"
                 className="button secondary"
@@ -2350,6 +2381,18 @@ function StaffManageModal({
             </div>
           </div>
         </form>
+        {showHistory && staffUserId && (
+          <UserAuthHistoryModal
+            mode="superadmin"
+            user={{
+              id: staffUserId,
+              name: u.name,
+              login: u.login,
+              publicId: u.publicId,
+            }}
+            onClose={() => setShowHistory(false)}
+          />
+        )}
       </section>
     </div>
   );
@@ -2381,6 +2424,10 @@ function CustomerManageModal({
   const [sessionsCount, setSessionsCount] = useState<number>(
     Number(user.activeSessionsCount ?? 0),
   );
+  const [activeDevices, setActiveDevices] = useState<Row[]>(
+    Array.isArray(user.activeDevices) ? user.activeDevices : [],
+  );
+  const [showHistory, setShowHistory] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const loginVerifierRef = useRef<(() => Promise<string | null>) | null>(null);
@@ -2498,6 +2545,7 @@ function CustomerManageModal({
         {},
       );
       setSessionsCount(0);
+      setActiveDevices([]);
       notice(
         res.revoked_count
           ? `${res.revoked_count} ta faol sessiya yopildi`
@@ -2643,6 +2691,15 @@ function CustomerManageModal({
             <span>Faol sessiyalar: <strong>{sessionsCount} ta</strong></span>
           </div>
 
+          <ActiveDevicesSection
+            devices={activeDevices}
+            lastDevice={user.device}
+            lastDeviceSummary={user.deviceSummary}
+            lastIp={user.lastIp}
+            lastSeenAt={user.lastSeenAt}
+            onOpenHistory={user.id ? () => setShowHistory(true) : undefined}
+          />
+
           {error && <ErrorBox message={error} />}
 
           <div className="customer-manage-footer">
@@ -2693,6 +2750,18 @@ function CustomerManageModal({
             </div>
           </div>
         </form>
+        {showHistory && user.id && (
+          <UserAuthHistoryModal
+            mode="superadmin"
+            user={{
+              id: String(user.id),
+              name: user.name,
+              login: user.login,
+              publicId: user.publicId,
+            }}
+            onClose={() => setShowHistory(false)}
+          />
+        )}
       </section>
     </div>
   );
@@ -2878,13 +2947,16 @@ export function AppUsers() {
             render: (r) => date(r.createdAt),
           },
           {
-            label: "Oxirgi faollik",
+            label: "Oxirgi faollik va qurilma",
             render: (r) => (
               <div>
                 <div>{date(r.lastSeenAt)}</div>
-                <span className="subcell">
+                <strong style={{ fontSize: 12.5, display: "block", marginTop: 2 }}>
                   {r.device}
-                  {r.lastIp ? ` · ${r.lastIp}` : ""}
+                </strong>
+                <span className="subcell">
+                  {r.deviceSummary ? `${r.deviceSummary}` : ""}
+                  {r.lastIp ? `${r.deviceSummary ? " · " : ""}IP: ${r.lastIp}` : ""}
                 </span>
               </div>
             ),
@@ -2977,6 +3049,260 @@ export function AppUsers() {
         </div>
       )}
     </>
+  );
+}
+
+export function QuickAccountProfileModal({
+  match,
+  onClose,
+}: {
+  match: Row;
+  onClose: () => void;
+}) {
+  const ctx = usePortal();
+  const [showHistory, setShowHistory] = useState(false);
+
+  if (ctx.admin && match.matchType === "PARTNER" && match.staff) {
+    const st = match.staff;
+    const sanName =
+      st.sanatoriumName ??
+      ctx.tenants.find((s) => s.id === st.sanatoriumId)?.name ??
+      "Sanatoriya";
+    const openPermissions = (r: Row) => {
+      const defaults =
+        r.role === "DIRECTOR"
+          ? Object.keys(permissions)
+          : r.role === "ACCOUNTANT"
+            ? accountantDefaults
+            : receptionDefaults;
+      const selected = Array.from(
+        new Set([...defaults, ...(r.grants ?? [])]),
+      ).filter(
+        (p) =>
+          !(r.denies ?? []).includes(p) &&
+          !(r.adminDenies ?? []).includes(p) &&
+          (!r.ceiling?.length || r.ceiling.includes(p)) &&
+          (r.role !== "ACCOUNTANT" || accountantDefaults.includes(p)),
+      );
+      onClose();
+      ctx.form({
+        title: `${r.user?.name || "Xodim"} ruxsatlari`,
+        description:
+          "Har bir ruxsatni yoqish yoki o‘chirish orqali vakolatlarni belgilang.",
+        fields: [
+          {
+            key: "permissions",
+            label: "Ruxsat etilgan amallar",
+            type: "switches",
+            value: selected,
+            options: Object.entries(permissions)
+              .filter(
+                ([value]) =>
+                  r.role !== "ACCOUNTANT" || accountantDefaults.includes(value),
+              )
+              .map(([value, lbl]) => ({ value, label: lbl })),
+          },
+        ],
+        submit: (v) => {
+          const picked = v.permissions as string[];
+          return api(`/partner/staff/${r.id}/permissions`, "PATCH", {
+            version: r.version,
+            grants: picked.filter((p) => !defaults.includes(p)),
+            denies: defaults.filter((p) => !picked.includes(p)),
+          });
+        },
+        done: ctx.refresh,
+      });
+    };
+    return (
+      <StaffManageModal
+        staff={st}
+        sanatoriumName={sanName}
+        onClose={onClose}
+        onRefresh={ctx.refresh}
+        onEditPermissions={openPermissions}
+        notice={ctx.notice}
+      />
+    );
+  }
+
+  if (ctx.admin && match.matchType === "USER" && match.user) {
+    const u = match.user;
+    const toggleStatus = (r: Row) => {
+      const isBlock = r.status === "ACTIVE";
+      ctx.form({
+        title: isBlock ? "Foydalanuvchini bloklash" : "Foydalanuvchini faollashtirish",
+        description: isBlock
+          ? `${r.name} ilovaga kira olmaydi va barcha faol seanslari bekor qilinadi.`
+          : `${r.name} hisobi qayta faollashtiriladi.`,
+        fields: [
+          {
+            key: "reason",
+            label: "Sabab / Izoh",
+            type: "textarea",
+            required: isBlock,
+            value: isBlock ? "Qoidabuzarlik yoki admin cheklovi" : "Cheklov bekor qilindi",
+          },
+        ],
+        submit: (v) =>
+          api(`/superadmin/customers/${r.id}/toggle-status`, "POST", {
+            status: isBlock ? "BLOCKED" : "ACTIVE",
+            reason: v.reason,
+          }),
+        done: ctx.refresh,
+      });
+    };
+    const deleteUser = (r: Row) => {
+      ctx.form({
+        title: "Foydalanuvchini butunlay o‘chirish",
+        description: `«${r.name}» (ID: #${formatUserPublicId(r)}) hisobini tizimdan butunlay o‘chirib tashlamoqchimisiz? Ushbu amalni ortga qaytarib bo‘lmaydi.`,
+        fields: [],
+        button: "Ha, butunlay o‘chirilsin",
+        submit: () => api(`/superadmin/customers/${r.id}`, "DELETE", {}),
+        done: ctx.refresh,
+      });
+    };
+    return (
+      <CustomerManageModal
+        user={u}
+        onClose={onClose}
+        onRefresh={ctx.refresh}
+        onToggleStatus={toggleStatus}
+        onDelete={deleteUser}
+        notice={ctx.notice}
+      />
+    );
+  }
+
+  const u = match.user ?? {};
+  const st = match.staff;
+  const isPartner = match.matchType === "PARTNER";
+  const canSeeHistory =
+    ctx.admin ||
+    u.id === ctx.actor.id ||
+    (isPartner && ctx.allowed("audit.read"));
+
+  return (
+    <div className="modal-backdrop" onClick={onClose}>
+      <section
+        className="modal customer-manage-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-label={`${u.name || "Foydalanuvchi"} profili`}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="modal-heading">
+          <div>
+            <h2>
+              {u.name || "Foydalanuvchi"} · ID #{formatUserPublicId(u)}
+            </h2>
+            <p className="muted">
+              {isPartner
+                ? `Hamkor xodimi (${label[st?.role] ?? st?.role ?? "Xodim"}${st?.sanatoriumName ? ` · ${st.sanatoriumName}` : ""})`
+                : "Ilova foydalanuvchisi (Mijoz) profili"}
+            </p>
+          </div>
+          <button
+            className="icon-button"
+            type="button"
+            aria-label="Yopish"
+            onClick={onClose}
+          >
+            <X size={20} />
+          </button>
+        </div>
+
+        <div className="customer-manage-photo">
+          <div className="customer-manage-avatar">
+            {u.avatarUrl ? (
+              <img src={u.avatarUrl} alt={u.name || "Profil"} />
+            ) : (
+              <span>{(u.name || "U").slice(0, 1).toUpperCase()}</span>
+            )}
+          </div>
+          <div className="customer-manage-photo-meta">
+            <strong>{u.name || "Foydalanuvchi"}</strong>
+            <p className="muted">
+              ID: <strong>#{formatUserPublicId(u)}</strong>
+              {u.login ? ` · @${u.login}` : ""}
+              {u.isOnline ? " · Hozir onlayn" : ""}
+            </p>
+          </div>
+        </div>
+
+        <div className="customer-manage-form">
+          <div className="customer-manage-summary">
+            <span>Telefon: <strong>{u.phone || "—"}</strong></span>
+            <span>Email: <strong>{u.email || "—"}</strong></span>
+            <span>Holat: <strong>{label[st?.status ?? u.status] ?? u.status ?? "Faol"}</strong></span>
+            {!isPartner && (
+              <>
+                <span>Bronlar: <strong>{u.bookingsCount ?? 0} ta</strong></span>
+                <span>Murojaatlar: <strong>{u.ticketsCount ?? 0} ta</strong></span>
+              </>
+            )}
+          </div>
+
+          {canSeeHistory && (
+            <ActiveDevicesSection
+              devices={u.activeDevices}
+              lastDevice={u.device}
+              lastDeviceSummary={u.deviceSummary}
+              lastIp={u.lastIp}
+              lastSeenAt={u.lastSeenAt}
+              onOpenHistory={u.id ? () => setShowHistory(true) : undefined}
+            />
+          )}
+
+          <div className="customer-manage-footer">
+            <div className="customer-manage-actions">
+              {isPartner && ctx.allowed("staff.invite") && (
+                <button
+                  type="button"
+                  className="button secondary"
+                  onClick={() => {
+                    onClose();
+                    ctx.go("staff");
+                  }}
+                >
+                  <Users size={15} /> Jamoa bo‘limida ko‘rish
+                </button>
+              )}
+              {!isPartner && ctx.allowed("bookings.read") && (
+                <button
+                  type="button"
+                  className="button secondary"
+                  onClick={() => {
+                    onClose();
+                    ctx.go("bookings");
+                  }}
+                >
+                  <BookOpen size={15} /> Bronlar bo‘limiga o‘tish
+                </button>
+              )}
+            </div>
+            <div className="customer-manage-save">
+              <button type="button" className="button primary" onClick={onClose}>
+                Yopish
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {showHistory && u.id && (
+          <UserAuthHistoryModal
+            mode={ctx.admin ? "superadmin" : "partner"}
+            user={{
+              id: String(u.id),
+              name: u.name,
+              login: u.login,
+              publicId: u.publicId,
+            }}
+            onClose={() => setShowHistory(false)}
+          />
+        )}
+      </section>
+    </div>
   );
 }
 

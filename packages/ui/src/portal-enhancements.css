@@ -1414,9 +1414,82 @@
   color: var(--muted);
 }
 
+.quick-lookup-section-title {
+  padding: 6px 12px 4px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.quick-lookup-item {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 14px;
+  border: 1px solid var(--line);
+  background: var(--soft);
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.quick-lookup-item:hover,
+.quick-lookup-item.exact {
+  border-color: var(--green);
+  background: var(--green-light);
+}
+
+.quick-lookup-avatar {
+  position: relative;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: var(--green);
+  color: #ffffff;
+  font-weight: 800;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  overflow: hidden;
+}
+
+.quick-lookup-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.quick-lookup-meta {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.quick-lookup-empty {
+  padding: 16px 14px;
+  text-align: center;
+  font-size: 13px;
+  color: var(--muted);
+}
+
 @media (max-width: 1100px) {
-  .command-search-trigger,
   .system-health-pill {
+    display: none;
+  }
+  .command-search-trigger {
+    min-width: 0;
+    padding: 7px 12px;
+  }
+  .command-search-trigger kbd {
     display: none;
   }
   .crm-funnel-grid {
@@ -1427,6 +1500,12 @@
   }
 }
 @media (max-width: 640px) {
+  .command-search-trigger span {
+    max-width: 135px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
   .crm-funnel-grid {
     grid-template-columns: 1fr;
   }

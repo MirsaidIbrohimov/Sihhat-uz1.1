@@ -5046,17 +5046,38 @@ const auditLabels: Record<string, string> = {
   "telegram.link_confirmed": "Telegram bot ulandi",
   "telegram.disconnected": "Telegram bot uzildi",
   "media.uploaded": "Fayl/surat yuklandi",
+  "message.sent": "Xabar / e’lon yuborildi",
+  "message.broadcast": "Ommaviy e’lon yuborildi",
+  "message.deleted": "E’lon o‘chirildi",
+  "support.opened": "Yangi yordam murojaati ochildi",
+  "support.replied": "Yordam suhbatiga javob yozildi",
+  "support.closed": "Yordam murojaati yopildi",
+  "review.created": "Yangi sharh qoldirildi",
+  "review.replied": "Sharhga javob yozildi",
+  "review.moderated": "Sharh moderatsiya qilindi",
+  "task.created": "Vazifa yaratildi",
+  "task.updated": "Vazifa holati yangilandi",
+  "inventory.room_type_created": "Xona turi qo‘shildi",
+  "inventory.room_created": "Xona qo‘shildi",
+  "inventory.block_created": "Xona ta’mirga yopildi",
+  "inventory.block_released": "Xona ta’mirdan ochildi",
+  "pricing.rate_plan_created": "Tarif rejasi yaratildi",
+  "pricing.rate_plan_updated": "Tarif rejasi yangilandi",
 };
 function formatAuditDetail(r: Row): string {
   const after = (r.after && typeof r.after === "object" ? r.after : {}) as Record<string, any>;
   const before = (r.before && typeof r.before === "object" ? r.before : {}) as Record<string, any>;
-  if (r.action === "auth.login" || r.action === "auth.logout" || r.action === "auth.otp_login") {
+  if (r.action === "auth.login" || r.action === "auth.logout" || r.action === "auth.otp_login" || r.action === "auth.staff_login") {
     const parts = [
       after.device,
       after.ip ? `IP: ${after.ip}` : null,
+      after.channel === "MOBILE" ? "Mobil ilova" : after.channel === "WEB" ? "Veb panel" : null,
       after.method,
     ].filter(Boolean);
-    return parts.join(" · ") || "Hisob sessiyasi";
+    return parts.join(" · ") || "Hisobga kirish/chiqish sessiyasi";
+  }
+  if (r.action === "auth.session_revoked") {
+    return r.entityId ? `Yopilgan sessiya: ${String(r.entityId).slice(0, 8)}…` : "Boshqa qurilma sessiyasi yopildi";
   }
   if (r.action === "auth.bruteforce_alert") {
     const parts = [
@@ -5075,7 +5096,7 @@ function formatAuditDetail(r: Row): string {
   }
   if (r.action === "auth.other_sessions_revoked" || r.action === "staff.sessions_revoked" || r.action === "customer.sessions_revoked") {
     const count = after.count ?? after.revoked_count;
-    return count !== undefined ? `${count} ta sessiya yopildi` : "Sessiyalar yopildi";
+    return count !== undefined ? `${count} ta faol qurilma sessiyasi yopildi` : "Sessiyalar yopildi";
   }
   if (r.action === "customer.deleted") {
     const parts = [
@@ -5084,7 +5105,14 @@ function formatAuditDetail(r: Row): string {
       before.login ? `@${before.login}` : null,
       before.email,
     ].filter(Boolean);
-    return parts.join(" · ") || "Foydalanuvchi hisobi";
+    return parts.join(" · ") || "Foydalanuvchi hisobi o‘chirildi";
+  }
+  if (r.action === "customer.status_updated") {
+    const parts = [
+      after.status ? `Holat: ${label[after.status] ?? after.status}` : null,
+      after.reason,
+    ].filter(Boolean);
+    return parts.join(" · ") || "Mijoz holati o‘zgartirildi";
   }
   if (r.action === "superadmin.all_accounts_cleared") {
     const count = before.deletedCount ?? before.deleted_count;
@@ -5097,7 +5125,7 @@ function formatAuditDetail(r: Row): string {
       after.email,
       after.reason,
     ].filter(Boolean);
-    return parts.join(" · ") || "Hamkor arizasi";
+    return parts.join(" · ") || "Hamkor ro‘yxatdan o‘tish arizasi";
   }
   if (r.action === "support.assigned" || r.action === "support.unassigned") {
     const parts = [after.assigned_to_name, after.sanatorium_name, after.note].filter(Boolean);
@@ -5108,28 +5136,80 @@ function formatAuditDetail(r: Row): string {
       after.name,
       after.login ? `@${after.login}` : null,
       after.email,
-      after.role,
-      after.status,
+      after.phone,
+      after.role ? (label[after.role] ?? after.role) : null,
+      after.status ? (label[after.status] ?? after.status) : null,
+      after.passwordChanged ? "parol yangilandi" : null,
     ].filter(Boolean);
-    return parts.join(" · ") || "Profil yangilandi";
+    return parts.join(" · ") || "Profil ma’lumotlari yangilandi";
   }
-  if (r.action === "sanatorium.created") {
-    return after.name || "Yangi sanatoriya";
+  if (r.action === "staff.invited" || r.action === "staff.director_assigned") {
+    const parts = [
+      after.role ? (label[after.role] ?? after.role) : r.action === "staff.director_assigned" ? "Direktor" : null,
+      after.status ? (label[after.status] ?? after.status) : null,
+      Array.isArray(after.grants) && after.grants.length ? `${after.grants.length} ta ruxsat` : null,
+    ].filter(Boolean);
+    return parts.join(" · ") || "Jamoa a’zosi biriktirildi";
+  }
+  if (r.action === "staff.permissions_updated") {
+    const grantsCount = Array.isArray(after.grants) ? after.grants.length : null;
+    const deniesCount = Array.isArray(after.denies) ? after.denies.length : null;
+    const parts = [
+      grantsCount !== null ? `Berilgan: ${grantsCount} ta` : null,
+      deniesCount ? `Cheklangan: ${deniesCount} ta` : null,
+    ].filter(Boolean);
+    return parts.join(" · ") || "Xodim vakolatlari yangilandi";
+  }
+  if (r.action.startsWith("sanatorium.")) {
+    const parts = [
+      after.name || before.name,
+      after.featured !== undefined ? (after.featured ? "Bosh sahifaga qo‘shildi" : "Bosh sahifadan olindi") : null,
+      after.payment_ready !== undefined ? (after.payment_ready ? "Onlayn bron ochiq" : "Onlayn bron yopiq") : null,
+      after.reason,
+      after.status ? (label[after.status] ?? after.status) : null,
+    ].filter(Boolean);
+    return parts.join(" · ") || "Sanatoriya ma’lumotlari";
+  }
+  if (r.action.startsWith("booking.")) {
+    const parts = [
+      after.reference || before.reference,
+      after.guest?.name || before.guest?.name,
+      after.status ? (label[after.status] ?? after.status) : null,
+      after.reason,
+    ].filter(Boolean);
+    return parts.join(" · ") || (r.entityId ? `Bron: ${String(r.entityId).slice(0, 8)}…` : "Bron amali");
+  }
+  if (r.action.startsWith("payment.") || r.action.startsWith("offline_payment.") || r.action.startsWith("refund.") || r.action.startsWith("payout.")) {
+    const parts = [
+      after.method,
+      after.provider,
+      after.status ? (label[after.status] ?? after.status) : null,
+      after.reason,
+    ].filter(Boolean);
+    return parts.join(" · ") || (r.entityId ? `ID: ${String(r.entityId).slice(0, 8)}…` : "Moliyaviy amal");
   }
   if (r.action === "report.exported") {
     const parts = [after.format, after.from && after.to ? `${after.from} — ${after.to}` : null].filter(Boolean);
     return parts.join(" · ") || "Hisobot yuklandi";
   }
+  if (after.title || before.title) return String(after.title || before.title);
+  if (after.name || before.name) return String(after.name || before.name);
   if (after.reason) return String(after.reason);
   if (r.note) return String(r.note);
-  if (after.status) return `Holat: ${after.status}`;
-  return "—";
+  if (after.status) return `Holat: ${label[after.status] ?? after.status}`;
+  if (r.entityId) return `Obyekt: ${String(r.entityId).slice(0, 12)}`;
+  return "Tizim amali bajarildi";
 }
-export function Audit() {
+export function Audit({ initialView = "all" }: { initialView?: "all" | "auth" | "actions" }) {
   const ctx = usePortal();
-  const [view, setView] = useState<"all" | "auth" | "actions">("all");
+  const [view, setView] = useState<"all" | "auth" | "actions">(initialView);
   const [selectedSanatorium, setSelectedSanatorium] = useState("");
   const [actionFilter, setActionFilter] = useState("");
+  const [auditSearchInput, setAuditSearchInput] = useState("");
+  const [auditQ, setAuditQ] = useState("");
+  useEffect(() => {
+    setView(initialView);
+  }, [initialView]);
   const effectiveSanatorium = ctx.admin
     ? selectedSanatorium || undefined
     : ctx.tenant || undefined;
@@ -5137,7 +5217,7 @@ export function Audit() {
     <>
       <PageHeading
         title="Amallar tarixi"
-        subtitle="Har bir hisobga kirish-chiqish qurilmasi va IP manzili, shuningdek parol, hamkor arizalari, bronlar va tizim amallari tarixi."
+        subtitle="Har bir hisobga kirilgan qurilmalar ta’rifi va IP manzili, shuningdek parol, hamkor arizalari, bronlar va tizim amallari tarixi."
       />
       <div
         className="toolbar"
@@ -5156,7 +5236,7 @@ export function Audit() {
             className={`tab ${view === "auth" ? "active" : ""}`}
             onClick={() => setView("auth")}
           >
-            Kirish va chiqish tarixi (Qurilma & IP)
+            Kirilgan qurilmalar tarixi (Qurilma & IP)
           </button>
           <button
             type="button"
@@ -5166,7 +5246,28 @@ export function Audit() {
             Tizim amallari
           </button>
         </div>
-        <div className="toolbar" style={{ margin: 0, gap: 8 }}>
+        <div className="toolbar" style={{ margin: 0, gap: 8, alignItems: "center" }}>
+          {(view === "all" || view === "actions") && (
+            <>
+              <input
+                type="search"
+                placeholder="Amal, ism, #ID yoki @login..."
+                value={auditSearchInput}
+                onChange={(e) => setAuditSearchInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") setAuditQ(auditSearchInput.trim());
+                }}
+                style={{ minWidth: 200 }}
+              />
+              <button
+                type="button"
+                className="button secondary"
+                onClick={() => setAuditQ(auditSearchInput.trim())}
+              >
+                <Search size={15} /> Qidirish
+              </button>
+            </>
+          )}
           {ctx.admin && ctx.tenants.length > 0 && (
             <select
               aria-label="Sanatoriya filtri"
@@ -5189,11 +5290,14 @@ export function Audit() {
             >
               <option value="">Barcha tizim amallari</option>
               <option value="auth.login">Hisobga kirishlar</option>
+              <option value="auth.otp_login">Mobil OTP kirishlar</option>
               <option value="auth.logout">Hisobdan chiqishlar</option>
               <option value="auth.password_changed">Parol yangilanishi</option>
               <option value="staff.password_reset">Xodim paroli tiklanishi</option>
               <option value="staff.invited">Xodim qo‘shilishi</option>
               <option value="staff.approved">Xodim tasdiqlanishi</option>
+              <option value="staff.profile_updated">Xodim profili tahriri</option>
+              <option value="customer.profile_updated">Mijoz profili tahriri</option>
               <option value="partner.registration_submitted">Hamkor arizasi yuborilishi</option>
               <option value="partner.registration_approved">Hamkor arizasi tasdiqlanishi</option>
               <option value="partner.registration_rejected">Hamkor arizasi rad etilishi</option>
@@ -5215,9 +5319,11 @@ export function Audit() {
       {(view === "all" || view === "actions") && (
         <DataPanel
           path={ctx.admin ? "/superadmin/audit" : "/partner/audit"}
+          title="Amallar tarixi (Tizim auditi)"
           params={{
             sanatorium_id: effectiveSanatorium,
             action: actionFilter || undefined,
+            q: auditQ || undefined,
           }}
           columns={[
             { label: "Vaqt", render: (r) => dateTime(r.createdAt) },
@@ -5238,13 +5344,13 @@ export function Audit() {
                     ? "Hisobchi tasdiqlandi"
                     : "Resepsion tasdiqlandi";
                 }
-                return auditLabels[r.action] ?? r.action.replace(/[._]/g, " ");
+                return <strong>{auditLabels[r.action] ?? r.action.replace(/[._]/g, " ")}</strong>;
               },
             },
             {
               label: "Tafsilot",
               render: (r) => (
-                <span style={{ fontSize: 13, color: "var(--text-muted)" }}>
+                <span style={{ fontSize: 13, color: "var(--muted)" }}>
                   {formatAuditDetail(r)}
                 </span>
               ),
@@ -5257,10 +5363,15 @@ export function Audit() {
                 "Platforma",
             },
             {
-              label: "Manba",
+              label: "Manba (Bajaruvchi)",
               render: (r) => (
                 <div>
-                  <strong>{r.actor_name ?? (r.actorId ? "Xodim" : "Provayder / tizim")}</strong>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                    <strong>{r.actor_name ?? (r.actorId ? "Xodim" : "Provayder / tizim")}</strong>
+                    {r.actor_public_id && (
+                      <span className="id-chip">#{r.actor_public_id}</span>
+                    )}
+                  </div>
                   {r.actor_login && <span className="subcell">@{r.actor_login}</span>}
                 </div>
               ),
