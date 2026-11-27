@@ -3976,9 +3976,79 @@ export function LandingPage() {
                       </div>
                     </div>
 
+                    {/* Quick nights chips + Live Checkout Summary */}
+                    {(() => {
+                      const rp = activeModal.item.rate_plans?.find(
+                        (r) => r.id === checkoutSelectedRateId,
+                      );
+                      const daily = rp
+                        ? Math.round(Number(rp.baseAmount) / 100)
+                        : parseAmountUzs(activeModal.item.from_amount);
+                      const total = daily * Math.max(1, checkoutNights);
+                      const outStr = (() => {
+                        try {
+                          return new Date(
+                            new Date(checkoutCheckIn).getTime() +
+                              Math.max(1, checkoutNights) * 86400000,
+                          )
+                            .toISOString()
+                            .slice(0, 10);
+                        } catch {
+                          return "";
+                        }
+                      })();
+                      return (
+                        <div
+                          style={{
+                            background: "var(--l-soft)",
+                            border: "1px solid var(--l-border-bright)",
+                            borderRadius: 14,
+                            padding: "0.8rem 1rem",
+                            display: "flex",
+                            flexDirection: "column",
+                            gap: 8,
+                          }}
+                        >
+                          <div className="l-filter-pills">
+                            {QUICK_NIGHT_PRESETS.map((n) => (
+                              <button
+                                key={n}
+                                type="button"
+                                className={`l-chip-pill ${checkoutNights === n ? "active" : ""}`}
+                                onClick={() => setCheckoutNights(n)}
+                              >
+                                {n} kun
+                              </button>
+                            ))}
+                          </div>
+                          <div
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "space-between",
+                              flexWrap: "wrap",
+                              gap: 8,
+                              paddingTop: 6,
+                              borderTop: "1px solid var(--l-border)",
+                            }}
+                          >
+                            <span style={{ fontSize: "0.8rem", color: "var(--l-muted)" }}>
+                              {checkoutCheckIn} → {outStr || "—"} ({checkoutNights} kun)
+                            </span>
+                            <strong
+                              className="font-display"
+                              style={{ fontSize: "1.08rem", color: "var(--l-sky)" }}
+                            >
+                              Jami: {formatUzs(total)}
+                            </strong>
+                          </div>
+                        </div>
+                      );
+                    })()}
+
                     <div
                       style={{
-                        background: "rgba(62, 230, 191, 0.1)",
+                        background: "var(--l-accent-soft)",
                         border: "1px solid var(--l-border)",
                         borderRadius: 14,
                         padding: "0.85rem 1rem",
@@ -4177,11 +4247,11 @@ export function LandingPage() {
                     maxWidth: "85%",
                     background:
                       msg.role === "user"
-                        ? "var(--l-neon)"
-                        : "rgba(62, 230, 191, 0.1)",
+                        ? "var(--l-btn-grad)"
+                        : "var(--l-accent-soft)",
                     color:
                       msg.role === "user"
-                        ? "var(--l-on-primary)"
+                        ? "#ffffff"
                         : "var(--l-ink)",
                     borderRadius: 18,
                     padding: "10px 14px",
@@ -4225,7 +4295,7 @@ export function LandingPage() {
                     gap: 10,
                     padding: "10px 14px",
                     borderRadius: 18,
-                    background: "rgba(62, 230, 191, 0.08)",
+                    background: "var(--l-accent-soft)",
                     border: "1px solid var(--l-border)",
                     fontSize: "0.84rem",
                     color: "var(--l-muted)",
@@ -4399,7 +4469,7 @@ export function LandingPage() {
               {!bookingLookupLoading && bookingLookupResult && (
                 <div
                   style={{
-                    background: "rgba(62, 230, 191, 0.08)",
+                    background: "var(--l-accent-soft)",
                     border: "1px solid var(--l-border-bright)",
                     borderRadius: 18,
                     padding: "1.25rem",
@@ -4425,11 +4495,11 @@ export function LandingPage() {
                         fontWeight: 800,
                         background:
                           bookingLookupResult.status === "CONFIRMED"
-                            ? "rgba(62, 230, 191, 0.2)"
-                            : "rgba(245, 185, 66, 0.2)",
+                            ? "var(--l-mint-soft)"
+                            : "rgba(251, 191, 36, 0.2)",
                         color:
                           bookingLookupResult.status === "CONFIRMED"
-                            ? "var(--l-neon)"
+                            ? "var(--l-mint)"
                             : "var(--l-gold)",
                       }}
                     >
@@ -4544,7 +4614,7 @@ export function LandingPage() {
                             gap: 8,
                             padding: "5px 8px",
                             borderRadius: 8,
-                            background: "rgba(62, 230, 191, 0.14)",
+                            background: "var(--l-accent-soft-2)",
                           }}
                         >
                           <span>🩺 {note}</span>
@@ -4820,12 +4890,12 @@ export function LandingPage() {
                 style={{
                   padding: "14px 16px",
                   borderRadius: 16,
-                  background: "rgba(62, 230, 191, 0.08)",
+                  background: "var(--l-accent-soft)",
                   border: "1px solid var(--l-border-bright)",
                 }}
               >
                 <h4 style={{ margin: "0 0 8px", color: "var(--l-neon)" }}>
-                  🤖 Android telefonlar uchun (Universal .APK · v0.2.7)
+                  🤖 Android telefonlar uchun (Universal .APK · v0.2.10)
                 </h4>
                 <p
                   style={{
@@ -4848,7 +4918,7 @@ export function LandingPage() {
                   style={{ width: "100%", padding: "0.75rem 1.2rem" }}
                 >
                   <Download size={17} />
-                  <span>Android APK yuklab olish (v0.2.7)</span>
+                  <span>Android APK yuklab olish (v0.2.10)</span>
                 </a>
               </div>
 
@@ -4856,7 +4926,7 @@ export function LandingPage() {
                 style={{
                   padding: "14px 16px",
                   borderRadius: 16,
-                  background: "rgba(62, 230, 191, 0.06)",
+                  background: "var(--l-soft)",
                   border: "1px solid var(--l-border)",
                 }}
               >
@@ -5209,8 +5279,8 @@ export function LandingPage() {
               <div
                 style={{
                   display: "inline-block",
-                  background: "rgba(62, 230, 191, 0.16)",
-                  color: "var(--l-neon)",
+                  background: "var(--l-mint-soft)",
+                  color: "var(--l-mint)",
                   padding: "0.35rem 0.85rem",
                   borderRadius: 99,
                   fontSize: "0.84rem",
@@ -5246,6 +5316,260 @@ export function LandingPage() {
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* 9.9 SIDE-BY-SIDE SANATORIUM COMPARE MODAL */}
+      {activeModal === "compare" && comparedSanatoriums.length > 0 && (
+        <div
+          className="l-modal-backdrop"
+          onClick={() => setActiveModal(null)}
+        >
+          <div
+            className="l-modal-card"
+            style={{ maxWidth: 960 }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="l-modal-header">
+              <div>
+                <h3
+                  className="l-modal-title"
+                  style={{ display: "flex", alignItems: "center", gap: 8 }}
+                >
+                  <Scale size={20} style={{ color: "var(--l-sky)" }} />
+                  <span>Sanatoriyalarni taqqoslash ({comparedSanatoriums.length} ta)</span>
+                </h3>
+                <p style={{ margin: "4px 0 0", fontSize: "0.82rem", color: "var(--l-muted)" }}>
+                  Narx, reyting, davolash yo‘nalishlari va qulayliklarni yonma-yon solishtiring
+                </p>
+              </div>
+              <button
+                type="button"
+                className="l-modal-close"
+                aria-label="Yopish"
+                onClick={() => setActiveModal(null)}
+              >
+                <X size={20} />
+              </button>
+            </div>
+            <div className="l-modal-body" style={{ overflowX: "auto" }}>
+              {(() => {
+                const minPrice = Math.min(
+                  ...comparedSanatoriums.map((s) => parseAmountUzs(s.from_amount) || Infinity),
+                );
+                const maxRating = Math.max(
+                  ...comparedSanatoriums.map((s) => Number(s.rating || 0)),
+                );
+                return (
+                  <table className="l-compare-table">
+                    <thead>
+                      <tr>
+                        <th>Mezon</th>
+                        {comparedSanatoriums.map((s) => (
+                          <th key={s.id} style={{ width: "auto", background: "transparent", color: "var(--l-ink)" }}>
+                            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+                              <strong style={{ fontSize: "0.95rem" }}>{s.name}</strong>
+                              <button
+                                type="button"
+                                className="l-modal-close"
+                                style={{ width: 28, height: 28 }}
+                                aria-label="Olib tashlash"
+                                onClick={() => setCompareIds((prev) => prev.filter((id) => id !== s.id))}
+                              >
+                                <X size={14} />
+                              </button>
+                            </div>
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr>
+                        <th>Kunlik narx</th>
+                        {comparedSanatoriums.map((s) => {
+                          const p = parseAmountUzs(s.from_amount);
+                          const isBest = comparedSanatoriums.length > 1 && p === minPrice;
+                          return (
+                            <td key={s.id}>
+                              <strong style={{ color: "var(--l-sky)", fontSize: "0.95rem" }}>
+                                {s.from_amount} so‘m
+                              </strong>
+                              {isBest && <span className="l-best-badge">Eng hamyonbop</span>}
+                            </td>
+                          );
+                        })}
+                      </tr>
+                      <tr>
+                        <th>Reyting</th>
+                        {comparedSanatoriums.map((s) => {
+                          const r = Number(s.rating || 4.8);
+                          const isBest = comparedSanatoriums.length > 1 && r === maxRating;
+                          return (
+                            <td key={s.id}>
+                              <span style={{ display: "inline-flex", alignItems: "center", gap: 4, fontWeight: 800 }}>
+                                <Star size={14} fill="#fbbf24" color="#fbbf24" />
+                                {r.toFixed(1)}
+                              </span>
+                              {isBest && <span className="l-best-badge">Top reyting</span>}
+                            </td>
+                          );
+                        })}
+                      </tr>
+                      <tr>
+                        <th>Hudud</th>
+                        {comparedSanatoriums.map((s) => (
+                          <td key={s.id}>{s.region}</td>
+                        ))}
+                      </tr>
+                      <tr>
+                        <th>Davolash yo‘nalishlari</th>
+                        {comparedSanatoriums.map((s) => (
+                          <td key={s.id}>
+                            <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+                              {detectHealthBadges(s).map((b, i) => (
+                                <span key={i} className="l-amenity-tag health">
+                                  {b}
+                                </span>
+                              ))}
+                            </div>
+                          </td>
+                        ))}
+                      </tr>
+                      <tr>
+                        <th>Ovqatlanish</th>
+                        {comparedSanatoriums.map((s) => (
+                          <td key={s.id}>{s.meals}</td>
+                        ))}
+                      </tr>
+                      <tr>
+                        <th>Tibbiy xizmatlar</th>
+                        {comparedSanatoriums.map((s) => (
+                          <td key={s.id} style={{ color: "var(--l-muted)" }}>
+                            {s.services.slice(0, 4).join(", ")}
+                          </td>
+                        ))}
+                      </tr>
+                      <tr>
+                        <th>Qulayliklar</th>
+                        {comparedSanatoriums.map((s) => (
+                          <td key={s.id} style={{ color: "var(--l-muted)" }}>
+                            {s.amenities.slice(0, 4).join(", ")}
+                          </td>
+                        ))}
+                      </tr>
+                      <tr>
+                        <th>Amal</th>
+                        {comparedSanatoriums.map((s) => (
+                          <td key={s.id}>
+                            <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                              <button
+                                type="button"
+                                className="l-btn-neon"
+                                style={{ padding: "6px 12px", fontSize: "0.78rem" }}
+                                onClick={() => openCheckout(s)}
+                              >
+                                Bron qilish
+                              </button>
+                              <button
+                                type="button"
+                                className="l-btn-ghost"
+                                style={{ padding: "6px 12px", fontSize: "0.78rem" }}
+                                onClick={() => openDetails(s)}
+                              >
+                                Batafsil
+                              </button>
+                            </div>
+                          </td>
+                        ))}
+                      </tr>
+                    </tbody>
+                  </table>
+                );
+              })()}
+            </div>
+            <div className="l-modal-footer">
+              <button
+                type="button"
+                className="l-btn-ghost"
+                onClick={() => {
+                  setCompareIds([]);
+                  setActiveModal(null);
+                }}
+              >
+                Ro‘yxatni tozalash
+              </button>
+              <button
+                type="button"
+                className="l-btn-neon"
+                onClick={() => setActiveModal(null)}
+              >
+                Yopish
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Floating Compare Dock Bar */}
+      {comparedSanatoriums.length > 0 && activeModal !== "compare" && (
+        <div className="l-compare-dock" role="region" aria-label="Tanlangan sanatoriyalarni taqqoslash">
+          <div className="l-compare-items-mini">
+            {comparedSanatoriums.map((s) => (
+              <span key={s.id} className="l-compare-pill">
+                <img src={resolvePrimaryPhoto(s)} alt={s.name} onError={safeFallbackImage} />
+                <span>{s.name}</span>
+                <button
+                  type="button"
+                  aria-label={`${s.name} ni olib tashlash`}
+                  onClick={() => setCompareIds((prev) => prev.filter((id) => id !== s.id))}
+                >
+                  <X size={13} />
+                </button>
+              </span>
+            ))}
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
+            <button
+              type="button"
+              className="l-btn-neon"
+              style={{ padding: "0.48rem 1rem", fontSize: "0.8rem" }}
+              onClick={() => setActiveModal("compare")}
+            >
+              <Scale size={14} />
+              <span>Solishtirish ({comparedSanatoriums.length}/3)</span>
+            </button>
+            <button
+              type="button"
+              className="l-modal-close"
+              style={{ width: 32, height: 32, borderRadius: "50%" }}
+              title="Taqqoslashni tozalash"
+              aria-label="Taqqoslashni tozalash"
+              onClick={() => setCompareIds([])}
+            >
+              <X size={15} />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Floating Scroll-to-Top Button */}
+      {scrollProgress > 18 && !activeModal && (
+        <button
+          type="button"
+          className="l-scroll-top-btn"
+          aria-label="Sahifa yuqorisiga qaytish"
+          title="Yuqoriga qaytish"
+          onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+        >
+          <ArrowUp size={18} />
+        </button>
+      )}
+
+      {/* Crisp Toast Notification */}
+      {toastMessage && (
+        <div className="l-toast" role="status" aria-live="polite">
+          <CheckCircle2 size={16} color="#34d399" />
+          <span>{toastMessage}</span>
         </div>
       )}
     </div>
