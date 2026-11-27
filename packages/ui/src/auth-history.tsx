@@ -80,32 +80,319 @@ export function AuthEventBadge({ eventType }: { eventType: string }) {
   );
 }
 
+const GENERIC_LABELS = new Set([
+  "",
+  "unknown",
+  "web",
+  "mobile",
+  "brauzer",
+  "veb brauzer",
+  "veb panel",
+  "mobil ilova",
+  "noma’lum qurilma",
+  "noma'lum qurilma",
+  "brauzer · noma’lum qurilma",
+  "brauzer · noma'lum qurilma",
+]);
+
+export function resolveClientDeviceDetails(input: {
+  deviceLabel?: string | null;
+  channel?: string | null;
+  userAgent?: string | null;
+  deviceType?: string | null;
+  deviceTypeLabel?: string | null;
+  browser?: string | null;
+  os?: string | null;
+  channelLabel?: string | null;
+  deviceSummary?: string | null;
+}) {
+  const ua = String(input.userAgent || "");
+  const isMobileChannel = input.channel === "MOBILE";
+  const rawLabel = String(input.deviceLabel || "").trim();
+  const isGeneric = GENERIC_LABELS.has(rawLabel.toLowerCase());
+
+  let browser = String(input.browser || "").trim();
+  if (!browser) {
+    if (isMobileChannel) {
+      const ver = /v(\d+\.\d+(?:\.\d+)?)/i.exec(rawLabel)?.[1];
+      browser = ver ? `Sihhat.uz ilovasi v${ver}` : "Sihhat.uz mobil ilovasi";
+    } else if (/Edg\/([\d.]+)/i.test(ua)) {
+      browser = `Microsoft Edge ${/Edg\/(\d+)/i.exec(ua)?.[1] ?? ""}`.trim();
+    } else if (/OPR\/|Opera/i.test(ua)) {
+      browser = `Opera ${/(?:OPR|Opera)\/(\d+)/i.exec(ua)?.[1] ?? ""}`.trim();
+    } else if (/YaBrowser/i.test(ua)) {
+      browser = `Yandex Browser ${/YaBrowser\/(\d+)/i.exec(ua)?.[1] ?? ""}`.trim();
+    } else if (/SamsungBrowser/i.test(ua)) {
+      browser = `Samsung Internet ${/SamsungBrowser\/(\d+)/i.exec(ua)?.[1] ?? ""}`.trim();
+    } else if (/Firefox/i.test(ua)) {
+      browser = `Mozilla Firefox ${/Firefox\/(\d+)/i.exec(ua)?.[1] ?? ""}`.trim();
+    } else if (/Chrome/i.test(ua)) {
+      browser = `Google Chrome ${/Chrome\/(\d+)/i.exec(ua)?.[1] ?? ""}`.trim();
+    } else if (/Safari/i.test(ua)) {
+      browser = `Apple Safari ${/Version\/(\d+)/i.exec(ua)?.[1] ?? ""}`.trim();
+    } else if (!isGeneric && rawLabel.includes("·")) {
+      browser = rawLabel.split("·")[0].trim();
+    } else {
+      browser = isMobileChannel ? "Sihhat.uz mobil ilovasi" : "Veb brauzer";
+    }
+  }
+
+  let os = String(input.os || "").trim();
+  let deviceType = String(input.deviceType || "").trim();
+  if (!os) {
+    if (/iPad/i.test(ua) || /iPad/i.test(rawLabel)) {
+      os = "iPad (iPadOS)";
+      deviceType ||= "TABLET";
+    } else if (/iPhone/i.test(ua) || /iPhone|iOS/i.test(rawLabel)) {
+      os = "iPhone (iOS)";
+      deviceType ||= "SMARTPHONE";
+    } else if (/Android/i.test(ua) || /Android/i.test(rawLabel) || isMobileChannel) {
+      const m =
+        /Android\s+([\d.]+);\s*([^;)]+?)(?:\s+Build\/|\))/i.exec(ua) ??
+        /Android\s*\(([^)]+)\)/i.exec(rawLabel);
+      if (m && m.length >= 3) {
+        const model = !/^K$|^wv$/i.test(m[2].trim()) ? m[2].trim() : "";
+        os = model ? `Android ${m[1]} (${model})` : `Android ${m[1]}`;
+      } else if (m && m[1]) {
+        os = `Android (${m[1].trim()})`;
+      } else {
+        os = "Android smartfoni";
+      }
+      deviceType ||= /Tablet|Pad/i.test(ua) ? "TABLET" : "SMARTPHONE";
+    } else if (/Windows/i.test(ua) || /Windows/i.test(rawLabel)) {
+      os = /Windows NT 10\.0/i.test(ua) ? "Windows 10/11" : "Windows";
+      deviceType ||= "DESKTOP";
+    } else if (/Macintosh|Mac OS X/i.test(ua) || /macOS|Mac/i.test(rawLabel)) {
+      os = "Apple macOS";
+      deviceType ||= "DESKTOP";
+    } else if (/Linux/i.test(ua) || /Linux/i.test(rawLabel)) {
+      os = "Linux";
+      deviceType ||= "DESKTOP";
+    } else {
+      os = isMobileChannel ? "Mobil tizim" : "Kompyuter tizimi";
+      deviceType ||= isMobileChannel ? "SMARTPHONE" : "DESKTOP";
+    }
+  }
+
+  const deviceTypeLabel =
+    input.deviceTypeLabel ||
+    (deviceType === "SMARTPHONE"
+      ? "Smartfon"
+      : deviceType === "TABLET"
+        ? "Planshet"
+        : "Kompyuter");
+  const channelLabel =
+    input.channelLabel ||
+    (isMobileChannel ? "Sihhat.uz mobil ilovasi" : "Veb boshqaruv paneli");
+  const title = !isGeneric
+    ? rawLabel
+    : isMobileChannel
+      ? `${os} · Mobil ilova`
+      : `${browser} · ${os}`;
+  const description = `${deviceTypeLabel} · ${os} · ${browser}`;
+  const isMobile =
+    isMobileChannel ||
+    deviceType === "SMARTPHONE" ||
+    deviceType === "TABLET" ||
+    /android|iphone|ipad|mobile|ios|ilova/i.test(title);
+
+  return {
+    title,
+    deviceTypeLabel,
+    os,
+    browser,
+    channelLabel,
+    description,
+    isMobile,
+  };
+}
+
 export function DeviceCell({
   deviceLabel,
   channel,
   userAgent,
+  deviceType,
+  deviceTypeLabel,
+  browser,
+  os,
+  channelLabel,
+  deviceSummary,
+  current,
+  isOnline,
 }: {
   deviceLabel?: string | null;
   channel?: string | null;
   userAgent?: string | null;
+  deviceType?: string | null;
+  deviceTypeLabel?: string | null;
+  browser?: string | null;
+  os?: string | null;
+  channelLabel?: string | null;
+  deviceSummary?: string | null;
+  current?: boolean;
+  isOnline?: boolean;
 }) {
-  const text = deviceLabel || (channel === "MOBILE" ? "Mobil ilova" : "Veb brauzer");
-  const isMobile =
-    channel === "MOBILE" || /android|iphone|ipad|mobile|ios|ilova/i.test(text);
+  const details = resolveClientDeviceDetails({
+    deviceLabel,
+    channel,
+    userAgent,
+    deviceType,
+    deviceTypeLabel,
+    browser,
+    os,
+    channelLabel,
+    deviceSummary,
+  });
   return (
     <div
-      style={{ display: "flex", alignItems: "center", gap: 8 }}
-      title={userAgent || text}
+      style={{ display: "flex", alignItems: "flex-start", gap: 10 }}
+      title={userAgent || details.description}
     >
-      {isMobile ? (
-        <Smartphone size={16} style={{ color: "var(--green)", flexShrink: 0 }} />
-      ) : (
-        <Laptop size={16} style={{ color: "var(--green)", flexShrink: 0 }} />
-      )}
-      <div>
-        <strong style={{ fontSize: 13 }}>{text}</strong>
-        <span className="subcell">{channel === "MOBILE" ? "Mobil ilova" : "Veb panel"}</span>
+      <div
+        style={{
+          width: 32,
+          height: 32,
+          borderRadius: 9,
+          background: "var(--green-light)",
+          color: "var(--green)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          flexShrink: 0,
+          marginTop: 2,
+        }}
+      >
+        {details.isMobile ? <Smartphone size={16} /> : <Laptop size={16} />}
       </div>
+      <div style={{ minWidth: 0 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+          <strong style={{ fontSize: 13, color: "var(--ink)" }}>{details.title}</strong>
+          {current && (
+            <span className="status-pill online" style={{ fontSize: 10.5, padding: "1px 7px" }}>
+              <span className="status-dot" /> Joriy qurilma
+            </span>
+          )}
+          {!current && isOnline && (
+            <span className="badge green" style={{ fontSize: 10.5, padding: "1px 7px" }}>
+              Onlayn
+            </span>
+          )}
+        </div>
+        <span className="subcell" style={{ display: "block", marginTop: 2 }}>
+          {details.description}
+        </span>
+        <span className="subcell" style={{ display: "block", fontSize: 11, opacity: 0.88 }}>
+          Kanal: {details.channelLabel}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+export function ActiveDevicesSection({
+  devices,
+  lastDevice,
+  lastDeviceSummary,
+  lastIp,
+  lastSeenAt,
+  onOpenHistory,
+}: {
+  devices?: Row[] | null;
+  lastDevice?: string | null;
+  lastDeviceSummary?: string | null;
+  lastIp?: string | null;
+  lastSeenAt?: string | null;
+  onOpenHistory?: () => void;
+}) {
+  const activeList = Array.isArray(devices) ? devices : [];
+  return (
+    <div
+      style={{
+        marginTop: 12,
+        padding: "12px 14px",
+        borderRadius: 14,
+        border: "1px solid var(--line)",
+        background: "var(--soft)",
+      }}
+    >
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 8,
+          flexWrap: "wrap",
+          marginBottom: 8,
+        }}
+      >
+        <strong style={{ fontSize: 13, color: "var(--ink)" }}>
+          Kirilgan qurilmalar va ta’rifi ({activeList.length} ta faol)
+        </strong>
+        {onOpenHistory && (
+          <button
+            type="button"
+            className="text-button"
+            style={{ fontSize: 12.5 }}
+            onClick={onOpenHistory}
+          >
+            Kirish-chiqish tarixini ochish →
+          </button>
+        )}
+      </div>
+      {activeList.length > 0 ? (
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          {activeList.map((dev, idx) => (
+            <div
+              key={dev.id ?? idx}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: 10,
+                flexWrap: "wrap",
+                padding: "9px 11px",
+                borderRadius: 11,
+                background: "var(--surface)",
+                border: "1px solid var(--line)",
+              }}
+            >
+              <DeviceCell
+                deviceLabel={dev.deviceLabel}
+                channel={dev.channel}
+                userAgent={dev.userAgent}
+                deviceType={dev.deviceType}
+                deviceTypeLabel={dev.deviceTypeLabel}
+                browser={dev.browser}
+                os={dev.os}
+                channelLabel={dev.channelLabel}
+                deviceSummary={dev.deviceSummary}
+                isOnline={dev.isOnline}
+              />
+              <div style={{ textAlign: "right", fontSize: 11.5 }}>
+                <span className="ip-chip">
+                  <Globe size={11} />
+                  {dev.ipAddress || "unknown"}
+                </span>
+                <div className="subcell" style={{ marginTop: 3 }}>
+                  Faollik: {dateTime(dev.lastActivityAt || dev.createdAt)}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div style={{ fontSize: 12.5, color: "var(--muted)" }}>
+          Hozirda ochiq sessiya yo‘q.
+          {lastDevice ? (
+            <span>
+              {" "}Oxirgi kirilgan qurilma: <strong style={{ color: "var(--ink)" }}>{lastDevice}</strong>
+              {lastDeviceSummary ? ` (${lastDeviceSummary})` : ""}
+              {lastIp ? ` · IP: ${lastIp}` : ""}
+              {lastSeenAt ? ` · ${dateTime(lastSeenAt)}` : ""}
+            </span>
+          ) : null}
+        </div>
+      )}
     </div>
   );
 }

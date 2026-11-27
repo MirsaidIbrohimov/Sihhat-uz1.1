@@ -146,6 +146,8 @@ export function enrichOpenApi(document:OpenAPIObject){
       if(path==='/auth/partner-register/availability')addParameters([query('username',{...str,maxLength:128}),query('email',{...str,maxLength:128})]);
       if(path==='/superadmin/partner-registrations')addParameters([query('status',{...str,enum:['PENDING','APPROVED','REJECTED']}),query('q',{...str,maxLength:120})]);
       if(path==='/auth/login-history')addParameters([query('event_type',{...str,enum:['LOGIN','LOGOUT','SESSION_REVOKED','SESSION_EXPIRED']})]);
+      if(path==='/auth/quick-lookup')addParameters([query('q',{...str,minLength:1,maxLength:120},true),query('sanatorium_id',id),query('limit',{...integer,minimum:1,maximum:20,default:10})]);
+      if(['/superadmin/audit','/partner/audit'].includes(path))addParameters([query('action',{...str,maxLength:100}),query('q',{...str,maxLength:120}),query('from',date),query('to',date)]);
       if(['/superadmin/auth-events','/partner/auth-events'].includes(path))addParameters([query('user_id',id),query('event_type',{...str,enum:['LOGIN','LOGOUT','SESSION_REVOKED','SESSION_EXPIRED']}),query('user_kind',{...str,enum:['SUPERADMIN','STAFF','CUSTOMER']}),query('q',{...str,maxLength:120}),query('from',date),query('to',date)]);
       if(['/partner/reports','/superadmin/reports','/partner/reports/export','/partner/reports/export.xlsx'].includes(path))addParameters([query('sanatorium_id',id),query('from',date,true),query('to',date,true),query('booking_basis',{...str,enum:['CREATED','PAYMENT','SERVICE'],default:'SERVICE'}),query('financial',{...str,enum:['true','false'],default:'false'})]);
     }

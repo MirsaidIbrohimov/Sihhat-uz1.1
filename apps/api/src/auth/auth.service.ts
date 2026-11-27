@@ -774,22 +774,46 @@ export class AuthService implements OnModuleInit {
   async sessions(actor: Actor) {
     const rows = await this.db.session.findMany({
       where: { userId: actor.id, revokedAt: null, refreshExpiresAt: { gt: new Date() } },
-      select: { id: true, deviceLabel: true, ipAddress: true, channel: true, createdAt: true, lastActivityAt: true, expiresAt: true },
+      select: { id: true, deviceLabel: true, userAgent: true, ipAddress: true, channel: true, createdAt: true, lastActivityAt: true, expiresAt: true },
       orderBy: { lastActivityAt: 'desc' },
       take: 100,
     });
-    return { data: rows.filter(s => !idleExpired(s, actor.kind)).map(s => ({ ...s, ipAddress: s.ipAddress ?? null, current: s.id === actor.sessionId })) };
+    const now = Date.now();
+    return {
+      data: rows
+        .filter(s => !idleExpired(s, actor.kind))
+        .map(s => {
+          const ch = (s.channel === 'MOBILE' ? 'MOBILE' : 'WEB') as 'WEB' | 'MOBILE';
+          const meta = describeDeviceMeta(s.userAgent, ch, s.deviceLabel);
+          return {
+            ...s,
+            deviceLabel: meta.deviceLabel,
+            deviceType: meta.deviceType,
+            deviceTypeLabel: meta.deviceTypeLabel,
+            browser: meta.browser,
+            os: meta.os,
+            channelLabel: meta.channelLabel,
+            deviceSummary: meta.summary,
+            ipAddress: s.ipAddress ?? null,
+            isOnline: now - s.lastActivityAt.getTime() < 180_000,
+            current: s.id === actor.sessionId,
+          };
+        }),
+    };
   }
   async loginHistory(actor: Actor, query: unknown) {
     const i = parse(pageQuery.extend({ event_type: z.enum(['LOGIN', 'LOGOUT', 'SESSION_REVOKED', 'SESSION_EXPIRED']).optional() }).strict(), query);
     if (typeof (this.db as any)?.authEvent?.findMany !== 'function') {
       return paged([], 0, i.page, i.limit);
     }
+    if (i.page === 1) {
+      await this.backfillAuthEventsFromSessions(100, actor.id);
+    }
     const where = {
       userId: actor.id,
       ...(i.event_type ? { eventType: i.event_type } : {}),
     };
-    let [data, total] = await Promise.all([
+    const [data, total] = await Promise.all([
       this.db.authEvent.findMany({
         where,
         skip: (i.page - 1) * i.limit,
@@ -798,21 +822,25 @@ export class AuthService implements OnModuleInit {
       }),
       this.db.authEvent.count({ where }),
     ]);
-    if (total === 0) {
-      const inserted = await this.backfillAuthEventsFromSessions(100, actor.id);
-      if (inserted > 0) {
-        [data, total] = await Promise.all([
-          this.db.authEvent.findMany({
-            where,
-            skip: (i.page - 1) * i.limit,
-            take: i.limit,
-            orderBy: { createdAt: 'desc' },
-          }),
-          this.db.authEvent.count({ where }),
-        ]);
-      }
-    }
-    return paged(data, total, i.page, i.limit);
+    return paged(
+      data.map(r => {
+        const ch = (r.channel === 'MOBILE' ? 'MOBILE' : 'WEB') as 'WEB' | 'MOBILE';
+        const meta = describeDeviceMeta(r.userAgent, ch, r.deviceLabel);
+        return {
+          ...r,
+          deviceLabel: meta.deviceLabel,
+          deviceType: meta.deviceType,
+          deviceTypeLabel: meta.deviceTypeLabel,
+          browser: meta.browser,
+          os: meta.os,
+          channelLabel: meta.channelLabel,
+          deviceSummary: meta.summary,
+        };
+      }),
+      total,
+      i.page,
+      i.limit,
+    );
   }
   async listAuthEvents(actor: Actor, query: unknown, partner = false) {
     const i = parse(
@@ -842,6 +870,9 @@ export class AuthService implements OnModuleInit {
     }
     if (typeof (this.db as any)?.authEvent?.findMany !== 'function') {
       return paged([], 0, i.page, i.limit);
+    }
+    if (i.page === 1 && !i.q && !i.from && !i.to) {
+      await this.backfillAuthEventsFromSessions(300, i.user_id);
     }
     const andClauses: Record<string, any>[] = [];
     if (tenant) {
@@ -884,7 +915,7 @@ export class AuthService implements OnModuleInit {
       ...((i.from || i.to) ? { createdAt: dateFilter(i.from, i.to, true) } : {}),
       ...(andClauses.length ? { AND: andClauses } : {}),
     };
-    let [rows, total] = await Promise.all([
+    const [rows, total] = await Promise.all([
       this.db.authEvent.findMany({
         where,
         skip: (i.page - 1) * i.limit,
@@ -893,20 +924,6 @@ export class AuthService implements OnModuleInit {
       }),
       this.db.authEvent.count({ where }),
     ]);
-    if (total === 0 && !i.q && !i.from && !i.to) {
-      const inserted = await this.backfillAuthEventsFromSessions(300, i.user_id);
-      if (inserted > 0) {
-        [rows, total] = await Promise.all([
-          this.db.authEvent.findMany({
-            where,
-            skip: (i.page - 1) * i.limit,
-            take: i.limit,
-            orderBy: { createdAt: 'desc' },
-          }),
-          this.db.authEvent.count({ where }),
-        ]);
-      }
-    }
     const userIds = [...new Set(rows.map(r => r.userId))];
     const sanIds = [...new Set(rows.map(r => r.sanatoriumId).filter((v): v is string => Boolean(v)))];
     const [users, sanatoriums] = await Promise.all([
@@ -928,8 +945,17 @@ export class AuthService implements OnModuleInit {
     return paged(
       rows.map(r => {
         const u = userMap.get(r.userId);
+        const ch = (r.channel === 'MOBILE' ? 'MOBILE' : 'WEB') as 'WEB' | 'MOBILE';
+        const meta = describeDeviceMeta(r.userAgent, ch, r.deviceLabel);
         return {
           ...r,
+          deviceLabel: meta.deviceLabel,
+          deviceType: meta.deviceType,
+          deviceTypeLabel: meta.deviceTypeLabel,
+          browser: meta.browser,
+          os: meta.os,
+          channelLabel: meta.channelLabel,
+          deviceSummary: meta.summary,
           publicId: u ? resolveUserPublicId(u) : null,
           userName: r.userName ?? u?.name ?? null,
           userLogin: r.userLogin ?? u?.login ?? null,

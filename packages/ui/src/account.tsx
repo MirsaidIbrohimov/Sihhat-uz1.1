@@ -27,7 +27,7 @@ import {
 } from "lucide-react";
 import { api } from "@sihhat/api-client";
 import { prepareAvatarDataUrl, validateAvatarFile } from "./avatar";
-import { AuthHistoryPanel } from "./auth-history";
+import { AuthHistoryPanel, DeviceCell } from "./auth-history";
 import {
   Act,
   Card,

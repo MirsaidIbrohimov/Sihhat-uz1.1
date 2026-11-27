@@ -16,6 +16,77 @@ export const resetPasswordInput = z.object({ new_password: passwordSchema, confi
 @Injectable()
 export class StaffService {
   constructor(@Inject(Db) readonly db: Db) {}
+  private async loadUserSessionsSummary(userIds: string[], defaultChannel: 'WEB' | 'MOBILE' = 'WEB') {
+    const nowDate = new Date();
+    const now = nowDate.getTime();
+    if (!userIds.length || typeof (this.db as any).session?.findMany !== 'function') {
+      return {
+        lastSessionMap: new Map<string, any>(),
+        activeDevicesMap: new Map<string, any[]>(),
+      };
+    }
+    const [lastSessions, activeSessions] = await Promise.all([
+      this.db.session.findMany({
+        where: { userId: { in: userIds } },
+        orderBy: { lastActivityAt: 'desc' },
+        select: {
+          id: true,
+          userId: true,
+          lastActivityAt: true,
+          createdAt: true,
+          revokedAt: true,
+          refreshExpiresAt: true,
+          deviceLabel: true,
+          userAgent: true,
+          ipAddress: true,
+          channel: true,
+        },
+        distinct: ['userId'],
+      }),
+      this.db.session.findMany({
+        where: { userId: { in: userIds }, revokedAt: null, refreshExpiresAt: { gt: nowDate } },
+        orderBy: { lastActivityAt: 'desc' },
+        select: {
+          id: true,
+          userId: true,
+          lastActivityAt: true,
+          createdAt: true,
+          refreshExpiresAt: true,
+          deviceLabel: true,
+          userAgent: true,
+          ipAddress: true,
+          channel: true,
+        },
+        take: Math.max(50, userIds.length * 6),
+      }),
+    ]);
+    const lastSessionMap = new Map(lastSessions.map((s) => [s.userId, s]));
+    const activeDevicesMap = new Map<string, any[]>();
+    for (const s of activeSessions) {
+      const ch = (s.channel === 'MOBILE' ? 'MOBILE' : s.channel === 'WEB' ? 'WEB' : defaultChannel) as 'WEB' | 'MOBILE';
+      const meta = describeDeviceMeta(s.userAgent, ch, s.deviceLabel);
+      const list = activeDevicesMap.get(s.userId) ?? [];
+      list.push({
+        id: s.id,
+        channel: ch,
+        deviceLabel: meta.deviceLabel,
+        deviceType: meta.deviceType,
+        deviceTypeLabel: meta.deviceTypeLabel,
+        browser: meta.browser,
+        os: meta.os,
+        channelLabel: meta.channelLabel,
+        deviceSummary: meta.summary,
+        ipAddress: s.ipAddress ?? null,
+        userAgent: s.userAgent ?? null,
+        createdAt: s.createdAt,
+        lastActivityAt: s.lastActivityAt,
+        isOnline: now - s.lastActivityAt.getTime() < 180_000,
+      });
+      activeDevicesMap.set(s.userId, list);
+    }
+    return { lastSessionMap, activeDevicesMap };
+  }
+
   async list(actor: Actor, query: unknown) {
     const { page, limit, sanatorium_id, q, status, role } = parse(pageQuery.extend({ sanatorium_id: uuid.optional(), q: z.string().trim().max(120).optional(), status: z.enum(['ACTIVE', 'PENDING_APPROVAL', 'REJECTED', 'REVOKED', 'BLOCKED']).optional(), role: z.enum(['DIRECTOR', 'RECEPTION', 'ACCOUNTANT']).optional() }).strict(), query);
     if (sanatorium_id) scope(actor, sanatorium_id, 'staff.invite');
@@ -39,8 +110,7 @@ export class StaffService {
     const where = { ...(ids ? { sanatoriumId: { in: ids } } : {}), ...(matchingUsers ? { userId: { in: matchingUsers.map(u => u.id) } } : {}), ...(status ? { status } : {}), ...(role ? { role } : {}) };
     const [memberships, total] = await Promise.all([this.db.membership.findMany({ where, skip: (page - 1) * limit, take: limit, orderBy: { createdAt: 'desc' } }), this.db.membership.count({ where })]);
     const userIds = [...new Set(memberships.map(m => m.userId))];
-    const nowDate = new Date();
-    const [users, lastSessions, activeSessionCounts] = await Promise.all([
+    const [users, sessionSummary] = await Promise.all([
       userIds.length
         ? this.db.user.findMany({
             where: { id: { in: userIds } },
@@ -59,35 +129,22 @@ export class StaffService {
             },
           })
         : [],
-      userIds.length && typeof (this.db as any).session?.findMany === 'function'
-        ? this.db.session.findMany({
-            where: { userId: { in: userIds } },
-            orderBy: { lastActivityAt: 'desc' },
-            select: { userId: true, lastActivityAt: true, revokedAt: true, refreshExpiresAt: true, deviceLabel: true, ipAddress: true, channel: true },
-            distinct: ['userId'],
-          })
-        : [],
-      userIds.length && typeof (this.db as any).session?.groupBy === 'function'
-        ? this.db.session.groupBy({
-            by: ['userId'],
-            where: { userId: { in: userIds }, revokedAt: null, refreshExpiresAt: { gt: nowDate } },
-            _count: { id: true },
-          })
-        : [],
+      this.loadUserSessionsSummary(userIds, 'WEB'),
     ]);
-    const sessionMap = new Map(lastSessions.map(s => [s.userId, s]));
-    const activeSessionMap = new Map(activeSessionCounts.map(s => [s.userId, s._count.id]));
+    const { lastSessionMap, activeDevicesMap } = sessionSummary;
     const now = Date.now();
     return paged(
       memberships.map(m => {
         const u = users.find(usr => usr.id === m.userId);
-        const s = u ? sessionMap.get(u.id) : undefined;
+        const s = u ? lastSessionMap.get(u.id) : undefined;
+        const activeDevices = u ? (activeDevicesMap.get(u.id) ?? []) : [];
         const isOnline = Boolean(
           s &&
           !s.revokedAt &&
           s.refreshExpiresAt.getTime() > now &&
           now - s.lastActivityAt.getTime() < 180_000,
         );
+        const lastMeta = s ? describeDeviceMeta(s.userAgent, (s.channel === 'MOBILE' ? 'MOBILE' : 'WEB'), s.deviceLabel) : null;
         return {
           ...m,
           user: u
@@ -97,9 +154,11 @@ export class StaffService {
                 email: u.email ?? (u.login?.includes('@') ? u.login : null),
                 avatarUrl: u.avatarUrl ?? null,
                 isOnline,
-                activeSessionsCount: activeSessionMap.get(u.id) || 0,
+                activeSessionsCount: activeDevices.length,
+                activeDevices,
                 lastSeenAt: s?.lastActivityAt ?? u.updatedAt,
-                device: s?.deviceLabel || s?.channel || 'Veb panel',
+                device: lastMeta?.deviceLabel || 'Veb panel',
+                deviceSummary: lastMeta?.summary || null,
                 lastIp: s?.ipAddress ?? null,
               }
             : undefined,
@@ -732,8 +791,7 @@ export class StaffService {
     ]);
 
     const userIds = users.map(u => u.id);
-    const nowDate = new Date();
-    const [bookingCounts, ticketCounts, lastSessions, activeSessionCounts] = await Promise.all([
+    const [bookingCounts, ticketCounts, sessionSummary] = await Promise.all([
       userIds.length ? this.db.booking.groupBy({
         by: ['userId'],
         where: {
@@ -747,49 +805,299 @@ export class StaffService {
         where: { userId: { in: userIds } },
         _count: { id: true },
       }) : [],
-      userIds.length ? this.db.session.findMany({
-        where: { userId: { in: userIds } },
-        orderBy: { lastActivityAt: 'desc' },
-        select: { userId: true, lastActivityAt: true, revokedAt: true, refreshExpiresAt: true, deviceLabel: true, ipAddress: true, channel: true },
-        distinct: ['userId'],
-      }) : [],
-      userIds.length ? this.db.session.groupBy({
-        by: ['userId'],
-        where: { userId: { in: userIds }, revokedAt: null, refreshExpiresAt: { gt: nowDate } },
-        _count: { id: true },
-      }) : [],
+      this.loadUserSessionsSummary(userIds, 'MOBILE'),
     ]);
 
     const bookingMap = new Map(bookingCounts.filter(b => b.userId !== null).map(b => [b.userId!, b._count.id]));
     const ticketMap = new Map(ticketCounts.map(t => [t.userId, t._count.id]));
-    const sessionMap = new Map(lastSessions.map(s => [s.userId, s]));
-    const activeSessionMap = new Map(activeSessionCounts.map(s => [s.userId, s._count.id]));
+    const { lastSessionMap, activeDevicesMap } = sessionSummary;
     const now = Date.now();
 
     const data = users.map(u => {
-      const s = sessionMap.get(u.id);
+      const s = lastSessionMap.get(u.id);
+      const activeDevices = activeDevicesMap.get(u.id) ?? [];
       const isOnline = Boolean(
         s &&
         !s.revokedAt &&
         s.refreshExpiresAt.getTime() > now &&
         now - s.lastActivityAt.getTime() < 180_000,
       );
+      const lastMeta = s ? describeDeviceMeta(s.userAgent, (s.channel === 'WEB' ? 'WEB' : 'MOBILE'), s.deviceLabel) : null;
       return {
         ...u,
         publicId: resolveUserPublicId(u),
         email: u.email ?? (u.login?.includes('@') ? u.login : null),
         avatarUrl: u.avatarUrl ?? null,
         isOnline,
-        activeSessionsCount: activeSessionMap.get(u.id) || 0,
+        activeSessionsCount: activeDevices.length,
+        activeDevices,
         bookingsCount: bookingMap.get(u.id) || 0,
         ticketsCount: ticketMap.get(u.id) || 0,
         lastSeenAt: s?.lastActivityAt ?? u.updatedAt,
-        device: s?.deviceLabel || s?.channel || 'Mobil ilova',
+        device: lastMeta?.deviceLabel || 'Mobil ilova',
+        deviceSummary: lastMeta?.summary || null,
         lastIp: s?.ipAddress ?? null,
       };
     });
 
     return paged(data, total, page, limit);
+  }
+
+  async quickLookup(actor: Actor, query: unknown) {
+    const i = parse(
+      z
+        .object({
+          q: z.string().trim().min(1).max(120),
+          sanatorium_id: uuid.optional(),
+          limit: z.coerce.number().int().min(1).max(20).default(10),
+        })
+        .strict(),
+      query,
+    );
+    const rawQ = i.q.trim();
+    const isHashId = rawQ.startsWith('#');
+    const cleanToken = rawQ.replace(/^#+\s*/, '').trim();
+    if (!cleanToken) {
+      return { query: rawQ, isHashId, exactMatch: null, data: [] };
+    }
+    const isDigits = /^\d{1,8}$/.test(cleanToken);
+
+    let allowedSanatoriumIds: string[] | null = null;
+    let allowedUserIds: Set<string> | null = null;
+    if (actor.kind !== 'SUPERADMIN') {
+      if (i.sanatorium_id) {
+        scope(actor, i.sanatorium_id);
+        allowedSanatoriumIds = [i.sanatorium_id];
+      } else {
+        allowedSanatoriumIds = actor.memberships
+          .filter((m) => m.status === 'ACTIVE')
+          .map((m) => m.sanatoriumId);
+      }
+      const [staffMems, bookedUsers, ticketUsers] = allowedSanatoriumIds.length
+        ? await Promise.all([
+            this.db.membership.findMany({
+              where: { sanatoriumId: { in: allowedSanatoriumIds } },
+              select: { userId: true },
+            }),
+            typeof (this.db as any).booking?.findMany === 'function'
+              ? this.db.booking.findMany({
+                  where: { sanatoriumId: { in: allowedSanatoriumIds }, userId: { not: null } },
+                  distinct: ['userId'],
+                  select: { userId: true },
+                  take: 500,
+                })
+              : [],
+            typeof (this.db as any).supportTicket?.findMany === 'function'
+              ? this.db.supportTicket.findMany({
+                  where: { sanatoriumId: { in: allowedSanatoriumIds } },
+                  distinct: ['userId'],
+                  select: { userId: true },
+                  take: 500,
+                })
+              : [],
+          ])
+        : [[], [], []];
+      allowedUserIds = new Set<string>([
+        actor.id,
+        ...staffMems.map((m) => m.userId),
+        ...bookedUsers.map((b) => b.userId).filter((v): v is string => Boolean(v)),
+        ...ticketUsers.map((t) => t.userId),
+      ]);
+    }
+
+    const userSelect = {
+      id: true,
+      publicId: true,
+      kind: true,
+      status: true,
+      name: true,
+      phone: true,
+      email: true,
+      login: true,
+      avatarUrl: true,
+      mustChangePassword: true,
+      createdAt: true,
+      updatedAt: true,
+    } as const;
+
+    let candidateUsers: any[] = [];
+    if (isDigits) {
+      const orConditions: any[] = [];
+      const exactNum = Number(cleanToken);
+      if (Number.isSafeInteger(exactNum)) {
+        orConditions.push({ publicId: exactNum });
+      }
+      if (cleanToken.length < 6) {
+        const minId = Number(cleanToken.padEnd(6, '0'));
+        const maxId = Number(cleanToken.padEnd(6, '9'));
+        orConditions.push({ publicId: { gte: minId, lte: maxId } });
+      }
+      orConditions.push({ publicId: null });
+
+      const fetched = await this.db.user.findMany({
+        where: {
+          ...(allowedUserIds ? { id: { in: [...allowedUserIds] } } : {}),
+          OR: orConditions,
+        },
+        select: userSelect,
+        take: 250,
+      });
+      candidateUsers = fetched.filter((u) => {
+        if (actor.kind !== 'SUPERADMIN' && u.kind === 'SUPERADMIN' && u.id !== actor.id) return false;
+        const resolved = String(resolveUserPublicId(u));
+        return resolved === cleanToken || resolved.startsWith(cleanToken);
+      });
+    } else {
+      const digitsPhone = cleanToken.replace(/[\s()-]/g, '');
+      candidateUsers = await this.db.user.findMany({
+        where: {
+          ...(allowedUserIds ? { id: { in: [...allowedUserIds] } } : {}),
+          ...(actor.kind !== 'SUPERADMIN' ? { OR: [{ kind: { not: 'SUPERADMIN' } }, { id: actor.id }] } : {}),
+          AND: [
+            {
+              OR: [
+                { name: { contains: cleanToken, mode: 'insensitive' } },
+                { login: { contains: cleanToken.replace(/^@/, ''), mode: 'insensitive' } },
+                { email: { contains: cleanToken, mode: 'insensitive' } },
+                ...(digitsPhone.length >= 3 ? [{ phone: { contains: digitsPhone } }] : []),
+              ],
+            },
+          ],
+        },
+        select: userSelect,
+        take: 40,
+      });
+    }
+
+    candidateUsers.sort((a, b) => {
+      const pubA = String(resolveUserPublicId(a));
+      const pubB = String(resolveUserPublicId(b));
+      const exactA = pubA === cleanToken ? 1 : 0;
+      const exactB = pubB === cleanToken ? 1 : 0;
+      if (exactA !== exactB) return exactB - exactA;
+      if (a.status === 'ACTIVE' && b.status !== 'ACTIVE') return -1;
+      if (b.status === 'ACTIVE' && a.status !== 'ACTIVE') return 1;
+      return b.createdAt.getTime() - a.createdAt.getTime();
+    });
+
+    const slicedUsers = candidateUsers.slice(0, i.limit);
+    const matchedIds = slicedUsers.map((u) => u.id);
+    if (!matchedIds.length) {
+      return { query: rawQ, isHashId, exactMatch: null, data: [] };
+    }
+
+    const [memberships, bookingCounts, ticketCounts, sessionSummary] = await Promise.all([
+      typeof (this.db as any).membership?.findMany === 'function'
+        ? this.db.membership.findMany({
+            where: {
+              userId: { in: matchedIds },
+              ...(allowedSanatoriumIds ? { sanatoriumId: { in: allowedSanatoriumIds } } : {}),
+            },
+            orderBy: { createdAt: 'desc' },
+          })
+        : [],
+      typeof (this.db as any).booking?.groupBy === 'function'
+        ? this.db.booking.groupBy({
+            by: ['userId'],
+            where: {
+              userId: { in: matchedIds },
+              status: { in: ['CONFIRMED', 'CHECKED_IN', 'CHECKED_OUT'] },
+              ...(allowedSanatoriumIds ? { sanatoriumId: { in: allowedSanatoriumIds } } : {}),
+            },
+            _count: { id: true },
+          })
+        : [],
+      typeof (this.db as any).supportTicket?.groupBy === 'function'
+        ? this.db.supportTicket.groupBy({
+            by: ['userId'],
+            where: {
+              userId: { in: matchedIds },
+              ...(allowedSanatoriumIds ? { sanatoriumId: { in: allowedSanatoriumIds } } : {}),
+            },
+            _count: { id: true },
+          })
+        : [],
+      this.loadUserSessionsSummary(matchedIds, 'WEB'),
+    ]);
+
+    const sanIds = [...new Set(memberships.map((m) => m.sanatoriumId))];
+    const sanatoriums =
+      sanIds.length && typeof (this.db as any).sanatorium?.findMany === 'function'
+        ? await this.db.sanatorium.findMany({
+            where: { id: { in: sanIds } },
+            select: { id: true, name: true },
+          })
+        : [];
+    const sanMap = new Map(sanatoriums.map((s) => [s.id, s.name]));
+    const bookingMap = new Map(bookingCounts.filter((b) => b.userId !== null).map((b) => [b.userId!, b._count.id]));
+    const ticketMap = new Map(ticketCounts.map((t) => [t.userId, t._count.id]));
+    const { lastSessionMap, activeDevicesMap } = sessionSummary;
+    const now = Date.now();
+
+    const data = slicedUsers.map((u) => {
+      const pubId = resolveUserPublicId(u);
+      const exactIdMatch = String(pubId) === cleanToken;
+      const userMemberships = memberships.filter((m) => m.userId === u.id);
+      const primaryMembership =
+        userMemberships.find((m) => (i.sanatorium_id ? m.sanatoriumId === i.sanatorium_id : m.status === 'ACTIVE')) ??
+        userMemberships[0] ??
+        null;
+      const s = lastSessionMap.get(u.id);
+      const activeDevices = activeDevicesMap.get(u.id) ?? [];
+      const isOnline = Boolean(
+        s &&
+          !s.revokedAt &&
+          s.refreshExpiresAt.getTime() > now &&
+          now - s.lastActivityAt.getTime() < 180_000,
+      );
+      const defaultCh = u.kind === 'CUSTOMER' ? 'MOBILE' : 'WEB';
+      const lastMeta = s
+        ? describeDeviceMeta(s.userAgent, s.channel === 'MOBILE' ? 'MOBILE' : 'WEB', s.deviceLabel)
+        : null;
+      const enrichedUser = {
+        ...u,
+        publicId: pubId,
+        email: u.email ?? (u.login?.includes('@') ? u.login : null),
+        avatarUrl: u.avatarUrl ?? null,
+        isOnline,
+        activeSessionsCount: activeDevices.length,
+        activeDevices,
+        bookingsCount: bookingMap.get(u.id) || 0,
+        ticketsCount: ticketMap.get(u.id) || 0,
+        lastSeenAt: s?.lastActivityAt ?? u.updatedAt,
+        device: lastMeta?.deviceLabel || (defaultCh === 'MOBILE' ? 'Mobil ilova' : 'Veb panel'),
+        deviceSummary: lastMeta?.summary || null,
+        lastIp: s?.ipAddress ?? null,
+      };
+      const matchType =
+        u.kind === 'SUPERADMIN'
+          ? ('SELF' as const)
+          : u.kind === 'STAFF'
+            ? ('PARTNER' as const)
+            : ('USER' as const);
+      return {
+        matchType,
+        exactIdMatch,
+        publicId: pubId,
+        user: enrichedUser,
+        staff: primaryMembership
+          ? {
+              ...primaryMembership,
+              sanatoriumName: sanMap.get(primaryMembership.sanatoriumId) ?? null,
+              permissions: effective(primaryMembership),
+              user: enrichedUser,
+            }
+          : null,
+      };
+    });
+
+    const exactMatch = data.find((item) => item.exactIdMatch) ?? null;
+    return {
+      query: rawQ,
+      isHashId,
+      exactMatch,
+      data,
+    };
   }
 
   async toggleCustomerStatus(actor: Actor, id: string, body: unknown) {
