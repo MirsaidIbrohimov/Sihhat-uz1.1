@@ -617,6 +617,7 @@ export function Portal({
     [pendingRegistrations, setPendingRegistrations] = useState(0);
   const sessionGeneration = useRef(0);
   const lastAutoOpenedRef = useRef("");
+  const isAdminMode = mode === "admin";
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") {
@@ -648,7 +649,7 @@ export function Portal({
     let active = true;
     setQuickLoading(true);
     const timer = setTimeout(() => {
-      const staffTenant = !admin
+      const staffTenant = !isAdminMode
         ? (actor?.memberships.find((m) => m.sanatoriumId === tenant && m.status === "ACTIVE")?.sanatoriumId ||
            actor?.memberships.find((m) => m.status === "ACTIVE")?.sanatoriumId || "")
         : "";
@@ -656,7 +657,7 @@ export function Portal({
         "/auth/quick-lookup" +
           query({
             q: trimmed,
-            sanatorium_id: !admin && (tenant || staffTenant) ? (tenant || staffTenant) : undefined,
+            sanatorium_id: !isAdminMode && (tenant || staffTenant) ? (tenant || staffTenant) : undefined,
             limit: 8,
           }),
       )
@@ -691,7 +692,7 @@ export function Portal({
       active = false;
       clearTimeout(timer);
     };
-  }, [cmdOpen, cmdQuery, admin, tenant, actor, basePath]);
+  }, [cmdOpen, cmdQuery, isAdminMode, tenant, actor, basePath]);
   useEffect(() => {
     const media = window.matchMedia("(max-width: 760px)");
     const sync = () => {

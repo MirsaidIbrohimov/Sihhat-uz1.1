@@ -1,6 +1,17 @@
 # Sihhat uz — amalga oshirish holati
 
-Yangilangan: 2026-11-24. Asos: ISHLAB_CHIQISH_REJASI.md va SIHHAT_UZ_ARXITEKTURA.md.
+Yangilangan: 2026-11-27. Asos: ISHLAB_CHIQISH_REJASI.md va SIHHAT_UZ_ARXITEKTURA.md.
+
+## 2026-11-27 Amallar tarixi, kirilgan qurilmalar ta’rifi va yuqori tezkor qidiruvda `#ID` orqali User/Hamkor profilini ochish (`apps/api`, `packages/api-client-ts`, `packages/ui`)
+
+- **Amallar tarixi va Kirilgan qurilmalar ta’rifi tiklanishi**:
+  - [`apps/api/src/common/request-meta.ts`](../apps/api/src/common/request-meta.ts) va [`packages/api-client-ts/src/index.ts`](../packages/api-client-ts/src/index.ts): `describeDeviceMeta()` va brauzer `X-Device-Label` + `Sec-CH-UA*` aniqlagichi qo‘shildi — har bir faol va tarixiy sessiya uchun qurilma turi (`Kompyuter` / `Smartfon` / `Planshet`), operatsion tizim (`Windows 10/11`, `macOS`, `Android <versiya> (<model>)`, `iPhone · iOS`), brauzer yoki ilova versiyasi hamda kirish kanali (`Veb boshqaruv paneli` / `Sihhat.uz mobil ilovasi`) qaytariladi.
+  - [`apps/api/src/auth/auth.service.ts`](../apps/api/src/auth/auth.service.ts) va [`auth.controller.ts`](../apps/api/src/auth/auth.controller.ts): `backfillAuthEventsFromSessions()` foydalanuvchi kesimida emas, har bir `sessionId` kesimida to‘ldiradigan qilindi (foydalanuvchida bitta `AuthEvent` bo‘lsa ham boshqa yozilmagan sessiyalari tushib qolmaydi); `hydrateSessionMeta()` `/auth/me`, `/auth/sessions`, `/auth/activity` va `/auth/heartbeat` so‘rovlarida umumiy `Noma’lum qurilma` nomini real qurilma ta’rifiga hamda IP/User-Agentga yangilaydi.
+  - [`apps/api/src/reports/reports.service.ts`](../apps/api/src/reports/reports.service.ts): `/superadmin/audit` va `/partner/audit` 11 talik sun’iy cheklovsiz barcha real amallarni, `sanatoriumId=null` bo‘lgan jamoa a’zolari amallarini, `actor_public_id` va `sanatorium_name` maydonlarini hamda `q` qidiruvini qo‘llaydi.
+  - [`packages/ui/src/auth-history.tsx`](../packages/ui/src/auth-history.tsx), [`account.tsx`](../packages/ui/src/account.tsx), [`communication.tsx`](../packages/ui/src/communication.tsx), [`governance.tsx`](../packages/ui/src/governance.tsx): `DeviceCell` va `ActiveDevicesSection` orqali «Mening hisobim», «Amallar tarixi» (`/audit` va `/auth-events`), «Ilova foydalanuvchilari» (`CustomerManageModal`) va «Jamoa va ruxsatlar» (`StaffManageModal`) oynalarida kirilgan qurilmalar va ularning to‘liq ta’rifi ko‘rsatiladi; `communication.tsx`da mavjud bo‘lmagan `--text-muted` o‘rniga `--muted` ulandi va barcha audit turlari uchun o‘zbekcha `formatAuditDetail` kengaytirildi.
+- **Yuqoridagi tezkor qidiruvda (`Ctrl + K`) `#ID` bilan User yoki Hamkor profilini ochish**:
+  - [`apps/api/src/auth/staff.controller.ts`](../apps/api/src/auth/staff.controller.ts) va [`staff.service.ts`](../apps/api/src/auth/staff.service.ts): `GET /auth/quick-lookup?q=#<ID>` endpointi qo‘shildi — `#` bilan 6 xonali ID (yoki qisman prefiks) yozilganda Superadmin uchun barcha User (`CUSTOMER`) va Hamkor (`STAFF`), Hamkor panelida esa faqat o‘z sanatoriyasiga tegishli xodim va mijozlarni (faol kirilgan qurilmalari bilan birga) topadi.
+  - [`packages/ui/src/portal.tsx`](../packages/ui/src/portal.tsx), [`governance.tsx`](../packages/ui/src/governance.tsx) (`QuickAccountProfileModal`), [`portal-enhancements.css`](../packages/ui/src/portal-enhancements.css): yuqori tezkor qidiruv barcha ekran o‘lchamlarida ko‘rinadigan qilindi; `#` bilan ID kiritilganda jonli User/Hamkor natijalari chiqadi, aniq 6 xonali `#ID` mos kelganda (yoki `Enter` / bosish orqali) mos User yoki Hamkor profili oynasi darhol ochiladi.
 
 ## 2026-11-24 Hamkor ro‘yxatdan o‘tish tekshiruvi, Amallar tarixi va Kirilgan qurilmalar tarixi tuzatishlari (`apps/api`, `packages/ui`)
 

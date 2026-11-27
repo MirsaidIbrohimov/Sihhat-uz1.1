@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Activity,
   ArrowRight,
+  ArrowUp,
   Baby,
   Bed,
   Building2,
@@ -13,11 +14,13 @@ import {
   ChevronDown,
   ChevronLeft,
   ChevronRight,
+  Clock,
   CreditCard,
   Download,
   ExternalLink,
   Headphones,
   Heart,
+  HelpCircle,
   Info,
   Loader2,
   MapPin,
@@ -25,9 +28,12 @@ import {
   Moon,
   Phone,
   RefreshCw,
+  Scale,
   Search,
   Send,
+  Share2,
   ShieldCheck,
+  SlidersHorizontal,
   Smartphone,
   Sparkles,
   Star,
@@ -253,6 +259,52 @@ const DEFAULT_DAILY_SCHEDULE = [
   { time: "18:30 – 19:30", title: "Kechki ovqat va madaniy hordiq" },
 ];
 
+const PRICE_RANGES = [
+  { id: "all", label: "Barcha narxlar" },
+  { id: "budget", label: "≤ 300 ming" },
+  { id: "mid", label: "300 – 600 ming" },
+  { id: "premium", label: "600 ming+" },
+] as const;
+
+const QUICK_NIGHT_PRESETS = [3, 7, 10, 12, 14] as const;
+
+const LANDING_FAQ_ITEMS = [
+  {
+    q: "Sihhat.uz orqali bron qilishda ustama yoki komissiya olinadimi?",
+    a: "Yo‘q! Barcha narxlar 100% sanatoriyaning rasmiy kassa tariflariga teng. Bron qilish uchun foydalanuvchidan ham, sanatoriyadan ham 0% komissiya olinadi.",
+  },
+  {
+    q: "Sanatoriyaga borganda qanday hujjatlar kerak bo‘ladi?",
+    a: "Asosan shaxsni tasdiqlovchi pasport (yoki ID-karta) va telefon ekranidagi QR-kodli elektron vaucher kifoya. Mavjud bo‘lsa sanatoriya-kurort kartasi yoki tibbiy tahlil natijalarini olib kelish tavsiya etiladi.",
+  },
+  {
+    q: "«1 kishilik joy (sherikli xona)» qanday ishlaydi?",
+    a: "Yolg‘iz borayotgan mehmonlar butun 2 kishilik xona pulini to‘lamasdan, erkaklar yoki ayollar xonasidan faqat 1 kishilik o‘rin (koyka-o‘rin) bron qilishi mumkin. Tizim jinsga qarab alohida xonalarga joylashtiradi.",
+  },
+  {
+    q: "Rejam o‘zgarsa bronni bekor qilish va pulni qaytarish mumkinmi?",
+    a: "Ha, har bir tarifda bekor qilish shartlari ochiq yozilgan. Belgilangan muddatdan oldin bekor qilinganda to‘lov rasmiy tartibda kartangizga qaytariladi.",
+  },
+  {
+    q: "TezCheck orqali onlayn to‘lov xavfsizmi?",
+    a: "To‘lov to‘g‘ridan-to‘g‘ri sertifikatlangan TezCheck sahifasi orqali Click, Payme, Uzcard yoki Humo bilan amalga oshiriladi. Sihhat.uz karta raqami yoki SMS kodlaringizni saqlamaydi.",
+  },
+  {
+    q: "Mobil ilova Android va iPhone’da ishlaydimi?",
+    a: "Ha! Android telefonlar uchun rasmiy universal .APK (v0.2.10), iPhone va iPad foydalanuvchilari uchun esa App Store’siz Safari orqali o‘rnatiladigan to‘liq ekranli PWA rejimi mavjud.",
+  },
+];
+
+function parseAmountUzs(value: string | number | undefined): number {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  const digits = String(value ?? "").replace(/[^\d]/g, "");
+  return digits ? Number(digits) : 0;
+}
+
+function formatUzs(amount: number): string {
+  return `${Math.round(amount).toLocaleString("ru-RU")} so‘m`;
+}
+
 const APK_RELEASE_URL =
   "https://github.com/MirsaidIbrohimov/Sihhat-uz1.1/releases/latest";
 
@@ -323,7 +375,7 @@ function resolvePrimaryPhoto(item: SanatoriumCardData): string {
   return "/branding/wellness-retreat.png";
 }
 
-/** APK-inspired blinking robot SVG matching RobotFace in apps/mobile/lib/neon.dart */
+/** T6 Aurora blinking robot SVG */
 function RobotFaceSvg({ size = 46 }: { size?: number }) {
   return (
     <svg
@@ -335,9 +387,9 @@ function RobotFaceSvg({ size = 46 }: { size?: number }) {
     >
       <defs>
         <linearGradient id="sihhatRobotGrad" x1="15" y1="15" x2="105" y2="105" gradientUnits="userSpaceOnUse">
-          <stop offset="0%" stopColor="#8ff5dc" />
-          <stop offset="50%" stopColor="#3ee6bf" />
-          <stop offset="100%" stopColor="#16b38f" />
+          <stop offset="0%" stopColor="#818cf8" />
+          <stop offset="52%" stopColor="#38bdf8" />
+          <stop offset="100%" stopColor="#34d399" />
         </linearGradient>
       </defs>
       {/* Headphone arc & ear cups */}
@@ -351,15 +403,15 @@ function RobotFaceSvg({ size = 46 }: { size?: number }) {
       <rect x="94" y="48" width="16" height="32" rx="7" fill="url(#sihhatRobotGrad)" />
       {/* Robot head */}
       <rect x="24" y="34" width="72" height="62" rx="20" fill="url(#sihhatRobotGrad)" />
-      {/* Dark visor */}
-      <rect x="33" y="46" width="54" height="38" rx="13" fill="#021a17" />
+      {/* Dark midnight visor */}
+      <rect x="33" y="46" width="54" height="38" rx="13" fill="#0a0f1f" />
       {/* Blinking eyes */}
-      <rect className="l-robot-eye" x="44" y="55" width="8" height="12" rx="4" fill="#3ee6bf" />
-      <rect className="l-robot-eye" x="68" y="55" width="8" height="12" rx="4" fill="#3ee6bf" />
+      <rect className="l-robot-eye" x="44" y="55" width="8" height="12" rx="4" fill="#38bdf8" />
+      <rect className="l-robot-eye" x="68" y="55" width="8" height="12" rx="4" fill="#38bdf8" />
       {/* Smile */}
       <path
         d="M52 73 Q60 79 68 73"
-        stroke="#3ee6bf"
+        stroke="#34d399"
         strokeWidth="2.8"
         strokeLinecap="round"
       />
@@ -367,7 +419,7 @@ function RobotFaceSvg({ size = 46 }: { size?: number }) {
   );
 }
 
-/** Flowing neon wave ribbons adapted from NeonWaves in apps/mobile/lib/neon.dart */
+/** Flowing T6 Aurora wave ribbons */
 function NeonWavesSvg() {
   return (
     <svg
@@ -380,31 +432,31 @@ function NeonWavesSvg() {
         className="l-wave-path"
         d="M-60 130 Q 240 40, 560 130 T 1260 120"
         fill="none"
-        stroke="#3ee6bf"
+        stroke="#818cf8"
         strokeWidth="2.5"
-        strokeOpacity="0.55"
+        strokeOpacity="0.58"
       />
       <path
         className="l-wave-path-2"
         d="M-60 175 Q 300 265, 640 165 T 1260 190"
         fill="none"
-        stroke="#8ff5dc"
-        strokeWidth="1.6"
-        strokeOpacity="0.32"
+        stroke="#38bdf8"
+        strokeWidth="1.8"
+        strokeOpacity="0.42"
       />
       <path
         className="l-wave-path"
         d="M-60 320 Q 340 230, 680 325 T 1260 300"
         fill="none"
-        stroke="#3ee6bf"
-        strokeWidth="3"
+        stroke="#34d399"
+        strokeWidth="2.8"
         strokeOpacity="0.48"
       />
     </svg>
   );
 }
 
-/** Subtle diagonal aurora light streaks inspired by LightStreaks in apps/mobile/lib/neon.dart */
+/** Subtle diagonal T6 Aurora light streaks */
 function LightStreaksSvg() {
   return (
     <svg
@@ -415,9 +467,9 @@ function LightStreaksSvg() {
     >
       <defs>
         <linearGradient id="sihhatStreak" x1="0%" y1="0%" x2="100%" y2="0%">
-          <stop offset="0%" stopColor="#3ee6bf" stopOpacity="0" />
-          <stop offset="50%" stopColor="#3ee6bf" stopOpacity="0.38" />
-          <stop offset="100%" stopColor="#3ee6bf" stopOpacity="0" />
+          <stop offset="0%" stopColor="#6366f1" stopOpacity="0" />
+          <stop offset="48%" stopColor="#38bdf8" stopOpacity="0.38" />
+          <stop offset="100%" stopColor="#34d399" stopOpacity="0" />
         </linearGradient>
       </defs>
       <line x1="620" y1="-20" x2="1500" y2="210" stroke="url(#sihhatStreak)" strokeWidth="2" />
@@ -518,14 +570,32 @@ export function LandingPage() {
     until: number;
   } | null>(null);
 
-  // Filters & Favorites (persisted locally like APK Favorites)
+  // Filters, Sorting, Budget, Compare, Recently Viewed & Favorites
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("Barchasi");
   const [selectedRegion, setSelectedRegion] = useState("Barchasi");
   const [selectedHealthProfile, setSelectedHealthProfile] = useState("Barchasi");
+  const [priceRange, setPriceRange] = useState<"all" | "budget" | "mid" | "premium">("all");
+  const [sortBy, setSortBy] = useState<
+    "recommended" | "price_asc" | "price_desc" | "rating_desc" | "name_asc"
+  >("recommended");
   const [onlyFavorites, setOnlyFavorites] = useState(false);
   const [favorites, setFavorites] = useState<Set<string>>(() => new Set());
+  const [compareIds, setCompareIds] = useState<string[]>([]);
+  const [recentlyViewedIds, setRecentlyViewedIds] = useState<string[]>([]);
+  const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(0);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const toastTimerRef = useRef<number | null>(null);
+  const [detailsCalcNights, setDetailsCalcNights] = useState<number>(10);
+  const [detailsCalcGuests, setDetailsCalcGuests] = useState<number>(1);
+  const [detailsCalcRateId, setDetailsCalcRateId] = useState<string>("");
   const [navDropdownOpen, setNavDropdownOpen] = useState(false);
+
+  const showToast = useCallback((message: string) => {
+    setToastMessage(message);
+    if (toastTimerRef.current) window.clearTimeout(toastTimerRef.current);
+    toastTimerRef.current = window.setTimeout(() => setToastMessage(null), 2600);
+  }, []);
 
   // Waitlist / Callback request state
   const [waitlistOpen, setWaitlistOpen] = useState(false);
@@ -555,6 +625,7 @@ export function LandingPage() {
     | null
     | "ai"
     | "bookings"
+    | "compare"
     | "contact"
     | "login"
     | "download"
@@ -628,6 +699,13 @@ export function LandingPage() {
       if (savedFavs) {
         const parsed = JSON.parse(savedFavs);
         if (Array.isArray(parsed)) setFavorites(new Set(parsed.map(String)));
+      }
+      const savedRecent = localStorage.getItem("sihhat-recently-viewed");
+      if (savedRecent) {
+        const parsedRecent = JSON.parse(savedRecent);
+        if (Array.isArray(parsedRecent)) {
+          setRecentlyViewedIds(parsedRecent.map(String).slice(0, 4));
+        }
       }
     } catch {
       // Ignore storage access failures in strict privacy environments
@@ -713,6 +791,14 @@ export function LandingPage() {
         setActiveModal(null);
         setActivePopupAd(null);
         dismissSplash();
+        return;
+      }
+      const tag = (e.target as HTMLElement | null)?.tagName;
+      const isInput = tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT";
+      if ((e.key === "/" && !isInput) || ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k")) {
+        e.preventDefault();
+        window.scrollTo({ top: 0, behavior: "smooth" });
+        window.setTimeout(() => searchInputRef.current?.focus(), 180);
       }
     };
     updateScrollState();
@@ -760,6 +846,48 @@ export function LandingPage() {
       return next;
     });
   };
+
+  const toggleCompare = useCallback(
+    (item: SanatoriumCardData) => {
+      setCompareIds((prev) => {
+        if (prev.includes(item.id)) {
+          return prev.filter((x) => x !== item.id);
+        }
+        if (prev.length >= 3) {
+          showToast("Taqqoslash uchun ko‘pi bilan 3 ta sanatoriya tanlash mumkin");
+          return prev;
+        }
+        showToast(`«${item.name}» taqqoslashga qo‘shildi`);
+        return [...prev, item.id];
+      });
+    },
+    [showToast],
+  );
+
+  const handleShareSanatorium = useCallback(
+    async (item: SanatoriumCardData) => {
+      const url =
+        typeof window !== "undefined"
+          ? `${window.location.origin}/?sanatorium=${encodeURIComponent(item.id)}`
+          : `https://sihhat.uz/?sanatorium=${encodeURIComponent(item.id)}`;
+      const shareText = `${item.name} (${item.region}) — ${item.from_amount} so‘m/kun · Sihhat.uz`;
+      try {
+        if (typeof navigator !== "undefined" && navigator.share) {
+          await navigator.share({ title: item.name, text: shareText, url });
+          return;
+        }
+        if (typeof navigator !== "undefined" && navigator.clipboard) {
+          await navigator.clipboard.writeText(`${shareText}\n${url}`);
+          showToast("Sanatoriya havolasi nusxalandi ✓");
+          return;
+        }
+      } catch {
+        // User cancelled share or clipboard blocked
+      }
+      showToast("Havola: " + url);
+    },
+    [showToast],
+  );
 
   // Fetch real catalog from Sihhat API (shows APK Shimmer skeletons while fetching)
   const loadCatalog = useCallback(async () => {
@@ -819,9 +947,19 @@ export function LandingPage() {
   );
 
   // When a sanatorium opens, fetch full live room_types & rate_plans with shimmer loading
-  const openDetails = async (item: SanatoriumCardData) => {
+  const openDetails = useCallback(async (item: SanatoriumCardData) => {
     setGalleryIndex(0);
+    setDetailsCalcNights(10);
+    setDetailsCalcGuests(1);
+    setDetailsCalcRateId(item.rate_plans?.[0]?.id || "");
     setActiveModal({ type: "details", item });
+    setRecentlyViewedIds((prev) => {
+      const next = [item.id, ...prev.filter((id) => id !== item.id)].slice(0, 4);
+      try {
+        localStorage.setItem("sihhat-recently-viewed", JSON.stringify(next));
+      } catch {}
+      return next;
+    });
 
     if (item.id && !item.id.includes("ref")) {
       setDetailsLoading(true);
@@ -829,6 +967,9 @@ export function LandingPage() {
         const detailRes = await fetch(`/api/catalog/sanatoriums/${item.id}`);
         if (detailRes.ok) {
           const d = await detailRes.json();
+          if (d.rate_plans && d.rate_plans.length > 0) {
+            setDetailsCalcRateId((currId) => currId || d.rate_plans[0].id);
+          }
           setActiveModal((curr) =>
             curr && typeof curr === "object" && curr.type === "details" && curr.item.id === item.id
               ? {
@@ -855,13 +996,38 @@ export function LandingPage() {
         setDetailsLoading(false);
       }
     }
-  };
+  }, []);
 
-  function openCheckout(item: SanatoriumCardData, ratePlan?: RatePlanItem) {
+  // Auto-open shared deep-link ?sanatorium=<id>
+  const deepLinkHandledRef = useRef(false);
+  useEffect(() => {
+    if (deepLinkHandledRef.current || sanatoriums.length === 0) return;
+    try {
+      const targetId = new URLSearchParams(window.location.search).get("sanatorium");
+      if (targetId) {
+        const found = sanatoriums.find((s) => s.id === targetId);
+        if (found) {
+          deepLinkHandledRef.current = true;
+          openDetails(found);
+        }
+      }
+    } catch {
+      // Ignore malformed URLs
+    }
+  }, [sanatoriums, openDetails]);
+
+  function openCheckout(
+    item: SanatoriumCardData,
+    ratePlan?: RatePlanItem,
+    initialNights?: number,
+  ) {
     setActiveModal({ type: "checkout", item, ratePlan });
     setCheckoutError("");
     setCheckoutSuccessUrl("");
     setCheckoutReference("");
+    if (initialNights && initialNights >= 1) {
+      setCheckoutNights(Math.min(30, Math.max(1, initialNights)));
+    }
     if (ratePlan) {
       setCheckoutSelectedRateId(ratePlan.id);
     } else if (item.rate_plans && item.rate_plans.length > 0) {
@@ -914,10 +1080,10 @@ export function LandingPage() {
     return [...names].slice(0, 6);
   }, [sanatoriums]);
 
-  // Filter sanatoriums by Search, Category, Region, and Favorites
+  // Filter & Sort sanatoriums by Search, Category, Region, Health Profile, Budget & Favorites
   const filteredSanatoriums = useMemo(() => {
     const q = searchQuery.toLowerCase().trim();
-    return sanatoriums.filter((item) => {
+    const list = sanatoriums.filter((item) => {
       if (onlyFavorites && !favorites.has(item.id)) return false;
 
       const matchQuery =
@@ -958,17 +1124,62 @@ export function LandingPage() {
         activeProfile.id === "Barchasi" ||
         activeProfile.keywords.some((kw) => itemHaystack.includes(kw));
 
-      return matchQuery && matchCategory && matchRegion && matchHealthProfile;
+      const price = parseAmountUzs(item.from_amount);
+      const matchPrice =
+        priceRange === "all" ||
+        (priceRange === "budget" && price <= 300000) ||
+        (priceRange === "mid" && price > 300000 && price <= 600000) ||
+        (priceRange === "premium" && price > 600000);
+
+      return matchQuery && matchCategory && matchRegion && matchHealthProfile && matchPrice;
     });
+
+    if (sortBy === "price_asc") {
+      return [...list].sort(
+        (a, b) => parseAmountUzs(a.from_amount) - parseAmountUzs(b.from_amount),
+      );
+    }
+    if (sortBy === "price_desc") {
+      return [...list].sort(
+        (a, b) => parseAmountUzs(b.from_amount) - parseAmountUzs(a.from_amount),
+      );
+    }
+    if (sortBy === "rating_desc") {
+      return [...list].sort(
+        (a, b) => Number(b.rating || 0) - Number(a.rating || 0),
+      );
+    }
+    if (sortBy === "name_asc") {
+      return [...list].sort((a, b) => a.name.localeCompare(b.name));
+    }
+    return list;
   }, [
     sanatoriums,
     searchQuery,
     selectedCategory,
     selectedRegion,
     selectedHealthProfile,
+    priceRange,
+    sortBy,
     onlyFavorites,
     favorites,
   ]);
+
+  const comparedSanatoriums = useMemo(
+    () =>
+      compareIds
+        .map((id) => sanatoriums.find((s) => s.id === id))
+        .filter((s): s is SanatoriumCardData => Boolean(s)),
+    [compareIds, sanatoriums],
+  );
+
+  const recentlyViewedSanatoriums = useMemo(
+    () =>
+      recentlyViewedIds
+        .map((id) => sanatoriums.find((s) => s.id === id))
+        .filter((s): s is SanatoriumCardData => Boolean(s)),
+    [recentlyViewedIds, sanatoriums],
+  );
 
   function handleSearchSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -1385,6 +1596,9 @@ export function LandingPage() {
                       placeholder="Masalan: Zomin, Chortoq, bel og'rig'i, nafas yo'llari..."
                     />
                   </div>
+                  <kbd className="l-kbd-hint" title="Tezkor qidiruv uchun / tugmasini bosing">
+                    /
+                  </kbd>
                 </div>
                 <button type="submit" className="l-btn-neon" style={{ padding: "0.7rem 1.35rem" }}>
                   <Search size={16} />
@@ -1512,14 +1726,14 @@ export function LandingPage() {
                 <div style={{ textAlign: "left" }}>
                   <div
                     className="font-display"
-                    style={{ fontSize: "0.9rem", fontWeight: 800, color: "#eefaf6" }}
+                    style={{ fontSize: "0.9rem", fontWeight: 800, color: "#f1f5ff" }}
                   >
                     AI maslahatchi
                   </div>
                   <div
                     style={{
                       fontSize: "0.74rem",
-                      color: "#3ee6bf",
+                      color: "#38bdf8",
                       fontWeight: 700,
                       display: "flex",
                       alignItems: "center",
@@ -1662,7 +1876,7 @@ export function LandingPage() {
                   />
                   <div className="l-category-overlay">
                     <div className="l-category-label">
-                      <Icon size={18} style={{ color: "#3ee6bf" }} />
+                      <Icon size={18} style={{ color: "#38bdf8" }} />
                       <span>{cat.title}</span>
                     </div>
                     <div className="l-neon-arrow">
@@ -1800,6 +2014,9 @@ export function LandingPage() {
                 onClick={() => {
                   setSelectedCategory("Barchasi");
                   setSelectedRegion("Barchasi");
+                  setSelectedHealthProfile("Barchasi");
+                  setPriceRange("all");
+                  setSortBy("recommended");
                   setOnlyFavorites(false);
                   setSearchQuery("");
                 }}
@@ -1809,6 +2026,29 @@ export function LandingPage() {
               </button>
             </div>
           </div>
+
+          {/* Recently Viewed Sanatoriums Quick Strip */}
+          {recentlyViewedSanatoriums.length > 0 && (
+            <div className="l-recent-strip">
+              <span className="l-recent-label">
+                <Clock size={14} style={{ color: "var(--l-sky)" }} />
+                <span>Yaqinda ko‘rilganlar:</span>
+              </span>
+              {recentlyViewedSanatoriums.map((rec) => (
+                <button
+                  key={rec.id}
+                  type="button"
+                  className="l-recent-chip"
+                  onClick={() => openDetails(rec)}
+                >
+                  <span>{rec.name}</span>
+                  <span style={{ color: "var(--l-sky)", fontWeight: 800 }}>
+                    {rec.from_amount}
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
 
           {/* Quick Health Profile ("Qaysi dardga davo?") Filter Bar */}
           <div
@@ -1872,6 +2112,10 @@ export function LandingPage() {
 
             {(selectedCategory !== "Barchasi" ||
               selectedHealthProfile !== "Barchasi" ||
+              selectedRegion !== "Barchasi" ||
+              priceRange !== "all" ||
+              sortBy !== "recommended" ||
+              onlyFavorites ||
               searchQuery) && (
               <button
                 type="button"
@@ -1881,6 +2125,8 @@ export function LandingPage() {
                   setSelectedHealthProfile("Barchasi");
                   setSearchQuery("");
                   setSelectedRegion("Barchasi");
+                  setPriceRange("all");
+                  setSortBy("recommended");
                   setOnlyFavorites(false);
                 }}
               >
@@ -1888,6 +2134,59 @@ export function LandingPage() {
                 <span>Filtrlarni tozalash</span>
               </button>
             )}
+          </div>
+
+          {/* Smart Budget Range + Sort + Live Counter Row */}
+          <div className="l-filter-controls-row">
+            <div className="l-filter-pills" style={{ alignItems: "center" }}>
+              <span
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 5,
+                  fontSize: "0.78rem",
+                  fontWeight: 800,
+                  color: "var(--l-muted)",
+                  marginRight: 4,
+                }}
+              >
+                <SlidersHorizontal size={13} style={{ color: "var(--l-sky)" }} />
+                <span>Kunlik narx:</span>
+              </span>
+              {PRICE_RANGES.map((pr) => (
+                <button
+                  key={pr.id}
+                  type="button"
+                  className={`l-chip-pill ${priceRange === pr.id ? "active" : ""}`}
+                  onClick={() => setPriceRange(pr.id)}
+                >
+                  {pr.label}
+                </button>
+              ))}
+            </div>
+
+            <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+              {!isCatalogLoading && (
+                <span className="l-count-pill">
+                  Topildi: {filteredSanatoriums.length} ta
+                </span>
+              )}
+              <label className="l-sort-select-wrap">
+                <span>Saralash:</span>
+                <select
+                  className="l-sort-select"
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value as any)}
+                  aria-label="Sanatoriyalarni saralash"
+                >
+                  <option value="recommended">✨ Tavsiya etilgan</option>
+                  <option value="price_asc">💰 Avval arzonlari</option>
+                  <option value="price_desc">💎 Avval qimmatlari</option>
+                  <option value="rating_desc">⭐ Yuqori reyting</option>
+                  <option value="name_asc">🔤 Alifbo bo‘yicha</option>
+                </select>
+              </label>
+            </div>
           </div>
 
           {isCatalogLoading ? (
@@ -1917,6 +2216,9 @@ export function LandingPage() {
                   setSearchQuery("");
                   setSelectedCategory("Barchasi");
                   setSelectedRegion("Barchasi");
+                  setSelectedHealthProfile("Barchasi");
+                  setPriceRange("all");
+                  setSortBy("recommended");
                   setOnlyFavorites(false);
                 }}
               >
@@ -1928,12 +2230,13 @@ export function LandingPage() {
               {filteredSanatoriums.map((item, idx) => {
                 const photo = resolvePrimaryPhoto(item);
                 const isFav = favorites.has(item.id);
+                const isCompared = compareIds.includes(item.id);
                 const ratingLabel = Number(item.rating || 4.8).toFixed(1);
 
                 return (
                   <article
                     key={item.id}
-                    className="l-sanatorium-card l-reveal"
+                    className={`l-sanatorium-card l-reveal ${isCompared ? "is-compared" : ""}`}
                     style={{ animationDelay: `${Math.min(idx, 6) * 0.06}s` }}
                   >
                     <div
@@ -1948,9 +2251,29 @@ export function LandingPage() {
                       {item.tag && <span className="l-card-tag">{item.tag}</span>}
                       <div className="l-card-media-right">
                         <span className="l-rating-badge">
-                          <Star size={12} fill="#f5b942" color="#f5b942" />
+                          <Star size={12} fill="#fbbf24" color="#fbbf24" />
                           <span>{ratingLabel}</span>
                         </span>
+                        <button
+                          type="button"
+                          className={`l-compare-btn ${isCompared ? "is-active" : ""}`}
+                          title={
+                            isCompared
+                              ? "Taqqoslashdan olib tashlash"
+                              : "Taqqoslashga qo‘shish"
+                          }
+                          aria-label={
+                            isCompared
+                              ? "Taqqoslashdan olib tashlash"
+                              : "Taqqoslashga qo‘shish"
+                          }
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            toggleCompare(item);
+                          }}
+                        >
+                          <Scale size={14} />
+                        </button>
                         <button
                           type="button"
                           className={`l-fav-btn ${isFav ? "is-fav" : ""}`}
@@ -1988,7 +2311,7 @@ export function LandingPage() {
                       <div className="l-card-location">
                         <MapPin
                           size={13}
-                          style={{ color: "var(--l-neon)", flexShrink: 0 }}
+                          style={{ color: "var(--l-sky)", flexShrink: 0 }}
                         />
                         <span>{item.region}</span>
                       </div>
@@ -1999,12 +2322,7 @@ export function LandingPage() {
                           .map((badge, i) => (
                             <span
                               key={`hb-${i}`}
-                              className="l-amenity-tag"
-                              style={{
-                                borderColor: "rgba(62, 230, 191, 0.35)",
-                                color: "var(--l-neon)",
-                                fontWeight: 700,
-                              }}
+                              className="l-amenity-tag health"
                             >
                               {badge}
                             </span>
@@ -2103,7 +2421,7 @@ export function LandingPage() {
                 style={{
                   width: 68,
                   height: 68,
-                  boxShadow: "0 0 24px rgba(62, 230, 191, 0.35)",
+                  boxShadow: "0 0 24px rgba(125, 211, 252, 0.42)",
                 }}
               >
                 <div
@@ -2129,7 +2447,7 @@ export function LandingPage() {
               >
                 SIHHAT UZ
               </strong>
-              <span style={{ fontSize: "0.78rem", color: "#8ff5dc", fontWeight: 600 }}>
+              <span style={{ fontSize: "0.78rem", color: "#e0f2fe", fontWeight: 600 }}>
                 Sog‘lom hayot — baxt kaliti!
               </span>
             </div>
@@ -2137,7 +2455,44 @@ export function LandingPage() {
         </section>
 
         {/* ========================================================
-            7. APK DOWNLOAD BANNER WITH NEON WAVES & QR SCANNER
+            6.5 KO'P SO'RALADIGAN SAVOLLAR (FAQ ACCORDION)
+            ======================================================== */}
+        <section id="savollar" className="l-section" style={{ paddingTop: "1.25rem" }}>
+          <div className="l-section-head">
+            <div>
+              <div className="l-section-title-wrap">
+                <HelpCircle size={20} style={{ color: "var(--l-sky)" }} />
+                <h2 className="l-section-title">Ko‘p so‘raladigan savollar</h2>
+              </div>
+              <p className="l-section-sub">
+                Bron qilish, hujjatlar, sherikli xona va to‘lov xavfsizligi bo‘yicha eng muhim javoblar
+              </p>
+            </div>
+          </div>
+
+          <div className="l-faq-grid">
+            {LANDING_FAQ_ITEMS.map((faq, idx) => {
+              const isOpen = openFaqIndex === idx;
+              return (
+                <div key={idx} className={`l-faq-item ${isOpen ? "is-open" : ""}`}>
+                  <button
+                    type="button"
+                    className="l-faq-trigger"
+                    aria-expanded={isOpen}
+                    onClick={() => setOpenFaqIndex(isOpen ? null : idx)}
+                  >
+                    <span>{faq.q}</span>
+                    <ChevronDown size={18} className="l-faq-chevron" />
+                  </button>
+                  {isOpen && <p className="l-faq-answer">{faq.a}</p>}
+                </div>
+              );
+            })}
+          </div>
+        </section>
+
+        {/* ========================================================
+            7. APK DOWNLOAD BANNER WITH T6 AURORA WAVES & QR SCANNER
             ======================================================== */}
         <section id="ilovani-yuklash" className="l-section">
           <div className="l-app-banner">
@@ -2146,10 +2501,10 @@ export function LandingPage() {
             <div style={{ position: "relative", zIndex: 2 }}>
               <div
                 className="l-greeting-pill"
-                style={{ marginBottom: "1rem" }}
+                style={{ marginBottom: "1rem", color: "#e0f2fe" }}
               >
                 <Smartphone size={14} />
-                <span>Sihhat.uz Rasmiy Mobil Ilovasi · v0.2.7 (Android & iOS)</span>
+                <span>Sihhat.uz Rasmiy Mobil Ilovasi · v0.2.10 (Android & iOS)</span>
               </div>
 
               <h2
@@ -2166,7 +2521,7 @@ export function LandingPage() {
               <p
                 style={{
                   margin: "0 0 1.35rem",
-                  color: "#c8ebe1",
+                  color: "#c6d3f0",
                   fontSize: "0.96rem",
                   maxWidth: 560,
                 }}
@@ -2183,23 +2538,23 @@ export function LandingPage() {
                   gap: "0.65rem",
                   marginBottom: "1.5rem",
                   fontSize: "0.86rem",
-                  color: "#a7f3d0",
+                  color: "#e0f2fe",
                 }}
               >
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <CheckCircle2 size={16} color="#3ee6bf" />
+                  <CheckCircle2 size={16} color="#818cf8" />
                   <span>Xonalar va rasmiy tariflar</span>
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <CheckCircle2 size={16} color="#3ee6bf" />
+                  <CheckCircle2 size={16} color="#38bdf8" />
                   <span>QR-kodli elektron vaucher</span>
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <CheckCircle2 size={16} color="#3ee6bf" />
+                  <CheckCircle2 size={16} color="#34d399" />
                   <span>Chat orqali rasm yuborish</span>
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <CheckCircle2 size={16} color="#3ee6bf" />
+                  <CheckCircle2 size={16} color="#a5b4fc" />
                   <span>Offline katalog rejimi</span>
                 </div>
               </div>
@@ -2220,8 +2575,9 @@ export function LandingPage() {
                   onClick={() => setActiveModal("download")}
                   className="l-btn-ghost"
                   style={{
-                    color: "#eefaf6",
-                    borderColor: "rgba(143, 245, 220, 0.35)",
+                    color: "#f1f5ff",
+                    backgroundColor: "rgba(28, 40, 74, 0.72)",
+                    borderColor: "rgba(125, 211, 252, 0.38)",
                   }}
                 >
                   <Smartphone size={16} />
@@ -2234,8 +2590,9 @@ export function LandingPage() {
                   rel="noreferrer"
                   className="l-btn-ghost"
                   style={{
-                    color: "#eefaf6",
-                    borderColor: "rgba(143, 245, 220, 0.35)",
+                    color: "#f1f5ff",
+                    backgroundColor: "rgba(28, 40, 74, 0.72)",
+                    borderColor: "rgba(125, 211, 252, 0.38)",
                   }}
                 >
                   <ExternalLink size={16} />
@@ -2261,7 +2618,7 @@ export function LandingPage() {
                   <strong style={{ display: "block", fontSize: "0.98rem" }}>
                     Sihhat.uz Mobile
                   </strong>
-                  <span style={{ fontSize: "0.74rem", color: "#3ee6bf" }}>
+                  <span style={{ fontSize: "0.74rem", color: "#38bdf8" }}>
                     Android · QR orqali yuklab olish
                   </span>
                 </div>
@@ -2275,7 +2632,7 @@ export function LandingPage() {
                 <div className="l-qr-scan-beam" aria-hidden="true" />
               </div>
 
-              <div style={{ fontSize: "0.78rem", color: "#9dc4ba", lineHeight: 1.4 }}>
+              <div style={{ fontSize: "0.78rem", color: "#8799bf", lineHeight: 1.4 }}>
                 Telefon kamerasini QR-kodga yo‘naltirib APK faylni to‘g‘ridan-to‘g‘ri
                 o‘rnating
               </div>
@@ -2542,14 +2899,43 @@ export function LandingPage() {
                     </span>
                   </p>
                 </div>
-                <button
-                  type="button"
-                  className="l-modal-close"
-                  aria-label="Yopish"
-                  onClick={() => setActiveModal(null)}
-                >
-                  <X size={20} />
-                </button>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <button
+                    type="button"
+                    className="l-modal-close"
+                    title="Havolani ulashish"
+                    aria-label="Sanatoriya havolasini ulashish"
+                    onClick={() => handleShareSanatorium(activeModal.item)}
+                  >
+                    <Share2 size={17} />
+                  </button>
+                  <button
+                    type="button"
+                    className="l-modal-close"
+                    title="Taqqoslashga qo‘shish"
+                    aria-label="Taqqoslashga qo‘shish"
+                    style={
+                      compareIds.includes(activeModal.item.id)
+                        ? {
+                            borderColor: "var(--l-sky)",
+                            color: "var(--l-sky)",
+                            background: "var(--l-accent-soft)",
+                          }
+                        : undefined
+                    }
+                    onClick={() => toggleCompare(activeModal.item)}
+                  >
+                    <Scale size={17} />
+                  </button>
+                  <button
+                    type="button"
+                    className="l-modal-close"
+                    aria-label="Yopish"
+                    onClick={() => setActiveModal(null)}
+                  >
+                    <X size={20} />
+                  </button>
+                </div>
               </div>
 
               <div className="l-modal-body">
@@ -2571,7 +2957,7 @@ export function LandingPage() {
                         borderRadius: 18,
                         overflow: "hidden",
                         marginBottom: "1.25rem",
-                        background: "#021a17",
+                        background: "var(--l-abyss)",
                         border: "1px solid var(--l-border)",
                       }}
                     >
@@ -2601,9 +2987,9 @@ export function LandingPage() {
                               width: 36,
                               height: 36,
                               borderRadius: "50%",
-                              background: "rgba(2,26,23,0.75)",
+                              background: "rgba(14, 21, 42, 0.82)",
                               color: "#fff",
-                              border: "1px solid rgba(62,230,191,0.4)",
+                              border: "1px solid rgba(125, 211, 252, 0.42)",
                               cursor: "pointer",
                               display: "flex",
                               alignItems: "center",
@@ -2625,9 +3011,9 @@ export function LandingPage() {
                               width: 36,
                               height: 36,
                               borderRadius: "50%",
-                              background: "rgba(2,26,23,0.75)",
+                              background: "rgba(14, 21, 42, 0.82)",
                               color: "#fff",
-                              border: "1px solid rgba(62,230,191,0.4)",
+                              border: "1px solid rgba(125, 211, 252, 0.42)",
                               cursor: "pointer",
                               display: "flex",
                               alignItems: "center",
@@ -2642,8 +3028,8 @@ export function LandingPage() {
                               bottom: 12,
                               left: "50%",
                               transform: "translateX(-50%)",
-                              background: "rgba(2,26,23,0.8)",
-                              color: "#3ee6bf",
+                              background: "rgba(14, 21, 42, 0.86)",
+                              color: "#93c5fd",
                               padding: "4px 12px",
                               borderRadius: 99,
                               fontSize: "0.78rem",
@@ -2685,12 +3071,7 @@ export function LandingPage() {
                   {detectHealthBadges(activeModal.item).map((badge, i) => (
                     <span
                       key={i}
-                      className="l-amenity-tag"
-                      style={{
-                        borderColor: "rgba(62, 230, 191, 0.45)",
-                        color: "var(--l-neon)",
-                        fontWeight: 700,
-                      }}
+                      className="l-amenity-tag health"
                     >
                       {badge}
                     </span>
@@ -2712,7 +3093,7 @@ export function LandingPage() {
                     marginTop: "1rem",
                     padding: "14px 16px",
                     borderRadius: 16,
-                    background: "rgba(62, 230, 191, 0.07)",
+                    background: "var(--l-accent-soft)",
                     border: "1px solid var(--l-border)",
                   }}
                 >
@@ -2744,6 +3125,77 @@ export function LandingPage() {
                   </div>
                 </div>
 
+                {/* Live Stay Cost Calculator */}
+                {(() => {
+                  const chosenRp =
+                    activeModal.item.rate_plans?.find((r) => r.id === detailsCalcRateId) ||
+                    activeModal.item.rate_plans?.[0];
+                  const dailyUzs = chosenRp
+                    ? Math.round(Number(chosenRp.baseAmount) / 100)
+                    : parseAmountUzs(activeModal.item.from_amount);
+                  const totalEstimate = dailyUzs * detailsCalcNights * detailsCalcGuests;
+
+                  return (
+                    <div className="l-calc-box">
+                      <div className="l-calc-head">
+                        <div>
+                          <strong style={{ display: "block", fontSize: "0.94rem" }}>
+                            🧮 Jonli yo‘llanma kalkulyatori
+                          </strong>
+                          <span style={{ fontSize: "0.78rem", color: "var(--l-muted)" }}>
+                            Kunlar va mehmon soniga qarab taxminiy jami narx (0% komissiya)
+                          </span>
+                        </div>
+                        <div style={{ textAlign: "right" }}>
+                          <div className="l-calc-total">{formatUzs(totalEstimate)}</div>
+                          <span style={{ fontSize: "0.74rem", color: "var(--l-muted)" }}>
+                            {detailsCalcNights} kun × {detailsCalcGuests} kishi × {formatUzs(dailyUzs)}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div
+                        style={{
+                          display: "flex",
+                          flexWrap: "wrap",
+                          alignItems: "center",
+                          justifyContent: "space-between",
+                          gap: 10,
+                        }}
+                      >
+                        <div className="l-filter-pills">
+                          {QUICK_NIGHT_PRESETS.map((n) => (
+                            <button
+                              key={n}
+                              type="button"
+                              className={`l-chip-pill ${detailsCalcNights === n ? "active" : ""}`}
+                              onClick={() => setDetailsCalcNights(n)}
+                            >
+                              {n} kun
+                            </button>
+                          ))}
+                        </div>
+
+                        <div style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                          <span style={{ fontSize: "0.78rem", color: "var(--l-muted)", fontWeight: 700 }}>
+                            Mehmon:
+                          </span>
+                          {[1, 2, 3].map((g) => (
+                            <button
+                              key={g}
+                              type="button"
+                              className={`l-chip-pill ${detailsCalcGuests === g ? "active" : ""}`}
+                              onClick={() => setDetailsCalcGuests(g)}
+                            >
+                              {g} kishi
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })()}
+
                 {/* Live Rate Plans with Shimmer while fetching */}
                 <div style={{ marginTop: "1.25rem" }}>
                   <h4 style={{ margin: "0 0 10px", fontSize: "1.02rem" }}>
@@ -2773,15 +3225,23 @@ export function LandingPage() {
                       {activeModal.item.rate_plans.map((rp) => (
                         <div
                           key={rp.id}
+                          onClick={() => setDetailsCalcRateId(rp.id)}
                           style={{
                             padding: "12px 14px",
                             borderRadius: 14,
-                            background: "rgba(62, 230, 191, 0.08)",
-                            border: "1px solid var(--l-border)",
+                            background:
+                              detailsCalcRateId === rp.id
+                                ? "var(--l-accent-soft-2)"
+                                : "var(--l-accent-soft)",
+                            border:
+                              detailsCalcRateId === rp.id
+                                ? "1.5px solid var(--l-border-bright)"
+                                : "1px solid var(--l-border)",
                             display: "flex",
                             justifyContent: "space-between",
                             alignItems: "center",
                             gap: 12,
+                            cursor: "pointer",
                           }}
                         >
                           <div>
@@ -2810,7 +3270,10 @@ export function LandingPage() {
                             type="button"
                             className="l-btn-neon"
                             style={{ padding: "6px 14px", fontSize: "0.8rem" }}
-                            onClick={() => openCheckout(activeModal.item, rp)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              openCheckout(activeModal.item, rp, detailsCalcNights);
+                            }}
                           >
                             To‘lash
                           </button>
@@ -2822,7 +3285,7 @@ export function LandingPage() {
                       style={{
                         padding: "12px 14px",
                         borderRadius: 14,
-                        background: "rgba(62, 230, 191, 0.08)",
+                        background: "var(--l-accent-soft)",
                         border: "1px solid var(--l-border)",
                         display: "flex",
                         justifyContent: "space-between",
@@ -2841,7 +3304,9 @@ export function LandingPage() {
                         type="button"
                         className="l-btn-neon"
                         style={{ padding: "6px 14px", fontSize: "0.8rem" }}
-                        onClick={() => openCheckout(activeModal.item)}
+                        onClick={() =>
+                          openCheckout(activeModal.item, undefined, detailsCalcNights)
+                        }
                       >
                         To‘lash
                       </button>
@@ -2955,8 +3420,8 @@ export function LandingPage() {
                           style={{
                             padding: "10px 12px",
                             borderRadius: 12,
-                            background: "rgba(62, 230, 191, 0.15)",
-                            color: "var(--l-neon)",
+                            background: "var(--l-mint-soft)",
+                            color: "var(--l-mint)",
                             fontSize: "0.86rem",
                             fontWeight: 700,
                           }}
@@ -3041,12 +3506,17 @@ export function LandingPage() {
               <div className="l-modal-footer">
                 <button
                   type="button"
-                  onClick={() => openCheckout(activeModal.item)}
+                  onClick={() => {
+                    const chosenRp = activeModal.item.rate_plans?.find(
+                      (r) => r.id === detailsCalcRateId,
+                    );
+                    openCheckout(activeModal.item, chosenRp, detailsCalcNights);
+                  }}
                   className="l-btn-neon"
                   style={{ padding: "0.72rem 1.5rem", fontSize: "0.94rem" }}
                 >
                   <CreditCard size={18} />
-                  <span>TezCheck orqali to‘lash</span>
+                  <span>TezCheck orqali to‘lash ({detailsCalcNights} kun)</span>
                 </button>
               </div>
             </div>
