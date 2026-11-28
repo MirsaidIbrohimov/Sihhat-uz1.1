@@ -12436,6 +12436,16 @@
               "type": "string",
               "format": "uuid"
             }
+          },
+          {
+            "name": "w",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 64,
+              "maximum": 2400
+            }
           }
         ],
         "responses": {
@@ -12563,7 +12573,7 @@
           }
         ],
         "x-roles": [],
-        "description": "Published public photos require no session. Other files require an authorized sanatorium staff session or an explicit message recipient session. S3 storage returns a short-lived redirect."
+        "description": "Published public photos require no session. Other files require an authorized sanatorium staff session or an explicit message recipient session. Optional ?w= returns an optimized WebP thumbnail. S3 storage returns a short-lived redirect."
       }
     },
     "/customer/bookings/{id}/checkout": {

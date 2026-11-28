@@ -120,6 +120,7 @@ class _SanatoriumGalleryState extends State<SanatoriumGallery> {
                       child: SanatoriumPhoto(
                         api: widget.api,
                         id: widget.photos[n],
+                        cacheWidth: widget.fullscreen ? 1400 : 960,
                         fit: widget.fullscreen ? BoxFit.contain : BoxFit.cover,
                         fallback: ColoredBox(
                           color: context.colors.soft,

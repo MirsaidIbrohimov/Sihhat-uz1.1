@@ -384,11 +384,13 @@ class SanatoriumPhoto extends StatefulWidget {
   final String id;
   final BoxFit fit;
   final Widget fallback;
+  final int cacheWidth;
   const SanatoriumPhoto({
     required this.api,
     required this.id,
     this.fit = BoxFit.cover,
     this.fallback = const SizedBox(),
+    this.cacheWidth = 720,
     super.key,
   });
   @override
@@ -405,7 +407,8 @@ class _SanatoriumPhotoState extends State<SanatoriumPhoto> {
   }
 
   void load() {
-    future = CatalogCache(widget.api).photos.file(widget.id);
+    future = CatalogCache(widget.api).photos
+        .file(widget.id, width: widget.cacheWidth <= 720 ? 640 : 1280);
   }
 
   @override
@@ -429,17 +432,30 @@ class _SanatoriumPhotoState extends State<SanatoriumPhoto> {
   }
 
   @override
-  Widget build(BuildContext context) => FutureBuilder<File?>(
-    future: future,
-    builder: (_, result) => result.data == null
-        ? widget.fallback
-        : Image.file(
-            result.data!,
-            cacheWidth: 1200,
-            fit: widget.fit,
-            errorBuilder: (_, _, _) => widget.fallback,
-          ),
-  );
+  Widget build(BuildContext context) {
+    final immediate = CatalogCache(widget.api).photos.cachedFile(widget.id);
+    if (immediate != null) {
+      return Image.file(
+        immediate,
+        cacheWidth: widget.cacheWidth,
+        gaplessPlayback: true,
+        fit: widget.fit,
+        errorBuilder: (_, _, _) => widget.fallback,
+      );
+    }
+    return FutureBuilder<File?>(
+      future: future,
+      builder: (_, result) => result.data == null
+          ? widget.fallback
+          : Image.file(
+              result.data!,
+              cacheWidth: widget.cacheWidth,
+              gaplessPlayback: true,
+              fit: widget.fit,
+              errorBuilder: (_, _, _) => widget.fallback,
+            ),
+    );
+  }
 }
 
 class _AsyncContentState extends State<AsyncContent> {

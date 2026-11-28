@@ -2,6 +2,20 @@
 
 Yangilangan: 2026-11-28. Asos: ISHLAB_CHIQISH_REJASI.md va SIHHAT_UZ_ARXITEKTURA.md.
 
+## 2026-11-28 Sayt, web panellar va mobil ilova tezligini oshirish, suratlarni WebP siqish hamda skroll qotishlarini bartaraf etish (`apps/api`, `packages/ui`, `apps/superadmin-web`, `apps/partner-web`, `apps/mobile`, `scripts`)
+
+- **Backend media WebP/thumbnail siqish, 1-so‘rovli SQL JOIN va `ETag` keshi**:
+  - [`apps/api/src/media/media.service.ts`](../apps/api/src/media/media.service.ts), [`media.controller.ts`](../apps/api/src/media/media.controller.ts), [`openapi.ts`](../apps/api/src/common/openapi.ts): katta rasmlar yuklanishda o‘z formatida avtomatik siqiladi (`<= 1920px`), `GET /media/:id?w=480|640|960|1280|1600` esa `sharp` orqali tezkor WebP thumbnail qaytaradi (`16 MB` xotira keshi + disk sidecar `.w<N>.webp`), 3 ta ketma-ket DB so‘rovi yagona SQL `LEFT JOIN`ga birlashtirildi, `ETag` (`304 Not Modified`) va `immutable` `Cache-Control` qo‘shildi (`?w=` berilmaganda avvalgi original MIME to‘liq saqlanadi).
+  - [`apps/api/src/catalog/catalog.service.ts`](../apps/api/src/catalog/catalog.service.ts): `publicRows()` ichidagi 4 ta ketma-ket baza so‘rovi `Promise.all` orqali parallel bajariladigan qilindi.
+- **Statik brend aktivlar va Next.js optimizatsiyasi**:
+  - [`scripts/web-assets.mjs`](../scripts/web-assets.mjs): `favicon.png` (`588 KB → 3.6 KB`), `sihhat-logo.png` (`588 KB → 26.5 KB`), `sihhat-logo.jpg` (`2.6 MB → 6.8 KB`), `hero-retreat.jpg` (`279 KB → 119.6 KB`) va barcha turkum muqovalari `sharp` bilan siqildi.
+  - [`apps/superadmin-web/next.config.ts`](../apps/superadmin-web/next.config.ts) va [`apps/partner-web/next.config.ts`](../apps/partner-web/next.config.ts): `compress: true`, `optimizePackageImports: ["lucide-react"]` va `/branding/*`, `/fonts/*` uchun 1 yillik `immutable` kesh sarlavhalari yoqildi.
+- **`sihhat.uz`, `/superadmin` va `/hamkorlar` tez ochilishi hamda ichki qotishlarni yo‘qotish**:
+  - [`apps/superadmin-web/app/[[...section]]/page.tsx`](../apps/superadmin-web/app/%5B%5B...section%5D%5D/page.tsx), [`apps/partner-web/app/[[...section]]/page.tsx`](../apps/partner-web/app/%5B%5B...section%5D%5D/page.tsx), [`portal-client.tsx`](../apps/superadmin-web/app/portal-client.tsx): `Portal` `next/dynamic` orqali bosh sahifa JS paketidan ajratildi; bosh sahifa katalogi va reklamalari serverda (`revalidate: 30`) oldindan yuklab uzatiladi.
+  - [`packages/ui/src/landing.tsx`](../packages/ui/src/landing.tsx), [`landing.css`](../packages/ui/src/landing.css), [`styles.css`](../packages/ui/src/styles.css), [`session-idle.ts`](../packages/ui/src/session-idle.ts), [`photo-gallery.tsx`](../packages/ui/src/photo-gallery.tsx): sun’iy `920 ms` splash kutishi olib tashlandi; skroll paytida butun sahifani 100 marta qayta render qilgan `scrollProgress` state va `getBoundingClientRect()` o‘rniga `requestAnimationFrame` + GPU `scaleX` ref ulandi; qidiruvga `useDeferredValue`, rasmlarga `?w=640|1280` + `loading="lazy" decoding="async"` + keyingi slayd preload qo‘shildi; GPU ni qotirgan `filter: blur(84px)`, tinimsiz fon animatsiyalari, kartalardagi takroriy `backdrop-filter` va `pointermove` tinglovchisi olib tashlandi.
+- **Mobil ilova (`apps/mobile`) surat yuklash tezligi**:
+  - [`apps/mobile/lib/data/api.dart`](../apps/mobile/lib/data/api.dart), [`catalog_cache.dart`](../apps/mobile/lib/data/catalog_cache.dart), [`widgets.dart`](../apps/mobile/lib/widgets.dart), [`sanatorium_gallery.dart`](../apps/mobile/lib/sanatorium_gallery.dart): `CatalogCache.sync()` 2 bosqichli qilindi — avval barcha sanatoriyalarning faqat 1-muqova `thumb` (`?w=640`) suratlari 4 ta oqimda yuklanib ekranda darhol ko‘rsatiladi, ichki galereya rasmlari esa undan keyin tortiladi; `CatalogPhotos.cachedFile()` sinxron xotira keshi va `gaplessPlayback: true` skrolldagi qayta o‘qish va miltillashni yo‘qotdi.
+
 ## 2026-11-28 Web panellar va `sihhat.uz` defolt rasmlarini yangi fotorealistik suratlarga almashtirish (`assets/branding/web`, `scripts/web-assets.mjs`, `packages/ui`, `apps/superadmin-web`, `apps/partner-web`)
 
 - **Yangi web branding assetlari (`assets/branding/web/` va `scripts/web-assets.mjs`)**:

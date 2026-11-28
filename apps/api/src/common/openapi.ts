@@ -158,8 +158,9 @@ export function enrichOpenApi(document:OpenAPIObject){
     }else if(!isPublic&&method!=='get'&&operation.security.some((s:any)=>s.cookie))addParameters([{name:'Origin',in:'header',required:staffOnly,schema:str,description:'Allowed WEB origin; required with cookie authentication.'}]);
     if(path==='/media/{id}'){
       operation.security=[{}, {cookie:[]}, {bearer:[]}];
-      operation.description='Published public photos require no session. Other files require an authorized sanatorium staff session or an explicit message recipient session. S3 storage returns a short-lived redirect.';
+      operation.description='Published public photos require no session. Other files require an authorized sanatorium staff session or an explicit message recipient session. Optional ?w= returns an optimized WebP thumbnail. S3 storage returns a short-lived redirect.';
       operation['x-roles']=[];
+      addParameters([query('w',{...integer,minimum:64,maximum:2400})]);
     }
     if(method!=='get'){
       let schema=method==='delete'&&path==='/notifications/device-token'?obj({token:str,device_id:str},[]):bodies[path];if(!schema&&(/staff-approvals|moderation|check-in|check-out|no-show/.test(path)))schema=versionReason;

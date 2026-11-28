@@ -127,35 +127,32 @@
 .l-glow-orb {
   position: absolute;
   border-radius: 50%;
-  filter: blur(84px);
-  opacity: 0.56;
-  transition: opacity 0.4s ease;
+  opacity: 0.72;
+  pointer-events: none;
 }
 
 .landing-page[data-landing-theme="light"] .l-glow-orb {
-  opacity: 0.24;
+  opacity: 0.3;
 }
 
 .l-glow-orb-tr {
-  top: -14%;
-  right: -8%;
-  width: 56vw;
-  height: 56vw;
-  max-width: 680px;
-  max-height: 680px;
-  background: radial-gradient(circle, rgba(99, 102, 241, 0.3) 0%, rgba(14, 165, 233, 0.16) 45%, transparent 72%);
-  animation: lFloatSlow 11s ease-in-out infinite alternate;
+  top: -18%;
+  right: -12%;
+  width: 64vw;
+  height: 64vw;
+  max-width: 760px;
+  max-height: 760px;
+  background: radial-gradient(circle, rgba(99, 102, 241, 0.24) 0%, rgba(14, 165, 233, 0.11) 42%, transparent 70%);
 }
 
 .l-glow-orb-bl {
-  bottom: -18%;
-  left: -10%;
-  width: 52vw;
-  height: 52vw;
-  max-width: 620px;
-  max-height: 620px;
-  background: radial-gradient(circle, rgba(16, 185, 129, 0.24) 0%, rgba(56, 189, 248, 0.14) 48%, transparent 72%);
-  animation: lFloatSlow 14s ease-in-out infinite alternate-reverse;
+  bottom: -22%;
+  left: -14%;
+  width: 60vw;
+  height: 60vw;
+  max-width: 700px;
+  max-height: 700px;
+  background: radial-gradient(circle, rgba(16, 185, 129, 0.19) 0%, rgba(56, 189, 248, 0.09) 44%, transparent 70%);
 }
 
 .l-light-streaks {
@@ -315,14 +312,16 @@
 }
 
 .l-top-progress-fill {
+  width: 100%;
   height: 100%;
+  transform: scaleX(0);
+  transform-origin: left center;
+  will-change: transform;
   background: linear-gradient(90deg, #6366f1, #38bdf8, #34d399);
-  box-shadow: 0 0 12px rgba(56, 189, 248, 0.8);
-  transition: width 0.15s ease-out;
 }
 
 .l-top-progress-fill.is-loading {
-  width: 100% !important;
+  transform: scaleX(1) !important;
   background: linear-gradient(
     90deg,
     transparent 0%,
@@ -386,8 +385,7 @@
 }
 
 .l-skeleton-card {
-  background: var(--l-surface);
-  backdrop-filter: blur(14px);
+  background: var(--l-surface-solid);
   border: 1px solid var(--l-border);
   border-radius: 24px;
   padding: 14px;
@@ -425,10 +423,9 @@
   top: 0;
   z-index: 90;
   background: var(--l-header-bg);
-  backdrop-filter: blur(18px);
-  -webkit-backdrop-filter: blur(18px);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
   border-bottom: 1px solid var(--l-border);
-  transition: background 0.3s ease, border-color 0.3s ease;
 }
 
 .l-nav-container {
@@ -970,7 +967,6 @@
   height: 100%;
   object-fit: cover;
   object-position: right center;
-  animation: lKenBurns 9s ease-in-out infinite alternate;
 }
 
 .l-neon-hero-scrim {
@@ -986,14 +982,13 @@
 
 .l-neon-hero-sweep {
   position: absolute;
-  inset: -40% -60%;
+  inset: 0;
   background: linear-gradient(
     115deg,
     transparent 38%,
-    rgba(125, 211, 252, 0.16) 50%,
+    rgba(125, 211, 252, 0.08) 50%,
     transparent 62%
   );
-  animation: lLightSweep 7s linear infinite;
   pointer-events: none;
 }
 
@@ -1054,14 +1049,12 @@
   gap: 12px;
   padding: 0.75rem 1rem;
   border-radius: 22px;
-  background: rgba(20, 29, 56, 0.94);
-  backdrop-filter: blur(18px);
+  background: #141d38;
   border: 1px solid rgba(125, 211, 252, 0.45);
   box-shadow: 0 16px 38px rgba(3, 6, 18, 0.56), 0 0 24px rgba(99, 102, 241, 0.28);
   cursor: pointer;
   color: #f1f5ff;
-  transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
-  animation: lFloatY 3.4s ease-in-out infinite;
+  transition: transform 0.22s ease;
 }
 
 .l-floating-ai-card:hover {
@@ -1093,8 +1086,7 @@
 
 .l-shortcut-tile {
   position: relative;
-  background: var(--l-surface);
-  backdrop-filter: blur(14px);
+  background: var(--l-surface-solid);
   border: 1px solid var(--l-border);
   border-radius: 22px;
   padding: 1.15rem 1rem;
@@ -1515,17 +1507,17 @@
 
 .l-sanatorium-card {
   position: relative;
-  background: var(--l-surface);
-  backdrop-filter: blur(16px);
+  background: var(--l-surface-solid);
+  contain: layout paint;
   border: 1px solid var(--l-border);
   border-radius: 24px;
   overflow: hidden;
   display: flex;
   flex-direction: column;
   box-shadow: var(--l-glow-sm);
-  transition: transform 0.26s cubic-bezier(0.34, 1.56, 0.64, 1),
-    border-color 0.24s ease,
-    box-shadow 0.24s ease;
+  transition: transform 0.2s ease,
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
 }
 
 .l-sanatorium-card::before {
@@ -1576,8 +1568,7 @@
   z-index: 2;
   padding: 4px 10px;
   border-radius: 99px;
-  background: rgba(14, 21, 42, 0.84);
-  backdrop-filter: blur(8px);
+  background: rgba(14, 21, 42, 0.92);
   border: 1px solid rgba(125, 211, 252, 0.4);
   color: #93c5fd;
   font-size: 0.72rem;
@@ -1604,8 +1595,7 @@
   gap: 4px;
   padding: 4px 9px;
   border-radius: 99px;
-  background: rgba(14, 21, 42, 0.84);
-  backdrop-filter: blur(8px);
+  background: rgba(14, 21, 42, 0.92);
   border: 1px solid rgba(251, 191, 36, 0.35);
   color: #ffffff;
   font-size: 0.76rem;
@@ -1895,8 +1885,9 @@
    6. HOW IT WORKS BANNER + FAQ + AURORA WAVES APK BANNER
    ======================================================== */
 .l-how-banner {
-  background: var(--l-surface);
-  backdrop-filter: blur(18px);
+  background: var(--l-surface-solid);
+  content-visibility: auto;
+  contain-intrinsic-size: auto 260px;
   border: 1px solid var(--l-border-bright);
   border-radius: 28px;
   display: grid;
@@ -2072,19 +2063,15 @@
   opacity: 0.5;
 }
 
-.l-wave-path {
-  animation: lWaveShift 9s ease-in-out infinite alternate;
-}
-
+.l-wave-path,
 .l-wave-path-2 {
-  animation: lWaveShift 12s ease-in-out infinite alternate-reverse;
+  opacity: 0.9;
 }
 
 .l-qr-scanner-card {
   position: relative;
   z-index: 2;
-  background: rgba(20, 29, 56, 0.85);
-  backdrop-filter: blur(18px);
+  background: rgba(20, 29, 56, 0.95);
   border: 1px solid rgba(125, 211, 252, 0.38);
   border-radius: 26px;
   padding: 1.5rem;
@@ -2127,8 +2114,9 @@
    ======================================================== */
 .l-footer {
   border-top: 1px solid var(--l-border);
-  background: var(--l-surface);
-  backdrop-filter: blur(14px);
+  background: var(--l-surface-solid);
+  content-visibility: auto;
+  contain-intrinsic-size: auto 220px;
   padding: 2.5rem 1.25rem 3.5rem;
   margin-top: 2rem;
 }

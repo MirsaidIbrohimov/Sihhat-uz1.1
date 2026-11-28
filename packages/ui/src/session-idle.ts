@@ -50,7 +50,6 @@ export function useIdleSession(actor: Actor | null, onExpired: () => void) {
     };
     const events = [
       "pointerdown",
-      "pointermove",
       "keydown",
       "wheel",
       "touchstart",
@@ -62,7 +61,7 @@ export function useIdleSession(actor: Actor | null, onExpired: () => void) {
     };
     window.addEventListener("focus", checkVisible);
     document.addEventListener("visibilitychange", checkVisible);
-    const timer = window.setInterval(check, 1000);
+    const timer = window.setInterval(check, 5000);
     check();
     return () => {
       closed = true;

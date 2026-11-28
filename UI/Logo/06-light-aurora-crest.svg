@@ -1,0 +1,100 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="bg6" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="55%" stop-color="#f6f8fc"/>
+      <stop offset="100%" stop-color="#eaf1fb"/>
+    </linearGradient>
+    <radialGradient id="washIndigo6" cx="14%" cy="14%" r="55%">
+      <stop offset="0%" stop-color="#4f46e5" stop-opacity="0.14"/>
+      <stop offset="100%" stop-color="#4f46e5" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="washMint6" cx="88%" cy="84%" r="52%">
+      <stop offset="0%" stop-color="#059669" stop-opacity="0.14"/>
+      <stop offset="100%" stop-color="#059669" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="y6Aurora" x1="8%" y1="8%" x2="92%" y2="92%">
+      <stop offset="0%" stop-color="#4f46e5"/>
+      <stop offset="52%" stop-color="#0284c7"/>
+      <stop offset="100%" stop-color="#059669"/>
+    </linearGradient>
+    <linearGradient id="y6Pulse" x1="544" y1="606" x2="828" y2="606" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#4f46e5"/>
+      <stop offset="50%" stop-color="#0284c7"/>
+      <stop offset="100%" stop-color="#059669"/>
+    </linearGradient>
+    <linearGradient id="y6Leaf" x1="0%" y1="100%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#059669"/>
+      <stop offset="55%" stop-color="#10b981"/>
+      <stop offset="100%" stop-color="#0ea5e9"/>
+    </linearGradient>
+    <linearGradient id="y6Indigo" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#4f46e5"/>
+      <stop offset="100%" stop-color="#0284c7"/>
+    </linearGradient>
+    <filter id="softDrop6" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="18" stdDeviation="22" flood-color="#1e293b" flood-opacity="0.14"/>
+    </filter>
+  </defs>
+
+  <rect width="1024" height="1024" rx="224" fill="url(#bg6)"/>
+  <rect width="1024" height="1024" rx="224" fill="url(#washIndigo6)"/>
+  <rect width="1024" height="1024" rx="224" fill="url(#washMint6)"/>
+  <rect x="16" y="16" width="992" height="992" rx="210" fill="none" stroke="#cbd5e1" stroke-opacity="0.75" stroke-width="3"/>
+
+  <g filter="url(#softDrop6)">
+    <circle cx="512" cy="400" r="256" fill="#ffffff"/>
+    <!-- Clean Open Wreath Arc: stops at bottom (550,649) and upper-right (716,252) so leaf & pulse flow through the open gap with ZERO collision! -->
+    <path d="M 556,648 A 252,252 0 1,1 720,256" fill="none" stroke="url(#y6Aurora)" stroke-width="18" stroke-linecap="round"/>
+
+    <!-- Sculpted Y6 Gradient Medical Cross -->
+    <path d="
+      M 448,224
+      C 448,200 468,180 492,180
+      L 532,180
+      C 556,180 576,200 576,224
+      L 576,334
+      L 686,334
+      C 710,334 730,354 730,378
+      L 730,418
+      C 730,442 710,462 686,462
+      L 576,462
+      L 576,572
+      C 576,596 556,616 532,616
+      L 492,616
+      C 468,616 448,596 448,572
+      L 448,462
+      L 338,462
+      C 314,462 294,442 294,418
+      L 294,378
+      C 294,354 314,334 338,334
+      L 448,334
+      Z" fill="url(#y6Indigo)"/>
+
+    <!-- Vibrant Emerald-Sky Rising Healing Leaf -->
+    <path d="M 484,606 C 492,506 556,390 756,296 C 724,424 646,532 484,606 Z" fill="url(#y6Leaf)"/>
+    <path d="M 510,580 C 566,504 634,418 724,328" fill="none" stroke="#ffffff" stroke-opacity="0.9" stroke-width="5.5" stroke-linecap="round"/>
+
+    <!-- Clean White Negative-Space Rising Human Wellness Figure -->
+    <circle cx="512" cy="322" r="28" fill="#ffffff"/>
+    <path d="M 412,380 C 460,392 492,418 512,474 C 532,418 564,392 612,380 C 564,416 534,454 512,514 C 490,454 460,416 412,380 Z" fill="#ffffff"/>
+
+    <!-- Clean Unobstructed Heartbeat Pulse Flowing Out of the Open Wreath Gap -->
+    <polyline
+      points="584,608 634,608 656,568 680,644 708,522 736,654 760,582 782,608 830,608"
+      fill="none"
+      stroke="url(#y6Pulse)"
+      stroke-width="14"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+    />
+    <circle cx="834" cy="608" r="12" fill="#059669"/>
+  </g>
+
+  <text x="512" y="838" text-anchor="middle" font-family="Manrope, system-ui, sans-serif" font-size="112" font-weight="800" letter-spacing="-3.5">
+    <tspan fill="#0f172a">Sihhat</tspan><tspan fill="url(#y6Aurora)">.uz</tspan>
+  </text>
+  <text x="512" y="896" text-anchor="middle" font-family="'DM Sans', system-ui, sans-serif" font-size="24" font-weight="700" letter-spacing="6" fill="#64748b">
+    O‘ZBEKISTON SANATORIYLARI
+  </text>
+</svg>

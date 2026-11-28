@@ -357,10 +357,11 @@ class Api {
     }
   }
 
-  String image(String id) =>
-      id.startsWith('http://') || id.startsWith('https://')
-      ? id
-      : '$baseUrl/media/$id';
+  String image(String id, {int? width}) {
+    if (id.startsWith('http://') || id.startsWith('https://')) return id;
+    return width != null ? '$baseUrl/media/$id?w=$width' : '$baseUrl/media/$id';
+  }
+
   Future<void> saveBookingCache(String? value) {
     final version = _sessionVersion;
     return _bookingWriting = _bookingWriting.catchError((_) {}).then((_) async {

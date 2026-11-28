@@ -12,8 +12,16 @@ export class CatalogService{
   // Publication controls browsing. Billing readiness controls online booking separately.
   private async where(){return {status:'ACTIVE',publicRevisionId:{not:null}};}
   private async bookable(ids:string[]){return new Set((await this.db.subscription.findMany({where:{sanatoriumId:{in:ids},status:{in:['ACTIVE','TRIAL','PAST_DUE']},graceEndsAt:{gt:new Date()}},select:{sanatoriumId:true}})).map(s=>s.sanatoriumId));}
-  private async publicRows(featuredOnly=false){const all=await this.db.sanatorium.findMany({where:{...await this.where(),...(featuredOnly?{featuredOnHome:true}:{})}});const revisions=await this.db.sanatoriumRevision.findMany({where:{id:{in:all.map(s=>s.publicRevisionId!)}}});const rates=await this.db.ratePlan.findMany({where:{sanatoriumId:{in:all.map(s=>s.id)},active:true},select:{sanatoriumId:true,baseAmount:true}});const ratings=await this.db.review.groupBy({by:['sanatoriumId'],where:{status:'PUBLISHED',sanatoriumId:{in:all.map(s=>s.id)}},_avg:{rating:true},_count:{id:true}});
-    const bookable=await this.bookable(all.map(s=>s.id));
+  private async publicRows(featuredOnly=false){
+    const all=await this.db.sanatorium.findMany({where:{...await this.where(),...(featuredOnly?{featuredOnHome:true}:{})}});
+    if(!all.length)return [];
+    const sanIds=all.map(s=>s.id);
+    const [revisions,rates,ratings,bookable]=await Promise.all([
+      this.db.sanatoriumRevision.findMany({where:{id:{in:all.map(s=>s.publicRevisionId!)}}}),
+      this.db.ratePlan.findMany({where:{sanatoriumId:{in:sanIds},active:true},select:{sanatoriumId:true,baseAmount:true}}),
+      this.db.review.groupBy({by:['sanatoriumId'],where:{status:'PUBLISHED',sanatoriumId:{in:sanIds}},_avg:{rating:true},_count:{id:true}}),
+      this.bookable(sanIds),
+    ]);
     return all.map(s=>{const r=revisions.find(r=>r.id===s.publicRevisionId)!;const data=publicProfile(r.data);const prices=rates.filter(r=>r.sanatoriumId===s.id).map(r=>r.baseAmount);const amount=prices.length?prices.reduce((a,b)=>a<b?a:b):null;const rating=ratings.find(r=>r.sanatoriumId===s.id);return {id:s.id,...data,featured_on_home:s.featuredOnHome,from_amount:amount?.toString()??null,price_label:'Boshlang‘ich tarif; yakuniy narx bron hisobida',online_booking_available:s.paymentReady&&prices.length>0&&(!s.subscriptionRequired||bookable.has(s.id)),rating:rating?{average:rating._avg.rating,count:rating._count.id}:null};});
   }
   async featured(){return (await this.publicRows(true)).sort((a,b)=>String(a.name).localeCompare(String(b.name)));}

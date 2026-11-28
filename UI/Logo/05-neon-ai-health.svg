@@ -1,0 +1,93 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <radialGradient id="bg5" cx="50%" cy="40%" r="68%">
+      <stop offset="0%" stop-color="#141e42"/>
+      <stop offset="55%" stop-color="#090e1e"/>
+      <stop offset="100%" stop-color="#050812"/>
+    </radialGradient>
+    <linearGradient id="neon5" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#818cf8"/>
+      <stop offset="48%" stop-color="#38bdf8"/>
+      <stop offset="100%" stop-color="#34d399"/>
+    </linearGradient>
+    <linearGradient id="neonLine5" x1="252" y1="884" x2="772" y2="884" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#818cf8"/>
+      <stop offset="50%" stop-color="#38bdf8"/>
+      <stop offset="100%" stop-color="#34d399"/>
+    </linearGradient>
+    <linearGradient id="neonRev5" x1="100%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#34d399"/>
+      <stop offset="52%" stop-color="#0ea5e9"/>
+      <stop offset="100%" stop-color="#6366f1"/>
+    </linearGradient>
+    <filter id="neonBloom5" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="11" result="b1"/>
+      <feGaussianBlur stdDeviation="3" result="b2"/>
+      <feMerge>
+        <feMergeNode in="b1"/>
+        <feMergeNode in="b2"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <filter id="softHalo5" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="34"/>
+    </filter>
+  </defs>
+
+  <rect width="1024" height="1024" rx="224" fill="url(#bg5)"/>
+  <g stroke="#6366f1" stroke-opacity="0.08" stroke-width="2">
+    <line x1="180" y1="0" x2="180" y2="1024"/>
+    <line x1="346" y1="0" x2="346" y2="1024"/>
+    <line x1="512" y1="0" x2="512" y2="1024"/>
+    <line x1="678" y1="0" x2="678" y2="1024"/>
+    <line x1="844" y1="0" x2="844" y2="1024"/>
+    <line x1="0" y1="204" x2="1024" y2="204"/>
+    <line x1="0" y1="408" x2="1024" y2="408"/>
+    <line x1="0" y1="612" x2="1024" y2="612"/>
+    <line x1="0" y1="816" x2="1024" y2="816"/>
+  </g>
+  <circle cx="512" cy="404" r="210" fill="#38bdf8" fill-opacity="0.18" filter="url(#softHalo5)"/>
+
+  <g filter="url(#neonBloom5)">
+    <path d="M 512,134 L 744,268 L 744,536 L 512,670 L 280,536 L 280,268 Z"
+      fill="#0d152d" fill-opacity="0.86" stroke="url(#neon5)" stroke-width="14" stroke-linejoin="round"/>
+  </g>
+  <path d="M 512,166 L 716,284 L 716,520 L 512,638 L 308,520 L 308,284 Z" fill="none" stroke="#93c5fd" stroke-opacity="0.24" stroke-width="2.5"/>
+
+  <g filter="url(#neonBloom5)">
+    <circle cx="512" cy="134" r="14" fill="#818cf8" stroke="#ffffff" stroke-width="4"/>
+    <circle cx="744" cy="268" r="14" fill="#38bdf8" stroke="#ffffff" stroke-width="4"/>
+    <circle cx="744" cy="536" r="14" fill="#34d399" stroke="#ffffff" stroke-width="4"/>
+    <circle cx="512" cy="670" r="14" fill="#34d399" stroke="#ffffff" stroke-width="4"/>
+    <circle cx="280" cy="536" r="14" fill="#38bdf8" stroke="#ffffff" stroke-width="4"/>
+    <circle cx="280" cy="268" r="14" fill="#818cf8" stroke="#ffffff" stroke-width="4"/>
+  </g>
+
+  <g filter="url(#neonBloom5)">
+    <path d="M 464,236 L 560,236 L 560,352 L 668,352 L 668,448 L 560,448 L 560,564 L 464,564 L 464,448 L 356,448 L 356,352 L 464,352 Z"
+      fill="#1b2952" fill-opacity="0.78" stroke="url(#neon5)" stroke-width="11" stroke-linejoin="round"/>
+    <path d="M 512,480 C 516,412 560,348 648,300 C 626,380 582,438 512,480 Z" fill="url(#neonRev5)" fill-opacity="0.92"/>
+    <polyline
+      points="330,400 426,400 452,350 480,456 512,310 546,474 576,368 600,400 694,400"
+      fill="none"
+      stroke="#ffffff"
+      stroke-width="12"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+    />
+  </g>
+
+  <text x="512" y="838" text-anchor="middle" font-family="Manrope, system-ui, sans-serif" font-size="108" font-weight="800" letter-spacing="4">
+    <tspan fill="#f1f5ff">SIHHAT</tspan><tspan fill="url(#neon5)">.UZ</tspan>
+  </text>
+  <!-- Crisp Visible Neon Circuit Accent Lines (userSpaceOnUse!) -->
+  <g stroke="url(#neonLine5)" stroke-width="4" stroke-linecap="round" stroke-opacity="0.88">
+    <line x1="256" y1="884" x2="408" y2="884"/>
+    <line x1="616" y1="884" x2="768" y2="884"/>
+  </g>
+  <text x="512" y="892" text-anchor="middle" font-family="'DM Sans', system-ui, sans-serif" font-size="22" font-weight="700" letter-spacing="6" fill="#38bdf8">
+    AI HEALTH
+  </text>
+  <circle cx="252" cy="884" r="6.5" fill="#818cf8"/>
+  <circle cx="772" cy="884" r="6.5" fill="#34d399"/>
+</svg>

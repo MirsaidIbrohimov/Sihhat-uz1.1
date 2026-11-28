@@ -238,11 +238,8 @@ class _BookingComposerState extends State<BookingComposer> {
       ),
     );
     final bookingId = (quick['booking_id'] ?? quick['order_id']).toString();
-    final fallbackNum =
-        10000 + (bookingId.hashCode.abs() % 90000);
-    final ref =
-        (quick['reference'] ?? 'BR-$fallbackNum')
-            .toString();
+    final fallbackNum = 10000 + (bookingId.hashCode.abs() % 90000);
+    final ref = (quick['reference'] ?? 'BR-$fallbackNum').toString();
     final checkoutInfo = <String, dynamic>{
       'order_id': quick['order_id'],
       'amount': (quick['amount'] ?? quote!['amount']).toString(),

@@ -9,7 +9,11 @@ const apiUrl = (
 
 const config: NextConfig = {
   output: "standalone",
+  compress: true,
   transpilePackages: ["@sihhat/ui", "@sihhat/api-client"],
+  experimental: {
+    optimizePackageImports: ["lucide-react"],
+  },
   poweredByHeader: false,
   async rewrites() {
     return [
@@ -25,6 +29,24 @@ const config: NextConfig = {
   },
   async headers() {
     return [
+      {
+        source: "/branding/:path*",
+        headers: [
+          {
+            key: "Cache-Control",
+            value: "public, max-age=31536000, immutable",
+          },
+        ],
+      },
+      {
+        source: "/fonts/:path*",
+        headers: [
+          {
+            key: "Cache-Control",
+            value: "public, max-age=31536000, immutable",
+          },
+        ],
+      },
       {
         source: "/:path*",
         headers: [

@@ -1,6 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useDeferredValue,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   Activity,
   ArrowRight,
@@ -346,20 +353,23 @@ function ShimmeryImage({
   alt,
   className,
   style,
+  priority = false,
 }: {
   src: string;
   alt: string;
   className?: string;
   style?: React.CSSProperties;
+  priority?: boolean;
 }) {
   const [loaded, setLoaded] = useState(false);
   const imgRef = useRef<HTMLImageElement>(null);
 
   useEffect(() => {
-    setLoaded(false);
     const el = imgRef.current;
     if (el && el.complete && el.naturalWidth > 0) {
       setLoaded(true);
+    } else {
+      setLoaded(false);
     }
   }, [src]);
 
@@ -376,11 +386,14 @@ function ShimmeryImage({
         ref={imgRef}
         src={src}
         alt={alt}
+        loading={priority ? "eager" : "lazy"}
+        decoding="async"
+        fetchPriority={priority ? "high" : "auto"}
         className={className}
         style={{
           ...style,
           opacity: loaded ? 1 : 0,
-          transition: "opacity 0.35s ease, transform 0.45s ease",
+          transition: "opacity 0.25s ease",
         }}
         onLoad={() => setLoaded(true)}
         onError={(e) => {
@@ -392,10 +405,10 @@ function ShimmeryImage({
   );
 }
 
-function resolvePrimaryPhoto(item: SanatoriumCardData): string {
+function resolvePrimaryPhoto(item: SanatoriumCardData, width = 640): string {
   if (item.photos && item.photos.length > 0) return item.photos[0];
   if (item.photo_ids && item.photo_ids.length > 0) {
-    return `/api/media/${item.photo_ids[0]}`;
+    return `/api/media/${item.photo_ids[0]}?w=${width}`;
   }
   return getDefaultSanatoriumPhoto(item);
 }
@@ -544,7 +557,7 @@ function SanatoriumSkeletonGrid({ count = 4 }: { count?: number }) {
   );
 }
 
-function mapCatalogItem(item: any): SanatoriumCardData {
+export function mapCatalogItem(item: any): SanatoriumCardData {
   return {
     id: item.id,
     name: item.name,
@@ -576,17 +589,27 @@ function mapCatalogItem(item: any): SanatoriumCardData {
   };
 }
 
-export function LandingPage() {
-  const [sanatoriums, setSanatoriums] = useState<SanatoriumCardData[]>([]);
-  const [isCatalogLoading, setIsCatalogLoading] = useState(true);
+export function LandingPage({
+  initialCatalog,
+  initialAds,
+}: {
+  initialCatalog?: any[];
+  initialAds?: any[];
+} = {}) {
+  const hasServerCatalog = Array.isArray(initialCatalog) && initialCatalog.length > 0;
+  const [sanatoriums, setSanatoriums] = useState<SanatoriumCardData[]>(() =>
+    hasServerCatalog ? initialCatalog!.map(mapCatalogItem) : [],
+  );
+  const [isCatalogLoading, setIsCatalogLoading] = useState(!hasServerCatalog);
   const [detailsLoading, setDetailsLoading] = useState(false);
 
   // Dark-first theme matching APK AppearanceController (only explicit day mode switches to light)
   const [theme, setTheme] = useState<"dark" | "light">("dark");
 
-  // Initial branded APK splash overlay & top scroll progress
-  const [splashPhase, setSplashPhase] = useState<"visible" | "leaving" | "hidden">("visible");
-  const [scrollProgress, setScrollProgress] = useState(0);
+  // Instant zero-delay load & GPU-driven top scroll progress bar (no scroll re-renders!)
+  const [splashPhase, setSplashPhase] = useState<"visible" | "leaving" | "hidden">("hidden");
+  const [showScrollTop, setShowScrollTop] = useState(false);
+  const progressFillRef = useRef<HTMLDivElement>(null);
   const [activeScrollSection, setActiveScrollSection] = useState<
     "home" | "catalog" | "how" | "app"
   >("home");
@@ -597,6 +620,7 @@ export function LandingPage() {
 
   // Filters, Sorting, Budget, Compare, Recently Viewed & Favorites
   const [searchQuery, setSearchQuery] = useState("");
+  const deferredSearchQuery = useDeferredValue(searchQuery);
   const [selectedCategory, setSelectedCategory] = useState("Barchasi");
   const [selectedRegion, setSelectedRegion] = useState("Barchasi");
   const [selectedHealthProfile, setSelectedHealthProfile] = useState("Barchasi");
@@ -704,7 +728,9 @@ export function LandingPage() {
   const [bookingLookupError, setBookingLookupError] = useState("");
 
   // Published ads (HOME & POPUP)
-  const [ads, setAds] = useState<any[]>([]);
+  const [ads, setAds] = useState<any[]>(() =>
+    Array.isArray(initialAds) ? initialAds : [],
+  );
   const [activePopupAd, setActivePopupAd] = useState<any | null>(null);
 
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -735,21 +761,6 @@ export function LandingPage() {
     } catch {
       // Ignore storage access failures in strict privacy environments
     }
-
-    const reduced =
-      typeof window !== "undefined" &&
-      window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
-
-    if (reduced) {
-      setSplashPhase("hidden");
-    } else {
-      const leaveTimer = window.setTimeout(() => setSplashPhase("leaving"), 520);
-      const hideTimer = window.setTimeout(() => setSplashPhase("hidden"), 920);
-      return () => {
-        window.clearTimeout(leaveTimer);
-        window.clearTimeout(hideTimer);
-      };
-    }
   }, []);
 
   useEffect(() => {
@@ -777,16 +788,19 @@ export function LandingPage() {
   );
 
   useEffect(() => {
-    const updateScrollState = () => {
+    let rafId = 0;
+    const computeScroll = () => {
+      rafId = 0;
+      const y = window.scrollY;
       const docHeight =
         document.documentElement.scrollHeight - document.documentElement.clientHeight;
-      if (docHeight <= 0) {
-        setScrollProgress(0);
-      } else {
-        setScrollProgress(
-          Math.min(100, Math.round((window.scrollY / docHeight) * 100)),
-        );
+      const ratio = docHeight > 0 ? Math.min(1, Math.max(0, y / docHeight)) : 0;
+      const bar = progressFillRef.current;
+      if (bar && !bar.classList.contains("is-loading")) {
+        bar.style.transform = `scaleX(${ratio.toFixed(3)})`;
       }
+      const nextShowTop = y > 420;
+      setShowScrollTop((prev) => (prev === nextShowTop ? prev : nextShowTop));
 
       const lock = scrollTargetLockRef.current;
       if (lock) {
@@ -795,20 +809,24 @@ export function LandingPage() {
       }
 
       const triggerY = Math.max(160, Math.min(340, Math.round(window.innerHeight * 0.42)));
-      const nearBottom = docHeight > 0 && window.scrollY >= docHeight - 90;
+      const nearBottom = docHeight > 0 && y >= docHeight - 90;
       const appEl = document.getElementById("ilovani-yuklash");
       const howEl = document.getElementById("qanday-ishlaydi");
       const catalogEl = document.getElementById("muassasalar");
 
-      if (nearBottom || (appEl && appEl.getBoundingClientRect().top <= triggerY)) {
-        setActiveScrollSection("app");
-      } else if (howEl && howEl.getBoundingClientRect().top <= triggerY) {
-        setActiveScrollSection("how");
-      } else if (catalogEl && catalogEl.getBoundingClientRect().top <= triggerY) {
-        setActiveScrollSection("catalog");
-      } else {
-        setActiveScrollSection("home");
-      }
+      const nextSec: "home" | "catalog" | "how" | "app" =
+        nearBottom || (appEl && appEl.offsetTop - y <= triggerY)
+          ? "app"
+          : howEl && howEl.offsetTop - y <= triggerY
+            ? "how"
+            : catalogEl && catalogEl.offsetTop - y <= triggerY
+              ? "catalog"
+              : "home";
+      setActiveScrollSection((prev) => (prev === nextSec ? prev : nextSec));
+    };
+    const onScroll = () => {
+      if (rafId) return;
+      rafId = window.requestAnimationFrame(computeScroll);
     };
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
@@ -826,13 +844,14 @@ export function LandingPage() {
         window.setTimeout(() => searchInputRef.current?.focus(), 180);
       }
     };
-    updateScrollState();
-    window.addEventListener("scroll", updateScrollState, { passive: true });
-    window.addEventListener("resize", updateScrollState, { passive: true });
+    computeScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("resize", onScroll, { passive: true });
     window.addEventListener("keydown", onKeyDown);
     return () => {
-      window.removeEventListener("scroll", updateScrollState);
-      window.removeEventListener("resize", updateScrollState);
+      if (rafId) window.cancelAnimationFrame(rafId);
+      window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("resize", onScroll);
       window.removeEventListener("keydown", onKeyDown);
     };
   }, [dismissSplash]);
@@ -914,9 +933,10 @@ export function LandingPage() {
     [showToast],
   );
 
-  // Fetch real catalog from Sihhat API (shows APK Shimmer skeletons while fetching)
-  const loadCatalog = useCallback(async () => {
-    setIsCatalogLoading(true);
+  // Fetch real catalog from Sihhat API (skips initial skeleton if server already preloaded it)
+  const loadCatalog = useCallback(async (arg?: unknown) => {
+    const background = arg === true;
+    if (!background) setIsCatalogLoading(true);
     try {
       const res = await fetch("/api/catalog/sanatoriums");
       if (res.ok) {
@@ -926,17 +946,19 @@ export function LandingPage() {
           return;
         }
       }
-      setSanatoriums(FALLBACK_SANATORIUMS);
+      if (!background) setSanatoriums(FALLBACK_SANATORIUMS);
     } catch {
-      setSanatoriums(FALLBACK_SANATORIUMS);
+      if (!background) setSanatoriums(FALLBACK_SANATORIUMS);
     } finally {
       setIsCatalogLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    loadCatalog();
-  }, [loadCatalog]);
+    if (!hasServerCatalog) {
+      loadCatalog(false);
+    }
+  }, [hasServerCatalog, loadCatalog]);
 
   // Fetch HOME & POPUP advertisements
   useEffect(() => {
@@ -1107,7 +1129,7 @@ export function LandingPage() {
 
   // Filter & Sort sanatoriums by Search, Category, Region, Health Profile, Budget & Favorites
   const filteredSanatoriums = useMemo(() => {
-    const q = searchQuery.toLowerCase().trim();
+    const q = deferredSearchQuery.toLowerCase().trim();
     const list = sanatoriums.filter((item) => {
       if (onlyFavorites && !favorites.has(item.id)) return false;
 
@@ -1364,8 +1386,8 @@ export function LandingPage() {
           ======================================================== */}
       <div className="l-top-progress" aria-hidden="true">
         <div
+          ref={progressFillRef}
           className={`l-top-progress-fill ${anyLoading ? "is-loading" : ""}`}
-          style={{ width: anyLoading ? "100%" : `${scrollProgress}%` }}
         />
       </div>
 
@@ -1939,8 +1961,10 @@ export function LandingPage() {
                 >
                   {ad.image_asset_id && (
                     <img
-                      src={`/api/media/${ad.image_asset_id}`}
+                      src={`/api/media/${ad.image_asset_id}?w=480`}
                       alt={ad.title}
+                      loading="lazy"
+                      decoding="async"
                       onError={safeFallbackImage}
                       style={{
                         width: 84,
@@ -2274,6 +2298,7 @@ export function LandingPage() {
                       <ShimmeryImage
                         src={photo}
                         alt={item.name}
+                        priority={idx < 4}
                         className="l-card-img"
                       />
                       {item.tag && <span className="l-card-tag">{item.tag}</span>}
@@ -2973,7 +2998,7 @@ export function LandingPage() {
                       ? activeModal.item.photos
                       : activeModal.item.photo_ids &&
                         activeModal.item.photo_ids.length > 0
-                      ? activeModal.item.photo_ids.map((id) => `/api/media/${id}`)
+                      ? activeModal.item.photo_ids.map((id) => `/api/media/${id}?w=1280`)
                       : [getDefaultSanatoriumPhoto(activeModal.item)];
 
                   return (
@@ -2992,6 +3017,7 @@ export function LandingPage() {
                       <ShimmeryImage
                         src={photos[galleryIndex % photos.length]}
                         alt={activeModal.item.name}
+                        priority
                         style={{
                           width: "100%",
                           height: "100%",
@@ -5617,7 +5643,7 @@ export function LandingPage() {
       )}
 
       {/* Floating Scroll-to-Top Button */}
-      {scrollProgress > 18 && !activeModal && (
+      {showScrollTop && !activeModal && (
         <button
           type="button"
           className="l-scroll-top-btn"

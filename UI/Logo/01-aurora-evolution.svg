@@ -1,0 +1,148 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <radialGradient id="bg1" cx="50%" cy="38%" r="68%">
+      <stop offset="0%" stop-color="#19254c"/>
+      <stop offset="52%" stop-color="#0e152a"/>
+      <stop offset="100%" stop-color="#070b18"/>
+    </radialGradient>
+    <radialGradient id="orbIndigo1" cx="20%" cy="18%" r="55%">
+      <stop offset="0%" stop-color="#6366f1" stop-opacity="0.36"/>
+      <stop offset="100%" stop-color="#6366f1" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="orbMint1" cx="84%" cy="76%" r="52%">
+      <stop offset="0%" stop-color="#10b981" stop-opacity="0.30"/>
+      <stop offset="100%" stop-color="#10b981" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="ringGrad1" x1="15%" y1="10%" x2="88%" y2="90%">
+      <stop offset="0%" stop-color="#818cf8"/>
+      <stop offset="50%" stop-color="#38bdf8"/>
+      <stop offset="100%" stop-color="#34d399"/>
+    </linearGradient>
+    <linearGradient id="crossGrad1" x1="20%" y1="0%" x2="80%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="65%" stop-color="#eef4ff"/>
+      <stop offset="100%" stop-color="#d2e2fc"/>
+    </linearGradient>
+    <linearGradient id="leafMain1" x1="0%" y1="100%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#059669"/>
+      <stop offset="52%" stop-color="#34d399"/>
+      <stop offset="100%" stop-color="#38bdf8"/>
+    </linearGradient>
+    <linearGradient id="leafSub1" x1="0%" y1="100%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#4f46e5"/>
+      <stop offset="55%" stop-color="#0ea5e9"/>
+      <stop offset="100%" stop-color="#34d399"/>
+    </linearGradient>
+    <linearGradient id="pulseGrad1" x1="540" y1="616" x2="848" y2="616" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#38bdf8"/>
+      <stop offset="50%" stop-color="#ffffff"/>
+      <stop offset="100%" stop-color="#34d399"/>
+    </linearGradient>
+    <linearGradient id="wordUz1" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#38bdf8"/>
+      <stop offset="100%" stop-color="#34d399"/>
+    </linearGradient>
+    <filter id="shadow1" x="-25%" y="-25%" width="150%" height="150%">
+      <feDropShadow dx="0" dy="14" stdDeviation="18" flood-color="#030612" flood-opacity="0.62"/>
+    </filter>
+    <filter id="pulseGlow1" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="8" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <rect width="1024" height="1024" rx="220" fill="url(#bg1)"/>
+  <rect width="1024" height="1024" rx="220" fill="url(#orbIndigo1)"/>
+  <rect width="1024" height="1024" rx="220" fill="url(#orbMint1)"/>
+  <rect x="14" y="14" width="996" height="996" rx="208" fill="none" stroke="url(#ringGrad1)" stroke-opacity="0.28" stroke-width="3"/>
+
+  <!-- Molecular Hex Constellation (upper right, homage to old logo) -->
+  <g stroke="#7dd3fc" stroke-opacity="0.26" stroke-width="3" fill="none">
+    <polygon points="752,148 804,178 804,238 752,268 700,238 700,178"/>
+    <polygon points="856,208 908,238 908,298 856,328 804,298 804,238"/>
+    <line x1="752" y1="148" x2="752" y2="104"/>
+    <line x1="804" y1="178" x2="852" y2="150"/>
+    <line x1="856" y1="328" x2="856" y2="376"/>
+  </g>
+  <g fill="#38bdf8" fill-opacity="0.56">
+    <circle cx="752" cy="104" r="6"/>
+    <circle cx="752" cy="148" r="6"/>
+    <circle cx="804" cy="178" r="6"/>
+    <circle cx="852" cy="150" r="6"/>
+    <circle cx="804" cy="238" r="6"/>
+    <circle cx="908" cy="238" r="5.5"/>
+    <circle cx="856" cy="328" r="5.5"/>
+    <circle cx="856" cy="376" r="5"/>
+  </g>
+
+  <!-- Outer Crest Halo Ring -->
+  <circle cx="512" cy="408" r="262" fill="#0d152c" fill-opacity="0.6" stroke="url(#ringGrad1)" stroke-width="18" filter="url(#shadow1)"/>
+  <circle cx="512" cy="408" r="236" fill="none" stroke="#93c5fd" stroke-opacity="0.2" stroke-width="2.5"/>
+
+  <!-- Sculptural Symmetric Medical Cross + Cradled Human Wellness Silhouette -->
+  <g filter="url(#shadow1)">
+    <path d="
+      M 444,218
+      C 444,196 462,178 484,178
+      L 540,178
+      C 562,178 580,196 580,218
+      L 580,322
+      L 676,322
+      C 700,322 718,340 718,364
+      L 718,418
+      C 718,442 700,460 676,460
+      L 580,460
+      L 580,554
+      C 580,578 562,596 538,596
+      L 486,596
+      C 462,596 444,578 444,554
+      L 444,460
+      L 348,460
+      C 324,460 306,442 306,418
+      L 306,364
+      C 306,340 324,322 348,322
+      L 444,322
+      Z" fill="url(#crossGrad1)"/>
+
+    <!-- Human Head & Outstretched Wellness Arms carved into center -->
+    <circle cx="512" cy="336" r="35" fill="#0e152a"/>
+    <circle cx="512" cy="334" r="20" fill="url(#ringGrad1)"/>
+    <path d="M 412,386 C 460,402 494,430 512,480 C 530,430 566,402 614,384 C 566,422 532,460 512,516 C 492,460 458,422 412,386 Z" fill="#0e152a"/>
+  </g>
+
+  <!-- Sweeping Aurora Healing Leaves -->
+  <g filter="url(#shadow1)">
+    <path d="M 476,622 C 496,536 566,418 756,312 C 708,446 626,534 504,598 C 492,606 482,614 476,622 Z" fill="url(#leafMain1)"/>
+    <path d="M 504,592 C 566,512 642,424 736,330" fill="none" stroke="#e0f2fe" stroke-opacity="0.76" stroke-width="5" stroke-linecap="round"/>
+
+    <path d="M 474,616 C 454,536 420,468 354,424 C 414,432 466,474 492,554 Z" fill="url(#leafSub1)"/>
+
+    <path d="M 332,596 C 254,574 202,520 182,456 C 248,472 302,522 332,596 Z" fill="url(#leafMain1)"/>
+    <path d="M 204,474 C 248,512 288,548 324,588" fill="none" stroke="#e0f2fe" stroke-opacity="0.58" stroke-width="3.5" stroke-linecap="round"/>
+    <path d="M 358,618 C 296,634 244,622 204,592 C 260,574 316,584 358,618 Z" fill="url(#leafSub1)"/>
+  </g>
+
+  <!-- Glowing ECG Heartbeat Pulse Line -->
+  <g filter="url(#pulseGlow1)">
+    <polyline
+      points="544,616 616,616 638,574 662,658 692,516 724,672 752,584 776,616 838,616"
+      fill="none"
+      stroke="url(#pulseGrad1)"
+      stroke-width="14"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+    />
+    <circle cx="842" cy="616" r="13" fill="#ffffff"/>
+    <circle cx="842" cy="616" r="7" fill="#34d399"/>
+  </g>
+
+  <text x="512" y="848" text-anchor="middle" font-family="Manrope, 'DM Sans', system-ui, sans-serif" font-size="112" font-weight="800" letter-spacing="-3.5">
+    <tspan fill="#f1f5ff">Sihhat</tspan><tspan fill="url(#wordUz1)">.uz</tspan>
+  </text>
+  <text x="512" y="906" text-anchor="middle" font-family="'DM Sans', system-ui, sans-serif" font-size="25" font-weight="600" letter-spacing="7" fill="#8799bf">
+    SOG‘LOMLIK VA SHIFO PLATFORMASI
+  </text>
+</svg>

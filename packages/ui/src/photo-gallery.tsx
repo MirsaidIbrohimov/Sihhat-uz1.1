@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 export function PhotoGallery({
   ids,
@@ -13,6 +13,14 @@ export function PhotoGallery({
   const [index, setIndex] = useState(0),
     [busy, setBusy] = useState(false);
   const current = Math.min(index, Math.max(0, ids.length - 1));
+  useEffect(() => {
+    if (ids.length <= 1) return;
+    const nextId = ids[(current + 1) % ids.length];
+    if (!nextId) return;
+    const preloader = new Image();
+    preloader.decoding = "async";
+    preloader.src = `/api/media/${nextId}?w=1280`;
+  }, [current, ids]);
   async function change(next: string[], nextIndex: number) {
     if (busy || !save) return;
     setBusy(true);
@@ -36,7 +44,8 @@ export function PhotoGallery({
     <div className="profile-gallery">
       <div className="profile-gallery-view">
         <img
-          src={`/api/media/${ids[current]}`}
+          src={`/api/media/${ids[current]}?w=1280`}
+          decoding="async"
           alt={`Sanatoriya surati ${current + 1}`}
         />
         {ids.length > 1 && (

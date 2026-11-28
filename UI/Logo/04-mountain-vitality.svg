@@ -1,0 +1,106 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <radialGradient id="bg4" cx="50%" cy="32%" r="72%">
+      <stop offset="0%" stop-color="#172448"/>
+      <stop offset="56%" stop-color="#0b1124"/>
+      <stop offset="100%" stop-color="#070b18"/>
+    </radialGradient>
+    <linearGradient id="crestGrad4" x1="10%" y1="0%" x2="90%" y2="100%">
+      <stop offset="0%" stop-color="#818cf8"/>
+      <stop offset="50%" stop-color="#38bdf8"/>
+      <stop offset="100%" stop-color="#34d399"/>
+    </linearGradient>
+    <linearGradient id="mtnLit4" x1="20%" y1="0%" x2="80%" y2="100%">
+      <stop offset="0%" stop-color="#818cf8"/>
+      <stop offset="100%" stop-color="#3730a3"/>
+    </linearGradient>
+    <linearGradient id="mtnShade4" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#312e81"/>
+      <stop offset="100%" stop-color="#141c3c"/>
+    </linearGradient>
+    <linearGradient id="mtnFront4" x1="15%" y1="0%" x2="85%" y2="100%">
+      <stop offset="0%" stop-color="#38bdf8"/>
+      <stop offset="52%" stop-color="#0284c7"/>
+      <stop offset="100%" stop-color="#059669"/>
+    </linearGradient>
+    <linearGradient id="leaf4" x1="0%" y1="100%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#059669"/>
+      <stop offset="100%" stop-color="#6ee7b7"/>
+    </linearGradient>
+    <clipPath id="shieldClip4">
+      <circle cx="512" cy="404" r="244"/>
+    </clipPath>
+    <filter id="auroraBlur4" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="32"/>
+    </filter>
+    <filter id="glow4" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="8" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="shadow4" x="-25%" y="-25%" width="150%" height="150%">
+      <feDropShadow dx="0" dy="16" stdDeviation="20" flood-color="#020510" flood-opacity="0.65"/>
+    </filter>
+  </defs>
+
+  <rect width="1024" height="1024" rx="224" fill="url(#bg4)"/>
+  <rect x="16" y="16" width="992" height="992" rx="210" fill="none" stroke="url(#crestGrad4)" stroke-opacity="0.26" stroke-width="3"/>
+
+  <g filter="url(#shadow4)">
+    <circle cx="512" cy="404" r="258" fill="#0d152c" stroke="url(#crestGrad4)" stroke-width="14"/>
+  </g>
+
+  <g clip-path="url(#shieldClip4)">
+    <rect x="260" y="150" width="504" height="504" fill="#0d152c"/>
+    <!-- Silky Diffused Aurora Sky Mist (no hard circles!) -->
+    <ellipse cx="400" cy="230" rx="200" ry="110" fill="#6366f1" fill-opacity="0.52" filter="url(#auroraBlur4)"/>
+    <ellipse cx="628" cy="264" rx="190" ry="100" fill="#0ea5e9" fill-opacity="0.46" filter="url(#auroraBlur4)"/>
+    <ellipse cx="512" cy="316" rx="150" ry="60" fill="#34d399" fill-opacity="0.24" filter="url(#auroraBlur4)"/>
+
+    <!-- Radiant Healing Medical Cross Crown -->
+    <g filter="url(#glow4)">
+      <circle cx="512" cy="272" r="70" fill="#38bdf8" fill-opacity="0.18"/>
+      <rect x="490" y="216" width="44" height="112" rx="16" fill="#ffffff"/>
+      <rect x="456" y="250" width="112" height="44" rx="16" fill="#ffffff"/>
+      <circle cx="512" cy="272" r="12" fill="#0ea5e9"/>
+    </g>
+
+    <!-- Faceted Alpine Peaks (Left Lit + Right Shadow for 3D Depth) -->
+    <!-- Left Peak -->
+    <polygon points="240,560 392,368 416,560" fill="url(#mtnLit4)"/>
+    <polygon points="392,368 510,510 416,560" fill="url(#mtnShade4)"/>
+    <polygon points="392,368 424,408 398,418 384,398 360,410" fill="#eef6ff" fill-opacity="0.92"/>
+    <!-- Right Main Peak -->
+    <polygon points="468,560 622,340 644,560" fill="url(#mtnLit4)"/>
+    <polygon points="622,340 784,544 644,560" fill="url(#mtnShade4)"/>
+    <polygon points="622,340 662,390 632,402 612,380 584,394" fill="#eef6ff" fill-opacity="0.95"/>
+
+    <!-- Front Sweeping Alpine Valley Ridge -->
+    <path d="M 240,572 Q 368,464 512,512 T 784,486 L 784,660 L 240,660 Z" fill="url(#mtnFront4)" fill-opacity="0.9"/>
+
+    <!-- Glowing Heartbeat Line Flowing Across the Mountain Horizon -->
+    <g filter="url(#glow4)">
+      <polyline
+        points="266,542 396,542 424,504 452,580 488,448 524,592 558,504 584,542 758,542"
+        fill="none"
+        stroke="#ffffff"
+        stroke-width="11"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      />
+    </g>
+  </g>
+
+  <!-- Embracing Dual Mint Healing Leaves -->
+  <g filter="url(#shadow4)">
+    <path d="M 508,672 C 398,668 308,616 250,524 C 336,542 418,588 508,672 Z" fill="url(#leaf4)"/>
+    <path d="M 516,672 C 626,668 716,616 774,524 C 688,542 606,588 516,672 Z" fill="url(#crestGrad4)"/>
+    <circle cx="512" cy="672" r="14" fill="#ffffff"/>
+  </g>
+
+  <text x="512" y="846" text-anchor="middle" font-family="Manrope, system-ui, sans-serif" font-size="112" font-weight="800" letter-spacing="-3.5">
+    <tspan fill="#f1f5ff">Sihhat</tspan><tspan fill="url(#crestGrad4)">.uz</tspan>
+  </text>
+  <text x="512" y="902" text-anchor="middle" font-family="'DM Sans', system-ui, sans-serif" font-size="24" font-weight="600" letter-spacing="6.5" fill="#8799bf">
+    TOG‘ HAVOSI · SHIFO MASKANLARI
+  </text>
+</svg>

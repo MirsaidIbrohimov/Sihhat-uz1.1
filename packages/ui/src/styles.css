@@ -4202,8 +4202,8 @@ h3,
   top: 0;
   z-index: 25;
   background: var(--topbar-bg);
-  backdrop-filter: blur(18px);
-  -webkit-backdrop-filter: blur(18px);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
   border-bottom: 1px solid var(--glass-border);
 }
 .icon-button,
@@ -4232,8 +4232,7 @@ h3,
   border-radius: var(--radius-pill);
   padding: 5px 14px 5px 6px;
   border: 1px solid var(--glass-border);
-  background: var(--glass);
-  backdrop-filter: blur(10px);
+  background: var(--glass-strong);
   transition:
     border-color 0.18s ease,
     box-shadow 0.18s ease;
@@ -4252,9 +4251,8 @@ h3,
   gap: 8px;
   padding: 6px 14px;
   border-radius: var(--radius-pill);
-  background: var(--glass);
+  background: var(--glass-strong);
   border: 1px solid var(--glass-border);
-  backdrop-filter: blur(10px);
   font-size: 11px;
   margin-bottom: 20px;
 }
@@ -4263,9 +4261,7 @@ h3,
 .card,
 .chart-wrap,
 .table-wrap {
-  background: var(--glass);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
+  background: var(--glass-strong);
   border: 1px solid var(--glass-border);
   border-radius: var(--radius);
   box-shadow: var(--glow-sm);
@@ -4275,7 +4271,7 @@ thead th {
   color: var(--muted);
 }
 tbody tr {
-  transition: background 0.14s ease;
+  transition: background 0.12s ease;
 }
 tbody tr:hover {
   background: rgba(99, 102, 241, 0.08);
@@ -4283,16 +4279,15 @@ tbody tr:hover {
 .stat-card {
   position: relative;
   overflow: hidden;
-  background: var(--glass);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
+  contain: content;
+  background: var(--glass-strong);
   border: 1px solid var(--glass-border);
   border-radius: var(--radius);
   box-shadow: var(--glow-sm);
   transition:
-    transform 0.2s ease,
-    border-color 0.2s ease,
-    box-shadow 0.2s ease;
+    transform 0.18s ease,
+    border-color 0.18s ease,
+    box-shadow 0.18s ease;
 }
 .stat-card::before {
   content: "";
@@ -4392,7 +4387,6 @@ tbody tr:hover {
   border: 1px solid var(--border-bright);
   border-radius: var(--radius-lg);
   box-shadow: var(--glow-sm);
-  backdrop-filter: blur(16px);
 }
 .profile-cover img {
   border-radius: 16px;

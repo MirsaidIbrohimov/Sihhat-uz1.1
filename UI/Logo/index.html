@@ -1,0 +1,241 @@
+<!doctype html>
+<html lang="uz">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Sihhat.uz — Yangi T6 Aurora Logo Galereyasi (6 ta variant)</title>
+    <style>
+      @font-face {
+        font-family: "DM Sans";
+        src: url("../../apps/superadmin-web/public/fonts/DMSans.ttf") format("truetype");
+        font-weight: 100 900;
+      }
+      @font-face {
+        font-family: "Manrope";
+        src: url("../../apps/superadmin-web/public/fonts/Manrope.ttf") format("truetype");
+        font-weight: 100 900;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        font-family: "DM Sans", system-ui, sans-serif;
+        background:
+          radial-gradient(960px 520px at 8% -6%, rgba(99, 102, 241, 0.22), transparent 58%),
+          radial-gradient(840px 480px at 94% 100%, rgba(16, 185, 129, 0.18), transparent 58%),
+          #0a0f1f;
+        color: #f1f5ff;
+        min-height: 100vh;
+      }
+      header {
+        position: sticky; top: 0; z-index: 20;
+        background: rgba(14, 21, 42, 0.92);
+        backdrop-filter: blur(14px);
+        border-bottom: 1px solid rgba(129, 140, 248, 0.22);
+        padding: 14px 24px;
+        display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px;
+      }
+      .title h1 { margin: 0; font-family: Manrope, sans-serif; font-size: 18px; font-weight: 800; }
+      .title p { margin: 2px 0 0; font-size: 12.5px; color: #8799bf; }
+      .tabs { display: flex; flex-wrap: wrap; gap: 7px; }
+      .tab {
+        display: inline-flex; align-items: center; gap: 7px;
+        border: 1px solid rgba(129, 140, 248, 0.24); background: #141d38; color: #cbd5e1;
+        padding: 7px 12px; border-radius: 999px; font-size: 12.5px; font-weight: 700; cursor: pointer;
+        transition: transform 0.16s ease, border-color 0.16s ease;
+      }
+      .tab:hover { border-color: rgba(125, 211, 252, 0.5); transform: translateY(-1px); }
+      .tab.active { background: linear-gradient(135deg, #6366f1, #0ea5e9); color: #fff; border-color: transparent; }
+      .dot { width: 11px; height: 11px; border-radius: 50%; display: inline-block; border: 1px solid rgba(255,255,255,0.32); }
+      main { max-width: 1460px; margin: 22px auto 48px; padding: 0 24px; }
+      .frame {
+        background: rgba(20, 29, 56, 0.9);
+        border: 1px solid rgba(129, 140, 248, 0.24);
+        border-radius: 22px;
+        overflow: hidden;
+        box-shadow: 0 22px 54px rgba(3, 6, 18, 0.55);
+      }
+      .stage {
+        padding: 28px;
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: center;
+        gap: 32px;
+        background: #0a0f1f;
+        transition: background 0.25s ease;
+      }
+      .stage.light { background: #f6f8fc; color: #0f172a; }
+      .stage.board-mode { padding: 0; }
+      .stage img.hero-img { width: 100%; display: block; }
+      .stage img.single-logo {
+        width: min(500px, 84vw);
+        height: auto;
+        border-radius: 56px;
+        box-shadow: 0 24px 60px rgba(3, 6, 18, 0.45);
+      }
+      .side-previews {
+        display: flex; flex-direction: column; gap: 18px; min-width: 260px;
+      }
+      .preview-box {
+        padding: 16px 18px;
+        border-radius: 18px;
+        background: rgba(20, 29, 56, 0.85);
+        border: 1px solid rgba(125, 211, 252, 0.24);
+        color: #f1f5ff;
+      }
+      .stage.light .preview-box {
+        background: #ffffff;
+        border-color: #dbe4f3;
+        color: #0f172a;
+      }
+      .preview-box h3 { margin: 0 0 12px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em; opacity: 0.72; }
+      .sizes { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+      .sizes img { border-radius: 22%; box-shadow: 0 8px 20px rgba(3,6,18,0.28); }
+      .nav-mock {
+        display: flex; align-items: center; gap: 10px;
+        padding: 10px 14px; border-radius: 14px;
+        background: rgba(10, 15, 31, 0.75); border: 1px solid rgba(129,140,248,0.24);
+      }
+      .stage.light .nav-mock { background: #f6f8fc; border-color: #e2e8f4; }
+      .nav-mock img { width: 34px; height: 34px; border-radius: 9px; }
+      .nav-mock strong { font-family: Manrope, sans-serif; font-size: 16px; }
+      .nav-mock span { color: #38bdf8; }
+      .stage.light .nav-mock span { color: #0284c7; }
+      .bar {
+        padding: 15px 22px;
+        border-top: 1px solid rgba(129, 140, 248, 0.2);
+        display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px;
+      }
+      .bar strong { font-family: Manrope, sans-serif; font-size: 15.5px; color: #f8fafc; }
+      .bar span { font-size: 13px; color: #93a7cc; }
+      .actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+      .btn {
+        display: inline-flex; align-items: center; gap: 6px;
+        padding: 7px 13px; border-radius: 999px;
+        background: #1c284a; border: 1px solid rgba(125, 211, 252, 0.3);
+        color: #e0f2fe; font-size: 12.5px; font-weight: 700; text-decoration: none; cursor: pointer;
+      }
+      .btn:hover { background: #263561; }
+    </style>
+  </head>
+  <body>
+    <header>
+      <div class="title">
+        <h1>Sihhat.uz — Yangi T6 Aurora Logo Konsepsiyalari (6 ta variant)</h1>
+        <p>Eski logo ramzlari + T6 Indigo/Sky/Mint ranglari · ← / → tugmalari bilan ko‘rib chiqing</p>
+      </div>
+      <div class="tabs" id="tabs"></div>
+    </header>
+    <main>
+      <div class="frame">
+        <div class="stage" id="stage"></div>
+        <div class="bar">
+          <div><strong id="name"></strong> · <span id="desc"></span></div>
+          <div class="actions" id="actions"></div>
+        </div>
+      </div>
+    </main>
+    <script>
+      const LIST = [
+        {
+          id: "00-barcha-logolar-taqqoslash",
+          board: true,
+          dot: "linear-gradient(135deg,#6366f1,#38bdf8,#34d399)",
+          label: "Barchasi (6 ta)",
+          name: "6 ta yangi logo konsepsiyasi + eski logo bilan taqqoslash",
+          desc: "Barcha variantlar yonma-yon va kichik ikonka o‘lchamlarida",
+        },
+        {
+          id: "01-aurora-evolution",
+          dot: "linear-gradient(135deg,#6366f1,#38bdf8,#34d399)",
+          label: "01 · Aurora Evolyutsiya",
+          name: "01 — Aurora Evolyutsiya (Asl voris)",
+          desc: "Eski logoning barcha timsollari (xoch, inson, barg, puls, molekula) T6 ranglarida",
+        },
+        {
+          id: "02-minimal-monogram",
+          dot: "linear-gradient(135deg,#818cf8,#0ea5e9,#10b981)",
+          label: "02 · Minimalist App",
+          name: "02 — Minimalist App Icon",
+          desc: "Favicon va mobil ilova uchun juda toza, kichik o‘lchamda ham aniq geometrik belgi",
+        },
+        {
+          id: "03-glass-medallion",
+          dot: "linear-gradient(135deg,#4f46e5,#38bdf8,#6ee7b7)",
+          label: "03 · Shisha Medalyon",
+          name: "03 — Shisha Aurora Medalyon (3D Glassmorphism)",
+          desc: "Yorqin Aurora nuri ustidagi shaffof shisha medalyon va orbital puls",
+        },
+        {
+          id: "04-mountain-vitality",
+          dot: "linear-gradient(135deg,#6366f1,#0284c7,#34d399)",
+          label: "04 · Tog‘ va Shifo",
+          name: "04 — Tog‘ va Shifo Gerbi",
+          desc: "O‘zbekiston tog‘ sanatoriylari silueti, nurli xoch, puls va ikki shifo bargi",
+        },
+        {
+          id: "05-neon-ai-health",
+          dot: "linear-gradient(135deg,#818cf8,#38bdf8,#34d399)",
+          label: "05 · Neon AI Health",
+          name: "05 — AI & Raqamli Tibbiyot",
+          desc: "Molekulyar geksagon qalqon, neon xoch va elektr yurak urishi chizig‘i",
+        },
+        {
+          id: "06-light-aurora-crest",
+          dot: "linear-gradient(135deg,#4f46e5,#0284c7,#059669)",
+          label: "06 · Yorqin Y6 Gerb",
+          name: "06 — Yorqin Y6 Rasmiy Gerb",
+          desc: "Kunduzgi Y6 rejimi, vaucherlar, rasmiy hujjatlar va oq fonlar uchun",
+        },
+      ];
+      let idx = 0;
+      let lightBg = false;
+      function render() {
+        const it = LIST[idx];
+        const stage = document.getElementById("stage");
+        stage.className = "stage" + (lightBg && !it.board ? " light" : "") + (it.board ? " board-mode" : "");
+        if (it.board) {
+          stage.innerHTML = `<img class="hero-img" src="${it.id}.png" alt="${it.name}" />`;
+        } else {
+          stage.innerHTML = `
+            <img class="single-logo" src="${it.id}.png" alt="${it.name}" />
+            <div class="side-previews">
+              <div class="preview-box">
+                <h3>Ikonka o‘lchamlari (96 / 64 / 40 / 24 px)</h3>
+                <div class="sizes">
+                  <img src="${it.id}.png" width="96" height="96" alt="" />
+                  <img src="${it.id}.png" width="64" height="64" alt="" />
+                  <img src="${it.id}.png" width="40" height="40" alt="" />
+                  <img src="${it.id}.png" width="24" height="24" alt="" />
+                </div>
+              </div>
+              <div class="preview-box">
+                <h3>Web panel yuqori sarlavhasida ko‘rinishi</h3>
+                <div class="nav-mock">
+                  <img src="${it.id}.png" alt="" />
+                  <strong>Sihhat<span>.uz</span></strong>
+                </div>
+              </div>
+            </div>`;
+        }
+        document.getElementById("name").textContent = it.name;
+        document.getElementById("desc").textContent = it.desc;
+        document.getElementById("actions").innerHTML = it.board
+          ? `<a class="btn" href="${it.id}.png" download>PNG yuklab olish</a>`
+          : `<button class="btn" onclick="toggleBg()">${lightBg ? "🌙 Tungi fonda ko‘rish" : "☀️ Oq fonda ko‘rish"}</button>
+             <a class="btn" href="${it.id}.png" download>PNG (1024px)</a>
+             <a class="btn" href="${it.id}.svg" download>SVG (Vektor)</a>`;
+        document.getElementById("tabs").innerHTML = LIST.map((x, n) =>
+          `<button class="tab ${n === idx ? "active" : ""}" onclick="show(${n})"><span class="dot" style="background:${x.dot}"></span>${x.label}</button>`
+        ).join("");
+      }
+      window.show = (i) => { idx = (i + LIST.length) % LIST.length; render(); };
+      window.toggleBg = () => { lightBg = !lightBg; render(); };
+      document.addEventListener("keydown", (e) => {
+        if (e.key === "ArrowRight") window.show(idx + 1);
+        if (e.key === "ArrowLeft") window.show(idx - 1);
+      });
+      render();
+    </script>
+  </body>
+</html>

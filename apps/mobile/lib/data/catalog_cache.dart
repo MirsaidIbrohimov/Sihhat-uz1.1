@@ -99,7 +99,34 @@ class CatalogCache extends ChangeNotifier {
       await _save();
       notifyListeners();
 
-      // Also fetch unopened profiles and tariffs, rather than just list cards.
+      // Stage 1 (High Priority): Download ONLY the first cover photo (thumbnail)
+      // of each sanatorium first so home & catalog cards render immediately.
+      final coverIds = <String>[];
+      for (final item in items) {
+        final list = ((item['photos'] as List?)?.isNotEmpty == true
+            ? (item['photos'] as List)
+            : (item['photo_ids'] as List? ?? []));
+        if (list.isNotEmpty) {
+          final firstId = list.first.toString();
+          if (!coverIds.contains(firstId)) coverIds.add(firstId);
+        }
+      }
+      var coverNext = 0;
+      Future<void> coverWorker() async {
+        while (coverNext < coverIds.length) {
+          final photoId = coverIds[coverNext++];
+          final got = await photos.file(photoId, width: 640);
+          if (got != null) notifyListeners();
+        }
+      }
+
+      if (coverIds.isNotEmpty) {
+        await Future.wait(
+          List.generate(coverIds.length.clamp(0, 4), (_) => coverWorker()),
+        );
+      }
+
+      // Stage 2: Fetch unopened profiles, tariffs and remaining gallery photos for offline mode.
       final queue = items.map((item) => item['id'] as String).toList();
       var next = 0;
       Future<void> worker() async {
@@ -110,8 +137,11 @@ class CatalogCache extends ChangeNotifier {
             final photoList = ((detail['photos'] as List?)?.isNotEmpty == true
                 ? (detail['photos'] as List)
                 : (detail['photo_ids'] as List? ?? []));
-            for (final photo in photoList) {
-              await photos.file(photo.toString());
+            for (var i = 0; i < photoList.length; i++) {
+              await photos.file(
+                photoList[i].toString(),
+                width: i == 0 ? 640 : 1280,
+              );
             }
           } on ApiException catch (e) {
             if (['NETWORK_ERROR', 'NETWORK_TIMEOUT'].contains(e.code)) return;
@@ -238,8 +268,11 @@ class CatalogPhotos {
   final Future<Directory> Function() directory;
   Future<Directory>? _folder;
   final Map<String, Future<File?>> _requests = {};
+  final Map<String, File> _resolvedFiles = {};
   CatalogPhotos(this.api, {Future<Directory> Function()? directory})
     : directory = directory ?? getApplicationSupportDirectory;
+
+  File? cachedFile(String id) => _resolvedFiles[id];
 
   Future<Directory> _directory() => _folder ??= (() async {
     final root = await directory();
@@ -250,13 +283,18 @@ class CatalogPhotos {
         .create(recursive: true);
   })();
 
-  Future<File?> file(String id) => _requests.putIfAbsent(
-    id,
-    () => _file(id).whenComplete(() {
-      _requests.remove(id);
-    }),
-  );
-  Future<File?> _file(String id) async {
+  Future<File?> file(String id, {int width = 960}) {
+    final mem = _resolvedFiles[id];
+    if (mem != null) return Future.value(mem);
+    return _requests.putIfAbsent(
+      id,
+      () => _file(id, width: width).whenComplete(() {
+        _requests.remove(id);
+      }),
+    );
+  }
+
+  Future<File?> _file(String id, {int width = 960}) async {
     final isUrl = id.startsWith('http://') || id.startsWith('https://');
     if (!isUrl && !RegExp(r'^[a-zA-Z0-9_-]+$').hasMatch(id)) return null;
     try {
@@ -265,11 +303,14 @@ class CatalogPhotos {
           ? base64Url.encode(utf8.encode(id)).replaceAll('=', '')
           : id;
       final saved = File('${folder.path}/$filename');
-      if (await saved.exists() && await saved.length() > 0) return saved;
-      final targetUrl = isUrl ? id : api.image(id);
+      if (await saved.exists() && await saved.length() > 0) {
+        _resolvedFiles[id] = saved;
+        return saved;
+      }
+      final targetUrl = isUrl ? id : api.image(id, width: width);
       final response = await api.client
           .get(Uri.parse(targetUrl))
-          .timeout(const Duration(seconds: 15));
+          .timeout(const Duration(seconds: 12));
       final cType = response.headers['content-type'] ?? '';
       final isImage =
           cType.startsWith('image/') ||
@@ -286,7 +327,9 @@ class CatalogPhotos {
       }
       final temporary = File('${saved.path}.part');
       await temporary.writeAsBytes(response.bodyBytes, flush: true);
-      return await temporary.rename(saved.path);
+      final done = await temporary.rename(saved.path);
+      _resolvedFiles[id] = done;
+      return done;
     } catch (_) {
       return null;
     }
