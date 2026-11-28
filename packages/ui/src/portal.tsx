@@ -337,25 +337,47 @@ function Login({
         <ThemeToggle />
       </div>
       <div className="login-art">
-        <div className="brand">
-          <span className="brand-logo-tile">
-            <img
-              className="brand-logo"
-              src="/branding/sihhat-logo.jpg"
-              alt="Sihhat uz logosi"
-              width={56}
-              height={56}
-            />
-          </span>
-          <span>
-            sihhat<span className="brand-uz">.uz</span>
-          </span>
-        </div>
-        <div className="login-status-pill">
-          <span className="status-pulse" aria-hidden="true" />
-          {mode === "admin"
-            ? "SIHHAT.UZ · SUPERADMIN PORTALI"
-            : "SIHHAT.UZ · HAMKORLAR PORTALI"}
+        <img
+          className="login-art-bg login-illustration"
+          src={
+            mode === "admin"
+              ? "/branding/login-admin-retreat.jpg"
+              : "/branding/login-partner-retreat.jpg"
+          }
+          alt={
+            mode === "admin"
+              ? "Sihhat.uz tog' sanatoriyalari majmuasi"
+              : "Sihhat.uz hamkor sanatoriya maskani"
+          }
+          onError={(e) => {
+            const img = e.currentTarget;
+            if (img.dataset.fallbackApplied) return;
+            img.dataset.fallbackApplied = "1";
+            img.src = "/branding/sanatorium-default-cover.jpg";
+          }}
+        />
+        <div className="login-art-scrim" aria-hidden="true" />
+        <div className="login-art-top">
+          <div className="brand">
+            <span className="brand-logo-tile">
+              <img
+                className="brand-logo"
+                src="/branding/sihhat-logo.jpg"
+                alt="Sihhat uz logosi"
+                width={56}
+                height={56}
+              />
+            </span>
+            <span>
+              sihhat<span className="brand-uz">.uz</span>
+            </span>
+          </div>
+          <div className="login-status-pill">
+            <span className="status-pulse" aria-hidden="true" />
+            {mode === "admin"
+              ? "SIHHAT.UZ · SUPERADMIN PORTALI"
+              : "SIHHAT.UZ · HAMKORLAR PORTALI"}
+          </div>
         </div>
         <div className="login-story">
           <p className="eyebrow">SOG‘LOM DAM OLISH, OSON BOSHQARUV</p>
@@ -378,43 +400,20 @@ function Login({
               </span>
             ))}
           </div>
-          <div className="login-art-frame">
-            <img
-              className="login-illustration"
-              src={
-                mode === "admin"
-                  ? "/branding/login-admin-retreat.jpg"
-                  : "/branding/login-partner-retreat.jpg"
-              }
-              alt={
-                mode === "admin"
-                  ? "Sihhat.uz tog' sanatoriyalari majmuasi"
-                  : "Sihhat.uz hamkor sanatoriya maskani"
-              }
-              width={560}
-              height={360}
-              onError={(e) => {
-                const img = e.currentTarget;
-                if (img.dataset.fallbackApplied) return;
-                img.dataset.fallbackApplied = "1";
-                img.src = "/branding/sanatorium-default-cover.jpg";
-              }}
-            />
-            <div className="login-art-overlay">
-              <div>
-                <strong>
-                  {mode === "admin"
-                    ? "Hostra & Render HTTPS Himoyalangan Seans"
-                    : "0% Bron Komissiyasi · Shaffof Hamkorlik"}
-                </strong>
-                <span>
-                  {mode === "admin"
-                    ? "HttpOnly Cookie · CSRF · 5+ xato urinishda Email + Bot trevoga"
-                    : "Butun xona, koyka-o‘rin, kutish ro‘yxati va E-mehmon anketasi"}
-                </span>
-              </div>
-              <span className="badge green">Faol</span>
+          <div className="login-art-overlay">
+            <div>
+              <strong>
+                {mode === "admin"
+                  ? "Hostra & Render HTTPS Himoyalangan Seans"
+                  : "0% Bron Komissiyasi · Shaffof Hamkorlik"}
+              </strong>
+              <span>
+                {mode === "admin"
+                  ? "HttpOnly Cookie · CSRF · 5+ xato urinishda Email + Bot trevoga"
+                  : "Butun xona, koyka-o‘rin, kutish ro‘yxati va E-mehmon anketasi"}
+              </span>
             </div>
+            <span className="badge green">Faol</span>
           </div>
         </div>
         <div className="login-foot">
