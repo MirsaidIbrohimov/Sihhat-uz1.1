@@ -107,7 +107,7 @@
 ## 6-bob. QR-vaucher, Check-in, Check-out, hujjatlar va No-show
 
 1. **Elektron QR-vaucher:**
-   - To‘langan har bir bron uchun noyob bron kodi (masalan, `SH-...` formatda) va **QR-kodli elektron vaucher** beriladi.
+   - To‘langan har bir bron uchun noyob 5 xonali bron kodi (`BR-12345` formatda) va **QR-kodli elektron vaucher** beriladi.
    - Vaucher mobil ilovada internet bo‘lmaganda ham (offline kesh orqali) ko‘rsatilishi mumkin.
 2. **Kirish va chiqish vaqtlari hamda majburiy hujjatlar:**
    - Standart sanatoriya kirish vaqti sifatida kirish kunining mahalliy soat **14:00 (Asia/Tashkent, UTC+5)** mo‘ljal qilib olinadi (har bir sanatoriyaning profilida aniq kirish/chiqish soatlari ham ko‘rsatiladi).

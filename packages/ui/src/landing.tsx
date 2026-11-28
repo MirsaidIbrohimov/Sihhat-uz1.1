@@ -1294,6 +1294,9 @@ export function LandingPage() {
     setBookingLookupResult(null);
 
     const cleanedPhone = query.replace(/[\s()-]/g, "");
+    const withoutHash = query.replace(/^#+\s*/, "");
+    const brDigitsMatch = /^(?:br[\s-]*)?(\d{5})$/i.exec(withoutHash);
+    const normalizedBr = brDigitsMatch ? `BR-${brDigitsMatch[1]}` : query.toUpperCase();
     try {
       try {
         const savedRaw = localStorage.getItem("sihhat-web-bookings");
@@ -1301,8 +1304,8 @@ export function LandingPage() {
         if (Array.isArray(savedList)) {
           const localMatch = savedList.find(
             (b: any) =>
-              b?.reference?.toLowerCase() === query.toLowerCase() ||
-              b?.booking_id?.toLowerCase() === query.toLowerCase() ||
+              b?.reference?.toUpperCase() === normalizedBr ||
+              b?.booking_id?.toUpperCase() === normalizedBr ||
               (cleanedPhone.length >= 7 &&
                 String(b?.guest?.phone || "").includes(cleanedPhone)),
           );
@@ -1321,19 +1324,19 @@ export function LandingPage() {
         const items = Array.isArray(data) ? data : data.data || [];
         const found = items.find(
           (b: any) =>
-            b.reference?.toLowerCase() === query.toLowerCase() ||
-            b.guest?.phone?.includes(cleanedPhone),
+            b.reference?.toUpperCase() === normalizedBr ||
+            (cleanedPhone.length >= 7 && b.guest?.phone?.includes(cleanedPhone)),
         );
         if (found) {
           setBookingLookupResult(found);
           return;
         }
       }
-      if (query.toUpperCase().startsWith("SH-") || query.length >= 7) {
+      if (/^BR-\d{5}$/.test(normalizedBr) || query.length >= 7) {
         setBookingLookupResult({
-          reference: query.toUpperCase().startsWith("SH-")
-            ? query.toUpperCase()
-            : "SH-8F92A1",
+          reference: /^BR-\d{5}$/.test(normalizedBr)
+            ? normalizedBr
+            : "BR-48291",
           sanatorium_name: "Zomin Sog'lomlik Maskani",
           status: "PAYMENT_PENDING",
           amount: 500000,
@@ -3688,7 +3691,7 @@ export function LandingPage() {
                           );
                         }
                         const refCode =
-                          json.reference || json.booking_id || "SH-BRON";
+                          json.reference || json.booking_id || "BR-10000";
                         setCheckoutReference(refCode);
                         setCheckoutSuccessUrl(json.checkout_url);
                         try {
@@ -4446,14 +4449,50 @@ export function LandingPage() {
                   marginBottom: "1.25rem",
                 }}
               >
-                <input
-                  type="text"
-                  required
-                  className="l-input"
-                  value={bookingLookupQuery}
-                  onChange={(e) => setBookingLookupQuery(e.target.value)}
-                  placeholder="Bron raqami (SH-...) yoki telefon (+998)"
-                />
+                <div
+                  style={{
+                    flex: 1,
+                    display: "flex",
+                    alignItems: "stretch",
+                    borderRadius: 14,
+                    border: "1px solid var(--l-border-bright)",
+                    background: "var(--l-surface-2, rgba(20, 29, 56, 0.85))",
+                    overflow: "hidden",
+                  }}
+                >
+                  {!bookingLookupQuery.trim().startsWith("+") && (
+                    <span
+                      aria-hidden="true"
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        padding: "0 12px",
+                        background: "var(--l-accent-soft)",
+                        borderRight: "1px solid var(--l-border)",
+                        color: "var(--l-accent-bright, #818cf8)",
+                        fontWeight: 800,
+                        fontSize: "0.88rem",
+                        letterSpacing: "0.04em",
+                        userSelect: "none",
+                      }}
+                    >
+                      BR-
+                    </span>
+                  )}
+                  <input
+                    type="text"
+                    required
+                    className="l-input"
+                    style={{ border: 0, borderRadius: 0, background: "transparent" }}
+                    value={bookingLookupQuery}
+                    onChange={(e) =>
+                      setBookingLookupQuery(
+                        e.target.value.replace(/^\s*#?\s*br\s*-\s*(?=\d)/i, ""),
+                      )
+                    }
+                    placeholder="5 xonali raqam (masalan: 48291) yoki +998..."
+                  />
+                </div>
                 <button
                   type="submit"
                   disabled={bookingLookupLoading}

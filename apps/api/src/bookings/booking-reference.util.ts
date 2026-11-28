@@ -35,7 +35,7 @@ export function normalizeBookingReference(raw: string): string | null {
  */
 export async function allocateBookingReference(
   tx: {
-    $queryRaw?: <T = unknown>(strings: TemplateStringsArray, ...values: unknown[]) => Promise<T>;
+    $queryRaw?: (strings: TemplateStringsArray, ...values: any[]) => Promise<any>;
     booking?: {
       findUnique?: (args: any) => Promise<any>;
       findFirst?: (args: any) => Promise<any>;
@@ -50,7 +50,7 @@ export async function allocateBookingReference(
   if (typeof tx?.$queryRaw === 'function') {
     for (let attempt = 0; attempt < 64; attempt++) {
       const candidate = randomBookingReferenceCandidate();
-      const claimed = await tx.$queryRaw<{ reference: string }[]>`
+      const claimed: { reference: string }[] = await tx.$queryRaw`
         INSERT INTO "BookingReference" ("reference", "bookingId")
         SELECT ${candidate}, ${bookingId ?? null}::uuid
         WHERE NOT EXISTS (SELECT 1 FROM "Booking" WHERE "reference" = ${candidate})
@@ -65,7 +65,7 @@ export async function allocateBookingReference(
       [10_000, 99_999],
       [1, 9_999],
     ] as const) {
-      const fallback = await tx.$queryRaw<{ reference: string }[]>`
+      const fallback: { reference: string }[] = await tx.$queryRaw`
         INSERT INTO "BookingReference" ("reference", "bookingId")
         SELECT code, ${bookingId ?? null}::uuid
         FROM (
@@ -134,7 +134,7 @@ export async function allocateBookingReference(
  */
 export async function ensureBookingReferencesMigrated(db: {
   $executeRawUnsafe?: (sql: string) => Promise<unknown>;
-  $queryRaw?: <T = unknown>(strings: TemplateStringsArray, ...values: unknown[]) => Promise<T>;
+  $queryRaw?: (strings: TemplateStringsArray, ...values: any[]) => Promise<any>;
   booking?: {
     findMany?: (args: any) => Promise<{ id: string; reference: string }[]>;
     update?: (args: any) => Promise<unknown>;

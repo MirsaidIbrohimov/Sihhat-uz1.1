@@ -29,7 +29,7 @@ ma’lumot berilmaydi. Har tugma va bildirishnomada huquqlar qayta tekshiriladi.
 | --- | --- |
 | Bugun / Ertaga | Kelish, ketish, band xonalar va bron kartalari |
 | Bronlar | Barcha/tasdiqlangan/to‘lov jarayonidagi/muammoli bronlar va sahifalash |
-| Bron qidirish | `SH-...` raqami bilan ruxsat etilgan bronni topish |
+| Bron qidirish | `BR-12345` (yoki 5 xonali raqamning o‘zi: `12345`) bilan ruxsat etilgan bronni topish |
 | Bron kartasi | Sana, mehmon, xonalar va ruxsat bilan to‘lov holati; tasdiqlab check-in/out |
 | Bo‘sh xonalar | 1 yoki 7 tun uchun butun davr davomida bo‘sh xonalar; bron vaqtida yana tekshiriladi |
 | Hisobot | Bugungi yoki shu oydagi xona/mehmon tunlari va bandlik; moliya alohida ruxsat bilan |

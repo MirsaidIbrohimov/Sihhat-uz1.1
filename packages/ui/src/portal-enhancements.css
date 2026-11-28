@@ -9,6 +9,43 @@
   flex: 1 1 240px;
   min-width: 0;
 }
+.prefixed-search-input {
+  display: flex;
+  align-items: stretch;
+  width: 100%;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  overflow: hidden;
+  transition: border-color 0.18s ease, box-shadow 0.18s ease;
+}
+.prefixed-search-input:focus-within {
+  border-color: var(--border-bright, var(--green));
+  box-shadow: var(--glow-sm, 0 0 0 3px rgba(99, 102, 241, 0.18));
+}
+.prefixed-search-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 12px;
+  background: var(--green-light, var(--soft));
+  border-right: 1px solid var(--line);
+  color: var(--green);
+  font-family: "Manrope", system-ui, sans-serif;
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  user-select: none;
+  flex-shrink: 0;
+}
+.prefixed-search-input input {
+  flex: 1 1 auto;
+  min-width: 0;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  outline: none !important;
+}
 .list-filters .field {
   min-width: 0;
 }
@@ -1091,6 +1128,75 @@
 /* ============================================================================
    TUNGI AURORA MULTI-COLOR (T6) — WEB PANELS ENHANCEMENTS
    ============================================================================ */
+.topbar-br-search {
+  display: inline-flex;
+  align-items: center;
+  height: 36px;
+  border-radius: var(--radius-pill, 9999px);
+  background: var(--glass, var(--surface));
+  border: 1px solid var(--glass-border, var(--line));
+  overflow: hidden;
+  transition: border-color 0.18s ease, box-shadow 0.18s ease;
+}
+.topbar-br-search:focus-within {
+  border-color: var(--border-bright, var(--green));
+  box-shadow: var(--glow-sm);
+}
+.topbar-br-prefix {
+  display: inline-flex;
+  align-items: center;
+  height: 100%;
+  padding: 0 9px 0 12px;
+  background: var(--green-light, var(--soft));
+  border-right: 1px solid var(--glass-border, var(--line));
+  color: var(--green);
+  font-family: "Manrope", system-ui, sans-serif;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  user-select: none;
+}
+.topbar-br-search input {
+  width: 108px;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  font-size: 12.5px;
+  font-weight: 600;
+  padding: 0 8px;
+  outline: none;
+}
+.topbar-br-search input::placeholder {
+  color: var(--muted);
+  font-weight: 500;
+}
+.topbar-br-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 100%;
+  border: 0;
+  background: transparent;
+  color: var(--green);
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.topbar-br-btn:hover {
+  background: var(--green-light, var(--soft));
+}
+.command-br-chip {
+  padding: 4px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--border-bright, var(--line));
+  background: var(--green-light, var(--soft));
+  color: var(--green);
+  font-family: "Manrope", system-ui, sans-serif;
+  font-size: 11.5px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+}
 .command-search-trigger {
   display: inline-flex;
   align-items: center;
@@ -1248,16 +1354,32 @@
   box-shadow: 0 22px 52px rgba(3, 6, 18, 0.48);
   margin-top: 14px;
 }
+.login-art-frame::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(
+    to bottom,
+    rgba(10, 15, 31, 0.12) 0%,
+    rgba(10, 15, 31, 0.04) 48%,
+    rgba(10, 15, 31, 0.56) 100%
+  );
+}
 .login-art-frame .login-illustration {
   width: 100%;
+  max-width: none;
+  margin-top: 0;
   display: block;
   border: 0;
   border-radius: 0;
   box-shadow: none;
   object-fit: cover;
+  object-position: center;
 }
 .login-art-overlay {
   position: absolute;
+  z-index: 2;
   inset: auto 12px 12px 12px;
   padding: 10px 14px;
   border-radius: 15px;
@@ -1485,6 +1607,9 @@
   .system-health-pill {
     display: none;
   }
+  .topbar-br-search input {
+    width: 92px;
+  }
   .command-search-trigger {
     min-width: 0;
     padding: 7px 12px;
@@ -1500,6 +1625,9 @@
   }
 }
 @media (max-width: 640px) {
+  .topbar-br-search input {
+    width: 78px;
+  }
   .command-search-trigger span {
     max-width: 135px;
     overflow: hidden;

@@ -103,11 +103,13 @@ test('Telegram: permission revocation and director replacement take effect witho
   await bot.handle(press(41002, `booking:${booking.id}`)); assert.match(last().text, /ruxsat/);
   await ctx.db.membership.update({ where: { id: reception.membership.id }, data: { denies: [] } });
   await ctx.db.membership.update({ where: { id: director.membership.id }, data: { status: 'BLOCKED' } });
-  await bot.handle(update(41001, '/bronlar')); assert.match(last().text, /vakolati faol emas/); assert.doesNotMatch(last().text, /SH-/);
+  await bot.handle(update(41001, '/bronlar')); assert.match(last().text, /vakolati faol emas/); assert.doesNotMatch(last().text, /SH-|BR-\d{5}/);
   await ctx.db.membership.update({ where: { id: director.membership.id }, data: { status: 'ACTIVE' } });
 });
 test('Telegram: search, cancel, notification preferences and time buttons work without accepting unknown settings', async () => {
   await bot.handle(press(41002, 'search')); await bot.handle(update(41002, booking.reference));
+  assert.match(last().text, new RegExp(booking.reference));
+  await bot.handle(press(41002, 'search')); await bot.handle(update(41002, booking.reference.replace(/^BR-/, '')));
   assert.match(last().text, new RegExp(booking.reference));
   await bot.handle(update(41002, '/cancel'));
   assert.deepEqual((await ctx.db.telegramAccount.findUniqueOrThrow({ where: { telegramUserId: '41002' } })).state, {});

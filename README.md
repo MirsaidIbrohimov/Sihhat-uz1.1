@@ -3,12 +3,12 @@
 **O‘zbekiston sanatoriylarini onlayn tanlash, taqqoslash va rasmiy narxlarda bron qilish platformasi** — NestJS/PostgreSQL backend, `sihhat.uz` B2C portali, Superadmin boshqaruv paneli, Hamkorlar (Direktor / Resepsion / Hisobchi) CRM paneli, xodimlar Telegram boti hamda Flutter Android ilovasi (`v0.2.10+13`) + iOS PWA.
 
 - **Kanonik repozitoriya:** [MirsaidIbrohimov/Sihhat-uz1.1](https://github.com/MirsaidIbrohimov/Sihhat-uz1.1)
-- **Oxirgi yangilanish:** **2026-11-27**
+- **Oxirgi yangilanish:** **2026-11-28**
 - **Asosiy manzillar:** [sihhat.uz](https://sihhat.uz) · [Superadmin](https://sihhat.uz/superadmin) · [Hamkorlar paneli](https://sihhat.uz/hamkorlar) · API: `https://sihhat.uz/api`
 - **Git tartibi:** Barcha o‘zgarishlar lokal saqlanadi; GitHubga faqat foydalanuvchining aniq topshirig‘i bilan yuklanadi.
 
 **Mundarija:**
-[Eng so‘nggi yangilanishlar](#eng-songgi-yangilanishlar-2026-11-21--2026-11-27) ·
+[Eng so‘nggi yangilanishlar](#eng-songgi-yangilanishlar-2026-11-21--2026-11-28) ·
 [Joriy holat](#joriy-holat) ·
 [Dizayn galereyalari](#dizayn-galereyalari-va-prototiplar) ·
 [Kod tuzilishi](#kod-tuzilishi) ·
@@ -21,7 +21,17 @@
 
 ---
 
-## Eng so‘nggi yangilanishlar (2026-11-21 — 2026-11-27)
+## Eng so‘nggi yangilanishlar (2026-11-21 — 2026-11-28)
+
+### 2026-11-28 — Web panellar va `sihhat.uz` uchun yangi fotorealistik suratlar (defolt rasmlarni almashtirish)
+Barcha web panellardagi eski vektor/takrorlanuvchi defolt rasmlar (`welcome-retreat.png` va takroriy `wellness-retreat.png`) 8 ta alohida optimallashtirilgan fotorealistik suratga almashtirildi (`assets/branding/web/`, `scripts/web-assets.mjs`):
+- **`sihhat.uz` yo‘nalish kartochkalari (`packages/ui/src/landing.tsx`):** «Davolash maskanlari» (`category-davolash.jpg`), «Bolalar salomatligi» (`category-bolalar.jpg`), «Reabilitatsiya» (`category-reabilitatsiya.jpg`) va «Dam olish va wellness» (`category-wellness.jpg`) uchun 4 ta mustaqil surat, hero vitrina uchun `hero-retreat.jpg` hamda rasmsiz/xatoli kartalar uchun aqlli `sanatorium-default-cover.jpg` zaxira muqovasi.
+- **`/superadmin` va `/hamkorlar` kirish hamda profil muqovalari (`portal.tsx`, `governance.tsx`, `portal-enhancements.css`):** Superadmin kirish sahifasi (`login-admin-retreat.jpg`), Hamkorlar kirish sahifasi (`login-partner-retreat.jpg`), sanatoriya profilining standart muqovasi (`sanatorium-default-cover.jpg`) hamda `.login-art-frame` to‘liq kenglikda to‘ldirish tuzatishi.
+- **`npm run web:assets`:** ikkala web ilova (`apps/superadmin-web/public/branding`, `apps/partner-web/public/branding`) uchun barcha 8 ta suratni hamda eski nomli fallback fayllarning fotorealistik versiyalarini sinxronlaydi (mobil ilova assetlariga tegilmaydi).
+
+### 2026-11-28 — Qisqa va takrorlanmas `BR-XXXXX` (5 xonali) bron ID tizimi hamda `BR-` tezkor qidiruvi
+- **5 xonali tasodifiy va takrorlanmas `BR-XXXXX` bron raqamlari:** eski uzun `SH-...` kodlari o‘rniga barcha bronlar (`BookingService.allocate`, `TezcheckService.quickCheckout`, Next.js `quick-checkout`) kriptografik tasodifiy, ketma-ket bo‘lmagan 5 xonali `BR-12345` formatida yaratiladi. Har bir berilgan kod `BookingReference` jadvalida doimiy muhrlanadi — 1-bronda tushgan ID hech qachon qaytib takrorlanmaydi (`202611280001_booking_br_reference` migratsiyasi + `ensureBookingReferencesMigrated()`).
+- **Web panellar va saytda oldindan `BR-` yozilgan qidiruv:** `/superadmin` va `/hamkorlar` yuqori panelida (`topbar-br-search`), `Ctrl + K` oynasida, `Bronlar`, `Bugungi ishlar`, `To‘lovlar` bo‘limlarida hamda `sihhat.uz` «Bronni tekshirish» oynasida `BR-` prefiksi oldindan tayyor yozilgan — foydalanuvchi uning yoniga faqat 5 xonali raqamni yozib bronni darhol topadi va ochadi (Telegram botda ham `BR-12345` yoki `12345` qabul qilinadi).
 
 ### 2026-11-27 — T6 (Tungi Aurora Multi-Color) dizayni va `sihhat.uz` yangi qulayliklari
 Barcha web ilovalar — **`sihhat.uz`**, **`/superadmin`** va **`/hamkorlar`** — to‘liq **T6 (Tungi Aurora Multi-Color: Indigo + Sky + Mint)** rang tizimiga o‘tkazildi ([rang maketlari](UI/new%20web/tungi_ranglar/index.html)):
@@ -58,7 +68,7 @@ Barcha web ilovalar — **`sihhat.uz`**, **`/superadmin`** va **`/hamkorlar`** �
 
 | Qism | Amaldagi imkoniyatlar va holat |
 | --- | --- |
-| **Backend** (`apps/api`) | NestJS 11 + Prisma 7 + PostgreSQL 18 (**21 migratsiya**, inventar `exclusion` cheklovi va **4 ta ledger triggeri**). RBAC va sanatoriya izolyatsiyasi, 6 xonali unikal `#ID` (`User.publicId`), `#ID` tezkor qidiruvi (`GET /auth/quick-lookup`), hamkor mustaqil ro‘yxatdan o‘tishi (`PartnerRegistration`), `AuthEvent` + `Session` qurilma/IP tarixi va backfill, to‘liq Amallar tarixi, markazlashtirilgan yordam va xodimga biriktirish, FCM HTTP v1 push (`DevicePushToken`), `Outbox` (Email + Telegram + In-App + FCM), 5+ xato parol ogohlantirishi, GitHub Releases versiya nazorati va Swagger/OpenAPI (`docs/openapi.json`). |
+| **Backend** (`apps/api`) | NestJS 11 + Prisma 7 + PostgreSQL 18 (**22 migratsiya**, inventar `exclusion` cheklovi va **4 ta ledger triggeri**). RBAC va sanatoriya izolyatsiyasi, tasodifiy va takrorlanmas 5 xonali `BR-XXXXX` bron IDlari (`BookingReference`), 6 xonali unikal `#ID` (`User.publicId`), `#ID` va `BR-` tezkor qidiruvi (`GET /auth/quick-lookup`), hamkor mustaqil ro‘yxatdan o‘tishi (`PartnerRegistration`), `AuthEvent` + `Session` qurilma/IP tarixi va backfill, to‘liq Amallar tarixi, markazlashtirilgan yordam va xodimga biriktirish, FCM HTTP v1 push (`DevicePushToken`), `Outbox` (Email + Telegram + In-App + FCM), 5+ xato parol ogohlantirishi, GitHub Releases versiya nazorati va Swagger/OpenAPI (`docs/openapi.json`). |
 | **`sihhat.uz` (B2C)** (`packages/ui`) | **T6 Tungi Aurora** (standart) + mos **Y6 kunduzgi** rejim. Jonli API katalogi, «Qaysi dardga davo?» filtri, hudud/byudjet/saralash filtrlari, 3 tagacha sanatoriyani yonma-yon taqqoslash, jonli yo‘llanma narx kalkulyatori, yaqinda ko‘rilganlar, 1-klik havola ulashish (`?sanatorium=...`), `/` va `Ctrl+K` qidiruv, AI maslahatchi oynasi, bron tekshiruvi + muolaja kundaligi, TezCheck quick-checkout, FAQ akkordeon, iOS PWA o‘rnatish yo‘riqnomasi va huquqiy nizomlar. |
 | **Superadmin** (`apps/superadmin-web`, `/superadmin`) | **T6 Tungi Aurora** (standart) + Y6 kunduzgi rejim. `Ctrl+K` tezkor qidiruv (bo‘limlar + `#ID` orqali User/Hamkor profili), Hamkor arizalari (`/partner-registrations`), Sanatoriyalar va Mashhur tick tanlovi, Amallar tarixi (`/audit`) va Kirish/chiqish tarixi (`/auth-events`), markaziy Yordam va jonli chat (xodimga biriktirish bilan), E’lonlar va xabarlar markazi, Ilova foydalanuvchilari va Jamoa boshqaruvi, moliya/reklama/hisobotlar va AI sarf nazorati. |
 | **Hamkorlar** (`apps/partner-web`, `/hamkorlar`) | **T6 Tungi Aurora** (standart) + Y6 kunduzgi rejim. Direktor, Resepsion va Hisobchi rollari. Kirishda «Yangi hisob ochish» va «Parolni unutdingizmi?», Bandlik kalendari (Shaxmatka), 3 tabli Bronlar va Mijozlar CRM (bronlar, kutish ro‘yxati, kasaba uyushmalari kvotasi), 1-klik E-mehmon anketasi, Superadmin biriktirgan mijoz yordam suhbatlari, Jamoa kirish tarixi, 9 bo‘limli Hamkor shartlari va [Hisobchi paneli](docs/HISOBCHI_PANEL.md). |
@@ -90,7 +100,7 @@ Barcha galereyalar internetsiz (lokal brauzerda) ishlaydi va faqat namunaviy ma�
 
 | Papka | Vazifasi |
 | --- | --- |
-| `apps/api` | NestJS API, Prisma sxemasi/migratsiyalar (21 ta), worker, Telegram bot va backend testlari |
+| `apps/api` | NestJS API, Prisma sxemasi/migratsiyalar (22 ta), worker, Telegram bot va backend testlari |
 | `apps/superadmin-web` | `sihhat.uz` B2C sahifasi, `/superadmin` va `/hamkorlar` marshrutlarini uzatuvchi Next.js 16 sayti |
 | `apps/partner-web` | Hamkorlar (Direktor / Resepsion / Hisobchi) mustaqil Next.js 16 sayti |
 | `apps/mobile` | Flutter Android ilovasi (`0.2.10+13`), native FCM push servisi va mobil testlar |

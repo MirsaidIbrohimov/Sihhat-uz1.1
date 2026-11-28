@@ -627,6 +627,10 @@ export function Portal({
     [cmdQuery, setCmdQuery] = useState(""),
     [quickResults, setQuickResults] = useState<Row[]>([]),
     [quickLoading, setQuickLoading] = useState(false),
+    [cmdBookingResults, setCmdBookingResults] = useState<Row[]>([]),
+    [cmdBookingLoading, setCmdBookingLoading] = useState(false),
+    [brQuickCode, setBrQuickCode] = useState(""),
+    [brQuickBusy, setBrQuickBusy] = useState(false),
     [quickProfile, setQuickProfile] = useState<Row | null>(null),
     [pendingRegistrations, setPendingRegistrations] = useState(0);
   const sessionGeneration = useRef(0);
@@ -650,9 +654,55 @@ export function Portal({
       lastAutoOpenedRef.current = "";
       setQuickResults([]);
       setQuickLoading(false);
+      setCmdBookingResults([]);
+      setCmdBookingLoading(false);
       return;
     }
     const trimmed = cmdQuery.trim();
+    const brMatch = /^#?\s*br(?:\s*-\s*|\s*)(\d{0,5})$/i.exec(trimmed);
+    if (brMatch) {
+      setQuickResults([]);
+      setQuickLoading(false);
+      const brDigits = brMatch[1];
+      if (!brDigits) {
+        setCmdBookingResults([]);
+        setCmdBookingLoading(false);
+        return;
+      }
+      let active = true;
+      setCmdBookingLoading(true);
+      const staffTenant = !isAdminMode
+        ? (actor?.memberships.find((m) => m.sanatoriumId === tenant && m.status === "ACTIVE")?.sanatoriumId ||
+           actor?.memberships.find((m) => m.status === "ACTIVE")?.sanatoriumId || "")
+        : "";
+      const timer = setTimeout(() => {
+        api(
+          (isAdminMode ? "/superadmin/bookings" : "/partner/bookings") +
+            query({
+              q: `BR-${brDigits}`,
+              sanatorium_id: !isAdminMode && (tenant || staffTenant) ? (tenant || staffTenant) : undefined,
+              limit: 6,
+            }),
+        )
+          .then((res) => {
+            if (!active) return;
+            const rows: Row[] = Array.isArray(res?.data) ? res.data : [];
+            setCmdBookingResults(rows);
+            setCmdBookingLoading(false);
+          })
+          .catch(() => {
+            if (!active) return;
+            setCmdBookingResults([]);
+            setCmdBookingLoading(false);
+          });
+      }, 120);
+      return () => {
+        active = false;
+        clearTimeout(timer);
+      };
+    }
+    setCmdBookingResults([]);
+    setCmdBookingLoading(false);
     const isIdQuery = trimmed.startsWith("#") || /^\d{5,8}$/.test(trimmed);
     const cleanBody = trimmed.replace(/^#+\s*/, "").trim();
     if (!isIdQuery || !cleanBody) {
@@ -1155,6 +1205,79 @@ export function Portal({
                   </div>
                 )
               )}
+              {(admin || allowed("bookings.read")) && (
+                <form
+                  className="topbar-br-search"
+                  role="search"
+                  aria-label="Bronni BR- raqami orqali tezkor qidirish"
+                  onSubmit={async (event) => {
+                    event.preventDefault();
+                    const digits = brQuickCode.replace(/\D/g, "").slice(0, 5);
+                    if (!digits) return;
+                    const code = `BR-${digits}`;
+                    setBrQuickBusy(true);
+                    try {
+                      const res = await api(
+                        (admin ? "/superadmin/bookings" : "/partner/bookings") +
+                          query({
+                            q: code,
+                            sanatorium_id:
+                              !admin && effectiveTenant ? effectiveTenant : undefined,
+                            limit: 5,
+                          }),
+                      );
+                      const rows: Row[] = Array.isArray(res?.data) ? res.data : [];
+                      const matched =
+                        rows.find(
+                          (r) => String(r.reference ?? "").toUpperCase() === code,
+                        ) ?? (rows.length === 1 ? rows[0] : null);
+                      if (matched?.id) {
+                        setBrQuickCode("");
+                        if (admin && tenant && matched.sanatoriumId && tenant !== matched.sanatoriumId) {
+                          setTenant(matched.sanatoriumId);
+                        }
+                        go("bookings", { booking: matched.id });
+                      } else {
+                        notice(`${code} raqamli bron topilmadi.`);
+                      }
+                    } catch (err) {
+                      notice((err as Error).message);
+                    } finally {
+                      setBrQuickBusy(false);
+                    }
+                  }}
+                >
+                  <span className="topbar-br-prefix" aria-hidden="true">
+                    BR-
+                  </span>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    aria-label="Bron raqami (5 xonali)"
+                    placeholder="5 xonali kod"
+                    maxLength={10}
+                    autoComplete="off"
+                    value={brQuickCode}
+                    onChange={(e) =>
+                      setBrQuickCode(
+                        e.target.value
+                          .replace(/^\s*#?\s*br\s*-\s*/i, "")
+                          .replace(/\D/g, "")
+                          .slice(0, 5),
+                      )
+                    }
+                  />
+                  <button
+                    type="submit"
+                    className="topbar-br-btn"
+                    disabled={brQuickBusy}
+                    aria-label="Bronni topish"
+                    title="BR- raqami bo‘yicha bronni topish"
+                  >
+                    <Search size={14} aria-hidden="true" />
+                  </button>
+                </form>
+              )}
               <button
                 type="button"
                 className="command-search-trigger"
@@ -1165,7 +1288,7 @@ export function Portal({
                 }}
               >
                 <Search size={15} aria-hidden="true" />
-                <span>Bo‘lim yoki #ID (user / hamkor)...</span>
+                <span>Bo‘lim, BR- bron yoki #ID...</span>
                 <kbd>Ctrl + K</kbd>
               </button>
             </div>
@@ -1312,13 +1435,63 @@ export function Portal({
               <Search size={18} aria-hidden="true" />
               <input
                 type="search"
-                placeholder="#ID yozing (masalan: #482915 — user yoki hamkor) yoki bo‘lim nomi..."
+                placeholder="BR- bron raqami (masalan: BR-48291), #ID yoki bo‘lim nomi..."
                 value={cmdQuery}
                 onChange={(e) => setCmdQuery(e.target.value)}
                 onKeyDown={async (e) => {
                   if (e.key !== "Enter") return;
                   const trimmed = cmdQuery.trim();
                   if (!trimmed) return;
+                  const brMatch = /^#?\s*br(?:\s*-\s*|\s*)(\d{1,5})$/i.exec(trimmed);
+                  if (brMatch) {
+                    e.preventDefault();
+                    const code = `BR-${brMatch[1]}`;
+                    const openBooking = (item: Row | null | undefined) => {
+                      if (!item?.id) {
+                        notice(`${code} raqamli bron topilmadi`);
+                        return;
+                      }
+                      setCmdOpen(false);
+                      if (admin && tenant && item.sanatoriumId && tenant !== item.sanatoriumId) {
+                        setTenant(item.sanatoriumId);
+                      }
+                      go("bookings", { booking: item.id });
+                    };
+                    const existing =
+                      cmdBookingResults.find(
+                        (r) => String(r.reference ?? "").toUpperCase() === code,
+                      ) ??
+                      (!cmdBookingLoading && cmdBookingResults.length === 1
+                        ? cmdBookingResults[0]
+                        : null);
+                    if (existing) {
+                      openBooking(existing);
+                      return;
+                    }
+                    try {
+                      setCmdBookingLoading(true);
+                      const res = await api(
+                        (admin ? "/superadmin/bookings" : "/partner/bookings") +
+                          query({
+                            q: code,
+                            sanatorium_id:
+                              !admin && effectiveTenant ? effectiveTenant : undefined,
+                            limit: 6,
+                          }),
+                      );
+                      setCmdBookingLoading(false);
+                      const rows: Row[] = Array.isArray(res?.data) ? res.data : [];
+                      openBooking(
+                        rows.find(
+                          (r) => String(r.reference ?? "").toUpperCase() === code,
+                        ) ?? rows[0] ?? null,
+                      );
+                    } catch (err) {
+                      setCmdBookingLoading(false);
+                      notice((err as Error).message);
+                    }
+                    return;
+                  }
                   const isIdQuery = trimmed.startsWith("#") || /^\d{5,8}$/.test(trimmed);
                   if (isIdQuery) {
                     e.preventDefault();
@@ -1378,6 +1551,16 @@ export function Portal({
                 }}
                 autoFocus
               />
+              {(admin || allowed("bookings.read")) && !/^#?\s*br/i.test(cmdQuery.trim()) && (
+                <button
+                  type="button"
+                  className="command-br-chip"
+                  onClick={() => setCmdQuery("BR-")}
+                  title="BR- bron raqami bo‘yicha qidirish"
+                >
+                  BR-
+                </button>
+              )}
               <button
                 type="button"
                 className="icon-button"
@@ -1390,6 +1573,66 @@ export function Portal({
             <div className="command-palette-list">
               {(() => {
                 const trimmed = cmdQuery.trim();
+                const brMatch = /^#?\s*br(?:\s*-\s*|\s*)(\d{0,5})$/i.exec(trimmed);
+                if (brMatch) {
+                  const brDigits = brMatch[1];
+                  return (
+                    <>
+                      <div className="quick-lookup-section-title">
+                        BR- bo‘yicha tezkor bron qidiruvi
+                      </div>
+                      {!brDigits ? (
+                        <div className="quick-lookup-empty">
+                          <strong>BR-</strong> dan keyin 5 xonali bron raqamini yozing (masalan: <code>BR-48291</code>) — mos bron darhol ochiladi.
+                        </div>
+                      ) : cmdBookingLoading ? (
+                        <div className="quick-lookup-empty">Bron qidirilmoqda…</div>
+                      ) : cmdBookingResults.length === 0 ? (
+                        <div className="quick-lookup-empty">
+                          <strong>BR-{brDigits}</strong> raqamiga mos bron topilmadi.
+                        </div>
+                      ) : (
+                        cmdBookingResults.map((bRow) => (
+                          <button
+                            type="button"
+                            key={bRow.id}
+                            className={`quick-lookup-item ${String(bRow.reference ?? "").toUpperCase() === `BR-${brDigits}` ? "exact" : ""}`}
+                            onClick={() => {
+                              setCmdOpen(false);
+                              if (admin && tenant && bRow.sanatoriumId && tenant !== bRow.sanatoriumId) {
+                                setTenant(bRow.sanatoriumId);
+                              }
+                              go("bookings", { booking: bRow.id });
+                            }}
+                          >
+                            <div className="quick-lookup-avatar">BR</div>
+                            <div className="quick-lookup-meta">
+                              <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                                <strong style={{ fontSize: 13.5 }}>{bRow.reference}</strong>
+                                <span className="id-chip">{label[bRow.status] ?? bRow.status}</span>
+                              </div>
+                              <span style={{ fontSize: 12, color: "var(--muted)" }}>
+                                {bRow.guest?.name ?? "Mehmon"}
+                                {bRow.guest?.phone ? ` · ${bRow.guest.phone}` : ""}
+                                {bRow.sanatorium_name ? ` · ${bRow.sanatorium_name}` : ""}
+                              </span>
+                            </div>
+                            <span
+                              style={{
+                                fontSize: 12,
+                                fontWeight: 700,
+                                color: "var(--green)",
+                                whiteSpace: "nowrap",
+                              }}
+                            >
+                              Bronni ochish →
+                            </span>
+                          </button>
+                        ))
+                      )}
+                    </>
+                  );
+                }
                 const isIdQuery = trimmed.startsWith("#") || /^\d{5,8}$/.test(trimmed);
                 const cleanBody = trimmed.replace(/^#+\s*/, "").trim();
                 if (isIdQuery) {
@@ -1477,7 +1720,7 @@ export function Portal({
                 .filter((item) => {
                   const q = cmdQuery.trim().toLowerCase();
                   if (!q) return true;
-                  if (q.startsWith("#")) return false;
+                  if (q.startsWith("#") || /^br[\s-]?\d*$/i.test(q)) return false;
                   const lbl =
                     accountant && item.id === "dashboard"
                       ? "hisobotlar"
