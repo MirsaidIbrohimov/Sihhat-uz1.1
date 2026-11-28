@@ -1,7 +1,11 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { RefreshCw } from "lucide-react";
-import { ListFilters, useSavedFilters } from "./list-filters";
+import {
+  ListFilters,
+  formatBrSearchQuery,
+  useSavedFilters,
+} from "./list-filters";
 import { api, formatMoney, query, toMinor } from "@sihhat/api-client";
 import {
   Act,
@@ -2055,7 +2059,7 @@ export function Bookings() {
       <ListFilters
         search={search}
         setSearch={setSearch}
-        apply={() => setQ(search.trim())}
+        apply={() => setQ(formatBrSearchQuery(search))}
         reset={() => {
           setSearch("");
           setQ("");
@@ -2063,6 +2067,8 @@ export function Bookings() {
         }}
         filters={filters.values}
         setFilter={filters.set}
+        prefixLabel="BR-"
+        placeholder="5 xonali raqam (masalan: 48291), mehmon ismi yoki telefon"
         dates
         dateKinds
         statuses={[
@@ -2206,7 +2212,7 @@ export function Payments() {
       <ListFilters
         search={search}
         setSearch={setSearch}
-        apply={() => setQ(search.trim())}
+        apply={() => setQ(formatBrSearchQuery(search))}
         reset={() => {
           setSearch("");
           setQ("");
@@ -2214,6 +2220,8 @@ export function Payments() {
         }}
         filters={filters.values}
         setFilter={filters.set}
+        prefixLabel="BR-"
+        placeholder="5 xonali bron raqami (masalan: 48291), ism yoki telefon"
         dates
         statuses={[
           "SUCCEEDED",

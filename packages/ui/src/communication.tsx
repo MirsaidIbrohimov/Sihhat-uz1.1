@@ -80,7 +80,7 @@ const ANNOUNCEMENT_TEMPLATES = [
     target: "ALL" as const,
     kind: "WARNING" as const,
     title: "Muhim: Tasdiqlangan bronlar va mehmonlarni qabul qilish tartibi",
-    body: "Diqqat! Tasdiqlangan onlayn bronlar bo‘yicha mehmonlar kelganda QR-vaucher yoki bron raqami (#SH-...) orqali darhol joylashtirilishi (Check-in) va E-mehmon anketasi rasmiylashtirilishi shart.",
+    body: "Diqqat! Tasdiqlangan onlayn bronlar bo‘yicha mehmonlar kelganda QR-vaucher yoki bron raqami (BR-...) orqali darhol joylashtirilishi (Check-in) va E-mehmon anketasi rasmiylashtirilishi shart.",
   },
   {
     id: "all-release",

@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import { formatMoney, query } from "@sihhat/api-client";
+import { api, formatMoney, query } from "@sihhat/api-client";
 import {
   Act,
   Badge,
@@ -21,7 +21,40 @@ import {
 export function TodayWork() {
   const ctx = usePortal(),
     action = useAction(),
-    [day, setDay] = useState(localDate());
+    [day, setDay] = useState(localDate()),
+    [brDigits, setBrDigits] = useState(""),
+    [brBusy, setBrBusy] = useState(false);
+  async function findByBr(event: React.FormEvent) {
+    event.preventDefault();
+    const digits = brDigits.replace(/\D/g, "").slice(0, 5);
+    if (!digits) return;
+    const code = `BR-${digits}`;
+    setBrBusy(true);
+    try {
+      const res = await api(
+        (ctx.admin ? "/superadmin/bookings" : "/partner/bookings") +
+          query({
+            sanatorium_id: ctx.tenant || undefined,
+            q: code,
+            limit: 5,
+          }),
+      );
+      const rows: Row[] = Array.isArray(res?.data) ? res.data : [];
+      const matched =
+        rows.find((r) => String(r.reference ?? "").toUpperCase() === code) ??
+        (rows.length === 1 ? rows[0] : null);
+      if (matched?.id) {
+        setBrDigits("");
+        ctx.go("bookings", { booking: matched.id });
+      } else {
+        ctx.notice(`${code} raqamli bron topilmadi.`);
+      }
+    } catch (err) {
+      ctx.notice((err as Error).message);
+    } finally {
+      setBrBusy(false);
+    }
+  }
   const remote = useRemote(
     ctx.admin || ctx.tenant
       ? "/partner/bookings/daily" +
@@ -63,6 +96,38 @@ export function TodayWork() {
         >
           Bugun
         </button>
+        <form
+          onSubmit={findByBr}
+          style={{ display: "flex", alignItems: "end", gap: 10, flexWrap: "wrap" }}
+        >
+          <label className="field">
+            <span>Bron tezkor qidiruv</span>
+            <div className="prefixed-search-input">
+              <span className="prefixed-search-badge" aria-hidden="true">
+                BR-
+              </span>
+              <input
+                aria-label="Bron ID tezkor qidirish"
+                inputMode="numeric"
+                value={brDigits}
+                onChange={(e) =>
+                  setBrDigits(
+                    e.target.value
+                      .replace(/^\s*#?\s*br\s*-\s*/i, "")
+                      .replace(/\D/g, "")
+                      .slice(0, 5),
+                  )
+                }
+                placeholder="5 xonali raqam"
+                maxLength={10}
+                autoComplete="off"
+              />
+            </div>
+          </label>
+          <button type="submit" className="button primary" disabled={brBusy}>
+            Topish
+          </button>
+        </form>
       </div>
       {remote.loading ? (
         <Loading />

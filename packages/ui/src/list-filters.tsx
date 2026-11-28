@@ -87,6 +87,19 @@ export function useSavedFilters(
   };
 }
 
+export function stripBrPrefixInput(raw: string): string {
+  return raw.replace(/^\s*#?\s*br\s*-\s*(?=\d)/i, "");
+}
+
+export function formatBrSearchQuery(raw: string): string {
+  const trimmed = raw.trim();
+  if (!trimmed) return "";
+  const withoutHash = trimmed.replace(/^#+\s*/, "");
+  const brDigits = /^(?:br[\s-]*)?(\d{1,5})$/i.exec(withoutHash);
+  if (brDigits) return `BR-${brDigits[1]}`;
+  return trimmed;
+}
+
 export function ListFilters({
   search,
   setSearch,
@@ -98,6 +111,7 @@ export function ListFilters({
   dates = false,
   dateKinds = false,
   roles = false,
+  prefixLabel,
   placeholder = "Bron raqami, mehmon ismi yoki telefon",
 }: {
   search: string;
@@ -110,6 +124,7 @@ export function ListFilters({
   dates?: boolean;
   dateKinds?: boolean;
   roles?: boolean;
+  prefixLabel?: string;
   placeholder?: string;
 }) {
   return (
@@ -123,13 +138,35 @@ export function ListFilters({
     >
       <label className="field search-field">
         <span>Qidirish</span>
-        <input
-          value={search}
-          onChange={(event) => setSearch(event.target.value)}
-          placeholder={placeholder}
-          maxLength={120}
-          autoComplete="off"
-        />
+        {prefixLabel ? (
+          <div className="prefixed-search-input">
+            <span className="prefixed-search-badge" aria-hidden="true">
+              {prefixLabel}
+            </span>
+            <input
+              aria-label="Qidirish"
+              value={search}
+              onChange={(event) =>
+                setSearch(
+                  prefixLabel === "BR-"
+                    ? stripBrPrefixInput(event.target.value)
+                    : event.target.value,
+                )
+              }
+              placeholder={placeholder}
+              maxLength={120}
+              autoComplete="off"
+            />
+          </div>
+        ) : (
+          <input
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder={placeholder}
+            maxLength={120}
+            autoComplete="off"
+          />
+        )}
       </label>
       {statuses && (
         <label className="field">
