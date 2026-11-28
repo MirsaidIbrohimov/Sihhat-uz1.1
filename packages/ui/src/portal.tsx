@@ -1363,9 +1363,11 @@ export function Portal({
                 </div>
               </button>
               <button
-                className="icon-button"
-                aria-label="Parolni almashtirish"
-                onClick={changePassword}
+                type="button"
+                className={`icon-button${section === "account" ? " active" : ""}`}
+                aria-label="Sozlamalar"
+                title="Mening hisobim"
+                onClick={() => go("account")}
               >
                 <Settings size={17} />
               </button>

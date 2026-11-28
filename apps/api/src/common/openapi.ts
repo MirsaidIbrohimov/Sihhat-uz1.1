@@ -4,7 +4,7 @@ import {staffInput,staffInvitationInput} from '../auth/staff.service';
 import {quoteInput} from '../pricing/pricing.service';
 import {holdInput,guestInput} from '../bookings/booking.service';
 import {rateInput,roomTypeInput} from '../inventory/inventory.service';
-import {draftInput,featuredInput} from '../sanatoriums/sanatorium.service';
+import {draftInput,featuredInput,deleteSanatoriumInput} from '../sanatoriums/sanatorium.service';
 import { aiInput } from '../ai/ai.service';
 import { articleInput, articleUpdate } from '../catalog/home.service';
 import { updateInput } from '../telegram/types';
@@ -74,6 +74,7 @@ export function enrichOpenApi(document:OpenAPIObject){
   },['sanatorium','generated_at','period','bookings','booking_statuses','room_nights','guest_nights','sellable_room_nights','occupancy']);
   const bodies:Record<string,any>={
     '/superadmin/sanatoriums':obj({name:str}),'/superadmin/sanatoriums/{id}/featured':apiSchema(featuredInput),'/superadmin/sanatoriums/{id}/config':obj({version:integer,payment_ready:boolean,subscription_required:boolean},['version','payment_ready']),
+    '/superadmin/sanatoriums/{id}/delete-code':obj({},[]),'/superadmin/sanatoriums/{id}/delete':apiSchema(deleteSanatoriumInput),'/superadmin/sanatoriums/{id}':apiSchema(deleteSanatoriumInput),
     '/superadmin/director-assignments':{$ref:'#/components/schemas/StaffRequest'},'/partner/staff-invitations':{$ref:'#/components/schemas/StaffInvitationRequest'},
     '/partner/staff/{id}/permissions':obj({version:integer,grants:array(str),denies:array(str),ceiling:array(str)},['version','grants','denies']),
     '/partner/sanatorium-revisions/{id}':{$ref:'#/components/schemas/DraftRequest'},'/partner/sanatorium-revisions/{id}/submit':obj({version:integer}),

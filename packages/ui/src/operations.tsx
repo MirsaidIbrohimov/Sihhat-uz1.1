@@ -892,28 +892,18 @@ export function Bookings() {
       try {
         const raw = localStorage.getItem("sihhat-crm-leads");
         const parsed = raw ? JSON.parse(raw) : [];
-        return Array.isArray(parsed) && parsed.length > 0
-          ? parsed
-          : [
-              {
-                id: "lead-sample-1",
-                name: "Rustam Karimov",
-                phone: "+998901234567",
-                desired_date: localDate(4),
-                placement: "BED_MALE",
-                status: "WAITLIST",
-                note: "1 kishilik joy (Erkaklar xonasidan 1 o‘rin) so‘radi, joy bo‘shasa qo‘ng‘iroq qilish kerak",
-              },
-              {
-                id: "lead-sample-2",
-                name: "Dilnoza Rahimova",
-                phone: "+998935554433",
-                desired_date: localDate(10),
-                placement: "WHOLE_ROOM",
-                status: "REPEAT_6M",
-                note: "6 oy oldin dam olgan doimiy mijoz — qayta taklif yuborish",
-              },
-            ];
+        if (!Array.isArray(parsed)) return [];
+        const cleaned = parsed.filter(
+          (item) =>
+            item &&
+            typeof item === "object" &&
+            item.id !== "lead-sample-1" &&
+            item.id !== "lead-sample-2",
+        );
+        if (cleaned.length !== parsed.length) {
+          localStorage.setItem("sihhat-crm-leads", JSON.stringify(cleaned));
+        }
+        return cleaned;
       } catch {
         return [];
       }
@@ -923,20 +913,17 @@ export function Bookings() {
       try {
         const raw = localStorage.getItem("sihhat-corporate-quotas");
         const parsed = raw ? JSON.parse(raw) : [];
-        return Array.isArray(parsed) && parsed.length > 0
-          ? parsed
-          : [
-              {
-                id: "corp-sample-1",
-                org_name: "O‘zbekiston Kasaba uyushmalari federatsiyasi",
-                kind: "PROFSOYUZ",
-                rooms_count: 5,
-                used_count: 2,
-                period: `${localDate(0)} — ${localDate(30)}`,
-                contact_phone: "+998712560000",
-                contract_no: "SH-2026/08",
-              },
-            ];
+        if (!Array.isArray(parsed)) return [];
+        const cleaned = parsed.filter(
+          (item) =>
+            item &&
+            typeof item === "object" &&
+            item.id !== "corp-sample-1",
+        );
+        if (cleaned.length !== parsed.length) {
+          localStorage.setItem("sihhat-corporate-quotas", JSON.stringify(cleaned));
+        }
+        return cleaned;
       } catch {
         return [];
       }

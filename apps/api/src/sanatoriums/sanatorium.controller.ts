@@ -1,9 +1,9 @@
-import { Body, Controller, Get, Inject, Param, Patch, Post, Query } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Inject, Param, Patch, Post, Query } from '@nestjs/common';
 import { ApiBody, ApiTags } from '@nestjs/swagger';
 import { CurrentActor, Roles, AccountantAccess } from '../auth/guard';
 import { type Actor } from '../auth/permissions';
 import { apiSchema } from '../auth/auth.controller';
-import { SanatoriumService, draftInput, featuredInput } from './sanatorium.service';
+import { SanatoriumService, deleteSanatoriumInput, draftInput, featuredInput } from './sanatorium.service';
 import { Db,audit } from '../common/db';
 import { parse,uuid,version,fail } from '../common/errors';
 import { z } from 'zod';
@@ -28,6 +28,9 @@ export class SanatoriumController {
   @Post('superadmin/sanatoriums/:id/pause') @Roles('SUPERADMIN') pause(@CurrentActor() a: Actor, @Param('id') id: string, @Body() b: unknown) { return this.service.state(a, id, 'PAUSED', b); }
   @Post('superadmin/sanatoriums/:id/archive') @Roles('SUPERADMIN') archive(@CurrentActor() a: Actor, @Param('id') id: string, @Body() b: unknown) { return this.service.state(a, id, 'ARCHIVED', b); }
   @Post('superadmin/sanatoriums/:id/reopen') @Roles('SUPERADMIN') reopen(@CurrentActor() a: Actor, @Param('id') id: string, @Body() b: unknown) { return this.service.state(a, id, 'ACTIVE', b); }
+  @Post('superadmin/sanatoriums/:id/delete-code') @Roles('SUPERADMIN') requestDeleteCode(@CurrentActor() a: Actor, @Param('id') id: string) { return this.service.requestDeleteCode(a, id); }
+  @Post('superadmin/sanatoriums/:id/delete') @Roles('SUPERADMIN') @ApiBody({ schema: apiSchema(deleteSanatoriumInput) }) removePost(@CurrentActor() a: Actor, @Param('id') id: string, @Body() b: unknown) { return this.service.remove(a, id, b); }
+  @Delete('superadmin/sanatoriums/:id') @Roles('SUPERADMIN') @ApiBody({ schema: apiSchema(deleteSanatoriumInput) }) remove(@CurrentActor() a: Actor, @Param('id') id: string, @Body() b: unknown) { return this.service.remove(a, id, b); }
   @Post('partner/sanatoriums/:id/bank-revisions') bank(@CurrentActor() a: Actor, @Param('id') id: string, @Body() b: unknown) { return this.service.bankRequest(a, id, b); }
   @Get('partner/sanatoriums/:id/bank-revisions') banks(@CurrentActor() a: Actor, @Param('id') id: string) { return this.service.banks(a,id); }
   @Post('superadmin/bank-revisions/:id/approve') @Roles('SUPERADMIN') bankApprove(@CurrentActor() a: Actor, @Param('id') id: string) { return this.service.bankApprove(a, id); }

@@ -1,5 +1,5 @@
 "use client";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import {
   ArrowUpRight,
   BedDouble,
@@ -606,22 +606,431 @@ function FeaturedSanatoriumChoice({ row }: { row: Row }) {
   );
 }
 
+function DeleteSanatoriumModal({
+  target,
+  onClose,
+  onDeleted,
+}: {
+  target: any;
+  onClose: () => void;
+  onDeleted: (deletedId: string, name: string) => void;
+}) {
+  const [method, setMethod] = useState<"PASSWORD" | "EMAIL_CODE">("PASSWORD");
+  const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [emailCode, setEmailCode] = useState("");
+  const [reason, setReason] = useState("");
+  const [codeSent, setCodeSent] = useState(false);
+  const [maskedEmail, setMaskedEmail] = useState<string | null>(null);
+  const [demoCode, setDemoCode] = useState<string | null>(null);
+  const [cooldown, setCooldown] = useState(0);
+  const [sendingCode, setSendingCode] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (cooldown <= 0) return;
+    const timer = window.setInterval(() => {
+      setCooldown((prev) => (prev > 1 ? prev - 1 : 0));
+    }, 1000);
+    return () => window.clearInterval(timer);
+  }, [cooldown]);
+
+  useEffect(() => {
+    const onKey = (ev: KeyboardEvent) => {
+      if (ev.key === "Escape" && !submitting && !sendingCode) {
+        onClose();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose, submitting, sendingCode]);
+
+  async function handleSendCode() {
+    setError(null);
+    setSendingCode(true);
+    try {
+      const res = await api<{
+        sent: boolean;
+        masked_email: string;
+        resend_after?: number;
+        demo_code?: string;
+      }>(`/superadmin/sanatoriums/${target.id}/delete-code`, "POST", {});
+      setCodeSent(true);
+      setMaskedEmail(res.masked_email || "admin email");
+      setDemoCode(res.demo_code ?? null);
+      setCooldown(Number(res.resend_after ?? 30));
+    } catch (err: any) {
+      setError(err?.message || "Emailga tasdiqlash kodi yuborishda xatolik yuz berdi.");
+    } finally {
+      setSendingCode(false);
+    }
+  }
+
+  async function handleConfirmDelete(e: FormEvent) {
+    e.preventDefault();
+    setError(null);
+    if (method === "PASSWORD" && !password.trim()) {
+      setError("Sanatoriyani o‘chirish uchun admin parolini kiriting.");
+      return;
+    }
+    if (method === "EMAIL_CODE" && !/^\d{6}$/.test(emailCode.trim())) {
+      setError("Emailga yuborilgan 6 xonali tasdiqlash kodini to‘liq kiriting.");
+      return;
+    }
+    setSubmitting(true);
+    try {
+      const payload: Record<string, unknown> =
+        method === "PASSWORD"
+          ? { method: "PASSWORD", password }
+          : { method: "EMAIL_CODE", email_code: emailCode.trim() };
+      if (reason.trim()) {
+        payload.reason = reason.trim();
+      }
+      await api(`/superadmin/sanatoriums/${target.id}/delete`, "POST", payload);
+      onDeleted(target.id, target.name);
+    } catch (err: any) {
+      setError(err?.message || "Sanatoriyani o‘chirish bajarilmadi.");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <div
+      className="modal-backdrop"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="delete-sanatorium-modal-title"
+      onClick={(ev) => {
+        if (ev.target === ev.currentTarget && !submitting && !sendingCode) {
+          onClose();
+        }
+      }}
+    >
+      <div className="modal" style={{ maxWidth: 520, width: "100%" }}>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "flex-start",
+            justifyContent: "space-between",
+            gap: 12,
+            marginBottom: 12,
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <div
+              style={{
+                width: 38,
+                height: 38,
+                borderRadius: 10,
+                background: "#fef2f2",
+                color: "#dc2626",
+                display: "grid",
+                placeItems: "center",
+                flexShrink: 0,
+              }}
+            >
+              <Trash2 size={19} />
+            </div>
+            <div>
+              <h2 id="delete-sanatorium-modal-title" style={{ margin: 0, fontSize: 18 }}>
+                Sanatoriyani butunlay o‘chirish
+              </h2>
+              <div className="muted" style={{ fontSize: 13, marginTop: 2 }}>
+                «{target.name}»
+              </div>
+            </div>
+          </div>
+          <button
+            type="button"
+            className="icon-button"
+            aria-label="Yopish"
+            disabled={submitting || sendingCode}
+            onClick={onClose}
+          >
+            <X size={17} />
+          </button>
+        </div>
+
+        <div
+          style={{
+            background: "#fef2f2",
+            border: "1px solid #fecaca",
+            borderRadius: 12,
+            padding: "12px 14px",
+            fontSize: 13,
+            color: "#991b1b",
+            lineHeight: 1.55,
+            marginBottom: 16,
+          }}
+        >
+          <strong>Diqqat! Ushbu amalni ortga qaytarib bo‘lmaydi.</strong>
+          <div style={{ marginTop: 4 }}>
+            <strong>«{target.name}»</strong> sanatoriyasi, uning barcha xonalari, tariflari,
+            suratlari va biriktirilgan xodim ruxsatlari tizimdan to‘liq o‘chiriladi. Davom etish
+            uchun admin paroli yoki admin emailiga yuboriladigan tasdiqlash kodi orqali tasdiqlang.
+          </div>
+        </div>
+
+        <div
+          className="tabs"
+          role="tablist"
+          aria-label="Tasdiqlash usuli"
+          style={{ marginBottom: 16, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}
+        >
+          <button
+            type="button"
+            role="tab"
+            aria-selected={method === "PASSWORD"}
+            className={`tab ${method === "PASSWORD" ? "active" : ""}`}
+            onClick={() => {
+              setMethod("PASSWORD");
+              setError(null);
+            }}
+          >
+            <KeyRound size={15} style={{ marginRight: 6, verticalAlign: "text-bottom" }} />
+            Admin paroli
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={method === "EMAIL_CODE"}
+            className={`tab ${method === "EMAIL_CODE" ? "active" : ""}`}
+            onClick={() => {
+              setMethod("EMAIL_CODE");
+              setError(null);
+            }}
+          >
+            <ShieldCheck size={15} style={{ marginRight: 6, verticalAlign: "text-bottom" }} />
+            Email kodi orqali
+          </button>
+        </div>
+
+        <form onSubmit={handleConfirmDelete}>
+          {method === "PASSWORD" ? (
+            <label className="field" style={{ marginBottom: 12 }}>
+              <span>Admin joriy paroli *</span>
+              <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
+                <input
+                  type={showPassword ? "text" : "password"}
+                  autoComplete="current-password"
+                  value={password}
+                  onChange={(ev) => setPassword(ev.target.value)}
+                  placeholder="Superadmin parolini kiriting"
+                  required
+                  style={{ width: "100%", paddingRight: 42 }}
+                />
+                <button
+                  type="button"
+                  aria-label={showPassword ? "Parolni yashirish" : "Parolni ko‘rsatish"}
+                  onClick={() => setShowPassword((v) => !v)}
+                  style={{
+                    position: "absolute",
+                    right: 8,
+                    background: "transparent",
+                    border: "none",
+                    cursor: "pointer",
+                    color: "var(--muted)",
+                    display: "grid",
+                    placeItems: "center",
+                    padding: 4,
+                  }}
+                >
+                  {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
+              </div>
+            </label>
+          ) : (
+            <div style={{ marginBottom: 12 }}>
+              <div
+                style={{
+                  background: "var(--surface-soft, #f8fafc)",
+                  border: "1px solid var(--border, #e2e8f0)",
+                  borderRadius: 12,
+                  padding: "12px 14px",
+                  marginBottom: 12,
+                }}
+              >
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    gap: 10,
+                    flexWrap: "wrap",
+                  }}
+                >
+                  <div style={{ fontSize: 13, color: "var(--text)" }}>
+                    {codeSent && maskedEmail ? (
+                      <>
+                        Tasdiqlash kodi <strong>{maskedEmail}</strong> manziliga yuborildi (5 daqiqa amal qiladi).
+                      </>
+                    ) : (
+                      "Admin email manziliga 6 xonali tasdiqlash kodi yuboriladi."
+                    )}
+                  </div>
+                  <button
+                    type="button"
+                    className="button secondary"
+                    disabled={sendingCode || cooldown > 0 || submitting}
+                    onClick={handleSendCode}
+                  >
+                    {sendingCode
+                      ? "Yuborilmoqda..."
+                      : cooldown > 0
+                        ? `Qayta yuborish (${cooldown}s)`
+                        : codeSent
+                          ? "Kodni qayta yuborish"
+                          : "Emailga kod yuborish"}
+                  </button>
+                </div>
+                {demoCode && (
+                  <div
+                    style={{
+                      marginTop: 8,
+                      fontSize: 12,
+                      color: "var(--green, #047857)",
+                      fontWeight: 600,
+                    }}
+                  >
+                    Test rejimi kodi: <code>{demoCode}</code>
+                  </div>
+                )}
+              </div>
+
+              <label className="field">
+                <span>Emailga kelgan 6 xonali tasdiqlash kodi *</span>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  maxLength={6}
+                  value={emailCode}
+                  onChange={(ev) => setEmailCode(ev.target.value.replace(/\D/g, "").slice(0, 6))}
+                  placeholder="000000"
+                  required
+                  style={{
+                    letterSpacing: "0.32em",
+                    fontWeight: 700,
+                    fontSize: 18,
+                    textAlign: "center",
+                  }}
+                />
+              </label>
+            </div>
+          )}
+
+          <label className="field" style={{ marginBottom: 14 }}>
+            <span>O‘chirish sababi (ixtiyoriy, audit jurnali uchun)</span>
+            <input
+              type="text"
+              maxLength={300}
+              value={reason}
+              onChange={(ev) => setReason(ev.target.value)}
+              placeholder="Masalan: Sinov uchun ochilgan dublikat sanatoriya"
+            />
+          </label>
+
+          {error && (
+            <div
+              role="alert"
+              style={{
+                background: "#fef2f2",
+                border: "1px solid #fca5a5",
+                color: "#b91c1c",
+                borderRadius: 10,
+                padding: "10px 12px",
+                fontSize: 13,
+                marginBottom: 14,
+              }}
+            >
+              {error}
+            </div>
+          )}
+
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "flex-end",
+              gap: 10,
+              marginTop: 8,
+            }}
+          >
+            <button
+              type="button"
+              className="button secondary"
+              disabled={submitting}
+              onClick={onClose}
+            >
+              Bekor qilish
+            </button>
+            <button
+              type="submit"
+              className="button danger"
+              disabled={
+                submitting ||
+                (method === "PASSWORD" ? !password.trim() : emailCode.trim().length !== 6)
+              }
+            >
+              <Trash2 size={15} />
+              {submitting ? "O‘chirilmoqda..." : "Sanatoriyani o‘chirish"}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 export function Sanatoriums() {
   const ctx = usePortal(),
     action = useAction(),
-    [selected, setSelected] = useState<string | null>(null);
+    [selected, setSelected] = useState<string | null>(null),
+    [deletingSanatorium, setDeletingSanatorium] = useState<any | null>(null);
   const pendingApps = useRemote(
     ctx.admin ? "/superadmin/partner-registrations?status=PENDING&limit=1" : null,
     ctx.epoch,
   );
   const pendingCount = Number(pendingApps.data?.pending_count ?? pendingApps.data?.total ?? 0);
+
+  const handleSanatoriumDeleted = (deletedId: string, deletedName: string) => {
+    setDeletingSanatorium(null);
+    if (selected === deletedId) setSelected(null);
+    ctx.notice(`«${deletedName}» sanatoriyasi tizimdan o‘chirildi.`);
+    ctx.refresh();
+  };
+
   if (selected)
     return (
       <>
-        <button className="button secondary" onClick={() => setSelected(null)}>
-          ← Sanatoriyalarga qaytish
-        </button>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap", marginBottom: 8 }}>
+          <button className="button secondary" onClick={() => setSelected(null)}>
+            ← Sanatoriyalarga qaytish
+          </button>
+          {ctx.admin && (
+            <button
+              type="button"
+              className="button danger"
+              onClick={() =>
+                setDeletingSanatorium({
+                  id: selected,
+                  name: ctx.tenants.find((t) => t.id === selected)?.name ?? "Tanlangan sanatoriya",
+                })
+              }
+            >
+              <Trash2 size={15} /> Sanatoriyani o‘chirish
+            </button>
+          )}
+        </div>
         <Profile id={selected} />
+        {deletingSanatorium && (
+          <DeleteSanatoriumModal
+            target={deletingSanatorium}
+            onClose={() => setDeletingSanatorium(null)}
+            onDeleted={handleSanatoriumDeleted}
+          />
+        )}
       </>
     );
   return (
@@ -787,9 +1196,19 @@ export function Sanatoriums() {
                 Arxivlash
               </Act>
             )}
+            <Act danger onClick={() => setDeletingSanatorium(r)}>
+              O‘chirish
+            </Act>
           </>
         )}
       />
+      {deletingSanatorium && (
+        <DeleteSanatoriumModal
+          target={deletingSanatorium}
+          onClose={() => setDeletingSanatorium(null)}
+          onDeleted={handleSanatoriumDeleted}
+        />
+      )}
     </>
   );
 }

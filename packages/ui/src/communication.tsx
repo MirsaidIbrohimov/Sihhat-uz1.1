@@ -5017,6 +5017,8 @@ const auditLabels: Record<string, string> = {
   "sanatorium.paused": "Sanatoriya to‘xtatildi",
   "sanatorium.archived": "Sanatoriya arxivlandi",
   "sanatorium.reopened": "Sanatoriya qayta faollashtirildi",
+  "sanatorium.delete_code_requested": "Sanatoriya o‘chirish kodi yuborildi",
+  "sanatorium.deleted": "Sanatoriya butunlay o‘chirildi",
   "bank.change_requested": "Bank rekvizitlari yuborildi",
   "bank.approved": "Bank rekvizitlari tasdiqlandi",
   "booking.hold_created": "Xona vaqtincha band qilindi",

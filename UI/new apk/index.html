@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="uz">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Sihhat.uz APK — Yangi T6 Aurora UI Galereyasi (18 ta ekran)</title>
+    <style>
+      @font-face {
+        font-family: "DM Sans";
+        src: url("../../apps/superadmin-web/public/fonts/DMSans.ttf") format("truetype");
+        font-weight: 100 900;
+      }
+      @font-face {
+        font-family: "Manrope";
+        src: url("../../apps/superadmin-web/public/fonts/Manrope.ttf") format("truetype");
+        font-weight: 100 900;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        font-family: "DM Sans", system-ui, sans-serif;
+        background:
+          radial-gradient(960px 520px at 8% -6%, rgba(99, 102, 241, 0.22), transparent 58%),
+          radial-gradient(840px 480px at 94% 100%, rgba(16, 185, 129, 0.18), transparent 58%),
+          #0a0f1f;
+        color: #f1f5ff;
+        min-height: 100vh;
+      }
+      header {
+        position: sticky; top: 0; z-index: 20;
+        background: rgba(14, 21, 42, 0.94);
+        backdrop-filter: blur(14px);
+        border-bottom: 1px solid rgba(129, 140, 248, 0.22);
+        padding: 14px 24px;
+        display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px;
+      }
+      .title h1 { margin: 0; font-family: Manrope, sans-serif; font-size: 18px; font-weight: 800; }
+      .title p { margin: 2px 0 0; font-size: 12.5px; color: #8799bf; }
+      .tabs { display: flex; flex-wrap: wrap; gap: 7px; }
+      .tab {
+        border: 1px solid rgba(129, 140, 248, 0.24); background: #141d38; color: #cbd5e1;
+        padding: 7px 12px; border-radius: 999px; font-size: 12.5px; font-weight: 700; cursor: pointer;
+      }
+      .tab:hover { border-color: rgba(125, 211, 252, 0.5); }
+      .tab.active { background: linear-gradient(135deg, #6366f1, #0ea5e9); color: #fff; border-color: transparent; }
+      main { max-width: 1560px; margin: 20px auto 48px; padding: 0 24px; }
+      .frame {
+        background: rgba(20, 29, 56, 0.9);
+        border: 1px solid rgba(129, 140, 248, 0.24);
+        border-radius: 22px;
+        overflow: hidden;
+        box-shadow: 0 22px 54px rgba(3, 6, 18, 0.55);
+      }
+      .img-wrap { overflow: auto; background: #070b18; text-align: center; }
+      .img-wrap img { width: 100%; height: auto; display: block; cursor: zoom-in; }
+      .img-wrap.zoom img { width: auto; max-width: none; cursor: zoom-out; }
+      .bar {
+        padding: 14px 20px;
+        border-top: 1px solid rgba(129, 140, 248, 0.2);
+        display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px;
+      }
+      .bar strong { font-family: Manrope, sans-serif; font-size: 15px; color: #f8fafc; }
+      .bar span { font-size: 12.5px; color: #93a7cc; }
+      .actions { display: flex; gap: 8px; }
+      .btn {
+        padding: 7px 13px; border-radius: 999px;
+        background: #1c284a; border: 1px solid rgba(125, 211, 252, 0.3);
+        color: #e0f2fe; font-size: 12.5px; font-weight: 700; text-decoration: none; cursor: pointer;
+      }
+      .btn:hover { background: #263561; }
+    </style>
+  </head>
+  <body>
+    <header>
+      <div class="title">
+        <h1>Sihhat.uz APK — Yangi T6 Aurora UI Konsepsiyalari (18 ta ekran)</h1>
+        <p>← / → tugmalari bilan almashadi · Rasm ustiga bosib 1:1 kattalashtiring</p>
+      </div>
+      <div class="tabs" id="tabs"></div>
+    </header>
+    <main>
+      <div class="frame">
+        <div class="img-wrap" id="wrap">
+          <img id="preview" alt="" onclick="toggleZoom()" />
+        </div>
+        <div class="bar">
+          <div><strong id="name"></strong> · <span id="desc"></span></div>
+          <div class="actions">
+            <button class="btn" id="zoomBtn" onclick="toggleZoom()">🔍 1:1 Kattalashtirish</button>
+            <a class="btn" id="dl" download>PNG yuklab olish</a>
+          </div>
+        </div>
+      </div>
+    </main>
+    <script>
+      const LIST = [
+        { file: "00-apk-barcha-ekranlar-t6.png", label: "00 · Barchasi (12 ekran)", name: "Sihhat.uz APK — Barcha 12 ta asosiy ekran", desc: "T6 Tungi Aurora to‘liq mobil dizayn posteri" },
+        { file: "01-bosh-sahifa-va-katalog.png", label: "01 · Bosh sahifa & Katalog", name: "01 — Bosh sahifa, Katalog va Tafsilot", desc: "Hero, 4 yo‘nalish surati, «Qaysi dardga davo?» va kunlik tartib" },
+        { file: "02-xonalar-bron-va-tolov.png", label: "02 · Xonalar & TezCheck", name: "02 — Xonalar, Jonli kalkulyator va TezCheck", desc: "Butun xona / 1 kishilik joy, 3–14 kun kalkulyatori va 0% komissiya" },
+        { file: "03-bronlar-qr-va-kundalik.png", label: "03 · Bronlar & QR", name: "03 — Bronlarim, QR-Vaucher va Kundalik", desc: "5 xonali BR-48219 qidiruvi, internetsiz kesh, QR chipta va muolaja kundaligi" },
+        { file: "04-ai-maslahatchi-va-taqqoslash.png", label: "04 · AI & Taqqoslash", name: "04 — AI Maslahatchi va Yonma-yon taqqoslash", desc: "T6 Aurora neon robot, katalog tavsiyalari va solishtirish jadvali" },
+        { file: "05-yordam-chat-va-bildirishnoma.png", label: "05 · Yordam & FCM Push", name: "05 — Markaziy Yordam, Chat va Bildirishnomalar", desc: "Superadmin jonli chati, rasm biriktirish va FCM Push xabarnomalar" },
+        { file: "06-profil-kirish-va-kunduzgi-y6.png", label: "06 · Profil, OTP & Y6", name: "06 — Profil (#ID), Kirish/OTP va Y6 Kunduzgi rejim", desc: "6 xonali #ID, +998 OTP kirish va oq/indigo Y6 kunduzgi ko‘rinish" },
+      ];
+      let idx = 0, zoomed = false;
+      function render() {
+        const it = LIST[idx];
+        document.getElementById("preview").src = it.file;
+        document.getElementById("name").textContent = it.name;
+        document.getElementById("desc").textContent = it.desc;
+        document.getElementById("dl").href = it.file;
+        document.getElementById("wrap").className = "img-wrap" + (zoomed ? " zoom" : "");
+        document.getElementById("zoomBtn").textContent = zoomed ? "↩️ Ekranga moslash" : "🔍 1:1 Kattalashtirish";
+        document.getElementById("tabs").innerHTML = LIST.map((x, n) =>
+          `<button class="tab ${n === idx ? "active" : ""}" onclick="show(${n})">${x.label}</button>`
+        ).join("");
+      }
+      window.show = (i) => { idx = (i + LIST.length) % LIST.length; zoomed = false; render(); };
+      window.toggleZoom = () => { zoomed = !zoomed; render(); };
+      document.addEventListener("keydown", (e) => {
+        if (e.key === "ArrowRight") window.show(idx + 1);
+        if (e.key === "ArrowLeft") window.show(idx - 1);
+        if (e.key === "Escape" && zoomed) window.toggleZoom();
+      });
+      render();
+    </script>
+  </body>
+</html>

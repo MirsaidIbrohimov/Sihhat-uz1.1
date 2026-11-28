@@ -20,6 +20,12 @@ export class EmailService {
     username: string;
     sanatoriumName: string;
   }> = [];
+  readonly sentDeleteCodes: Array<{
+    id: string;
+    to: string;
+    code: string;
+    sanatoriumName: string;
+  }> = [];
   private transporter: Transporter | null = null;
 
   get configured(): boolean {
@@ -110,6 +116,98 @@ export class EmailService {
       devPayload: { email, code, expiresAt },
       failOnError: true,
       errorMessage: 'Emailga kod yuborishda xatolik yuz berdi. Qayta urinib ko‘ring.',
+    });
+  }
+
+  async sendSanatoriumDeleteCode(params: {
+    id: string;
+    email: string;
+    code: string;
+    sanatoriumName: string;
+    adminName?: string | null;
+    expiresAt: Date;
+  }) {
+    if (this.config.NODE_ENV !== 'production') {
+      this.sentDeleteCodes.push({
+        id: params.id,
+        to: params.email,
+        code: params.code,
+        sanatoriumName: params.sanatoriumName,
+      });
+    }
+    const greeting = params.adminName?.trim()
+      ? `Assalomu alaykum, ${params.adminName.trim()}!`
+      : 'Assalomu alaykum, Superadmin!';
+    const subject = `Sihhat.uz — Sanatoriyani o‘chirish tasdiqlash kodi: ${params.code}`;
+    const text = `${greeting}\n\n«${params.sanatoriumName}» sanatoriyasini tizimdan butunlay o‘chirish uchun 6 xonali tasdiqlash kodi: ${params.code}\n\nUshbu kod 5 daqiqa davomida amal qiladi. Agar bu amalni siz bajarmayotgan bo‘lsangiz, kodni hech kimga bermang va parolingizni tekshiring.`;
+
+    const safeGreeting = this.escapeHtml(greeting);
+    const safeSanatorium = this.escapeHtml(params.sanatoriumName);
+    const safeCode = this.escapeHtml(params.code);
+
+    const html = `
+            <!doctype html>
+            <html lang="uz">
+            <head><meta charset="utf-8"></head>
+            <body style="margin: 0; padding: 0; background-color: #f1f5f9; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+              <table border="0" cellpadding="0" cellspacing="0" width="100%" style="table-layout: fixed;">
+                <tr>
+                  <td align="center" style="padding: 36px 16px;">
+                    <table border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width: 500px; background: #ffffff; border-radius: 20px; box-shadow: 0 4px 16px rgba(15, 23, 42, 0.08); border: 1px solid #fecaca; overflow: hidden;">
+                      <tr>
+                        <td style="background: linear-gradient(135deg, #b91c1c 0%, #dc2626 100%); padding: 26px 32px; text-align: center;">
+                          <div style="display: inline-block; background: rgba(255,255,255,0.2); color: #ffffff; font-size: 11px; font-weight: 700; letter-spacing: 0.08em; padding: 4px 10px; border-radius: 999px; margin-bottom: 8px;">XAVFSIZLIK TASDIQLASH KODI</div>
+                          <h1 style="color: #ffffff; font-size: 24px; font-weight: 800; margin: 0;">Sihhat.uz</h1>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td style="padding: 30px 32px 24px 32px;">
+                          <h2 style="font-size: 18px; font-weight: 800; color: #0f172a; margin: 0 0 10px 0;">Sanatoriyani o‘chirishni tasdiqlang</h2>
+                          <p style="font-size: 14px; color: #475569; margin: 0 0 18px 0; line-height: 1.6;">
+                            ${safeGreeting} Superadmin panelida <strong>«${safeSanatorium}»</strong> sanatoriyasini tizimdan o‘chirish so‘rovi yuborildi.
+                          </p>
+                          <div style="background: #fef2f2; border: 2px dashed #dc2626; border-radius: 14px; padding: 20px; text-align: center; margin-bottom: 20px;">
+                            <div style="font-size: 36px; font-weight: 800; letter-spacing: 10px; color: #991b1b; font-family: 'Courier New', Courier, monospace; line-height: 1;">
+                              ${safeCode}
+                            </div>
+                          </div>
+                          <div style="background: #fffbeb; border-left: 4px solid #f59e0b; padding: 12px 14px; border-radius: 6px; margin-bottom: 18px;">
+                            <p style="font-size: 13px; color: #92400e; margin: 0; line-height: 1.5;">
+                              ⚠️ <strong>Diqqat:</strong> Kod <strong>5 daqiqa</strong> amal qiladi. Sanatoriya o‘chirilsa, unga tegishli profil, xonalar va bog‘langan ma’lumotlar qayta tiklanmaydi.
+                            </p>
+                          </div>
+                          <p style="font-size: 12px; color: #94a3b8; margin: 0; line-height: 1.5;">
+                            Agar bu so‘rovni siz yubormagan bo‘lsangiz, kodni hech kimga bermang va hisobingiz xavfsizligini tekshiring.
+                          </p>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td style="background: #f8fafc; padding: 16px 32px; border-top: 1px solid #f1f5f9; text-align: center;">
+                          <p style="font-size: 12px; color: #94a3b8; margin: 0;">© ${new Date().getFullYear()} Sihhat.uz · Superadmin xavfsizlik tizimi</p>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+              </table>
+            </body>
+            </html>
+          `;
+
+    return this.deliverEmail({
+      id: `sanatorium-delete-${params.id}`,
+      to: params.email,
+      subject,
+      text,
+      html,
+      devPayload: {
+        email: params.email,
+        code: params.code,
+        sanatoriumName: params.sanatoriumName,
+        expiresAt: params.expiresAt,
+      },
+      failOnError: true,
+      errorMessage: 'Admin emailiga tasdiqlash kodini yuborishda xatolik yuz berdi. Qayta urinib ko‘ring yoki admin paroli orqali tasdiqlang.',
     });
   }
 

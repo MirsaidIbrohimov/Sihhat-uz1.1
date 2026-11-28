@@ -2,6 +2,21 @@
 
 Yangilangan: 2026-11-28. Asos: ISHLAB_CHIQISH_REJASI.md va SIHHAT_UZ_ARXITEKTURA.md.
 
+## 2026-11-28 Sanatoriyani admin paroli yoki email kodi bilan o‘chirish, bronlardagi namunalarni tozalash va yuqori Sozlamalar tugmasini «Mening hisobim»ga ulash (`apps/api`, `packages/ui`, `test`)
+
+- **Sanatoriyani xavfsiz o‘chirish (`Sanatoriyalar` bo‘limi)**:
+  - [`apps/api/src/sanatoriums/sanatorium.controller.ts`](../apps/api/src/sanatoriums/sanatorium.controller.ts), [`sanatorium.service.ts`](../apps/api/src/sanatoriums/sanatorium.service.ts), [`apps/api/src/auth/email.ts`](../apps/api/src/auth/email.ts), [`apps/api/src/common/openapi.ts`](../apps/api/src/common/openapi.ts):
+    - `POST /superadmin/sanatoriums/:id/delete-code` (`@Roles('SUPERADMIN')`): Superadmin email manziliga 5 daqiqalik 6 xonali xavfsizlik kodi (`DELETE_SANATORIUM` `OtpChallenge` + HMAC-SHA256 xesh + 30 soniyalik cooldown + rate-limit) yuboradi va niqoblangan emailni (`masked_email`) qaytaradi.
+    - `POST /superadmin/sanatoriums/:id/delete` va `DELETE /superadmin/sanatoriums/:id` (`@Roles('SUPERADMIN')`): `PASSWORD` (`passwordMatches`) yoki `EMAIL_CODE` (bir martalik 6 xonali kod) tasdiqlangach, barcha bog‘liq jadvallarni FK-xavfsiz tartibda tozalaydi, faqat shu sanatoriyaga biriktirilgan xodim sessiyalarini yopadi va `sanatorium.deleted` audit yozuvini saqlaydi.
+  - [`packages/ui/src/governance.tsx`](../packages/ui/src/governance.tsx) va [`communication.tsx`](../packages/ui/src/communication.tsx): `Sanatoriyalar` jadvali va profil ko‘rinishiga **«O‘chirish»** tugmasi hamda 2 usulli (`Admin paroli` / `Email kodi orqali`) `DeleteSanatoriumModal` oynasi qo‘shildi.
+- **Bronlar bo‘limidagi namuna kutish ro‘yxati va kvota yozuvlarini olib tashlash**:
+  - [`packages/ui/src/operations.tsx`](../packages/ui/src/operations.tsx): `Bookings` komponentidagi 2 ta kutish ro‘yxati namunasi (`lead-sample-1` Rustam Karimov, `lead-sample-2` Dilnoza Rahimova) va 1 ta korporativ kvota namunasi (`corp-sample-1`) koddan olib tashlandi hamda `localStorage` (`sihhat-crm-leads`, `sihhat-corporate-quotas`) o‘qilganda avtomatik tozalanadigan qilindi.
+- **Web panellarda yuqori Sozlamalar (`⚙️`) tugmasi**:
+  - [`packages/ui/src/portal.tsx`](../packages/ui/src/portal.tsx) va [`test/web/portal.spec.ts`](../test/web/portal.spec.ts): yuqori paneldagi `<Settings />` tugmasi parol oynasini emas, bevosita **«Mening hisobim»** (`go("account")`) bo‘limini ochadigan qilindi.
+- **Tekshirilgan lokal natijalar (`2026-11-28`, lokal unit va build tekshiruvlari; rasmiy production qabuli emas; GitHubga push qilinmagan)**:
+  - `apps/api/test/sanatorium-delete.test.ts` (**5/5 pass** — ruxsatsiz xodimga `403`, xato parol va xato email kodni rad etish, to‘g‘ri admin paroli va bir martalik 6 xonali email kodi bilan sanatoriyani to‘liq o‘chirish + sessiyalarni yopish + audit yozuvi, admin email yo‘qligida aniq `422` xabari).
+  - `npm run check` (`5/5` workspace), `npm run openapi`, `npm run build:api`, `npm run build:web` (`@sihhat/superadmin-web` va `@sihhat/partner-web`), `npm run check:secrets` (`matches: []`) — **0 xato**.
+
 ## 2026-11-28 Sayt, web panellar va mobil ilova tezligini oshirish, suratlarni WebP siqish hamda skroll qotishlarini bartaraf etish (`apps/api`, `packages/ui`, `apps/superadmin-web`, `apps/partner-web`, `apps/mobile`, `scripts`)
 
 - **Backend media WebP/thumbnail siqish, 1-so‘rovli SQL JOIN va `ETag` keshi**:
@@ -24,6 +39,7 @@ Yangilangan: 2026-11-28. Asos: ISHLAB_CHIQISH_REJASI.md va SIHHAT_UZ_ARXITEKTURA
   - [`packages/ui/src/landing.tsx`](../packages/ui/src/landing.tsx): `CATEGORIES` (4 ta yo‘nalish kartasi), hero vitrina (`HERO_RETREAT_IMAGE`), `FALLBACK_SANATORIUMS`, `getDefaultSanatoriumPhoto()`, `safeFallbackImage()` (`sanatorium-default-cover.jpg`) va `safeLogoFallback()` (`/branding/sihhat-logo.jpg`) yangilandi.
   - [`packages/ui/src/portal.tsx`](../packages/ui/src/portal.tsx) va [`packages/ui/src/portal-enhancements.css`](../packages/ui/src/portal-enhancements.css): `/superadmin` (`login-admin-retreat.jpg`, `1440×1200`) va `/hamkorlar` (`login-partner-retreat.jpg`, `1440×1200`) kirish sahifalaridagi surat `.login-art` chap panelining butun orqa fonini chekkagacha (`position: absolute; inset: 0; object-fit: cover`) to‘liq egallaydigan qilindi; matn va oynalar tiniq o‘qilishi uchun ko‘p bosqichli qoraytirgich qatlam (`.login-art-scrim`) hamda shisha holat bloki ulandi.
   - [`UI/Logo/`](../UI/Logo/index.html): eski logo ramzlari va T6/Y6 Aurora rang palitrasi asosida 6 ta yangi logo varianti (`01`..`06`, `.svg` + `1024×1024` `.png`), umumiy taqqoslash taxtasi (`00-barcha-logolar-taqqoslash.png`) hamda oflayn galereya (`UI/Logo/index.html`, `UI/Logo/README.md`) yaratildi.
+  - [`UI/new apk/`](../UI/new%20apk/index.html): Android APK uchun yangi T6 Aurora + Y6 kunduzgi UI dizaynida 18 ta ekran holatini qamrab oluvchi 7 ta yuqori aniqlikdagi PNG maket (`00-apk-barcha-ekranlar-t6.png` 12-ekranli poster + `01`..`06` taxtalar) va oflayn galereya (`UI/new apk/index.html`, `UI/new apk/README.md`) tayyorlandi (dizayn maketi; Flutter runtime hali o‘zgartirilmagan).
   - [`packages/ui/src/governance.tsx`](../packages/ui/src/governance.tsx): Sanatoriya profili muqovasi (`.profile-cover`) uchun rasmsiz/xatoli holat zaxirasi `sanatorium-default-cover.jpg` ga o‘tkazildi.
 - **Tekshirilgan lokal natijalar (`2026-11-28`, lokal build + headless Chromium tekshiruvi; rasmiy production/provider qabuli emas; GitHubga push qilinmagan)**:
   - Web kod bazasida eski `welcome-retreat` / `wellness-retreat` murojaatlari: **0 ta**.

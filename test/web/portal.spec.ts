@@ -1694,7 +1694,12 @@ for (const role of ["admin", "director", "reception"] as const) {
       });
     }
     await page
-      .getByRole("button", { name: "Parolni almashtirish", exact: true })
+      .getByRole("button", { name: "Sozlamalar", exact: true })
+      .click();
+    await expect(page.locator("main h1")).toHaveText("Mening hisobim");
+    await page
+      .locator("main")
+      .getByRole("button", { name: "Parolni almashtirish" })
       .click();
     await expect(page.getByRole("dialog")).toBeVisible();
     await page.keyboard.press("Escape");

@@ -23,6 +23,11 @@
 
 ## Eng so‘nggi yangilanishlar (2026-11-21 — 2026-11-28)
 
+### 2026-11-28 — Sanatoriyani 2 usulda tasdiqlab o‘chirish, bronlardagi namunalarni tozalash va yuqori sozlamalar tugmasi
+- **Sanatoriyani xavfsiz o‘chirish (`Sanatoriyalar` bo‘limi):** Superadmin panelidagi `Sanatoriyalar` ro‘yxati va profil ko‘rinishiga **«O‘chirish»** tugmasi hamda `DeleteSanatoriumModal` oynasi qo‘shildi (`POST /superadmin/sanatoriums/:id/delete-code`, `POST /superadmin/sanatoriums/:id/delete`, `DELETE /superadmin/sanatoriums/:id`). O‘chirish faqat Superadmin **joriy paroli** yoki **admin emailiga yuboriladigan 6 xonali tasdiqlash kodi** orqali bajariladi va barcha bog‘langan yozuvlar FK-xavfsiz tartibda tozalanib, `sanatorium.deleted` auditi muhrlanadi.
+- **Bronlar bo‘limidagi namuna yozuvlarni olib tashlash (`packages/ui/src/operations.tsx`):** `Bronlar va Mijozlar CRM` ichidagi kutish ro‘yxati (`lead-sample-1`, `lead-sample-2`) va kasaba uyushmalari kvotasi (`corp-sample-1`) namuna qatorlari hamda brauzer `localStorage`dagi eski kesh qoldiqlari tozalandi.
+- **Yuqori paneldagi Sozlamalar (`⚙️`) tugmasi (`packages/ui/src/portal.tsx`):** `/superadmin` va `/hamkorlar` yuqori panelidagi sozlamalar tugmasi bosilganda bevosita **«Mening hisobim»** (`account`) bo‘limiga o‘tadi.
+
 ### 2026-11-28 — Web panellar va `sihhat.uz` uchun yangi fotorealistik suratlar (defolt rasmlarni almashtirish)
 Barcha web panellardagi eski vektor/takrorlanuvchi defolt rasmlar (`welcome-retreat.png` va takroriy `wellness-retreat.png`) 8 ta alohida optimallashtirilgan fotorealistik suratga almashtirildi (`assets/branding/web/`, `scripts/web-assets.mjs`):
 - **`sihhat.uz` yo‘nalish kartochkalari (`packages/ui/src/landing.tsx`):** «Davolash maskanlari» (`category-davolash.jpg`), «Bolalar salomatligi» (`category-bolalar.jpg`), «Reabilitatsiya» (`category-reabilitatsiya.jpg`) va «Dam olish va wellness» (`category-wellness.jpg`) uchun 4 ta mustaqil surat, hero vitrina uchun `hero-retreat.jpg` hamda rasmsiz/xatoli kartalar uchun aqlli `sanatorium-default-cover.jpg` zaxira muqovasi.
@@ -93,6 +98,7 @@ Barcha galereyalar internetsiz (lokal brauzerda) ishlaydi va faqat namunaviy ma�
 
 | Galereya | Mazmuni |
 | --- | --- |
+| [UI/new apk](UI/new%20apk/index.html) | **2026-11-28 (Yangi T6 Aurora APK UI):** Android ilova uchun yangi T6 Aurora + Y6 kunduzgi rejimda **18 ta ekran** (6 ta 3-ekranli taxta + [12 ekranli umumiy poster](UI/new%20apk/00-apk-barcha-ekranlar-t6.png)) |
 | [UI/Logo](UI/Logo/index.html) | **2026-11-28 (Yangi T6 Aurora logo konsepsiyalari):** Eski logo ramzlari va yangi T6/Y6 rang palitrasi asosida 6 ta vektor (`.svg`) + Retina (`1024×1024` `.png`) logo varianti hamda [taqqoslash jadvali](UI/Logo/00-barcha-logolar-taqqoslash.png) |
 | [UI/new web](UI/new%20web/index.html) | **2026-11-27 (Joriy T6 manbasi):** Superadmin uchun 12 ta Retina ekran maketi (`00`–`11`), kunduzgi ranglar ([ranglar](UI/new%20web/ranglar/index.html)), yorqin ranglar ([yorqin_ranglar](UI/new%20web/yorqin_ranglar/index.html)) va oq rangsiz tungi ranglar ([tungi_ranglar](UI/new%20web/tungi_ranglar/index.html) — tanlangan **T6**) |
 | [UI/web_panellar](UI/web_panellar/index.html) | 2026-11-22: Superadmin va Hamkorlar uchun 16 ta V3 ekran maketi va [interaktiv studiya](UI/web_panellar/studio.html) |
