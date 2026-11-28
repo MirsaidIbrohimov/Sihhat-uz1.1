@@ -8,6 +8,7 @@ import { fail, parse, uuid } from "../common/errors";
 import { type Actor, requirePlatform, scope } from "../auth/permissions";
 import { phoneSchema } from "../auth/auth.service";
 import { allocateUserPublicId } from "../auth/public-id.util";
+import { allocateBookingReference } from "../bookings/booking-reference.util";
 import { expireInitialHolds } from "../inventory/inventory.service";
 import { availableRooms } from "../pricing/pricing.service";
 import { PaymentService, financialLock } from "./payment.service";
@@ -446,7 +447,7 @@ export class TezcheckService {
           expiresAt: new Date(Date.now() + 24 * 3600000),
         },
       });
-      const bookingRef = `SH-${randomBytes(6).toString("hex").toUpperCase()}`;
+      const bookingRef = await allocateBookingReference(tx);
       const booking = await tx.booking.create({
         data: {
           reference: bookingRef,

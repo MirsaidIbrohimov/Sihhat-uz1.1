@@ -132,7 +132,12 @@ const FALLBACK_SANATORIUMS: SanatoriumCardData[] = [
     required_documents: "Pasport, sanatoriya-kurort kartasi (mavjud bo'lsa)",
     child_rules: "Barcha yoshdagi bolalar qabul qilinadi",
     rating: 4.9,
-    photos: ["/branding/wellness-retreat.png"],
+    photos: [
+      "/branding/sanatorium-default-cover.jpg",
+      "/branding/category-davolash.jpg",
+      "/branding/category-reabilitatsiya.jpg",
+      "/branding/category-wellness.jpg",
+    ],
     room_types: [
       { id: "e8a1562b-87b2-4d2a-89aa-56a8f1011111", name: "Arzon (Ekonom)", maxGuests: 2 },
       { id: "e8a1562b-87b2-4d2a-89aa-56a8f1022222", name: "Standart (2 kishilik)", maxGuests: 2 },
@@ -155,30 +160,33 @@ const FALLBACK_SANATORIUMS: SanatoriumCardData[] = [
   },
 ];
 
+const HERO_RETREAT_IMAGE = "/branding/hero-retreat.jpg";
+const DEFAULT_SANATORIUM_COVER = "/branding/sanatorium-default-cover.jpg";
+
 const CATEGORIES = [
   {
     id: "davolash",
     title: "Davolash maskanlari",
     icon: Bed,
-    image: "/branding/wellness-retreat.png",
+    image: "/branding/category-davolash.jpg",
   },
   {
     id: "bolalar",
     title: "Bolalar salomatligi",
     icon: Baby,
-    image: "/branding/welcome-retreat.png",
+    image: "/branding/category-bolalar.jpg",
   },
   {
     id: "reabilitatsiya",
     title: "Reabilitatsiya",
     icon: Activity,
-    image: "/branding/wellness-retreat.png",
+    image: "/branding/category-reabilitatsiya.jpg",
   },
   {
     id: "wellness",
     title: "Dam olish va wellness",
     icon: Sparkles,
-    image: "/branding/welcome-retreat.png",
+    image: "/branding/category-wellness.jpg",
   },
 ];
 
@@ -312,7 +320,24 @@ function safeFallbackImage(e: React.SyntheticEvent<HTMLImageElement>) {
   const img = e.currentTarget;
   if (img.dataset.fallbackApplied) return;
   img.dataset.fallbackApplied = "1";
-  img.src = "/branding/welcome-retreat.png";
+  img.src = DEFAULT_SANATORIUM_COVER;
+}
+
+function safeLogoFallback(e: React.SyntheticEvent<HTMLImageElement>) {
+  const img = e.currentTarget;
+  if (img.dataset.fallbackApplied) return;
+  img.dataset.fallbackApplied = "1";
+  img.src = "/branding/sihhat-logo.jpg";
+}
+
+function getDefaultSanatoriumPhoto(item?: SanatoriumCardData): string {
+  const text = `${item?.category || ""} ${item?.directions || ""} ${item?.name || ""}`.toLowerCase();
+  if (text.includes("bola")) return "/branding/category-bolalar.jpg";
+  if (text.includes("reabilitat")) return "/branding/category-reabilitatsiya.jpg";
+  if (text.includes("wellness") || text.includes("dam olish") || text.includes("spa")) {
+    return "/branding/category-wellness.jpg";
+  }
+  return DEFAULT_SANATORIUM_COVER;
 }
 
 /** Lazy-loaded photo with APK shimmer backdrop until decoded */
@@ -372,7 +397,7 @@ function resolvePrimaryPhoto(item: SanatoriumCardData): string {
   if (item.photo_ids && item.photo_ids.length > 0) {
     return `/api/media/${item.photo_ids[0]}`;
   }
-  return "/branding/wellness-retreat.png";
+  return getDefaultSanatoriumPhoto(item);
 }
 
 /** T6 Aurora blinking robot SVG */
@@ -1354,7 +1379,7 @@ export function LandingPage() {
                 <img
                   src="/branding/sihhat-logo.png"
                   alt="Sihhat.uz"
-                  onError={safeFallbackImage}
+                  onError={safeLogoFallback}
                 />
               </div>
             </div>
@@ -1391,7 +1416,7 @@ export function LandingPage() {
                 <img
                   src="/branding/sihhat-logo.png"
                   alt="Sihhat uz logosi"
-                  onError={safeFallbackImage}
+                  onError={safeLogoFallback}
                 />
               </div>
               <div className="l-brand-text">
@@ -1672,7 +1697,7 @@ export function LandingPage() {
             <div className="l-hero-right l-reveal" style={{ animationDelay: "0.08s" }}>
               <div className="l-neon-hero-card">
                 <img
-                  src="/branding/wellness-retreat.png"
+                  src={HERO_RETREAT_IMAGE}
                   alt="Sihhat.uz Tog' sanatoriyalari"
                   className="l-neon-hero-img"
                   onError={safeFallbackImage}
@@ -2431,7 +2456,7 @@ export function LandingPage() {
                   <img
                     src="/branding/sihhat-logo.png"
                     alt="Sihhat uz"
-                    onError={safeFallbackImage}
+                    onError={safeLogoFallback}
                     style={{
                       width: "100%",
                       height: "100%",
@@ -2606,7 +2631,7 @@ export function LandingPage() {
                 <img
                   src="/branding/sihhat-logo.png"
                   alt="Sihhat.uz APK"
-                  onError={safeFallbackImage}
+                  onError={safeLogoFallback}
                   style={{
                     width: 42,
                     height: 42,
@@ -2650,7 +2675,7 @@ export function LandingPage() {
                 <img
                   src="/branding/sihhat-logo.png"
                   alt="Sihhat uz"
-                  onError={safeFallbackImage}
+                  onError={safeLogoFallback}
                   style={{
                     width: 30,
                     height: 30,
@@ -2946,7 +2971,7 @@ export function LandingPage() {
                       : activeModal.item.photo_ids &&
                         activeModal.item.photo_ids.length > 0
                       ? activeModal.item.photo_ids.map((id) => `/api/media/${id}`)
-                      : ["/branding/wellness-retreat.png"];
+                      : [getDefaultSanatoriumPhoto(activeModal.item)];
 
                   return (
                     <div

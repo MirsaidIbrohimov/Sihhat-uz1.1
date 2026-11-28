@@ -121,7 +121,7 @@ export async function POST(req: Request) {
 
   const totalAmountTiyin = pricePerNightUzs * 100 * nights;
   const totalAmountFormatted = `${(pricePerNightUzs * nights).toLocaleString("uz-UZ")} so'm`;
-  const reference = `SH-${Date.now().toString(36).toUpperCase()}-${crypto.randomInt(1000, 10000)}`;
+  const reference = `BR-${crypto.randomInt(10000, 100000)}`;
 
   const { apiKey, deskCode, returnUrl } = getTezCheckConfig();
   if (!apiKey || !deskCode) {

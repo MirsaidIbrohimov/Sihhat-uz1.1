@@ -241,7 +241,7 @@ export class TelegramService {
         ctx.account = await this.db.telegramAccount.update({ where: { id: ctx.account.id }, data: { sanatoriumId: id === 'all' ? null : id, state: {}, stateUpdatedAt: new Date() } });
         return this.views.menu(ctx);
       }
-      case 'search': this.views.where(ctx, 'bookings.read'); await this.setState(ctx, { step: 'search' }); return this.views.page('🔎 Bron raqamini yuboring. Masalan: SH-XXXXXXXXXXXX.');
+      case 'search': this.views.where(ctx, 'bookings.read'); await this.setState(ctx, { step: 'search' }); return this.views.page('🔎 Bron raqamini yuboring. Masalan: BR-48291 (yoki 5 xonali raqamning o‘zi: 48291).');
       case 'settings': return this.views.settings(ctx);
       case 'setting': {
         if (!boolSettings.includes(id as any)) fail('BUTTON_INVALID', 'Sozlamani tanlang.', 422);

@@ -381,10 +381,24 @@ function Login({
           <div className="login-art-frame">
             <img
               className="login-illustration"
-              src="/branding/welcome-retreat.png"
-              alt=""
+              src={
+                mode === "admin"
+                  ? "/branding/login-admin-retreat.jpg"
+                  : "/branding/login-partner-retreat.jpg"
+              }
+              alt={
+                mode === "admin"
+                  ? "Sihhat.uz tog' sanatoriyalari majmuasi"
+                  : "Sihhat.uz hamkor sanatoriya maskani"
+              }
               width={560}
               height={360}
+              onError={(e) => {
+                const img = e.currentTarget;
+                if (img.dataset.fallbackApplied) return;
+                img.dataset.fallbackApplied = "1";
+                img.src = "/branding/sanatorium-default-cover.jpg";
+              }}
             />
             <div className="login-art-overlay">
               <div>

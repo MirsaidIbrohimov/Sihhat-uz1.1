@@ -118,8 +118,12 @@ export class TelegramViews {
   }
   async search(ctx: BotContext, value: string) {
     const where = this.where(ctx, 'bookings.read');
-    const reference = value.trim().toUpperCase();
-    if (!/^SH-[A-F0-9]{6,12}$/.test(reference)) return this.page('🔎 Bron raqamini SH-XXXXXXXXXXXX ko‘rinishida yuboring. Uni bron kartasidan nusxalash mumkin.', [[b('Qidirishni davom ettirish', 'search')]]);
+    const raw = value.trim().replace(/^#+\s*/, '').toUpperCase();
+    const digitsMatch = /^(?:BR[\s-]*)?(\d{5})$/.exec(raw);
+    const reference = digitsMatch ? `BR-${digitsMatch[1]}` : raw;
+    if (!/^BR-\d{5}$/.test(reference) && !/^SH-[A-F0-9]{6,12}$/.test(reference)) {
+      return this.page('🔎 Bron raqamini BR-12345 (yoki 5 xonali raqam: 12345) ko‘rinishida yuboring.', [[b('Qidirishni davom ettirish', 'search')]]);
+    }
     const x = await this.db.booking.findFirst({ where: { ...where, reference } });
     return x ? this.booking(ctx, x.id) : this.page('Bu sanatoriyada shu raqamli bron topilmadi. Raqamni tekshirib qayta qidiring.', [[b('🔎 Qayta qidirish', 'search')]]);
   }

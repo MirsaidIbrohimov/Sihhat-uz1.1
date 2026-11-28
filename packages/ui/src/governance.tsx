@@ -1101,11 +1101,17 @@ export function Profile({ id }: { id?: string }) {
               src={
                 data.photo_ids?.[0]
                   ? `/api/media/${data.photo_ids[0]}`
-                  : "/branding/welcome-retreat.png"
+                  : "/branding/sanatorium-default-cover.jpg"
               }
-              alt={data.photo_ids?.[0] ? "Sanatoriya muqovasi" : ""}
+              alt={data.photo_ids?.[0] ? "Sanatoriya muqovasi" : "Sanatoriya standart muqovasi"}
               width={230}
               height={130}
+              onError={(e) => {
+                const img = e.currentTarget;
+                if (img.dataset.fallbackApplied) return;
+                img.dataset.fallbackApplied = "1";
+                img.src = "/branding/sanatorium-default-cover.jpg";
+              }}
             />
           </section>
           <div className="tabs">
