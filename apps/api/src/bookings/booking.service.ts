@@ -1,7 +1,7 @@
-import { Inject,Injectable } from '@nestjs/common';
+import { Inject,Injectable,OnModuleInit } from '@nestjs/common';
 import { z } from 'zod';
 import { searchInput, dateFilter, matchingBookings } from './search';
-import { randomBytes } from 'node:crypto';
+import { allocateBookingReference, ensureBookingReferencesMigrated } from './booking-reference.util';
 import { Db,audit,emit,lock,type Tx } from '../common/db';
 import { fail,parse,uuid,version,reason,pageQuery,paged,json,money } from '../common/errors';
 import { CONFIG,type Config } from '../common/config';
@@ -13,8 +13,9 @@ import { expireInitialHolds } from '../inventory/inventory.service';
 export const guestInput=z.object({name:z.string().trim().min(2).max(120),phone:phoneSchema}).strict();
 export const holdInput=z.object({quote_id:uuid,accepted_policy_versions:z.array(uuid).min(1).max(10),guest:guestInput}).strict();
 @Injectable()
-export class BookingService {
+export class BookingService implements OnModuleInit {
   constructor(@Inject(Db) readonly db:Db,@Inject(PricingService) readonly pricing:PricingService,@Inject(CONFIG) readonly config:Config){}
+  async onModuleInit(){await ensureBookingReferencesMigrated(this.db as any);}
   async hold(actor:Actor,body:unknown,key:string|undefined){const i=parse(holdInput,body);return this.db.idempotent(actor.id,'booking.hold',key,i,tx=>this.allocate(tx,actor,i,false));}
   async allocate(tx:Tx,actor:Actor,i:z.infer<typeof holdInput>,manual:boolean,source='APP'){
     const q=await tx.quote.findUnique({where:{id:i.quote_id}});if(!q||q.userId!==actor.id)fail('NOT_FOUND','Narx taklifi topilmadi',404);
@@ -33,7 +34,8 @@ export class BookingService {
     }
     const req=parse(quoteInput,snapshot.request);const picked:any[]=[];const used=new Set<string>();
     for(const item of req.items){const rooms=await availableRooms(tx,s.id,item.room_type_id,new Date(req.check_in),new Date(req.check_out));const room=rooms.find(r=>!used.has(r.id));if(!room)fail('AVAILABILITY_CHANGED','Tanlangan xonalardan biri butun davr uchun band');used.add(room.id);picked.push(room);}
-    const booking=await tx.booking.create({data:{reference:`SH-${randomBytes(6).toString('hex').toUpperCase()}`,sanatoriumId:s.id,userId:manual?null:actor.id,quoteId:q.id,status:manual?'CONFIRMED':'HOLD',source,checkIn:new Date(req.check_in),checkOut:new Date(req.check_out),amount:q.amount,snapshot:json(q.data),guest:i.guest,holdExpiresAt:manual?null:new Date(Date.now()+Math.min(5,this.config.HOLD_MINUTES)*60000)}});
+    const reference=await allocateBookingReference(tx);
+    const booking=await tx.booking.create({data:{reference,sanatoriumId:s.id,userId:manual?null:actor.id,quoteId:q.id,status:manual?'CONFIRMED':'HOLD',source,checkIn:new Date(req.check_in),checkOut:new Date(req.check_out),amount:q.amount,snapshot:json(q.data),guest:i.guest,holdExpiresAt:manual?null:new Date(Date.now()+Math.min(5,this.config.HOLD_MINUTES)*60000)}});
     // Allocate the discount to items, with the final item retaining the exact remainder.
     let remaining=q.amount;const subtotal=BigInt(snapshot.subtotal_amount);
     for(let index=0;index<req.items.length;index++){const item=req.items[index];const amount=index===req.items.length-1?remaining:BigInt(snapshot.items[index].amount)*q.amount/subtotal;remaining-=amount;
